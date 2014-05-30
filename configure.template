@@ -1,6 +1,6 @@
 
 AC_PREREQ(2.69)
-AC_INIT([xde-dock],[1.1.23],[http://github.com/bbidulock/xde-dock],[xde-dock],[http://github.com/bbidulock/xdg-dock/issues])
+AC_INIT([xde-ctools],[1.1.23],[http://github.com/bbidulock/xde-ctools],[xde-ctools],[http://github.com/bbidulock/xdg-ctools/issues])
 AC_REVISION([1.1.23])
 
 AC_CONFIG_SRCDIR([src/xde-dock.c])

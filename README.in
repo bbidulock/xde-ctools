@@ -5,10 +5,11 @@
 
 Package @PACKAGE@-@VERSION@ was released under GPL license @DATE@.
 
-This is a Window Maker style dock for light-weight window managers that
-do not provide one of their own, such as icewm(1) and jwm(1).  It works
-with just about any window manager, including light-weight tiled window
-managers such as dwm(1).
+This package provides a number of "C"-language tools for working with
+the X Desktop Envionment.  Most of these tools were previously written
+in perl(1) and were part of the xde-tools package.  They have now been
+codified in "C" for speed and to provide access to libraries not
+available from perl(1).
 
 Release
 -------

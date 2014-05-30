@@ -59,6 +59,8 @@ Window root;
 Window save;
 GtkWidget *dock;
 GtkWidget *vbox;
+GdkWindow *gwin;
+Window dwin;
 int napps;
 WnckScreen *wnck;
 int screen;
@@ -224,6 +226,15 @@ Options:\n\
 }
 
 void
+relax()
+{
+	XSync(dpy, False);
+	while (gtk_events_pending())
+		if (gtk_main_iteration())
+			break;
+}
+
+void
 dock_rearrange()
 {
 	DockPosition pos;
@@ -242,7 +253,11 @@ dock_rearrange()
 	gint h = scrn->height;
 	gint d = 0;
 
+	if (options.debug)
+		fprintf(stderr, "==> REARRANGING DOCK:\n");
 	if (napps <= 0) {
+		if (options.debug)
+			fprintf(stderr, "    --> HIDING DOCK: no dock apps\n");
 		gtk_widget_hide(GTK_WIDGET(dock));
 		return;
 	}
@@ -384,32 +399,29 @@ dock_rearrange()
 		}
 		break;
 	}
-	gtk_widget_realize(GTK_WIDGET(dock));
 	if (options.debug)
-		fprintf(stderr, "--> MOVING dock to (%d,%d)\n", x, y);
-
-	GdkWindow *gwin = gtk_widget_get_window(GTK_WIDGET(dock));
+		fprintf(stderr, "    --> MOVING dock to (%d,%d)\n", x, y);
 
 	gtk_window_move(GTK_WINDOW(dock), x, y);
 	gdk_window_move(GDK_WINDOW(gwin), x, y);
+	relax();
 	gdk_window_get_geometry(GDK_WINDOW(gwin), &x, &y, &w, &h, &d);
 	if (options.debug) {
-		fprintf(stderr, "--> GEOMETRY now (%dx%d+%d+%d:%d)\n", w, h, x, y, d);
-		fprintf(stderr, "--> _NET_WM_STRUT set (%ld,%ld,%ld,%ld)\n",
+		fprintf(stderr, "    --> GEOMETRY now (%dx%d+%d+%d:%d)\n", w, h, x, y, d);
+		fprintf(stderr, "    --> _NET_WM_STRUT set (%ld,%ld,%ld,%ld)\n",
 				strut.left, strut.right, strut.top, strut.bottom);
-		fprintf(stderr, "--> _NET_WM_STRUT_PARTIAL set (%ld,%ld,%ld,%ld,%ld,%ld,%ld,%ld,%ld,%ld,%ld,%ld)\n",
+		fprintf(stderr, "    --> _NET_WM_STRUT_PARTIAL set (%ld,%ld,%ld,%ld,%ld,%ld,%ld,%ld,%ld,%ld,%ld,%ld)\n",
 				strut.left, strut.right, strut.top, strut.bottom,
 				strut.left_start_y, strut.left_end_y,
 				strut.right_start_y, strut.right_end_y,
 				strut.top_start_x, strut.top_end_x,
 				strut.bottom_start_x, strut.bottom_end_x);
 	}
-	Window dwin = GDK_WINDOW_XID(gwin);
-
 	XChangeProperty(dpy, dwin, XInternAtom(dpy, "_NET_WM_STRUT", False),
 			XA_CARDINAL, 32, PropModeReplace, (unsigned char *)&strut, 4);
 	XChangeProperty(dpy, dwin, XInternAtom(dpy, "_NET_WM_STRUT_PARTIAL", False),
 			XA_CARDINAL, 32, PropModeReplace, (unsigned char *)&strut, 12);
+	relax();
 }
 
 gboolean
@@ -418,9 +430,7 @@ on_plug_removed(GtkSocket *sock, gpointer data)
 	Client *client = (typeof(client)) data;
 
 	if (options.debug)
-		fprintf(stderr, "*** PLUG REMOVED: wind.window = 0x%lx (%ld) icon.window = 0x%ld (%ld)\n",
-				client->wind.window, client->wind.window,
-				client->icon.window, client->icon.window);
+		fprintf(stderr, "*** PLUG REMOVED: wind.window = 0x%08lx icon.window = 0x%08lx\n", client->wind.window, client->icon.window);
 	if (client->ebox) {
 		gtk_widget_destroy(GTK_WIDGET(client->ebox));
 		client->ebox = NULL;
@@ -437,23 +447,23 @@ swallow(Client * client)
 	Window icon = client->icon.window;
 	Window used;
 
-	if (client->swallowed)
+	if (client->swallowed) {
+		if (options.debug)
+			fprintf(stderr, "==> NOT SWALLOWING: wind.window 0x%08lx icon.window 0x%08lx\n", wind, icon);
 		return;
-	XSync(dpy, False);
+	}
+	relax();
 	if (options.debug)
-		fprintf(stderr,
-			"==> SWALLOWING window 0x%lx (%ld) with icon 0x%lx (%ld)!\n",
-			wind, wind, icon, icon);
+		fprintf(stderr, "==> SWALLOWING window 0x%08lx with icon 0x%08lx!\n", wind, icon);
 	if (XGetClassHint(dpy, wind, &client->ch)) {
 		if (options.debug)
-			fprintf(stderr, "--> window 0x%lx (%ld) '%s', '%s'\n",
-				wind, wind, client->ch.res_name, client->ch.res_class);
+			fprintf(stderr, "    --> window 0x%08lx '%s', '%s'\n", wind, client->ch.res_name, client->ch.res_class);
 	}
 	if (XGetCommand(dpy, client->wind.window, &client->argv, &client->argc)) {
 		if (options.debug) {
 			int i;
 
-			fprintf(stderr, "--> window 0x%lx (%ld) '", wind, wind);
+			fprintf(stderr, "    --> window 0x%08lx '", wind);
 			for (i = 0; i < client->argc; i++)
 				fprintf(stderr, "%s%s", client->argv[i],
 					(client->argc == i + 1) ? "" : "', '");
@@ -465,30 +475,18 @@ swallow(Client * client)
 		unsigned int i, nchild;
 
 		if (wind && XQueryTree(dpy, wind, &wroot, &parent, &children, &nchild)) {
-			fprintf(stderr,
-				"--> wind.window 0x%lx (%ld) has root 0x%lx (%ld)\n",
-				wind, wind, wroot, wroot);
-			fprintf(stderr,
-				"--> wind.window 0x%lx (%ld) has parent 0x%lx (%ld)\n",
-				wind, wind, parent, parent);
+			fprintf(stderr, "    --> wind.window 0x%08lx has root 0x%08lx\n", wind, wroot);
+			fprintf(stderr, "    --> wind.window 0x%08lx has parent 0x%08lx\n", wind, parent);
 			for (i = 0; i < nchild; i++)
-				fprintf(stderr,
-					"--> wind.window 0x%lx (%ld) has child 0x%lx (%ld)\n",
-					wind, wind, children[i], children[i]);
+				fprintf(stderr, "    --> wind.window 0x%08lx has child 0x%08lx\n", wind, children[i]);
 			if (children)
 				XFree(children);
 		}
 		if (icon && XQueryTree(dpy, icon, &wroot, &parent, &children, &nchild)) {
-			fprintf(stderr,
-				"--> icon.window 0x%lx (%ld) has root 0x%lx (%ld)\n",
-				icon, icon, wroot, wroot);
-			fprintf(stderr,
-				"--> icon.window 0x%lx (%ld) has parent 0x%lx (%ld)\n",
-				icon, icon, parent, parent);
+			fprintf(stderr, "    --> icon.window 0x%08lx has root 0x%08lx\n", icon, wroot);
+			fprintf(stderr, "    --> icon.window 0x%08lx has parent 0x%08lx\n", icon, parent);
 			for (i = 0; i < nchild; i++)
-				fprintf(stderr,
-					"--> icon.window 0x%lx (%ld) has child 0x%lx (%ld)\n",
-					icon, icon, children[i], children[i]);
+				fprintf(stderr, "    --> icon.window 0x%08lx has child 0x%08lx\n", icon, children[i]);
 			if (children)
 				XFree(children);
 		}
@@ -504,9 +502,7 @@ swallow(Client * client)
 				   window, we ant to reparent the toplevel and not the
 				   child. */
 				if (options.debug)
-					fprintf(stderr,
-						"::: icon.window 0x%lx (%ld) has owner 0x%lx (%ld) as parent\n",
-						icon, icon, parent, parent);
+					fprintf(stderr, "    --> icon.window 0x%08lx has owner 0x%08lx as parent\n", icon, parent);
 				used = wind;
 			} else if (parent == wroot) {
 				/* When the icon.window is its own toplevel, we might
@@ -517,9 +513,7 @@ swallow(Client * client)
 					   toplevel window, wait for it to appear on its
 					   own. */
 					if (options.debug)
-						fprintf(stderr,
-							"!!! icon.window 0x%lx (%ld) is being withdrawn\n",
-							icon, icon);
+						fprintf(stderr, "!!! icon.window 0x%08lx is being withdrawn\n", icon);
 					return;
 				}
 			} else {
@@ -527,8 +521,7 @@ swallow(Client * client)
 				   reparent.  */
 				if (options.debug)
 					fprintf(stderr,
-						"::: icon.window 0x%lx (%ld) is a child of window 0x%lx (%ld)\n",
-						icon, icon, parent, parent);
+						"    --> icon.window 0x%08lx is a child of window 0x%08lx\n", icon, parent);
 				used = icon;
 			}
 			if (children)
@@ -546,8 +539,7 @@ swallow(Client * client)
 	Window wroot;
 
 	if (!XGetGeometry(dpy, used, &wroot, &x, &y, &width, &height, &border, &depth)) {
-		fprintf(stderr, "ERROR: window 0x%lx (%ld) cannot get geometry\n", used,
-			used);
+		fprintf(stderr, "ERROR: window 0x%08lx cannot get geometry\n", used);
 		return;
 	}
 
@@ -569,18 +561,17 @@ swallow(Client * client)
 			 G_CALLBACK(on_plug_removed), (gpointer)client);
 	gtk_container_add(GTK_CONTAINER(a), GTK_WIDGET(s));
 	if (options.debug)
-		fprintf(stderr, "--> PACKING SOCKET for window 0x%lx (%ld) into dock\n",
-			used, used);
+		fprintf(stderr, "    --> PACKING SOCKET for window 0x%08lx into dock\n", used);
 	gtk_box_pack_start(GTK_BOX(vbox), GTK_WIDGET(b), FALSE, FALSE, 0);
 	napps += 1;
+	relax();
 	dock_rearrange();
 	gtk_widget_show_all(GTK_WIDGET(b));
 	gtk_widget_show_all(GTK_WIDGET(a));
 	gtk_widget_show_all(GTK_WIDGET(s));
 	gtk_widget_show_all(GTK_WIDGET(dock));
 	if (options.debug)
-		fprintf(stderr, "--> ADDING window 0x%ld (%ld) into socket\n", used,
-			used);
+		fprintf(stderr, "    --> ADDING window 0x%08lx into socket\n", used);
 	/* We might also use gtk_socket_steal() here.  I don't quite know what the
 	   difference is as both appear to behave the same; however, there is no way to
 	   add the window to Gtk2's save set, so we need to figure out how to do that.
@@ -588,12 +579,13 @@ swallow(Client * client)
 	client->wind.reparented = (used == wind) ? True : False;
 	client->icon.reparented = (used == icon) ? True : False;
 
-	if (0) {
+	if (1) {
 		gtk_socket_steal(GTK_SOCKET(s), used);
 	} else {
 		gtk_socket_add_id(GTK_SOCKET(s), used);
 	}
 	client->swallowed = True;
+	relax();
 }
 
 Bool
@@ -603,25 +595,24 @@ withdraw_window(ClientWindow * cwin)
 	unsigned int nchild = 0;
 	Bool retval = False;
 
+	if (options.debug)
+		fprintf(stderr, "==> WITHDRAWING: window 0x%08lx\n", cwin->window);
 	if (XQueryTree(dpy, cwin->window, &cwin->root, &cwin->parent, &children, &nchild)) {
 		if (options.debug)
-			fprintf(stderr,
-				"::: window 0x%lx (%ld) root 0x%lx (%ld) parent 0x%lx (%ld)\n",
-				cwin->window, cwin->window, cwin->root, cwin->root,
-				cwin->parent, cwin->parent);
+			fprintf(stderr, "    --> window 0x%08lx root 0x%08lx parent 0x%08lx\n", cwin->window, cwin->root, cwin->parent);
 		if (cwin->root && cwin->parent && (cwin->root != cwin->parent)) {
 			if (options.debug)
-				fprintf(stderr,
-					"==> DEPARENTING: window 0x%lx (%ld) from parent 0x%lx (%ld)\n",
-					cwin->window, cwin->window, cwin->parent,
-					cwin->parent);
+				fprintf(stderr, "    --> DEPARENTING: window 0x%08lx from parent 0x%08lx\n", cwin->window, cwin->parent);
 			cwin->withdrawing = True;
+			XUnmapWindow(dpy, cwin->window);
+			XWithdrawWindow(dpy, cwin->window, screen);
+			relax();
 			retval = True;
 		}
-		XWithdrawWindow(dpy, cwin->window, screen);
-		XSync(dpy, False);
 		if (children)
 			XFree(children);
+	} else {
+		fprintf(stderr, "!!! ERROR: could not query tree for window 0x%08lx\n", cwin->window);
 	}
 	return retval;
 }
@@ -637,13 +628,14 @@ test_window(Window win)
 	if (shutting_down)
 		return False;
 	if (options.debug)
-		fprintf(stderr, "--> TESTING WINDOW: window = 0x%lx (%ld)\n", win, win);
+		fprintf(stderr, "==> TESTING WINDOW: window = 0x%08lx\n", win);
+	relax();
 	if (!(wmh = XGetWMHints(dpy, win)))
 		return False;
 	if (!(wmh->flags & StateHint) || wmh->initial_state != WithdrawnState)
 		return False;
 	/* some dockapps use their main window as an icon window */
-	if (!(wmh->flags & IconWindowHint))
+	if ((wmh->flags & IconWindowHint))
 		icon = wmh->icon_window;
 	else
 		icon = None;
@@ -651,9 +643,7 @@ test_window(Window win)
 	if (icon == win)
 		icon = None;
 	if (options.debug)
-		fprintf(stderr,
-			"==> Should swallow window 0x%lx (%ld) with icon 0x%lx (%ld)!\n",
-			win, win, icon, icon);
+		fprintf(stderr, "    --> Should swallow window 0x%08lx with icon 0x%08lx!\n", win, icon);
 
 	client = calloc(1, sizeof(*client));
 	client->next = clients;
@@ -673,15 +663,15 @@ test_window(Window win)
 	client->argc = 0;
 
 	wait_wind = withdraw_window(&client->wind);
+	if (wait_wind && options.debug)
+		fprintf(stderr, "    --> WAITING for wind.window 0x%08lx to be withdrawn\n", client->wind.window);
 
-	/* A couple of problems here: some dockapps make the icon window a child of their 
-	   toplevel window, presumably so that WM's will map the child with the toplevel
-	   if it doesn't understand windows being mapped in the withdrawn state.  When
-	   the icon_window is a child of the toplevel, we do not want to steal it away
-	   from its parent because it will be reparented to root on the way out.
-	   Therefore, when the icon_window is a child of the toplevel, we do not want to
-	   withdraw it and we want to reparent only the toplevel. */
-
+	/* A couple of problems here: some dockapps make the icon window a child of their toplevel 
+	   window, presumably so that WM's will map the child with the toplevel if it doesn't
+	   understand windows being mapped in the withdrawn state.  When the icon.window is a child 
+	   of the toplevel, we do not want to steal it away from its parent because it will be
+	   reparented to root on the way out. Therefore, when the icon.window is a child of the
+	   toplevel, we do not want to withdraw it and we want to reparent only the toplevel. */ 
 	if (icon) {
 		Window wroot, parent, *children;
 		unsigned int nchild;
@@ -690,26 +680,23 @@ test_window(Window win)
 			if (children)
 				XFree(children);
 			if (options.debug)
-				fprintf(stderr,
-					"::: icon_window 0x%lx (%ld) root 0x%lx (%ld) parent 0x%lx (%ld)\n",
-					win, win, wroot, wroot, parent, parent);
+				fprintf(stderr, "    --> icon.window 0x%08lx root 0x%08lx parent 0x%08lx\n", win, wroot, parent);
 			if (parent == win) {
 				if (options.debug)
-					fprintf(stderr,
-						"::: icon_window 0x%lx (%ld) is a child of toplevel 0x%lx (%ld)\n",
-						icon, icon, win, win);
+					fprintf(stderr, "    --> icon.window 0x%08lx is a child of toplevel 0x%08lx\n", icon, win);
 			} else if (parent == wroot) {
 				if (options.debug)
-					fprintf(stderr,
-						"::: icon_window 0x%lx (%ld) is its own toplevel\n",
-						icon, icon);
-				withdraw_window(&client->icon);
+					fprintf(stderr, "    --> icon.window 0x%08lx is its own toplevel\n", icon);
+				wait_icon = withdraw_window(&client->icon);
+				if (wait_icon && options.debug)
+					fprintf(stderr, "    --> WAITING for icon.window 0x%08lx to be withdrawn\n", client->icon.window);
 			}
 
 		}
 	}
 	if (!wait_wind && !wait_icon)
 		swallow(client);
+	relax();
 	return True;
 }
 
@@ -731,6 +718,10 @@ search_kids(Window win)
 	Window wroot = None, parent = None, *children = NULL;
 	unsigned int i, nchild = 0;
 
+	if (win == dwin || win == save)
+		return;
+
+	relax();
 	if (XQueryTree(dpy, win, &wroot, &parent, &children, &nchild)) {
 		for (i = 0; i < nchild; i++)
 			search_window(children[i]);
@@ -765,6 +756,9 @@ create_dock()
 	gtk_widget_set_size_request(GTK_WIDGET(vbox), 64, -1);
 	gtk_container_add(GTK_CONTAINER(dock), GTK_WIDGET(vbox));
 	gtk_widget_realize(GTK_WIDGET(dock));
+	gwin = gtk_widget_get_window(GTK_WIDGET(dock));
+	dwin = GDK_WINDOW_XID(gwin);
+
 	find_dockapps();
 }
 
@@ -779,7 +773,7 @@ handler(Display *display, XErrorEvent * xev)
 		XGetErrorDatabaseText(dpy, "xdg-setwm", num, def, req, sizeof(req));
 		if (XGetErrorText(dpy, xev->error_code, msg, sizeof(msg)) != Success)
 			msg[0] = '\0';
-		fprintf(stderr, "X error %s(0x%lx): %s\n", req, xev->resourceid, msg);
+		fprintf(stderr, "X error %s(0x%08lx): %s\n", req, xev->resourceid, msg);
 	}
 	return (0);
 }
@@ -787,55 +781,70 @@ handler(Display *display, XErrorEvent * xev)
 void
 event_handler_CreateNotify(XEvent  *xev)
 {
+	if (options.debug)
+		fprintf(stderr, "==> CreateNotify: window=0x%08lx\n", xev->xany.window);
 	return;
 }
 
 void
 event_handler_DestroyNotify(XEvent *xev)
 {
+	if (options.debug)
+		fprintf(stderr, "==> DestroyNotify: window=0x%08lx\n", xev->xany.window);
 	return;
 }
 
 void
-event_handler_ReparentNotify(XEvent *xev)
+event_handler_ReparentNotify(XEvent * xev)
 {
 	XReparentEvent *xre = (typeof(xre)) xev;
 	Client *c = NULL;
 
 	if (options.debug)
-		fprintf(stderr,
-			"::: ReparentNotify: event=0x%lx window=0x%lx parent=0x%lx\n",
+		fprintf(stderr, "==> ReparentNotify: event=0x%08lx window=0x%08lx parent=0x%08lx\n",
 			xre->event, xre->window, xre->parent);
-	if (xre->override_redirect)
+	if (xre->override_redirect) {
+		if (options.debug)
+			fprintf(stderr,
+				"^^^ ReparentNotify: ignoring override-redirect window 0x%08lx\n",
+				xre->window);
 		return;
-	if (shutting_down)
+	}
+	if (shutting_down) {
+		if (options.debug)
+			fprintf(stderr,
+				"^^^ ReparentNOtify: ignoring window 0x%08lx while shutting down\n",
+				xre->window);
 		return;
+	}
 
-	XFindContext(dpy, xre->window, ClientContext, (XPointer *) &c);
+	XFindContext(dpy, xre->window, ClientContext, (XPointer *) & c);
 
 	if (xre->parent == root) {
 		Window win = None;
 
 		/* window was parented back to the root window */
+		if (options.debug)
+			fprintf(stderr,
+				"    --> ReparentNotify: window 0x%08lx reparented to root window 0x%08lx\n",
+				xre->window, xre->parent);
 		if (c) {
 			if (xre->window == c->wind.window) {
 				if (options.debug)
 					fprintf(stderr,
-						"::: RESTORED dockapp 0x%lx (%ld) from parent 0x%lx (%ld)\n",
-						xre->window, xre->window, c->wind.parent,
-						c->wind.parent);
+						"::: RESTORED dockapp 0x%08lx from parent 0x%08lx\n",
+						xre->window, c->wind.parent);
 				if (c->wind.withdrawing) {
+					c->wind.withdrawing = False;
 					c->wind.needsremap = True;
 					if (options.debug)
-						fprintf(stderr,
-							"::: ACQUIRED: dockapp = 0x%lx (%ld)\n",
-							c->wind.window, c->wind.window);
+						fprintf(stderr, "::: ACQUIRED: dockapp = 0x%08lx\n",
+							c->wind.window);
 					win = c->wind.window;
 					if (c->icon.withdrawing) {
 						if (options.debug)
 							fprintf(stderr,
-								"... WAITING: iconwin = 0x%lx (%ld)\n",
-								c->icon.window,
+								"... WAITING: iconwin = 0x%08lx\n",
 								c->icon.window);
 						win = None;
 					}
@@ -844,45 +853,50 @@ event_handler_ReparentNotify(XEvent *xev)
 			} else if (xre->window == c->icon.window) {
 				if (options.debug)
 					fprintf(stderr,
-						"::: RESTORED iconwin 0x%lx (%ld) from parent 0x%lx (%ld)\n",
-						xre->window, xre->window, c->icon.parent,
-						c->icon.parent);
+						"::: RESTORED iconwin 0x%08lx from parent 0x%08lx\n",
+						xre->window, c->icon.parent);
 				if (c->icon.withdrawing) {
+					c->icon.withdrawing = False;
 					c->icon.needsremap = True;
 					if (options.debug)
-						fprintf(stderr,
-							"::: ACQUIRED: iconwin = 0x%lx (%ld)\n",
-							c->icon.window, c->icon.window);
+						fprintf(stderr, "::: ACQUIRED: iconwin = 0x%08lx\n",
+							c->icon.window);
 					win = c->icon.window;
 					if (c->wind.withdrawing) {
 						if (options.debug)
 							fprintf(stderr,
-								"... WAITING: dockapp = 0x%lx (%ld)\n",
-								c->wind.window,
+								"... WAITING: dockapp = 0x%08lx\n",
 								c->wind.window);
 						win = None;
 					}
 				}
 			}
+		} else {
+			if (options.debug)
+				fprintf(stderr,
+					"    --> ReparentNotify: window 0x%08lx is unknown window\n",
+					xre->window);
 		}
 		if (win) {
 			if (options.debug)
 				fprintf(stderr,
-					"==> REPARENTING: window 0x%lx (%ld) to internal 0x%ld (%ld)\n",
-					c->wind.window, c->wind.window, save, save);
+					"    --> ReparentNotify: REPARENTING: window 0x%08lx to internal 0x%08lx\n",
+					c->wind.window, save);
 			XAddToSaveSet(dpy, win);
 			XReparentWindow(dpy, win, save, 0, 0);
+			/* Remap the window under the new parent so that it will map itself when
+			   reparented to root. */
 			XMapWindow(dpy, win);
-			XSync(dpy, False);
+			relax();
 			swallow(c);
-			if (1) {
+			if (0) {
 				XDestroyWindowEvent xev;
 
 				if (c->wind.window) {
 					if (options.debug)
 						fprintf(stderr,
-							"*** DESTROYING: dockapp 0x%lx (%ld)\n",
-							c->wind.window, c->wind.window);
+							"    --> ReparentNotify: DESTROYING: dockapp 0x%08lx\n",
+							c->wind.window);
 					xev.type = DestroyNotify;
 					xev.serial = 0;
 					xev.send_event = False;
@@ -890,13 +904,13 @@ event_handler_ReparentNotify(XEvent *xev)
 					xev.event = root;
 					xev.window = c->wind.window;
 					XSendEvent(dpy, root, False, SubstructureNotifyMask
-						   | SubstructureRedirectMask, (XEvent *)&xev);
+						   | SubstructureRedirectMask, (XEvent *) & xev);
 				}
 				if (c->icon.window) {
 					if (options.debug)
 						fprintf(stderr,
-							"*** DESTROYING: iconwin 0x%lx (%ld)\n",
-							c->icon.window, c->icon.window);
+							"    --> ReparentNotify: DESTROYING: iconwin 0x%08lx\n",
+							c->icon.window);
 					xev.type = DestroyNotify;
 					xev.serial = 0;
 					xev.send_event = False;
@@ -904,20 +918,28 @@ event_handler_ReparentNotify(XEvent *xev)
 					xev.event = root;
 					xev.window = c->icon.window;
 					XSendEvent(dpy, root, False, SubstructureNotifyMask
-						   | SubstructureRedirectMask, (XEvent *)&xev);
+						   | SubstructureRedirectMask, (XEvent *) & xev);
 				}
-				XSync(dpy, False);
+				relax();
 			}
-			/* Remap the window under the new parent so that it will map itself
-			 * when reparented to root. */
-			XMapWindow(dpy, win);
 		}
 	} else {
 		/* Window was reparented away from the root window. */
+		if (options.debug)
+			fprintf(stderr,
+				"    --> ReparentNotify: window 0x%08lx reparented away from root\n",
+				xre->window);
 		if (!c) {
-			/* and it wasn't just us, test this window to see if it can be
-			   ours */
+			if (options.debug)
+				fprintf(stderr, "    --> ReparentNotify: window 0x%08lx needs testing\n",
+					xre->window);
+			/* and it wasn't just us, test this window to see if it can be ours */
 			test_window(xre->window);
+		} else {
+			if (options.debug)
+				fprintf(stderr,
+					"    --> ReparentNotify: window 0x%08lx was probably reparented by us\n",
+					xre->window);
 		}
 	}
 }
@@ -925,6 +947,8 @@ event_handler_ReparentNotify(XEvent *xev)
 void
 event_handler_UnmapNotify(XEvent *xev)
 {
+	if (options.debug)
+		fprintf(stderr, "==> UnmapNotify: window=0x%08lx\n", xev->xany.window);
 	return;
 }
 
@@ -933,6 +957,8 @@ event_handler_MapNotify(XEvent *xev)
 {
 	Client *c;
 
+	if (options.debug)
+		fprintf(stderr, "==> MapNotify: window=0x%08lx\n", xev->xany.window);
 	if (shutting_down)
 		return;
 	if (XFindContext(dpy, xev->xany.window, ClientContext, (XPointer *) &c))
@@ -943,6 +969,8 @@ event_handler_MapNotify(XEvent *xev)
 void
 event_handler_PropertyNotify(XEvent *xev)
 {
+	if (options.debug)
+		fprintf(stderr, "==> PropertyNotify: window=0x%08lx\n", xev->xany.window);
 	return;
 }
 
@@ -995,6 +1023,34 @@ on_watch(GIOChannel * chan, GIOCondition cond, gpointer data)
 	return TRUE; /* keep event source */
 }
 
+void
+on_int_signal(int signum)
+{
+	shutting_down = True;
+	gtk_main_quit();
+}
+
+void
+on_hup_signal(int signum)
+{
+	shutting_down = True;
+	gtk_main_quit();
+}
+
+void
+on_term_signal(int signum)
+{
+	shutting_down = True;
+	gtk_main_quit();
+}
+
+void
+on_quit_signal(int signum)
+{
+	shutting_down = True;
+	gtk_main_quit();
+}
+
 int
 runit(int argc, char *argv[])
 {
@@ -1003,6 +1059,11 @@ runit(int argc, char *argv[])
 	gint srce;
 
 	gtk_init(&argc, &argv);
+
+	signal(SIGINT, on_int_signal);
+	signal(SIGHUP, on_hup_signal);
+	signal(SIGTERM, on_term_signal);
+	signal(SIGQUIT, on_quit_signal);
 
 	ClientContext = XUniqueContext();
 
@@ -1019,7 +1080,7 @@ runit(int argc, char *argv[])
 	XSetErrorHandler(handler);
 	screen = DefaultScreen(dpy);
 	root = RootWindow(dpy, screen);
-	XSelectInput(dpy, root, PropertyChangeMask | SubstructureNotifyMask);
+	XSelectInput(dpy, root, PropertyChangeMask | StructureNotifyMask | SubstructureNotifyMask);
 	save = XCreateSimpleWindow(dpy, root, -1, -1, 1, 1, 0,
 			BlackPixel(dpy, screen), BlackPixel(dpy, screen));
 
