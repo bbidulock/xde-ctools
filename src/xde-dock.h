@@ -92,6 +92,10 @@
 #define SN_API_NOT_YET_FROZEN
 #include <libsn/sn.h>
 #endif
+#include <gtk/gtk.h>
+#include <gdk/gdkx.h>
+#define WNCK_I_KNOW_THIS_IS_UNSTABLE
+#include <libwnck/libwnck.h>
 
 #endif				/* __XDE_DOCK_H__ */
 
