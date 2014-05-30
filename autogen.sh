@@ -8,7 +8,7 @@ if [ -z "$VERSION" ]; then
 	VERSION='1.1'
 	if [ -x "`which git 2>/dev/null`" -a -d .git ]; then
 		DATE=$(git log --date=iso|grep '^Date:'|head -1|awk '{print$2}')
-		VERSION=$(git describe|sed 's,[-_],.,g;s,\.g.*$,,')
+		VERSION=$(git describe --tags|sed 's,[-_],.,g;s,\.g.*$,,')
 		(
 		   echo -e "# created with git log --stat=76 -M -C|fmt -sct -w80\n"
 		   git log --stat=76 -M -C|fmt -sct -w80
