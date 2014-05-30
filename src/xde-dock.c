@@ -490,7 +490,7 @@ swallow(Client * c)
 				XFree(children);
 		}
 	}
-	if (c->icon.window || (c->icon.parent == c->wind.window)) {
+	if (!c->icon.window || (c->icon.parent == c->wind.window)) {
 		if (options.debug)
 			fprintf(stderr, "    --> REPARENTING: wind.window 0x%08lx to socket\n", c->wind.window);
 		cwin = &c->wind;
@@ -805,16 +805,30 @@ handler(Display *display, XErrorEvent * xev)
 void
 event_handler_CreateNotify(XEvent  *xev)
 {
-	if (options.debug)
-		fprintf(stderr, "==> CreateNotify: window=0x%08lx\n", xev->xany.window);
+	if (options.debug) {
+		fprintf(stderr, "==> CreateNotify:\n");
+		fprintf(stderr, "    --> parent = 0x%08lx\n", xev->xcreatewindow.parent);
+		fprintf(stderr, "    --> window = 0x%08lx\n", xev->xcreatewindow.window);
+		fprintf(stderr, "    --> x = %d\n", xev->xcreatewindow.x);
+		fprintf(stderr, "    --> y = %d\n", xev->xcreatewindow.y);
+		fprintf(stderr, "    --> width = %d\n", xev->xcreatewindow.width);
+		fprintf(stderr, "    --> height = %d\n", xev->xcreatewindow.height);
+		fprintf(stderr, "    --> border-width = %d\n", xev->xcreatewindow.border_width);
+		fprintf(stderr, "    --> override-redirect = %s\n", (xev->xcreatewindow.override_redirect) ? "True" : "False");
+		fprintf(stderr, "<== CreateNotify:\n");
+	}
 	return;
 }
 
 void
 event_handler_DestroyNotify(XEvent *xev)
 {
-	if (options.debug)
-		fprintf(stderr, "==> DestroyNotify: window=0x%08lx\n", xev->xany.window);
+	if (options.debug) {
+		fprintf(stderr, "==> DestroyNotify:\n");
+		fprintf(stderr, "    --> event = 0x%08lx\n", xev->xdestroywindow.event);
+		fprintf(stderr, "    --> window = 0x%08lx\n", xev->xdestroywindow.window);
+		fprintf(stderr, "<== DestroyNotify:\n");
+	}
 	return;
 }
 
@@ -918,8 +932,13 @@ event_handler_ReparentNotify(XEvent *xev)
 void
 event_handler_UnmapNotify(XEvent *xev)
 {
-	if (options.debug)
-		fprintf(stderr, "==> UnmapNotify: window=0x%08lx\n", xev->xany.window);
+	if (options.debug) {
+		fprintf(stderr, "==> UnmapNotify:\n");
+		fprintf(stderr, "    --> event = 0x%08lx\n", xev->xunmap.event);
+		fprintf(stderr, "    --> window = 0x%08lx\n", xev->xunmap.window);
+		fprintf(stderr, "    --> from-configure = %s\n", xev->xunmap.from_configure ? "True" : "False");
+		fprintf(stderr, "<== UnmapNotify:\n");
+	}
 	return;
 }
 
@@ -928,8 +947,13 @@ event_handler_MapNotify(XEvent *xev)
 {
 	Client *c;
 
-	if (options.debug)
-		fprintf(stderr, "==> MapNotify: window=0x%08lx\n", xev->xany.window);
+	if (options.debug) {
+		fprintf(stderr, "==> MapNotify:\n");
+		fprintf(stderr, "    --> event = 0x%08lx\n", xev->xmap.event);
+		fprintf(stderr, "    --> window = 0x%08lx\n", xev->xmap.window);
+		fprintf(stderr, "    --> override-redirect = %s\n", xev->xmap.override_redirect ?  "True" : "False");
+		fprintf(stderr, "<== MapNotify:\n");
+	}
 	if (shutting_down)
 		return;
 	if (XFindContext(dpy, xev->xany.window, ClientContext, (XPointer *) &c))
