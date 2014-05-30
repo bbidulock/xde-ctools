@@ -1,6 +1,6 @@
 #!/bin/bash
 
-PACKAGE=xde-dock
+PACKAGE=xde-ctools
 VERSION=
 DATE="`date -uI`"
 

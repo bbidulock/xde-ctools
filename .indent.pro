@@ -7,8 +7,8 @@
 -sob
 -bbo
 -ncdb
--l90
--lc90
+-l160
+-lc100
 -i8
 -ip8
 -cli0
