@@ -82,6 +82,8 @@ typedef enum {
 	DockDirectionHorizontal,
 } DockDirection;
 
+#define XDE_DOCK_DONT_WAIT 1
+
 typedef struct {
 	Window window;
 	Bool withdrawing;
@@ -100,22 +102,34 @@ typedef struct _Client {
 	char **argv;
 	int argc;
 	GtkWidget *ebox;
+	int retries;
+	Window plugged;
 } Client;
 
 Client *clients;
 
 XContext ClientContext;
 
+typedef enum {
+	DockAppTestMine,
+	DockAppTestFlipse,
+	DockAppTestBlackbox,
+	DockAppTestFluxbox,
+	DockAppTestOpenbox,
+} DockAppTest;
+
 struct Options {
 	int debug;
 	int output;
 	DockPosition position;
 	DockDirection direction;
+	DockAppTest test;
 } options = {
 	.debug = 0,
 	.output = 1,
 	.position = DockPositionEast,
 	.direction = DockDirectionVertical,
+	.test = DockAppTestMine,
 };
 
 static void
@@ -419,19 +433,32 @@ dock_rearrange()
 	relax();
 }
 
+void add_dockapp(Client * c, ClientWindow * cwin);
+
 gboolean
-on_plug_removed(GtkSocket *sock, gpointer data)
+on_plug_removed(GtkSocket * s, gpointer data)
 {
-	Client *client = (typeof(client)) data;
+	Client *c = (typeof(c)) data;
 
 	if (options.debug)
-		fprintf(stderr, "*** PLUG REMOVED: wind.window = 0x%08lx icon.window = 0x%08lx\n", client->wind.window, client->icon.window);
-	if (client->ebox) {
-		gtk_widget_destroy(GTK_WIDGET(client->ebox));
-		client->ebox = NULL;
+		fprintf(stderr, "*** PLUG REMOVED: wind.window = 0x%08lx icon.window = 0x%08lx\n", c->wind.window, c->icon.window);
+	if (c->ebox) {
+		gtk_widget_destroy(GTK_WIDGET(c->ebox));
+		c->ebox = NULL;
+		c->swallowed = False;
 		napps -= 1;
+		if (c->plugged && c->retries++ < 5) {
+			if (c->plugged == c->wind.window) {
+				add_dockapp(c, &c->wind);
+			} else {
+				add_dockapp(c, &c->icon);
+			}
+		} else {
+			c->plugged = None;
+			c->retries = 0;
+			dock_rearrange();
+		}
 	}
-	dock_rearrange();
 	return FALSE;
 }
 
@@ -495,11 +522,17 @@ swallow(Client * c)
 			fprintf(stderr, "    --> REPARENTING: wind.window 0x%08lx to socket\n", c->wind.window);
 		cwin = &c->wind;
 	} else {
+#ifdef XDE_DOCK_DONT_WAIT
+		XUnmapWindow(dpy, c->wind.window);
+		relax();
+		relax();
+#else
 		if (options.debug)
 			fprintf(stderr, "    --> REPARENTING: wind.window 0x%08lx to save 0x%08lx\n", c->wind.window, save);
 		XAddToSaveSet(dpy, c->wind.window);
 		XReparentWindow(dpy, c->wind.window, save, 0, 0);
 		XMapWindow(dpy, c->wind.window);
+#endif
 		if (options.debug)
 			fprintf(stderr, "    --> REPARENTING: icon.window 0x%08lx to socket\n", c->icon.window);
 		cwin = &c->icon;
@@ -508,6 +541,13 @@ swallow(Client * c)
 	cwin->mapped = True;
 
 	/* Now we can actually swallow the dock app. */
+
+	add_dockapp(c, cwin);
+}
+
+void
+add_dockapp(Client * c, ClientWindow * cwin)
+{
 
 	int tpad, bpad, lpad, rpad;
 	int x, y;
@@ -553,12 +593,16 @@ swallow(Client * c)
 
 	cwin->reparented = True;
 
-	if (1) {
-		gtk_socket_steal(GTK_SOCKET(s), cwin->window);
-	} else {
-		gtk_socket_add_id(GTK_SOCKET(s), cwin->window);
-	}
+	c->plugged = cwin->window;
 	c->swallowed = True;
+
+	relax();
+	relax();
+	if (0) {
+		gtk_socket_steal(GTK_SOCKET(s), c->plugged);
+	} else {
+		gtk_socket_add_id(GTK_SOCKET(s), c->plugged);
+	}
 
 	relax();
 }
@@ -593,7 +637,7 @@ withdraw_window(ClientWindow * cwin)
 }
 
 void
-withdraw_client(Client *c)
+withdraw_client(Client * c)
 {
 	if (options.debug)
 		fprintf(stderr, "==> WITHDRAWING: window 0x%08lx\n", c->wind.window);
@@ -602,41 +646,131 @@ withdraw_client(Client *c)
 	XUnmapWindow(dpy, c->wind.window);
 	XWithdrawWindow(dpy, c->wind.window, screen);
 	if (1) {
-		XEvent ev;
-
-		/* mimic destruction for window managers that are not ICCCM 2.0 compliant */
 		if (c->icon.window && c->icon.parent != c->wind.window) {
+			XEvent ev;
+
 			ev.xdestroywindow.type = DestroyNotify;
 			ev.xdestroywindow.serial = 0;
 			ev.xdestroywindow.send_event = False;
 			ev.xdestroywindow.display = dpy;
-			ev.xdestroywindow.event = c->icon.parent;
 			ev.xdestroywindow.window = c->icon.window;
-			if (options.debug)
-				fprintf(stderr, "    --> DestroyNotify: event=0x%08lx window=0x%08lx\n", c->icon.parent, c->icon.window);
-			XSendEvent(dpy, c->icon.root, False, SubstructureNotifyMask | SubstructureRedirectMask, &ev);
-			ev.xdestroywindow.event = c->icon.window;
-			if (options.debug)
-				fprintf(stderr, "    --> DestroyNotify: event=0x%08lx window=0x%08lx\n", c->icon.window, c->icon.window);
-			XSendEvent(dpy, c->icon.root, False, StructureNotifyMask, &ev);
+			if (1) {
+				ev.xdestroywindow.event = c->icon.parent;
+				if (options.debug)
+					fprintf(stderr, "    --> DestroyNotify: event=0x%08lx window=0x%08lx\n", c->icon.parent, c->icon.window);
+				XSendEvent(dpy, c->icon.parent, False, SubstructureNotifyMask | SubstructureRedirectMask, &ev);
+			}
+			if (0) {
+				ev.xdestroywindow.event = c->icon.window;
+				if (options.debug)
+					fprintf(stderr, "    --> DestroyNotify: event=0x%08lx window=0x%08lx\n", c->icon.window, c->icon.window);
+				XSendEvent(dpy, c->icon.window, False, StructureNotifyMask, &ev);
+			}
 		}
+	}
+	if (1) {
+		/* mimic destruction for window managers that are not ICCCM 2.0 compliant */
+		/* do the primary window first */
 		if (c->wind.window) {
+			XEvent ev;
+
 			ev.xdestroywindow.type = DestroyNotify;
 			ev.xdestroywindow.serial = 0;
 			ev.xdestroywindow.send_event = False;
 			ev.xdestroywindow.display = dpy;
-			ev.xdestroywindow.event = c->wind.parent;
 			ev.xdestroywindow.window = c->wind.window;
-			if (options.debug)
-				fprintf(stderr, "    --> DestroyNotify: event=0x%08lx window=0x%08lx\n", c->wind.parent, c->wind.window);
-			XSendEvent(dpy, c->icon.root, False, SubstructureNotifyMask | SubstructureRedirectMask, &ev);
-			ev.xdestroywindow.event = c->wind.window;
-			if (options.debug)
-				fprintf(stderr, "    --> DestroyNotify: event=0x%08lx window=0x%08lx\n", c->wind.window, c->wind.window);
-			XSendEvent(dpy, c->icon.root, False, StructureNotifyMask, &ev);
+			if (1) {
+				ev.xdestroywindow.event = c->wind.parent;
+				if (options.debug)
+					fprintf(stderr, "    --> DestroyNotify: event=0x%08lx window=0x%08lx\n", c->wind.parent, c->wind.window);
+				XSendEvent(dpy, c->wind.parent, False, SubstructureNotifyMask | SubstructureRedirectMask, &ev);
+			}
+			if (1) {
+				ev.xdestroywindow.event = c->wind.window;
+				if (options.debug)
+					fprintf(stderr, "    --> DestroyNotify: event=0x%08lx window=0x%08lx\n", c->wind.window, c->wind.window);
+				XSendEvent(dpy, c->wind.window, False, StructureNotifyMask, &ev);
+			}
 		}
 	}
 	relax();
+}
+
+XWMHints *
+is_dockapp(Window win)
+{
+	XWMHints *wmh;
+
+	if ((wmh = XGetWMHints(dpy, win))) {
+		switch (options.test) {
+		case DockAppTestMine:
+			/* Many libxpm based dockapps use xlib to set the state hint correctly. */
+			if ((wmh->flags & StateHint) && wmh->initial_state == WithdrawnState)
+				return (wmh);
+			/* Many docapps that were based on GTK+ < 2.4.0 are having their
+			   initial_state changed to NormalState by GTK+ >= 2.4.0, so when the other
+			   flags are set, accept it anyway */
+			if (wmh->initial_state == WithdrawnState || wmh->flags == (WindowGroupHint | StateHint | IconWindowHint))
+				return (wmh);
+			/* In an attempt to get around GTK+ >= 2.4.0 limitations, some GTK+ dock
+			   apps simply set the res_class to "DockApp". */
+			{
+				XClassHint ch = { NULL, NULL };
+
+				if (XGetClassHint(dpy, win, &ch)) {
+					if (ch.res_class) {
+						if (strcmp(ch.res_class, "DockApp") == 0) {
+							if (ch.res_name)
+								XFree(ch.res_name);
+							XFree(ch.res_class);
+							return (wmh);
+						}
+						XFree(ch.res_class);
+					}
+					if (ch.res_name)
+						XFree(ch.res_name);
+				}
+			}
+			break;
+		case DockAppTestBlackbox:
+		case DockAppTestFluxbox:
+			if ((wmh->flags & StateHint) && wmh->initial_state == WithdrawnState)
+				return (wmh);
+			break;
+		case DockAppTestFlipse:
+			/* The flipse approach: strange, but StateHint not checked first; so, this
+			   translates to the following conditions: (1) initial_state not set, or,
+			   (2) initial_state set to WithdrawnState, or, (3), exactly group, state
+			   and icon-window hints set. */
+			if (wmh->initial_state == WithdrawnState || wmh->flags == (WindowGroupHint | StateHint | IconWindowHint))
+				return (wmh);
+			break;
+		case DockAppTestOpenbox:
+			if ((wmh->flags & StateHint) && wmh->initial_state == WithdrawnState)
+				return (wmh);
+			{
+				XClassHint ch = { NULL, NULL };
+
+				if (XGetClassHint(dpy, win, &ch)) {
+					if (ch.res_class) {
+						if (strcmp(ch.res_class, "DockApp") == 0) {
+							if (ch.res_name)
+								XFree(ch.res_name);
+							XFree(ch.res_class);
+							return (wmh);
+						}
+						XFree(ch.res_class);
+					}
+					if (ch.res_name)
+						XFree(ch.res_name);
+				}
+			}
+			break;
+		}
+		XFree(wmh);
+		wmh = NULL;
+	}
+	return (wmh);
 }
 
 Bool
@@ -645,19 +779,21 @@ test_window(Window wind)
 	Window icon;
 	XWMHints *wmh;
 	Client *client;
-	Bool need_withdraw = False;
 	Window *children;
 	unsigned int nchild;
+
+#ifndef XDE_DOCK_DONT_WAIT
+	Bool need_withdraw = False;
+#endif
 
 	if (shutting_down)
 		return False;
 	if (options.debug)
 		fprintf(stderr, "==> TESTING WINDOW: window = 0x%08lx\n", wind);
 	relax();
-	if (!(wmh = XGetWMHints(dpy, wind)))
+	if (!(wmh = is_dockapp(wind)))
 		return False;
-	if (!(wmh->flags & StateHint) || wmh->initial_state != WithdrawnState)
-		return False;
+
 	/* some dockapps use their main window as an icon window */
 	if ((wmh->flags & IconWindowHint))
 		icon = wmh->icon_window;
@@ -689,17 +825,20 @@ test_window(Window wind)
 	if (wind && XQueryTree(dpy, wind, &client->wind.root, &client->wind.parent, &children, &nchild)) {
 		if (children)
 			XFree(children);
+#ifndef XDE_DOCK_DONT_WAIT
 		if (client->wind.parent != client->wind.root) {
 			if (options.debug)
-				fprintf(stderr, "    --> WITHDRAW REQUIRED: wind.window 0x%08lx is not toplevel (child of 0x%08lx)\n",
-					client->wind.window, client->wind.parent);
+				fprintf(stderr, "    --> WITHDRAW REQUIRED: wind.window 0x%08lx is not toplevel (child of 0x%08lx)\n", client->wind.window,
+					client->wind.parent);
 			need_withdraw = True;
 			client->wind.withdrawing = True;
 		}
+#endif
 	}
 	if (icon && XQueryTree(dpy, icon, &client->icon.root, &client->icon.parent, &children, &nchild)) {
 		if (children)
 			XFree(children);
+#ifndef XDE_DOCK_DONT_WAIT
 		if (client->icon.parent != client->icon.root) {
 			if (client->icon.parent != client->wind.window) {
 				if (options.debug)
@@ -709,16 +848,18 @@ test_window(Window wind)
 				client->icon.withdrawing = True;
 			}
 		}
+#endif
 	}
 	/* Some window managers leave the wind.window mapped as a toplevel (offscreen) and just
 	   reparent the icon.window; however, it takes a withdraw request for the toplevel
 	   wind.window to cause the icon.window to be reparented (and unmapped). */
 
-	if (need_withdraw)
+#ifndef XDE_DOCK_DONT_WAIT
+	if (need_withdraw) {
 		withdraw_client(client);
-	else {
+	} else
+#endif
 		swallow(client);
-	}
 
 	relax();
 	return True;
@@ -925,6 +1066,8 @@ event_handler_ReparentNotify(XEvent *xev)
 			if (options.debug)
 				fprintf(stderr, "    --> ReparentNotify: window 0x%08lx reparented to 0x%08lx\n", xre->window, xre->parent);
 		}
+		if (options.debug)
+			fprintf(stderr, "    --> ReparentNotify: CALLING TEST WINDOW: window = 0x%08lx\n", xre->window);
 		test_window(xre->window);
 	}
 }
@@ -956,8 +1099,11 @@ event_handler_MapNotify(XEvent *xev)
 	}
 	if (shutting_down)
 		return;
-	if (XFindContext(dpy, xev->xany.window, ClientContext, (XPointer *) &c))
-		test_window(xev->xany.window);
+	if (XFindContext(dpy, xev->xany.window, ClientContext, (XPointer *) &c)) {
+		if (options.debug)
+			fprintf(stderr, "    --> MapNotify: CALLING TEST WINDOW: window = 0x%08lx\n", xev->xmap.window);
+		test_window(xev->xmap.window);
+	}
 	return;
 }
 
@@ -999,6 +1145,18 @@ on_window_opened(WnckScreen *wscreen, WnckWindow *win, gpointer data)
 {
 }
 
+void
+handle_events()
+{
+	XEvent ev;
+
+	XSync(dpy, False);
+	while (XPending(dpy) && !shutting_down) {
+		XNextEvent(dpy, &ev);
+		handle_event(&ev);
+	}
+}
+
 gboolean
 on_watch(GIOChannel * chan, GIOCondition cond, gpointer data)
 {
@@ -1007,13 +1165,8 @@ on_watch(GIOChannel * chan, GIOCondition cond, gpointer data)
 			(cond & G_IO_NVAL) ? "NVAL" : "", (cond & G_IO_HUP) ? "HUP" : "",
 			(cond & G_IO_ERR) ? "ERR" : "");
 		exit(EXIT_FAILURE);
-	} else if (cond & (G_IO_IN)) {
-		XEvent ev;
-
-		while (XPending(dpy) && !shutting_down) {
-			XNextEvent(dpy, &ev);
-			handle_event(&ev);
-		}
+	} else if (cond & (G_IO_IN | G_IO_PRI)) {
+		handle_events();
 	}
 	return TRUE; /* keep event source */
 }
@@ -1046,6 +1199,12 @@ on_quit_signal(int signum)
 	gtk_main_quit();
 }
 
+void
+event_handler(GdkEvent *event, gpointer data)
+{
+	gtk_main_do_event(event);
+}
+
 int
 runit(int argc, char *argv[])
 {
@@ -1062,6 +1221,7 @@ runit(int argc, char *argv[])
 
 	ClientContext = XUniqueContext();
 
+#if 1
 	if (!(dpy = XOpenDisplay(0))) {
 		fprintf(stderr, "%s: %s\n", argv[0], "cannot open display");
 		exit(127);
@@ -1069,13 +1229,21 @@ runit(int argc, char *argv[])
 
 	xfd = ConnectionNumber(dpy);
 	chan = g_io_channel_unix_new(xfd);
-	srce = g_io_add_watch(chan, G_IO_IN|G_IO_ERR|G_IO_HUP, on_watch, (gpointer) 0);
+	srce = g_io_add_watch(chan, G_IO_IN|G_IO_ERR|G_IO_HUP|G_IO_PRI, on_watch, (gpointer) 0);
 	(void) srce;
 
 	XSetErrorHandler(handler);
 	screen = DefaultScreen(dpy);
 	root = RootWindow(dpy, screen);
+#else
+	gdk_event_handler_set(event_handler, (gpointer)NULL, NULL);
+	dpy = gdk_x11_get_default_xdisplay();
+	screen = gdk_x11_get_default_screen();
+	root = gdk_x11_get_default_root_window();
+#endif
+#ifndef XDE_DOCK_DONT_WAIT
 	XSelectInput(dpy, root, PropertyChangeMask | StructureNotifyMask | SubstructureNotifyMask);
+#endif
 	save = XCreateSimpleWindow(dpy, root, -1, -1, 1, 1, 0,
 			BlackPixel(dpy, screen), BlackPixel(dpy, screen));
 
@@ -1085,6 +1253,8 @@ runit(int argc, char *argv[])
 
 	create_dock();
 
+	handle_events();
+	relax();
 	gtk_main();
 
 	return (0);
