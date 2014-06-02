@@ -56,15 +56,31 @@ const char *program = NAME;
 
 Display *dpy;
 Window root;
-Window save;
-GtkWidget *dock;
-GtkWidget *vbox;
-GdkWindow *gwin;
-Window dwin;
 int napps;
 WnckScreen *wnck;
 int screen;
 Bool shutting_down = False;
+
+Atom _XA_XDE_THEME_NAME;
+Atom _XA_GTK_READ_RCFILES;
+
+GdkAtom _GA_XDE_THEME_NAME;
+GdkAtom _GA_GTK_READ_RCFILES;
+GdkDisplayManager *gmgr;
+GdkDisplay *gdpy;
+GdkScreen *gscr;
+GdkWindow *groot;
+
+typedef struct {
+	Window save;
+	GtkWidget *dock;
+	GtkWidget *vbox;
+	GdkWindow *gwin;
+	Window dwin;
+	gint x, y, w, h, d;
+} Dock;
+
+Dock dock;
 
 typedef enum {
 	DockPositionEast,
@@ -102,6 +118,7 @@ typedef struct _Client {
 	char **argv;
 	int argc;
 	GtkWidget *ebox;
+	GtkWidget *sock;
 	int retries;
 	Window plugged;
 } Client;
@@ -261,39 +278,38 @@ dock_rearrange()
 		long bottom_start_x, bottom_end_x;
 	} strut = {
 	0,};
-	gint x, y;
 	Screen *scrn = ScreenOfDisplay(dpy, screen);
-	gint w = scrn->width;
-	gint h = scrn->height;
-	gint d = 0;
+	dock.w = scrn->width;
+	dock.h = scrn->height;
+	dock.d = 0;
 
 	if (options.debug)
 		fprintf(stderr, "==> REARRANGING DOCK:\n");
 	if (napps <= 0) {
 		if (options.debug)
 			fprintf(stderr, "    --> HIDING DOCK: no dock apps\n");
-		gtk_widget_hide(GTK_WIDGET(dock));
+		gtk_widget_hide(GTK_WIDGET(dock.dock));
 		return;
 	}
 	pos = options.position;
 	dir = options.direction;
-	x = y = 0;
+	dock.x = dock.y = 0;
 	switch (pos) {
 	case DockPositionNorth:
 		switch (dir) {
 		case DockDirectionVertical:
 			strut.top = napps * 64;
-			strut.top_start_x = (w - 64) / 2;
-			strut.top_end_x = (w + 64) / 2;
+			strut.top_start_x = (dock.w - 64) / 2;
+			strut.top_end_x = (dock.w + 64) / 2;
 			break;
 		case DockDirectionHorizontal:
 			strut.top = 64;
-			strut.top_start_x = (w - (napps * 64)) / 2;
-			strut.top_end_x = (w + (napps * 64)) / 2;
+			strut.top_start_x = (dock.w - (napps * 64)) / 2;
+			strut.top_end_x = (dock.w + (napps * 64)) / 2;
 			break;
 		}
-		x = strut.top_start_x;
-		y = 0;
+		dock.x = strut.top_start_x;
+		dock.y = 0;
 		break;
 	case DockPositionNorthWest:
 		switch (dir) {
@@ -308,73 +324,73 @@ dock_rearrange()
 			strut.top_end_x = napps * 64;
 			break;
 		}
-		x = 0;
-		y = 0;
+		dock.x = 0;
+		dock.y = 0;
 		break;
 	case DockPositionWest:
 		switch (dir) {
 		case DockDirectionVertical:
 			strut.left = 64;
-			strut.left_start_y = (h - (napps * 64)) / 2;
-			strut.left_end_y = (h + (napps * 64)) / 2;
+			strut.left_start_y = (dock.h - (napps * 64)) / 2;
+			strut.left_end_y = (dock.h + (napps * 64)) / 2;
 			break;
 		case DockDirectionHorizontal:
 			strut.left = napps * 64;
-			strut.left_start_y = (h - 64) / 2;
-			strut.left_end_y = (h + 64) / 2;
+			strut.left_start_y = (dock.h - 64) / 2;
+			strut.left_end_y = (dock.h + 64) / 2;
 			break;
 		}
-		x = 0;
-		y = strut.left_start_y;
+		dock.x = 0;
+		dock.y = strut.left_start_y;
 		break;
 	case DockPositionSouthWest:
 		switch (dir) {
 		case DockDirectionVertical:
 			strut.left = 64;
-			strut.left_start_y = h - napps * 64;
-			strut.left_end_y = h;
-			y = strut.left_start_y;
+			strut.left_start_y = dock.h - napps * 64;
+			strut.left_end_y = dock.h;
+			dock.y = strut.left_start_y;
 			break;
 		case DockDirectionHorizontal:
 			strut.bottom = 64;
 			strut.bottom_start_x = 0;
 			strut.bottom_end_x = napps * 64;
-			y = h - strut.bottom;
+			dock.y = dock.h - strut.bottom;
 			break;
 		}
-		x = 0;
+		dock.x = 0;
 		break;
 	case DockPositionSouth:
 		switch (dir) {
 		case DockDirectionVertical:
 			strut.bottom = napps * 64;
-			strut.bottom_start_x = (h - 64) / 2;
-			strut.bottom_end_x = (h + 64) / 2;
+			strut.bottom_start_x = (dock.h - 64) / 2;
+			strut.bottom_end_x = (dock.h + 64) / 2;
 			break;
 		case DockDirectionHorizontal:
 			strut.bottom = 64;
-			strut.bottom_start_x = (h - (napps * 64)) / 2;
-			strut.bottom_end_x = (h + (napps * 64)) / 2;
+			strut.bottom_start_x = (dock.h - (napps * 64)) / 2;
+			strut.bottom_end_x = (dock.h + (napps * 64)) / 2;
 			break;
 		}
-		x = strut.bottom_start_x;
-		y = h - strut.bottom;
+		dock.x = strut.bottom_start_x;
+		dock.y = dock.h - strut.bottom;
 		break;
 	case DockPositionSouthEast:
 		switch (dir) {
 		case DockDirectionVertical:
 			strut.right = 64;
-			strut.right_start_y = h - napps * 64;
-			strut.right_end_y = h;
-			x = w - strut.right;
-			y = strut.right_start_y;
+			strut.right_start_y = dock.h - napps * 64;
+			strut.right_end_y = dock.h;
+			dock.x = dock.w - strut.right;
+			dock.y = strut.right_start_y;
 			break;
 		case DockDirectionHorizontal:
 			strut.bottom = 64;
-			strut.bottom_start_x = w - napps * 64;
-			strut.bottom_end_x = w;
-			x = strut.bottom_start_x;
-			y = h = strut.bottom;
+			strut.bottom_start_x = dock.w - napps * 64;
+			strut.bottom_end_x = dock.w;
+			dock.x = strut.bottom_start_x;
+			dock.y = dock.h = strut.bottom;
 			break;
 		}
 		break;
@@ -382,17 +398,17 @@ dock_rearrange()
 		switch (dir) {
 		case DockDirectionVertical:
 			strut.right = 64;
-			strut.right_start_y = (h - (napps * 64)) / 2;
-			strut.right_end_y = (h + (napps * 64)) / 2;
+			strut.right_start_y = (dock.h - (napps * 64)) / 2;
+			strut.right_end_y = (dock.h + (napps * 64)) / 2;
 			break;
 		case DockDirectionHorizontal:
 			strut.right = napps * 64;
-			strut.right_start_y = (h - 64) / 2;
-			strut.right_end_y = (h + 64) / 2;
+			strut.right_start_y = (dock.h - 64) / 2;
+			strut.right_end_y = (dock.h + 64) / 2;
 			break;
 		}
-		x = w - strut.right;
-		y = strut.right_start_y;
+		dock.x = dock.w - strut.right;
+		dock.y = strut.right_start_y;
 		break;
 	case DockPositionNorthEast:
 		switch (dir) {
@@ -400,36 +416,36 @@ dock_rearrange()
 			strut.right = 64;
 			strut.right_start_y = 0;
 			strut.right_end_y = napps * 64;
-			x = w - strut.right;
-			y = strut.right_start_y;
+			dock.x = dock.w - strut.right;
+			dock.y = strut.right_start_y;
 			break;
 		case DockDirectionHorizontal:
 			strut.top = 64;
-			strut.top_start_x = w - (napps * 64);
-			strut.top_end_x = w;
-			x = strut.top_start_x;
-			y = 0;
+			strut.top_start_x = dock.w - (napps * 64);
+			strut.top_end_x = dock.w;
+			dock.x = strut.top_start_x;
+			dock.y = 0;
 			break;
 		}
 		break;
 	}
 	if (options.debug)
-		fprintf(stderr, "    --> MOVING dock to (%d,%d)\n", x, y);
+		fprintf(stderr, "    --> MOVING dock to (%d,%d)\n", dock.x, dock.y);
 
-	gtk_window_move(GTK_WINDOW(dock), x, y);
-	gdk_window_move(GDK_WINDOW(gwin), x, y);
+	gtk_window_move(GTK_WINDOW(dock.dock), dock.x, dock.y);
+	gdk_window_move(GDK_WINDOW(dock.gwin), dock.x, dock.y);
 	relax();
-	gdk_window_get_geometry(GDK_WINDOW(gwin), &x, &y, &w, &h, &d);
+	gdk_window_get_geometry(GDK_WINDOW(dock.gwin), &dock.x, &dock.y, &dock.w, &dock.h, &dock.d);
 	if (options.debug) {
-		fprintf(stderr, "    --> GEOMETRY now (%dx%d+%d+%d:%d)\n", w, h, x, y, d);
+		fprintf(stderr, "    --> GEOMETRY now (%dx%d+%d+%d:%d)\n", dock.w, dock.h, dock.x, dock.y, dock.d);
 		fprintf(stderr, "    --> _NET_WM_STRUT set (%ld,%ld,%ld,%ld)\n", strut.left, strut.right, strut.top, strut.bottom);
 		fprintf(stderr, "    --> _NET_WM_STRUT_PARTIAL set (%ld,%ld,%ld,%ld,%ld,%ld,%ld,%ld,%ld,%ld,%ld,%ld)\n",
 			strut.left, strut.right, strut.top, strut.bottom,
 			strut.left_start_y, strut.left_end_y, strut.right_start_y, strut.right_end_y,
 			strut.top_start_x, strut.top_end_x, strut.bottom_start_x, strut.bottom_end_x);
 	}
-	XChangeProperty(dpy, dwin, XInternAtom(dpy, "_NET_WM_STRUT", False), XA_CARDINAL, 32, PropModeReplace, (unsigned char *) &strut, 4);
-	XChangeProperty(dpy, dwin, XInternAtom(dpy, "_NET_WM_STRUT_PARTIAL", False), XA_CARDINAL, 32, PropModeReplace, (unsigned char *) &strut, 12);
+	XChangeProperty(dpy, dock.dwin, XInternAtom(dpy, "_NET_WM_STRUT", False), XA_CARDINAL, 32, PropModeReplace, (unsigned char *) &strut, 4);
+	XChangeProperty(dpy, dock.dwin, XInternAtom(dpy, "_NET_WM_STRUT_PARTIAL", False), XA_CARDINAL, 32, PropModeReplace, (unsigned char *) &strut, 12);
 	relax();
 }
 
@@ -528,9 +544,9 @@ swallow(Client * c)
 		relax();
 #else
 		if (options.debug)
-			fprintf(stderr, "    --> REPARENTING: wind.window 0x%08lx to save 0x%08lx\n", c->wind.window, save);
+			fprintf(stderr, "    --> REPARENTING: wind.window 0x%08lx to save 0x%08lx\n", c->wind.window, dock.save);
 		XAddToSaveSet(dpy, c->wind.window);
-		XReparentWindow(dpy, c->wind.window, save, 0, 0);
+		XReparentWindow(dpy, c->wind.window, dock.save, 0, 0);
 		XMapWindow(dpy, c->wind.window);
 #endif
 		if (options.debug)
@@ -557,34 +573,63 @@ add_dockapp(Client * c, ClientWindow * cwin)
 		fprintf(stderr, "ERROR: window 0x%08lx cannot get geometry\n", cwin->window);
 		return;
 	}
+	if (options.debug) {
+		fprintf(stderr, "==> DOCKAPP: geometry %dx%d+%d+%d:%d\n", width, height, x, y, border);
+	}
 
-	tpad = (64 - height) / 2;
-	bpad = 64 - height - tpad;
-	lpad = (64 - width) / 2;
-	rpad = 64 - width - lpad;
+	if (height < 64) {
+		tpad = (64 - height) / 2;
+		bpad = 64 - height - tpad;
+	} else {
+		tpad = bpad = 0;
+	}
+	if (width < 64) {
+		lpad = (64 - width) / 2;
+		rpad = 64 - width - lpad;
+	} else {
+		lpad = rpad = 0;
+	}
 
 	GtkWidget *b, *a, *s;
 
+#if 1
 	b = c->ebox = gtk_event_box_new();
-
+	gtk_container_set_border_width(GTK_CONTAINER(b), 0);
+	gtk_event_box_set_above_child(GTK_EVENT_BOX(b), TRUE);
+#else
+	b = c->ebox = gtk_button_new();
+	gtk_container_set_border_width(GTK_CONTAINER(b), 0);
+	gtk_button_set_relief(GTK_BUTTON(b), GTK_RELIEF_NONE);
+	gtk_button_set_alignment(GTK_BUTTON(b), 0.5, 0.5);
+#endif
 	gtk_widget_set_size_request(GTK_WIDGET(b), 64, 64);
-	a = gtk_alignment_new(0.5, 0.5, 1.0, 1.0);
-	gtk_alignment_set_padding(GTK_ALIGNMENT(a), tpad, bpad, lpad, rpad);
-	gtk_container_add(GTK_CONTAINER(b), GTK_WIDGET(a));
-	s = gtk_socket_new();
-	g_signal_connect(G_OBJECT(s), "plug_removed", G_CALLBACK(on_plug_removed), (gpointer) c);
 
+	a = gtk_alignment_new(0.5, 0.5, 1.0, 1.0);
+	gtk_widget_set_size_request(GTK_WIDGET(a), width, height);
+	gtk_container_set_border_width(GTK_CONTAINER(a), 0);
+	gtk_widget_set_size_request(GTK_WIDGET(a), width, height);
+#if 0
+	gtk_alignment_set_padding(GTK_ALIGNMENT(a), tpad, bpad, lpad, rpad);
+#else
+	gtk_alignment_set_padding(GTK_ALIGNMENT(a), 0, 0, 0, 0);
+#endif
+	gtk_container_add(GTK_CONTAINER(b), GTK_WIDGET(a));
+
+	s = gtk_socket_new();
+	gtk_container_set_border_width(GTK_CONTAINER(s), 0);
+	g_signal_connect(G_OBJECT(s), "plug_removed", G_CALLBACK(on_plug_removed), (gpointer) c);
 	gtk_container_add(GTK_CONTAINER(a), GTK_WIDGET(s));
+
 	if (options.debug)
 		fprintf(stderr, "    --> PACKING SOCKET for window 0x%08lx into dock\n", cwin->window);
-	gtk_box_pack_start(GTK_BOX(vbox), GTK_WIDGET(b), FALSE, FALSE, 0);
+	gtk_box_pack_start(GTK_BOX(dock.vbox), GTK_WIDGET(b), FALSE, FALSE, 0);
 	napps += 1;
 	relax();
 	dock_rearrange();
 	gtk_widget_show_all(GTK_WIDGET(b));
 	gtk_widget_show_all(GTK_WIDGET(a));
 	gtk_widget_show_all(GTK_WIDGET(s));
-	gtk_widget_show_all(GTK_WIDGET(dock));
+	gtk_widget_show_all(GTK_WIDGET(dock.dock));
 	if (options.debug)
 		fprintf(stderr, "    --> ADDING window 0x%08lx into socket\n", cwin->window);
 	/* We might also use gtk_socket_steal() here.  I don't quite know what the difference is as 
@@ -883,7 +928,7 @@ search_kids(Window win)
 	Window wroot = None, parent = None, *children = NULL;
 	unsigned int i, nchild = 0;
 
-	if (win == dwin || win == save)
+	if (win == dock.dwin || win == dock.save)
 		return;
 
 	relax();
@@ -901,29 +946,32 @@ find_dockapps()
 	search_kids(root);
 }
 
+void reparse();
+
 void
 create_dock()
 {
-	dock = gtk_window_new(GTK_WINDOW_TOPLEVEL);
-	gtk_window_set_type_hint(GTK_WINDOW(dock), GDK_WINDOW_TYPE_HINT_DOCK);
-	gtk_window_set_default_size(GTK_WINDOW(dock), 64, -1);
-	gtk_window_set_decorated(GTK_WINDOW(dock), FALSE);
-	gtk_window_set_skip_pager_hint(GTK_WINDOW(dock), TRUE);
-	gtk_window_set_skip_taskbar_hint(GTK_WINDOW(dock), TRUE);
-	gtk_window_stick(GTK_WINDOW(dock));
-	gtk_window_set_deletable(GTK_WINDOW(dock), FALSE);
-	gtk_window_set_focus_on_map(GTK_WINDOW(dock), FALSE);
-	gtk_window_set_has_frame(GTK_WINDOW(dock), FALSE);
-	gtk_window_set_keep_above(GTK_WINDOW(dock), TRUE);
-	gtk_window_set_resizable(GTK_WINDOW(dock), FALSE);
+	dock.dock = gtk_window_new(GTK_WINDOW_TOPLEVEL);
+	gtk_window_set_type_hint(GTK_WINDOW(dock.dock), GDK_WINDOW_TYPE_HINT_DOCK);
+	gtk_window_set_default_size(GTK_WINDOW(dock.dock), 64, -1);
+	gtk_window_set_decorated(GTK_WINDOW(dock.dock), FALSE);
+	gtk_window_set_skip_pager_hint(GTK_WINDOW(dock.dock), TRUE);
+	gtk_window_set_skip_taskbar_hint(GTK_WINDOW(dock.dock), TRUE);
+	gtk_window_stick(GTK_WINDOW(dock.dock));
+	gtk_window_set_deletable(GTK_WINDOW(dock.dock), FALSE);
+	gtk_window_set_focus_on_map(GTK_WINDOW(dock.dock), FALSE);
+	gtk_window_set_has_frame(GTK_WINDOW(dock.dock), FALSE);
+	gtk_window_set_keep_above(GTK_WINDOW(dock.dock), TRUE);
+	gtk_window_set_resizable(GTK_WINDOW(dock.dock), FALSE);
 
-	vbox = gtk_vbox_new(FALSE, 0);
-	gtk_widget_set_size_request(GTK_WIDGET(vbox), 64, -1);
-	gtk_container_add(GTK_CONTAINER(dock), GTK_WIDGET(vbox));
-	gtk_widget_realize(GTK_WIDGET(dock));
-	gwin = gtk_widget_get_window(GTK_WIDGET(dock));
-	dwin = GDK_WINDOW_XID(gwin);
+	dock.vbox = gtk_vbox_new(TRUE, 0);
+	gtk_widget_set_size_request(GTK_WIDGET(dock.vbox), 64, -1);
+	gtk_container_add(GTK_CONTAINER(dock.dock), GTK_WIDGET(dock.vbox));
+	gtk_widget_realize(GTK_WIDGET(dock.dock));
+	dock.gwin = gtk_widget_get_window(GTK_WIDGET(dock.dock));
+	dock.dwin = GDK_WINDOW_XID(dock.gwin);
 
+	reparse();
 	find_dockapps();
 }
 
@@ -976,8 +1024,22 @@ event_handler_DestroyNotify(XEvent *xev)
 void
 event_handler_ReparentNotify(XEvent *xev)
 {
+#ifdef XDE_DOCK_DONT_WAIT
+	if (options.debug) {
+		fprintf(stderr, "==> ReparentNotify:\n");
+		fprintf(stderr, "    --> event = 0x%08lx\n", xev->xreparent.event);
+		fprintf(stderr, "    --> window = 0x%08lx\n", xev->xreparent.window);
+		fprintf(stderr, "    --> parent = 0x%08lx\n", xev->xreparent.parent);
+		fprintf(stderr, "    --> x = %d\n", xev->xreparent.x);
+		fprintf(stderr, "    --> y = %d\n", xev->xreparent.y);
+		fprintf(stderr, "    --> override-redirect = %s\n", xev->xreparent.override_redirect ? "True" : "False");
+		fprintf(stderr, "<== ReparentNotify:\n");
+	}
+	return;
+#else
 	XReparentEvent *xre = (typeof(xre)) xev;
 	Client *c = NULL;
+
 
 	if (options.debug)
 		fprintf(stderr, "==> ReparentNotify: event=0x%08lx window=0x%08lx parent=0x%08lx\n", xre->event, xre->window, xre->parent);
@@ -1070,6 +1132,7 @@ event_handler_ReparentNotify(XEvent *xev)
 			fprintf(stderr, "    --> ReparentNotify: CALLING TEST WINDOW: window = 0x%08lx\n", xre->window);
 		test_window(xre->window);
 	}
+#endif
 }
 
 void
@@ -1110,8 +1173,52 @@ event_handler_MapNotify(XEvent *xev)
 void
 event_handler_PropertyNotify(XEvent *xev)
 {
-	if (options.debug)
-		fprintf(stderr, "==> PropertyNotify: window=0x%08lx\n", xev->xany.window);
+	if (options.debug) {
+		fprintf(stderr, "==> PropertyNotify:\n");
+		fprintf(stderr, "    --> window = 0x%08lx\n", xev->xproperty.window);
+		fprintf(stderr, "    --> atom = %s\n", XGetAtomName(dpy, xev->xproperty.atom));
+		fprintf(stderr, "    --> time = %ld\n", xev->xproperty.time);
+		fprintf(stderr, "    --> state = %s\n", (xev->xproperty.state == PropertyNewValue) ?  "NewValue" : "Delete");
+		fprintf(stderr, "<== PropertyNotify:\n");
+	}
+	if (xev->xproperty.atom == _XA_XDE_THEME_NAME && xev->xproperty.state == PropertyNewValue)
+		reparse();
+	return;
+}
+
+void
+event_handler_ClientMessage(XEvent *xev)
+{
+	if (options.debug) {
+		fprintf(stderr, "==> ClientMessage:\n");
+		fprintf(stderr, "    --> window = 0x%08lx\n", xev->xclient.window);
+		fprintf(stderr, "    --> message_type = %s\n", XGetAtomName(dpy, xev->xclient.message_type));
+		fprintf(stderr, "    --> format = %d\n", xev->xclient.format);
+		switch (xev->xclient.format) {
+			int i;
+		case 8:
+			fprintf(stderr, "    --> data =");
+			for (i = 0; i < 20; i++)
+				fprintf(stderr, " %02x", xev->xclient.data.b[i]);
+			fprintf(stderr, "\n");
+			break;
+		case 16:
+			fprintf(stderr, "    --> data =");
+			for (i = 0; i < 10; i++)
+				fprintf(stderr, " %04x", xev->xclient.data.s[i]);
+			fprintf(stderr, "\n");
+			break;
+		case 32:
+			fprintf(stderr, "    --> data =");
+			for (i = 0; i < 5; i++)
+				fprintf(stderr, " %08lx", xev->xclient.data.l[i]);
+			fprintf(stderr, "\n");
+			break;
+		}
+		fprintf(stderr, "<== ClientMessage:\n");
+	}
+	if (xev->xclient.message_type == _XA_GTK_READ_RCFILES)
+		reparse();
 	return;
 }
 
@@ -1136,6 +1243,9 @@ handle_event(XEvent *xev)
 		break;
 	case PropertyNotify:
 		event_handler_PropertyNotify(xev);
+		break;
+	case ClientMessage:
+		event_handler_ClientMessage(xev);
 		break;
 	}
 }
@@ -1200,8 +1310,74 @@ on_quit_signal(int signum)
 }
 
 void
-event_handler(GdkEvent *event, gpointer data)
+reparse()
 {
+	XTextProperty xtp = { NULL, };
+	char **list = NULL;
+	int strings = 0;
+
+	gtk_rc_reparse_all();
+	if (XGetTextProperty(dpy, root, &xtp, _XA_XDE_THEME_NAME) == Success) {
+		if (Xutf8TextPropertyToTextList(dpy, &xtp, &list, &strings) == Success) {
+			if (strings >= 1) {
+				char *rc_string;
+				int len;
+
+				len = 17 + strlen(list[0]) + 2;
+				rc_string = calloc(len, sizeof(*rc_string));
+				strncpy(rc_string, "gtk-theme-name=\"", len);
+				strncat(rc_string, list[0], len);
+				strncat(rc_string, "\"", len);
+				gtk_rc_parse_string(rc_string);
+				free(rc_string);
+			}
+			if (list)
+				XFreeStringList(list);
+		}
+		if (xtp.value)
+			XFree(xtp.value);
+	}
+
+#if 0
+	Client *c;
+
+	// gtk_widget_reset_rc_styles(GTK_WIDGET(dock.dock));	// doesn't help
+
+	// gtk_widget_queue_clear(GTK_WIDGET(dock.dock));	// doesn't help
+	relax();
+	XClearArea(dpy, dock.dwin, 0, 0, 0, 0, True);
+	XSync(dpy, False);
+
+	for (c = clients; c; c = c->next) {
+		//if (c->ebox) {
+		//	gtk_widget_queue_clear(GTK_WIDGET(c->ebox));
+		//	relax();
+		//}
+		if (c->plugged) {
+			relax();
+			XClearArea(dpy, c->plugged, 0, 0, 0, 0, True);
+			XSync(dpy, False);
+		}
+	}
+#else
+	XClearArea(dpy, root, dock.x, dock.y, dock.w, dock.h, True);
+#endif
+}
+
+void
+event_handler(GdkEvent * event, gpointer data)
+{
+	if (event->type == GDK_CLIENT_EVENT) {
+		GdkEventClient *ev = (typeof(ev)) event;
+
+		if (ev->message_type == _GA_GTK_READ_RCFILES)
+			reparse();
+	} else if (event->type == GDK_PROPERTY_NOTIFY) {
+		GdkEventProperty *ev = (typeof(ev)) event;
+
+		if (ev->atom == _GA_XDE_THEME_NAME)
+			reparse();
+	}
 	gtk_main_do_event(event);
 }
 
@@ -1211,6 +1387,20 @@ runit(int argc, char *argv[])
 	int xfd;
 	GIOChannel *chan;
 	gint srce;
+
+	{
+		const char *home;
+		char *file;
+		int len;
+
+		home = getenv("HOME");
+		len = 15 + strlen(home) + 2;
+		file = calloc(len, sizeof(*file));
+		strncpy(file, home, len);
+		strncat(file, "/.gtkrc-2.0.xde", len);
+		gtk_rc_add_default_file(file);
+		free(file);
+	}
 
 	gtk_init(&argc, &argv);
 
@@ -1236,15 +1426,33 @@ runit(int argc, char *argv[])
 	screen = DefaultScreen(dpy);
 	root = RootWindow(dpy, screen);
 #else
-	gdk_event_handler_set(event_handler, (gpointer)NULL, NULL);
 	dpy = gdk_x11_get_default_xdisplay();
 	screen = gdk_x11_get_default_screen();
 	root = gdk_x11_get_default_root_window();
 #endif
-#ifndef XDE_DOCK_DONT_WAIT
-	XSelectInput(dpy, root, PropertyChangeMask | StructureNotifyMask | SubstructureNotifyMask);
+	_XA_XDE_THEME_NAME = XInternAtom(dpy, "_XDE_THEME_NAME", False);
+	_XA_GTK_READ_RCFILES = XInternAtom(dpy, "_GTK_READ_RCFILES", False);
+
+#if 0
+	_GA_XDE_THEME_NAME = gdk_atom_intern_static_string("_XDE_THEME_NAME");
+	_GA_GTK_READ_RCFILE = gdk_atom_intern_static_string("_GTK_READ_RCFILES");
+
+	{
+		GdkEventMask mask;
+
+		gmgr = gdk_display_manager_get();
+		gdpy = gdk_display_manager_get_default_display(gmgr);
+		gscr = gdk_display_get_default_screen(gdpy);
+		groot = gdk_screen_get_root_window(gscr);
+		mask = gdk_window_get_events(groot);
+
+		mask |= GDK_PROPERTY_CHANGE_MASK|GDK_STRUCTURE_MASK|GDK_SUBSTRUCTURE_MASK;
+		gdk_window_set_events(groot, mask);
+	}
+	gdk_event_handler_set(event_handler, (gpointer)NULL, NULL);
 #endif
-	save = XCreateSimpleWindow(dpy, root, -1, -1, 1, 1, 0,
+	XSelectInput(dpy, root, PropertyChangeMask | StructureNotifyMask | SubstructureNotifyMask);
+	dock.save = XCreateSimpleWindow(dpy, root, -1, -1, 1, 1, 0,
 			BlackPixel(dpy, screen), BlackPixel(dpy, screen));
 
 	wnck = wnck_screen_get(screen);
