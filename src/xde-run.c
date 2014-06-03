@@ -721,5 +721,6 @@ main(int argc, char *argv[])
 	create_store();
 	get_run_history();
 	run_command();
+	gtk_main();
 	exit(0);
 }
