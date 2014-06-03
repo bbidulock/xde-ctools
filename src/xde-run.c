@@ -68,11 +68,19 @@ int shutting_down;
 typedef struct {
 	int debug;
 	int output;
+	char *runhist;
 } Options;
 
 Options options = {
 	.debug = 0,
 	.output = 1,
+	.runhist = NULL,
+};
+
+Options defaults = {
+	.debug = 0,
+	.output = 1,
+	.runhist = "~/.config/xde/run-history",
 };
 
 static void
@@ -174,12 +182,14 @@ Command options:\n\
     -C, --copying\n\
         print copying permission and exit\n\
 Options:\n\
+    -f, --file FILENAME\n\
+        use alternate run history file [default: %4$s]\n\
     -D, --debug [LEVEL]\n\
-        increment or set debug LEVEL [default: 0]\n\
+        increment or set debug LEVEL [default: %2$d]\n\
     -v, --verbose [LEVEL]\n\
-        increment or set output verbosity LEVEL [default: 1]\n\
+        increment or set output verbosity LEVEL [default: %3$d]\n\
         this option may be repeated.\n\
-", argv[0]);
+", argv[0], options.debug, options.output, options.runhist);
 }
 
 void
@@ -191,33 +201,12 @@ history_free(gpointer data)
 void
 get_run_history()
 {
-	static const char *rhfile = "/xde/run-history";
-	const char *s;
-	char *file, *p;
+	char *p;
 	FILE *f;
 
 	g_list_free_full(history, history_free);
 
-	if ((s = getenv("XDG_CONFIG_HOME"))) {
-		int len;
-
-		len = strlen(s) + strlen(rhfile) + 1;
-		file = calloc(len, sizeof(*file));
-		strncpy(file, s, len);
-		strncat(file, rhfile, len);
-	} else {
-		static const char *config = "/.config";
-		const char *h;
-		int len;
-
-		h = getenv("HOME");
-		len = strlen(h) + strlen(config) + strlen(rhfile) + 1;
-		file = calloc(len, sizeof(*file));
-		strncpy(file, h, len);
-		strncat(file, config, len);
-		strncat(file, rhfile, len);
-	}
-	if ((f = fopen(file, "r"))) {
+	if ((f = fopen(options.runhist, "r"))) {
 		char *buf = calloc(PATH_MAX + 2, sizeof(*buf));
 		int discarding = 0;
 
@@ -233,14 +222,40 @@ get_run_history()
 				discarding = 1;
 				continue;
 			}
-			history = g_list_prepend(history, (gpointer) strdup(buf));
+			p = buf + strspn(buf, " \t");
+			if (!*p)
+				continue;
+			history = g_list_prepend(history, (gpointer) strdup(p));
 		}
 		free(buf);
 		fclose(f);
 	} else
-		fprintf(stderr, "open: could not open history file %s: %s\n", file, strerror(errno));
-	free(file);
+		fprintf(stderr, "open: could not open history file %s: %s\n", options.runhist, strerror(errno));
 	return;
+}
+
+void
+put_run_history()
+{
+	GtkTreeIter iter;
+	gboolean valid;
+	FILE *f;
+
+	if ((f = fopen(options.runhist, "w"))) {
+		if ((valid = gtk_tree_model_iter_nth_child(GTK_TREE_MODEL(store), &iter, NULL, 0))) {
+			do {
+				GValue text_v = G_VALUE_INIT;
+				const gchar *text;
+
+				gtk_tree_model_get_value(GTK_TREE_MODEL(store), &iter, 0, &text_v);
+				text = g_value_get_string(&text_v);
+				fprintf(f, "%s\n", text);
+				g_value_unset(&text_v);
+
+			} while((valid = gtk_list_store_remove(GTK_LIST_STORE(store), &iter)));
+		}
+		fclose(f);
+	}
 }
 
 void
@@ -303,24 +318,78 @@ on_entry_changed(GtkTextBuffer *textbuffer, gpointer data)
 		if ((p = strpbrk(copy, " \t")))
 			*p = '\0';
 		p = (p = strrchr(copy, '/')) ? p + 1 : copy;
-		gtk_image_set_from_icon_name(GTK_IMAGE(icon), p, GTK_ICON_SIZE_LARGE_TOOLBAR);
+		gtk_image_set_from_icon_name(GTK_IMAGE(icon), p, GTK_ICON_SIZE_DIALOG);
 		free(copy);
+	}
+}
+
+void
+on_file_response(GtkDialog *dialog, gint response_id, gpointer data)
+{
+	if (response_id == GTK_RESPONSE_OK || response_id == 0) {
+		char *file = gtk_file_chooser_get_filename(GTK_FILE_CHOOSER(dialog));
+		const char *text = gtk_entry_get_text(GTK_ENTRY(entry));
+		int len = strlen(text) + 2 + strlen(file) + 1 + 1;
+		char *cmd = calloc(len, sizeof(*cmd));
+
+		strcpy(cmd, text);
+		strcat(cmd, " '");
+		strcat(cmd, file);
+		strcat(cmd, "'");
+		gtk_entry_set_text(GTK_ENTRY(entry), cmd);
+		free(cmd);
+		g_free(file);
 	}
 }
 
 void
 on_file_clicked(GtkButton *button, gpointer data)
 {
+	GtkWidget *choose = gtk_file_chooser_dialog_new("Choose File", GTK_WINDOW(dialog),
+							GTK_FILE_CHOOSER_ACTION_OPEN,
+							GTK_STOCK_CANCEL, GTK_RESPONSE_CANCEL,
+							GTK_STOCK_OK, GTK_RESPONSE_OK, NULL);
+
+	g_signal_connect(G_OBJECT(choose), "response", G_CALLBACK(on_file_response), (gpointer) NULL);
+	gtk_dialog_run(GTK_DIALOG(choose));
 }
 
 void
 on_dialog_response(GtkDialog *dialog, gint response_id, gpointer data)
 {
 	if (response_id == GTK_RESPONSE_OK || response_id == 0) {
-		const char *command = gtk_entry_get_text(GTK_ENTRY(entry));
+		static const char *xterm = "xterm -e ";
+		char *command;
+		const char *text;
+		int len, status;
 
+		text = gtk_entry_get_text(GTK_ENTRY(entry));
+		if (gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(term))) {
+			len = strlen(xterm) + strlen(text) + 3;
+			command = calloc(len, sizeof(*command));
+			strcpy(command, xterm);
+			strcat(command, text);
+		} else {
+			len = strlen(text) + 3;
+			command = calloc(len, sizeof(*command));
+			strcpy(command, text);
+		}
 		history = g_list_prepend(history, (gpointer) strdup(command));
+		put_run_history();
+
+		strcat(command, " &");
+		if ((status = system(command)) == 0)
+			exit(0);
+		if (WIFSIGNALED(status)) {
+			fprintf(stderr, "system: %s: exited on signal %d\n", command, WTERMSIG(status));
+			exit(WTERMSIG(status));
+		} else if (WIFEXITED(status)) {
+			fprintf(stderr, "system: %s: exited with non-zero exit tatus %d\n", command, WEXITSTATUS(status));
+			exit(WEXITSTATUS(status));
+		}
+		exit(EXIT_FAILURE);
 	}
+	gtk_main_quit();
 }
 
 void
@@ -332,7 +401,7 @@ on_entry_activate(GtkEntry *entry, gpointer data)
 void
 run_command()
 {
-	icon = gtk_image_new_from_stock(GTK_STOCK_EXECUTE, GTK_ICON_SIZE_LARGE_TOOLBAR);
+	icon = gtk_image_new_from_stock(GTK_STOCK_EXECUTE, GTK_ICON_SIZE_DIALOG);
 	GtkWidget *align = gtk_alignment_new(0.5, 0.5, 1.0, 1.0);
 
 	gtk_container_add(GTK_CONTAINER(align), GTK_WIDGET(icon));
@@ -386,7 +455,10 @@ run_command()
 	gtk_dialog_set_has_separator(GTK_DIALOG(dialog), FALSE);
 	gtk_window_set_skip_pager_hint(GTK_WINDOW(dialog), TRUE);
 	gtk_window_set_skip_taskbar_hint(GTK_WINDOW(dialog), TRUE);
-	gtk_window_set_icon(GTK_WINDOW(dialog), gtk_image_get_pixbuf(GTK_IMAGE(icon)));
+	gint storage;
+
+	if ((storage = gtk_image_get_storage_type(GTK_IMAGE(icon))) == GTK_IMAGE_PIXBUF || storage == GTK_IMAGE_EMPTY)
+		gtk_window_set_icon(GTK_WINDOW(dialog), gtk_image_get_pixbuf(GTK_IMAGE(icon)));
 	gtk_dialog_add_buttons(GTK_DIALOG(dialog), GTK_STOCK_CANCEL, GTK_RESPONSE_CANCEL, GTK_STOCK_EXECUTE, GTK_RESPONSE_OK, NULL);
 	GtkWidget *action = gtk_dialog_get_action_area(GTK_DIALOG(dialog));
 
@@ -513,8 +585,8 @@ gboolean
 on_watch(GIOChannel *chan, GIOCondition cond, gpointer data)
 {
 	if (cond & (G_IO_NVAL | G_IO_HUP | G_IO_ERR)) {
-		fprintf(stderr, "ERROR: poll failed: %s %s %s\n",
-			(cond & G_IO_NVAL) ? "NVAL" : "", (cond & G_IO_HUP) ? "HUP" : "", (cond & G_IO_ERR) ? "ERR" : "");
+		fprintf(stderr, "ERROR: poll failed: %s %s %s\n", (cond & G_IO_NVAL) ? "NVAL" : "", (cond & G_IO_HUP) ? "HUP" : "",
+			(cond & G_IO_ERR) ? "ERR" : "");
 		exit(EXIT_FAILURE);
 	} else if (cond & (G_IO_IN | G_IO_PRI)) {
 		handle_events();
@@ -612,9 +684,38 @@ startup(int argc, char *argv[])
 
 }
 
+void
+set_defaults()
+{
+	static const char *suffix = "/xde/run-history";
+	int len;
+	char *env;
+
+	if ((env = getenv("XDG_CONFIG_HOME"))) {
+		len = strlen(env) + strlen(suffix) + 1;
+		free(options.runhist);
+		options.runhist = calloc(len, sizeof(*options.runhist));
+		strcpy(options.runhist, env);
+		strcat(options.runhist, suffix);
+	} else {
+		static const char *subdir = "/.config";
+
+		env = getenv("HOME") ? : ".";
+		len = strlen(env) + strlen(subdir) + strlen(suffix) + 1;
+		free(options.runhist);
+		options.runhist = calloc(len, sizeof(*options.runhist));
+		strcpy(options.runhist, env);
+		strcat(options.runhist, subdir);
+		strcat(options.runhist, suffix);
+	}
+	return;
+}
+
 int
 main(int argc, char *argv[])
 {
+	set_defaults();
+
 	while (1) {
 		int c, val;
 
@@ -622,6 +723,7 @@ main(int argc, char *argv[])
 		int option_index = 0;
 		/* *INDENT-OFF* */
 		static struct option long_options[] = {
+			{"file",	    required_argument,	NULL, 'f'},
 			{"debug",	    optional_argument,	NULL, 'D'},
 			{"verbose",	    optional_argument,	NULL, 'v'},
 			{"help",	    no_argument,	NULL, 'h'},
@@ -632,9 +734,9 @@ main(int argc, char *argv[])
 		};
 		/* *INDENT-ON* */
 
-		c = getopt_long_only(argc, argv, "D::v::hVCH?", long_options, &option_index);
+		c = getopt_long_only(argc, argv, "f:D::v::hVCH?", long_options, &option_index);
 #else
-		c = getop(argc, argv, "DvhVC?");
+		c = getop(argc, argv, "f:DvhVC?");
 #endif
 		if (c == -1) {
 			if (options.debug)
@@ -645,6 +747,10 @@ main(int argc, char *argv[])
 		case 0:
 			goto bad_usage;
 
+		case 'f':	/* -f, --file RUNHISTORYFILE */
+			free(options.runhist);
+			options.runhist = strdup(optarg);
+			break;
 		case 'D':	/* -D, --debug [level] */
 			if (options.debug)
 				fprintf(stderr, "%s: increasing debug verbosity\n", argv[0]);
@@ -712,8 +818,13 @@ main(int argc, char *argv[])
 		fprintf(stderr, "%s: option index = %d\n", argv[0], optind);
 		fprintf(stderr, "%s: option count = %d\n", argv[0], argc);
 	}
-	if (optind >= argc) {
-		fprintf(stderr, "%s: missing non-option argument\n", argv[0]);
+	if (optind < argc) {
+		fprintf(stderr, "%s: excess non-options arguments near '", argv[0]);
+		while (optind < argc) {
+			fprintf(stderr, "%s", argv[optind++]);
+			fprintf(stderr, "%s", (optind < argc) ? " " : "");
+		}
+		fprintf(stderr, "'\n");
 		usage(argc, argv);
 		exit(2);
 	}
