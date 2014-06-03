@@ -235,27 +235,26 @@ get_run_history()
 }
 
 void
+history_write(gpointer data, gpointer user_data)
+{
+	FILE *f = (typeof(f)) user_data;
+	char *t = (typeof(t)) data;
+
+	fprintf(f, "%s\n", t);
+}
+
+void
 put_run_history()
 {
-	GtkTreeIter iter;
-	gboolean valid;
 	FILE *f;
 
 	if ((f = fopen(options.runhist, "w"))) {
-		if ((valid = gtk_tree_model_iter_nth_child(GTK_TREE_MODEL(store), &iter, NULL, 0))) {
-			do {
-				GValue text_v = G_VALUE_INIT;
-				const gchar *text;
-
-				gtk_tree_model_get_value(GTK_TREE_MODEL(store), &iter, 0, &text_v);
-				text = g_value_get_string(&text_v);
-				fprintf(f, "%s\n", text);
-				g_value_unset(&text_v);
-
-			} while((valid = gtk_list_store_remove(GTK_LIST_STORE(store), &iter)));
-		}
+		history = g_list_reverse(history);
+		g_list_foreach(history, history_write, (gpointer) f);
 		fclose(f);
 	}
+	g_list_free_full(history, history_free);
+	history = NULL;
 }
 
 void
@@ -296,7 +295,7 @@ create_store()
 					continue;
 				}
 				gtk_list_store_append(store, &iter);
-				gtk_list_store_set(store, &iter, 0, entry, -1);
+				gtk_list_store_set(store, &iter, 0, strdup(d->d_name), -1);
 			}
 			/* FIXME */
 			closedir(dir);
