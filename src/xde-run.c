@@ -68,12 +68,14 @@ int shutting_down;
 typedef struct {
 	int debug;
 	int output;
+	int recent;
 	char *runhist;
 } Options;
 
 Options options = {
 	.debug = 0,
 	.output = 1,
+	.recent = 10,
 	.runhist = NULL,
 };
 
@@ -182,6 +184,8 @@ Command options:\n\
     -C, --copying\n\
         print copying permission and exit\n\
 Options:\n\
+    -r, --recent NUMBER\n\
+        only show and save NUMBER of most recent commands [default: %5$d]\n\
     -f, --file FILENAME\n\
         use alternate run history file [default: %4$s]\n\
     -D, --debug [LEVEL]\n\
@@ -189,7 +193,7 @@ Options:\n\
     -v, --verbose [LEVEL]\n\
         increment or set output verbosity LEVEL [default: %3$d]\n\
         this option may be repeated.\n\
-", argv[0], options.debug, options.output, options.runhist);
+", argv[0], options.debug, options.output, options.runhist, options.recent);
 }
 
 void
@@ -203,6 +207,7 @@ get_run_history()
 {
 	char *p;
 	FILE *f;
+	int n;
 
 	g_list_free_full(history, history_free);
 
@@ -210,6 +215,7 @@ get_run_history()
 		char *buf = calloc(PATH_MAX + 2, sizeof(*buf));
 		int discarding = 0;
 
+		n = 0;
 		while (fgets(buf, PATH_MAX, f)) {
 			if ((p = strrchr(buf, '\n'))) {
 				if (!discarding)
@@ -225,7 +231,9 @@ get_run_history()
 			p = buf + strspn(buf, " \t");
 			if (!*p)
 				continue;
-			history = g_list_prepend(history, (gpointer) strdup(p));
+			history = g_list_append(history, (gpointer) strdup(p));
+			if (++n >= options.recent)
+				break;
 		}
 		free(buf);
 		fclose(f);
@@ -249,7 +257,6 @@ put_run_history()
 	FILE *f;
 
 	if ((f = fopen(options.runhist, "w"))) {
-		history = g_list_reverse(history);
 		g_list_foreach(history, history_write, (gpointer) f);
 		fclose(f);
 	}

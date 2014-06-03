@@ -1,0 +1,99 @@
+=head1 NAME
+
+xde-run - run command dialog for XDE
+
+=head1 SYNOPSIS
+
+B<xde-run> [I<OPTIONS>]
+
+=head1 DESCRIPTION
+
+Provides a run command dialog for running applications from the command
+line using a graphical utility.
+
+=head1 OPTIONS
+
+Because GNU L<getopt_long_only(3)> is used, non-ambiguous abbreviations
+and single dash long options are accepted; however, single flag short
+options should not be concatenated.
+
+B<xde-run> recognizes the following options:
+
+=head2 COMMAND OPTIONS
+
+Command options affect the major operating mode of the program.  Only
+noe of the following command options should be specified.  When no
+command option is specified, B<xde-run> will assume normal operation is
+requested and launch the run command dialog.
+
+B<xde-run> provides the following command options:
+
+=over
+
+=item B<--help>, B<-h>
+
+Print usage information to standard output containing current defaults
+and exit.
+
+=item B<--version>, B<-V>
+
+Print version information to standard output and exit.
+
+=item B<--copying>, B<-C>
+
+Print license and copying information to standard output and exit.
+
+=back
+
+=head2 GENERAL OPTIONS
+
+General options do not affect the major operating mode of the program.
+B<xde-run> provides the following general options:
+
+=over
+
+=item B<--file>, B<-f> I<FILENAME>
+
+Run the command dialog with the specified F<run-history> file.  The
+default is F<$XDG_CONFIG_HOME/xde/run-history>.
+
+=item B<--verbose>, B<-v> [I<LEVEL>]
+
+Print extra information on standard error while running.  When
+I<LEVEL> is not specified, simply increments the output verbosity;
+otherwise, the output verbosity is set to I<LEVEL>.
+
+=item B<--debug>, B<-D> [I<LEVEL>]
+
+Print debuggin information on standard error while running.  When
+I<LEVEL> is not specified, simply increments the debug level; otherwise,
+the debug level is set to I<LEVEL>.
+
+=back
+
+=head1 FILES
+
+B<xde-run> uses the following files:
+
+=over
+
+=item F<$XDG_CONFIG_HOME/xde/run-history>
+
+The default location of the F<run-history> file.  This is a simple text
+file with the commands that were last run using the dialog, one per
+line, with the oldest entries lower in the file.
+
+=back
+
+=head1 AUTHOR
+
+Brian Bidulock L<mailto:bidulock@openss7.org>.
+
+=head1 SEE ALSO
+
+L<getopt_long_only(3)>,
+L<xde-launch(1)>
+
+=cut
+
+# vim: set sw=4 tw=72 nocin:

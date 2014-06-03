@@ -77,7 +77,7 @@ and exit.
 
 =head2 GENERAL OPTIONS
 
-General option do not affect the major operating mode of the program.
+General options do not affect the major operating mode of the program.
 B<xde-dock> provides the following general options:
 
 =over

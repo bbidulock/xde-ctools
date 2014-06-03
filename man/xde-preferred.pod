@@ -1,0 +1,158 @@
+=pod
+
+=head1 NAME
+
+xde-preferred - launch or edit preferred XDG applications
+
+=head1 SYNOPSIS
+
+B<xde-preferred> [I<OPTIONS>] [I<APPID>]
+
+B<xde-preferred-terminal> [I<APP_OPTIONS>]
+
+=head1 DESCRIPTION
+
+Provides an XDG preferred applications launcher and preferences dialog
+for setting or running preferred applications.
+
+When invoked as B<xde-preferred>, options are processed.  When invoked
+as B<xde-preferred-I<type>>, all options are passed to the application
+of type, I<type>.
+
+=head1 OPTIONS
+
+Because GNU L<getopt_long_only(3)> is used, non-ambiguous abbreviations
+and single dash long options are accepted; however, single flag short
+options should not be concatenated.
+
+B<xde-preferred> recognizes the following options:
+
+=head2 COMMAND OPTIONS
+
+Command options affect the major operating mode of the program.  Only
+noe of the following command options should be specified.  When no
+command option is specified, B<xde-launch> will assume normal operation
+is requested and launch the launcher command dialog.
+
+B<xde-launch> provides the following command options:
+
+=over
+
+=item [B<--launch>, B<-l>] [I<TYPE>] -- [I<APP_OPTIONS>]
+
+Launches the preffered application of type, I<TYPE> (see
+L</APPLICATION TYPES>).  When I<TYPE> is not specified, C<terminal> is
+assumed.  The type may also be chosen by executing F<xde-preferred-I<type>>,
+where I<type> is the type of application to launch.  All options after
+C<--> are passed directly to the application.
+
+=item B<--set>, B<-s> [I<TYPE> I<APPID>]
+
+Sets the preferred application type, I<TYPE>, to the application
+identifier specified by I<APPID> (see L</APPLICATION IDS>).  When
+I<TYPE> and I<APPID> are specified, the application is simply set and no
+dialog is launched.  When unspecified, a dialog is launched to permit
+the user to select applications of the various types.
+
+=item B<--edit>, B<-e>
+
+Launches a preferred application dialog to edit the preferred
+applications for the user using a graphical interface.
+
+=item B<--help>, B<-h>
+
+Print usage information to standard output containing current defaults
+and exit.
+
+=item B<--version>, B<-V>
+
+Print version information to standard output and exit.
+
+=item B<--copying>, B<-C>
+
+Print license and copying information to standard output and exit.
+
+=back
+
+=head2 GENERAL OPTIONS
+
+General options do not affect the major operating mode of the program.
+B<xde-preferred> provides the following general options:
+
+=over
+
+=item B<--category>, B<-c> I<TYPE> I<CATEGORY>
+
+Overrides the category logic that B<xde-preferred> uses to locate
+freedesktop.org applications.
+
+By default, the categories are as follows:
+
+=over
+
+=item I<terminal> C<TerminalEmulator>
+
+=item I<browser> C<WebBrowser>
+
+The shared mime database is also used to determine the available and
+preferred web browser.
+
+=item I<mailer> C<MailReader>
+
+The shared mime database is also used to determine the available and
+preferred mail reader. 
+
+=item I<filemanager> C<FileManager>
+
+The shared mime database is also used to determine th available and
+preferred file manager.
+
+=item I<editor> C<TextEditor>
+
+The shared mime database is also used to determine th available and
+preferred text editor.
+
+=item I<screensaver> C<ScreenSaver>
+
+=item I<mixer> C<AudioMixer>
+
+=item I<player> C<AudioPlayer>
+
+The shared mime database is also used to determine th available and
+preferred audio player.
+
+=item I<movie> C<VideoPlayer>
+
+The shared mime database is also used to determine th available and
+preferred video player.
+
+=back
+
+This option may be repeated.
+
+=back
+
+=head1 FILES
+
+B<xde-preferred> uses the following files:
+
+=over
+
+=item F<$XDG_CONFIG_HOME/xde/preferred-applications>
+
+=back
+
+=head1 AUTHOR
+
+Brian Bidulock L<mailto:bidulock@openss7.org>.
+
+=head1 SEE ALSO
+
+L<getopt_long_only(3)>,
+L<xdg-settings(1)>,
+L<xdg-open(1)>,
+L<xdg-launch(1)>.
+
+=cut
+
+# vim: set sw=4 tw=72 nocin:
