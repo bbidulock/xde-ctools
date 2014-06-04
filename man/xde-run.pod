@@ -1,3 +1,5 @@
+=pod
+
 =head1 NAME
 
 xde-run - run command dialog for XDE
@@ -30,6 +32,10 @@ B<xde-run> provides the following command options:
 
 =over
 
+=item B<--xdg>, B<-x>
+
+Run the dialog as an XDG launcher instead of a binary command launcher.
+
 =item B<--help>, B<-h>
 
 Print usage information to standard output containing current defaults
@@ -57,6 +63,11 @@ B<xde-run> provides the following general options:
 Run the command dialog with the specified F<run-history> file.  The
 default is F<$XDG_CONFIG_HOME/xde/run-history>.
 
+=item B<--apps>, B<-a> I<FILENAME>
+
+Run the command dialog with the specified F<recent-applications> file.
+The default is F<$XDG_CONFIG_HOME/xde/recent-applications>.
+
 =item B<--verbose>, B<-v> [I<LEVEL>]
 
 Print extra information on standard error while running.  When
@@ -83,7 +94,19 @@ The default location of the F<run-history> file.  This is a simple text
 file with the commands that were last run using the dialog, one per
 line, with the oldest entries lower in the file.
 
+=item F<$HOME/.gtkrc-2.0.xde>
+
+The location of the XDE theme file that will be used for the GTK theme
+when it exists.  The program will also respect the C<_XDE_THEME_NAME>
+property on the root window of the screen for which the program was
+launched.
+
 =back
+
+=head1 NOTES
+
+B<xde-run> does not perform its own XDG startup notification.
+Instead, it uses the L<xdg-launch(1)> command to perform this function.
 
 =head1 AUTHOR
 
@@ -92,7 +115,8 @@ Brian Bidulock L<mailto:bidulock@openss7.org>.
 =head1 SEE ALSO
 
 L<getopt_long_only(3)>,
-L<xde-launch(1)>
+L<xde-launch(1)>,
+L<xdg-launch(1)>.
 
 =cut
 

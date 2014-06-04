@@ -41,6 +41,7 @@ stamp-h*
 .*.sw[op]
 THANKS
 TODO
+xde-app
 xde-dock
 xde-dock-*.tar.xz
 xde-run

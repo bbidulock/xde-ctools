@@ -42,7 +42,7 @@
 
  *****************************************************************************/
 
-#include "xde-run.h"
+#include "xde-app.h"
 
 #ifdef _GNU_SOURCE
 #include <getopt.h>
@@ -80,7 +80,7 @@ Options options = {
 	.recent = 10,
 	.runhist = NULL,
 	.recapps = NULL,
-	.xdg = 0,
+	.xdg = 1,
 };
 
 Options defaults = {
@@ -89,7 +89,7 @@ Options defaults = {
 	.recent = 10,
 	.runhist = "~/.config/xde/run-history",
 	.recapps = "~/.config/xde/recent-applications",
-	.xdg = 0,
+	.xdg = 1,
 };
 
 static void
@@ -191,21 +191,16 @@ Command options:\n\
     -C, --copying\n\
         print copying permission and exit\n\
 Options:\n\
-    -x, --xdg\n\
-        operate as an XDG launcher [default: %7$s]\n\
     -r, --recent NUMBER\n\
         only show and save NUMBER of most recent entries [default: %5$d]\n\
     -f, --file FILENAME\n\
         use alternate run history file [default: %4$s]\n\
-    -a, --apps FILENAME\n\
-        use alternate recent application file [default: %6$s]\n\
     -D, --debug [LEVEL]\n\
         increment or set debug LEVEL [default: %2$d]\n\
     -v, --verbose [LEVEL]\n\
         increment or set output verbosity LEVEL [default: %3$d]\n\
         this option may be repeated.\n\
-", argv[0], options.debug, options.output, options.runhist, options.recent, options.recapps,
-		options.xdg ? "true" : "false");
+", argv[0], options.debug, options.output, options.recapps, options.recent);
 }
 
 void
@@ -895,9 +890,7 @@ main(int argc, char *argv[])
 		int option_index = 0;
 		/* *INDENT-OFF* */
 		static struct option long_options[] = {
-			{"xdg",		    no_argument,	NULL, 'x'},
 			{"file",	    required_argument,	NULL, 'f'},
-			{"apps",	    required_argument,	NULL, 'a'},
 			{"debug",	    optional_argument,	NULL, 'D'},
 			{"verbose",	    optional_argument,	NULL, 'v'},
 			{"help",	    no_argument,	NULL, 'h'},
@@ -908,9 +901,9 @@ main(int argc, char *argv[])
 		};
 		/* *INDENT-ON* */
 
-		c = getopt_long_only(argc, argv, "xf:a:D::v::hVCH?", long_options, &option_index);
+		c = getopt_long_only(argc, argv, "f:D::v::hVCH?", long_options, &option_index);
 #else
-		c = getop(argc, argv, "xf:a:DvhVC?");
+		c = getop(argc, argv, "f:DvhVC?");
 #endif
 		if (c == -1) {
 			if (options.debug)
@@ -921,14 +914,7 @@ main(int argc, char *argv[])
 		case 0:
 			goto bad_usage;
 
-		case 'x':	/* -x, --xdg */
-			options.xdg = 1;
-			break;
 		case 'f':	/* -f, --file RUNHIST_FILE */
-			free(options.runhist);
-			options.runhist = strdup(optarg);
-			break;
-		case 'a':	/* -a, --apps RECAPPS_FILE */
 			free(options.recapps);
 			options.recapps = strdup(optarg);
 			break;
