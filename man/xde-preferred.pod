@@ -173,6 +173,279 @@ This option may be repeated.
 
 =head1 APPLICATIONS
 
+=head2 CATEGORIES
+
+Although all L<XDG Menu Specification> categories are supported (even
+those that were not thought of yet), B<xde-preferred> will only reliably
+adjust mime preferences from the shared mime database for the following:
+
+=over
+
+=item C<Calendar>
+
+F<text/calendar>
+
+=item C<ContactManager>
+
+F<text/x-vcard>
+
+=item C<Dictionary>
+
+=item C<Email>
+
+F<application/mbox>
+F<message/rfc822>
+F<x-scheme-handler/mailto>
+
+=item C<Presentation>
+
+F<application/vnd.oasis.opendocument.presentation>
+F<application/mspowerpoint>
+F<application/vnd.ms-powerpoint>
+F<application/vnd.sun.xml.impress>
+F<application/vnd.stardivision.impress>
+F<application/vnd.openxmlformats-officedocument.presentationml.presentation>
+F<application/vnd.ms-powerpoint.slideshow.macroEnabled.12>
+F<application/vnd.ms-powerpoint.presentation.macroEnabled.12>
+
+=item C<Spreadsheet>
+
+F<application/vnd.oasis.opendocument.spreadsheet>
+F<application/vnd.sun.xml.calc>
+F<application/msexcel>
+F<application/vnd.ms-excel>
+F<application/vnd.openxmlformats-officedocument.spreadsheetml.sheet>
+F<application/csv>
+F<application/excel>
+F<application/tab-separated-values>
+F<application/vnd.lotus-1-2-3>
+F<application/x-dbase>
+F<application/x-dos_ms_excel>
+F<application/x-excel>
+F<application/x-msexcel>
+F<application/x-ms-excel>
+F<application/x-quattropro>
+F<application/x-123>
+F<text/comma-separated-values>
+F<text/tab-separated-values>
+F<text/x-comma-separated-values>
+F<text/x-csv>
+F<application/vnd.oasis.opendocument.spreadsheet-flat-xml>
+
+=item C<WordProcessor>
+
+F<application/vnd.oasis.opendocument.text-template>
+F<application/vnd.oasis.opendocument.text-web>
+F<application/vnd.oasis.opendocument.text-master>
+F<application/vnd.sun.xml.writer>
+F<application/vnd.sun.xml.writer.template>
+F<application/vnd.sun.xml.writer.global>
+F<application/msword>
+F<application/vnd.ms-word>
+F<application/x-doc>
+F<application/x-hwp>
+F<application/rtf>
+F<text/rtf>
+F<application/vnd.wordperfect>
+F<application/wordperfect>
+F<application/vnd.lotus-wordpro>
+F<application/vnd.openxmlformats-officedocument.wordprocessingml.document>
+F<application/vnd.ms-word.document.macroenabled.12>
+F<application/vnd.openxmlformats-officedocument.wordprocessingml.template>
+F<application/vnd.ms-word.template.macroenabled.12>
+F<application/vnd.ms-works>
+F<application/vnd.stardivision.writer-global>
+F<application/x-extension-txt>
+F<application/x-t602>
+F<text/plain>
+F<application/vnd.oasis.opendocument.text-flat-xml>
+F<application/x-fictionbook+xml>
+F<application/macwriteii>
+F<application/x-aportisdoc>
+F<application/prs.plucker>
+F<application/vnd.palm>
+F<application/clarisworks>
+
+=item C<2DGraphics>
+
+F<image/gif>
+F<image/jpeg>
+F<image/jpg>
+F<image/pjpeg>
+F<image/png>
+F<image/tiff>
+F<image/x-bmp>
+F<image/x-pcx>
+F<image/x-png>
+F<image/x-portable-anymap>
+F<image/x-portable-bitmap>
+F<image/x-portable-graymap>
+F<image/x-portable-pixmap>
+F<image/x-tga>
+F<image/x-xbitmap>
+
+=item C<Viewer>
+
+F<application/pdf>
+
+=item C<Printing>
+
+=item C<PackageManager>
+
+F<application/x-rpm>
+F<application/x-urpmi>
+F<application/x-urpmi-media>
+F<application/x-deb>
+F<application/x-debian-package>
+
+=item C<IRCClient>
+
+=item C<Feed>
+
+F<application/rss+xml>
+
+=item C<FileTransfer>
+
+F<application/x-bittorrent>
+
+=item C<News>
+
+=item C<RemoteAccess>
+
+F<application/x-remote-connection>
+F<x-scheme-handler/vnc>
+
+=item C<Telephony>
+
+=item C<VideoConference>
+
+=item C<WebBrowser>
+
+F<text/html>
+F<text/xml>
+F<application/xhtml+xml>
+F<application/xml>
+F<application/vnd.mozilla.xul+xml>
+F<application/rss+xml>
+F<application/rdf+xml>
+F<x-scheme-handler/http>
+F<x-scheme-handler/https>
+F<x-scheme-handler/geo>
+
+=item C<Mixer>
+
+=item C<Player>
+
+F<audio/*>
+F<video/*>
+
+=item C<Recorder>
+
+F<video/dv>
+F<application/smil>
+
+=item C<DiscBurning>
+
+F<application/x-cd-image>
+F<application/x-cdrdao-toc>
+F<application/x-cue>
+F<application/x-toc>
+F<audio/x-scpls>
+F<audio/x-ms-asx>
+F<audio/x-mp3-playlist>
+F<audio/x-mpegurl>
+F<application/x-brasero>
+F<x-content/audio-cdda>
+F<x-content/video-dvd>
+F<x-content/video-vcd>
+F<x-content/video-svcd>
+F<x-content/image-picturecd>
+
+=item C<Archiving>
+
+F<application/x-arj>
+F<application/arj>
+F<application/x-bzip>
+F<application/x-bzip-compressed-tar>
+F<application/x-gzip>
+F<application/x-rar>
+F<application/x-rar-compressed>
+F<application/x-tar>
+F<application/x-zip>
+F<application/x-zip-compressed>
+F<application/zip>
+F<application/x-7z-compressed>
+F<application/x-compressed-tar>
+F<application/x-bzip2>
+F<application/x-bzip2-compressed-tar>
+F<application/x-lzma>
+F<application/x-lzma-compressed-tar>
+F<application/x-lzop>
+F<application/x-lzop-compressed-tar>
+F<application/x-xz>
+F<application/x-xz-compressed-tar>
+F<application/x-deb>
+F<application/x-rpm>
+
+=item C<FileManager>
+
+F<inode/directory>
+F<x-directory/normal>
+F<inode/mount-point>
+F<x-scheme-handler/ssh>
+F<x-scheme-handler/smb>
+F<x-scheme-handler/nfs>
+F<x-scheme-handler/ftp>
+F<x-scheme-handler/trash>
+
+=item C<TerminalEmulator>
+
+=item C<Monitor>
+
+F<application/vnd.tcpdump.pcap>
+F<application/x-pcapng>
+F<application/x-snoop>
+F<application/x-iptrace>
+F<application/x-lanalyzer>
+F<application/x-nettl>
+F<application/x-radcom>
+F<application/x-etherpeek>
+F<application/x-visualnetworks>
+F<application/x-netinstobserver>
+F<application/x-5view>
+
+=item C<Calculator>
+
+=item C<Clock>
+
+=item C<TextEditor>
+
+F<text/english>
+F<text/plain>
+F<text/x-makefile>
+F<text/x-c++hdr>
+F<text/x-c++src>
+F<text/x-chdr>
+F<text/x-csrc>
+F<text/x-java>
+F<text/x-moc>
+F<text/x-pascal>
+F<text/x-tcl>
+F<text/x-tex>
+F<application/x-shellscript>
+F<text/x-c>
+F<text/x-c++>
+
+=item C<Documentation>
+
+F<application/docbook+xml>
+F<x-scheme-handler/ghelp>
+F<x-scheme-handler/help>
+F<x-scheme-handler/info>
+F<x-scheme-handler/man>
+
+=back
+
 =head2 APPLICATION TYPES
 
 =over
