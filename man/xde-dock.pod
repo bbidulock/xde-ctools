@@ -90,7 +90,7 @@ otherwise, the output verbosity is set to I<LEVEL>.
 
 =item B<--debug>, B<-D> [I<LEVEL>]
 
-Print debuggin information on standard error while running.  When
+Print debugging information on standard error while running.  When
 I<LEVEL> is not specified, simply increments the debug level; otherwise,
 the debug level is set to I<LEVEL>.
 
