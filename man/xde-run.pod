@@ -115,7 +115,7 @@ Brian Bidulock L<mailto:bidulock@openss7.org>.
 =head1 SEE ALSO
 
 L<getopt_long_only(3)>,
-L<xde-launch(1)>,
+L<xde-app(1)>,
 L<xdg-launch(1)>.
 
 =cut
