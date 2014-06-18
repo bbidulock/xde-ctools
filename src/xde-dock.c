@@ -755,7 +755,7 @@ is_dockapp(Window win)
 			/* Many docapps that were based on GTK+ < 2.4.0 are having their
 			   initial_state changed to NormalState by GTK+ >= 2.4.0, so when the other
 			   flags are set, accept it anyway */
-			if (wmh->initial_state == WithdrawnState || wmh->flags == (WindowGroupHint | StateHint | IconWindowHint))
+			if (wmh->initial_state == WithdrawnState || (wmh->flags & ~IconPositionHint) == (WindowGroupHint | StateHint | IconWindowHint))
 				return (wmh);
 			/* In an attempt to get around GTK+ >= 2.4.0 limitations, some GTK+ dock
 			   apps simply set the res_class to "DockApp". */
