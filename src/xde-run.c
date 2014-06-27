@@ -515,6 +515,7 @@ on_dialog_response(GtkDialog * dialog, gint response_id, gpointer data)
 			command = calloc(len, sizeof(*command));
 			strncpy(command, launch, len);
 			strncat(command, text, len);
+			history = g_list_append(history, (gpointer) strdup(text));
 		} else if (gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(term))) {
 			static const char *xterm = "xterm -e ";
 
@@ -522,12 +523,13 @@ on_dialog_response(GtkDialog * dialog, gint response_id, gpointer data)
 			command = calloc(len, sizeof(*command));
 			strcpy(command, xterm);
 			strcat(command, text);
+			history = g_list_append(history, (gpointer) strdup(command));
 		} else {
 			len = strlen(text) + 3;
 			command = calloc(len, sizeof(*command));
 			strcpy(command, text);
+			history = g_list_append(history, (gpointer) strdup(command));
 		}
-		history = g_list_append(history, (gpointer) strdup(command));
 		put_run_history();
 
 		strncat(command, " &", len);
