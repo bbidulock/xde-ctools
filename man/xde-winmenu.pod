@@ -1,0 +1,198 @@
+=pod
+
+=head1 NAME
+
+xde-winmenu - Window Actions Menu for XDE
+
+=head1 SYNOPSIS
+
+B<xde-winmenu> [I<OPTIONS>]
+
+=head1 DESCRIPTION
+
+Provides a window menu for window managers that do not provide one
+themselves or as a better window menu for those that provide an inferior
+one.  The window menu is a menu of actions that can be performed against
+a window and is normally accessed with a hot-key, or by clicking on the
+decorative border of a window, or by pressing one or more modifier keys
+and clicking on the window.  B<xde-winmenu> supports all of these
+activations; however, activation for clicking on a window or its
+decorative border may require some definition be added to the
+configuration file of the window manager.  See L</USAGE> and
+L</WINDOW MANAGERS> for more information about activation.
+
+=head1 OPTIONS
+
+B<xde-winmenu> accepts the following options:
+
+=head2 COMMAND OPTIONS
+
+The default when no command option is specified is to run the program
+as the primary instance.  Only one instnace of the program will be
+launched for one display at one time.
+
+When specified, the following options alter the primary operating mode
+of B<xde-winmenu>:
+
+=over
+
+=item B<--replace>, B<-r>
+
+Replaces a running instance of B<xde-winmenu>.
+
+=item B<--restart>, B<-R>
+
+Asks a running instance of B<xde-winmenu> to restart (re-execute itself
+with the same arguments).  This is useful when the B<xde-winmenu>
+executable has been upgraded.
+
+=item B<--quit>, B<-q>
+
+Asks a running instance of B<xde-winmenu> to quit.
+
+=item B<--popup>, B<-p>
+
+Asks a running instance of B<xde-winmenu> to popup the menu.  Depending
+on the setting of the B<--button> option, this will either popup the mnu
+at the current pointer position, or will popup the menu centered over
+the window to which it corresponds.
+
+If there is no running instance of B<xde-winmenu>, this instance will
+become the running instance (as though no command options was specified)
+before popping the menu.
+
+=item B<--help>, B<-h>
+
+Prints usage information and the current options settings and defaults
+nad exits.
+
+=item B<--version>, B<-V>
+
+Prints the version of the program and a brief copyright statement and
+exits.  Parse the first line with L<awk(1)> to obtain just the version
+number.
+
+=item B<--copying>, B<-C>
+
+Prints the long copying permissions statement and exits.
+
+=back
+
+=head2 GENERAL OPTIONS
+
+The following options are general options:
+
+=over
+
+=item B<--button>, B<-b> I<BUTTON>
+
+Specifies the button that was used to invoke the popup.  Defaults to
+zero (0).  This should be the button that was used to pop the menu.  A
+window manager that invokes this command in response to a button press
+should release its passive grab on the button before invoking the window
+menu so that the popped up menu can grab the button.  A I<BUTTON> of
+zero (0) means that the program was invoked with a key-press instead of
+a button.
+
+This option is only useful in combination with B<--popup>.
+
+=item B<--timestamp>, B<-T> I<TIMESTAMP>
+
+Provides the X11 server timstamp of the event that caused the popup.
+
+This option is only useful in combination with B<--popup>.
+
+=item B<--which>, B<-w> {B<active>|B<focused>|B<pointer>|B<select>}
+
+Specifies the window for which the popup the menu.  This can be one of
+the following values (case insensitive, may be abbreviated):
+
+=over
+
+=item C<active>
+
+Popup a menu for the active window (in the EWMH sense).  This is the
+window specified by the B<_NET_ACTIVE_WINDOW> property on the root
+window.
+
+=item C<focused>
+
+Popup a menu for the focused window (in the EWMH sense or simply the
+client with the keyboard focus).  This is the with with a
+B<_NET_WM_STATE_FOCUSED> atom set in B<_NET_WM_STATE>, or the client
+(visible client with the B<WM_STATE> property set to state C<Normal>)
+that has keyboard focus according to the X server.
+
+If no focused window can be found (e.g. focus is on the root window),
+window selection falls back to C<pointer> as described below.
+
+This is the default when B<--button> is specified and zero.
+
+=item C<pointer>
+
+Popup a menu for the client holding a pointer grab or the client
+or window manager frame directly under the pointer.
+
+This is the default when B<--button> is specified and non-zero.
+
+=item C<select>
+
+Select the client for which the window menu should be posted by having
+the user click on the window.  Use the normal X window selection
+protocol.
+
+=back
+
+This option is only useful in combination with B<--popup>
+
+When a client window cannot be found, B<xde-winmenu> complains and
+exits.
+
+=item B<--verbose>, B<-v> [I<LEVEL>]
+
+Increases or sets the the output verbosity level to I<LEVEL>.  The
+default level is C<1>.  Normal output is printed to standard output.
+This option may be repeated.
+
+=item B<--debug>, B<-D> [I<LEVEL>]
+
+Increases or sets the debugging verbosity level to I<LEVEL>.  The
+default level is C<0>.  Debugging output is printed to standard error.
+This option may be repeated.
+
+=back
+
+=head1 USAGE
+
+B<xde-winmenu> currently uses F<libwnck+> or F<libwnck> both to identify
+the window manager and to provide the window actions menu.  The range
+and format of window actions provided by F<libwnck+> is superior to
+F<libwnck>.  This use means that B<xde-winmenu> does not currently
+provide any support for window managers that do not have a modicum of
+compliance to the EWMH/NetWM specifications.  That may change in the
+future.
+
+Note that B<xde-winmenu> will monitor any B<_WIN_DESKTOP_BUTTON_PROXY>
+window (when one is provided) to catch button presses that are not of
+interest to the window manager.  Otherwise, it will be necessary to
+configure the window manager in such a way as it launches B<xde-winmenu>
+with the B<--button> and possibly B<--timestamp> options.
+
+=head1 CONFIGURATION
+
+B<xde-winmenU> is configured using a configuration file.  Because
+different configurations are possible for different window managers,
+B<xde-winmenu> looks for a window-manager specific configuration file
+before falling back to a default configuration file.  Configuration
+files are located in F<$XDG_CONFIG_{HOME,DIRS}/xde/$PROFILE/winmenu.ini>
+using normal XDG directory lookup rules, where I<$PROFILE> is the
+uppercase name of the window manager, falling back to C<default> when
+there is no window-manager specific file for the given window manager.
+
+=head1 AUTHOR
+
+Brian Bidulock L<mailto:bidulock@openss7.org>.
+
+=cut
+
+# vim: set sw=4 tw=72 nocin:
