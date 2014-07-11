@@ -16,10 +16,8 @@ one.  The window menu is a menu of actions that can be performed against
 a window and is normally accessed with a hot-key, or by clicking on the
 decorative border of a window, or by pressing one or more modifier keys
 and clicking on the window.  B<xde-winmenu> supports all of these
-activations; however, activation for clicking on a window or its
-decorative border may require some definition be added to the
-configuration file of the window manager.  See L</USAGE> and
-L</WINDOW MANAGERS> for more information about activation.
+activations.  See L</USAGE> and L</WINDOW MANAGERS> for more information
+about activation.
 
 =head1 OPTIONS
 
@@ -27,39 +25,16 @@ B<xde-winmenu> accepts the following options:
 
 =head2 COMMAND OPTIONS
 
-The default when no command option is specified is to run the program
-as the primary instance.  Only one instnace of the program will be
-launched for one display at one time.
-
-When specified, the following options alter the primary operating mode
-of B<xde-winmenu>:
+When specified, the following optios alter the primary operating mode of
+the program:
 
 =over
 
-=item B<--replace>, B<-r>
+=item [B<--popup>, B<-p>]
 
-Replaces a running instance of B<xde-winmenu>.
-
-=item B<--restart>, B<-R>
-
-Asks a running instance of B<xde-winmenu> to restart (re-execute itself
-with the same arguments).  This is useful when the B<xde-winmenu>
-executable has been upgraded.
-
-=item B<--quit>, B<-q>
-
-Asks a running instance of B<xde-winmenu> to quit.
-
-=item B<--popup>, B<-p>
-
-Asks a running instance of B<xde-winmenu> to popup the menu.  Depending
-on the setting of the B<--button> option, this will either popup the mnu
-at the current pointer position, or will popup the menu centered over
-the window to which it corresponds.
-
-If there is no running instance of B<xde-winmenu>, this instance will
-become the running instance (as though no command options was specified)
-before popping the menu.
+Post a popup menu.  Depending on the setting of the B<--button> option,
+this will either post the popup menu at the current pointer position, or
+centered on the window to which it corresponds.
 
 =item B<--help>, B<-h>
 
@@ -94,13 +69,9 @@ menu so that the popped up menu can grab the button.  A I<BUTTON> of
 zero (0) means that the program was invoked with a key-press instead of
 a button.
 
-This option is only useful in combination with B<--popup>.
-
 =item B<--timestamp>, B<-T> I<TIMESTAMP>
 
 Provides the X11 server timstamp of the event that caused the popup.
-
-This option is only useful in combination with B<--popup>.
 
 =item B<--which>, B<-w> {B<active>|B<focused>|B<pointer>|B<select>}
 
@@ -143,8 +114,6 @@ protocol.
 
 =back
 
-This option is only useful in combination with B<--popup>
-
 When a client window cannot be found, B<xde-winmenu> complains and
 exits.
 
@@ -172,26 +141,13 @@ provide any support for window managers that do not have a modicum of
 compliance to the EWMH/NetWM specifications.  That may change in the
 future.
 
-Note that B<xde-winmenu> will monitor any B<_WIN_DESKTOP_BUTTON_PROXY>
-window (when one is provided) to catch button presses that are not of
-interest to the window manager.  Otherwise, it will be necessary to
-configure the window manager in such a way as it launches B<xde-winmenu>
-with the B<--button> and possibly B<--timestamp> options.
-
-=head1 CONFIGURATION
-
-B<xde-winmenU> is configured using a configuration file.  Because
-different configurations are possible for different window managers,
-B<xde-winmenu> looks for a window-manager specific configuration file
-before falling back to a default configuration file.  Configuration
-files are located in F<$XDG_CONFIG_{HOME,DIRS}/xde/$PROFILE/winmenu.ini>
-using normal XDG directory lookup rules, where I<$PROFILE> is the
-uppercase name of the window manager, falling back to C<default> when
-there is no window-manager specific file for the given window manager.
-
 =head1 AUTHOR
 
 Brian Bidulock L<mailto:bidulock@openss7.org>.
+
+=head1 SEE ALSO
+
+L<xde-keys(1)>
 
 =cut
 

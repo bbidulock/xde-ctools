@@ -2,11 +2,11 @@
 
 =head1 NAME
 
-xde-launch - XDG application launch dialog for XDE
+xde-app - XDG application launch dialog for XDE
 
 =head1 SYNOPSIS
 
-B<xde-launch> [I<OPTIONS>]
+B<xde-app> [I<OPTIONS>]
 
 =head1 DESCRIPTION
 
@@ -20,16 +20,16 @@ Because GNU L<getopt_long_only(3)> is used, non-ambiguous abbreviations
 and single dash long options are accepted; however, single flag short
 options should not be concatenated.
 
-B<xde-launch> recognizes the following options:
+B<xde-app> recognizes the following options:
 
 =head2 COMMAND OPTIONS
 
 Command options affect the major operating mode of the program.  Only
 noe of the following command options should be specified.  When no
-command option is specified, B<xde-launch> will assume normal operation
-is requested and launch the launcher command dialog.
+command option is specified, B<xde-app> will assume normal operation is
+requested and launch the application launch command dialog.
 
-B<xde-launch> provides the following command options:
+B<xde-app> provides the following command options:
 
 =over
 
@@ -51,7 +51,7 @@ Print license and copying information to standard output and exit.
 =head2 GENERAL OPTIONS
 
 General options do not affect the major operating mode of the program.
-B<xde-launch> provides the following general options:
+B<xde-app> provides the following general options:
 
 =over
 
@@ -76,15 +76,15 @@ the debug level is set to I<LEVEL>.
 
 =head1 FILES
 
-B<xde-launch> uses the following files:
+B<xde-app> uses the following files:
 
 =over
 
 =item F<$XDG_CONFIG_HOME/xde/recent-applications>
 
-The default location of the F<recent-applications> file.  This is a
-simple text file with the application ids that were last run using the
-dialog, one per line, with the oldest entries lower in the file.
+The default location of the F<recent-applications> file.  This is a simple text
+file with the application ids that were last run using the dialog, one per
+line, with the oldest entries lower in the file.
 
 =item F<$HOME/.gtkrc-2.0.xde>
 
@@ -97,7 +97,7 @@ launched.
 
 =head1 NOTES
 
-B<xde-launch> does not perform its own XDG startup notification.
+B<xde-app> does not perform its own XDG startup notification.
 Instead, it uses the L<xdg-launch(1)> command to perform this function.
 
 =head1 AUTHOR
