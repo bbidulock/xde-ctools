@@ -59,6 +59,19 @@ The following options are general options:
 
 =over
 
+=item B<--display>, B<-d> I<DISPLAY>
+
+Specify the display to use (overriding the B<DISPLAY> environment
+variable).  The default is the value of the B<DISPLAY> environment
+variable.
+
+=item B<--screen>, B<-s> I<SCREEN>
+
+Specify the screen number to use when locating the client window.  The
+default is either specified by the B<DISPLAY> environment variable
+(which that variable specifies a screen); otherwise, all screens will be
+considered.
+
 =item B<--button>, B<-b> I<BUTTON>
 
 Specifies the button that was used to invoke the popup.  Defaults to
@@ -97,7 +110,8 @@ that has keyboard focus according to the X server.
 If no focused window can be found (e.g. focus is on the root window),
 window selection falls back to C<pointer> as described below.
 
-This is the default when B<--button> is specified and zero.
+This is the default when B<--button> is unspecified, or specified as
+zero.
 
 =item C<pointer>
 
@@ -112,10 +126,19 @@ Select the client for which the window menu should be posted by having
 the user click on the window.  Use the normal X window selection
 protocol.
 
+=item I<WINDOW>
+
+Select the window with XID, I<WINDOW>, for posting of menu.
+
 =back
 
 When a client window cannot be found, B<xde-winmenu> complains and
 exits.
+
+=item B<--id>, B<-x> I<WINDOW>
+
+Specify the X window identifier (XID) of the EWMH/NetWM client window
+for which to popup a menu.  Can also specified with B<--which>.
 
 =item B<--verbose>, B<-v> [I<LEVEL>]
 

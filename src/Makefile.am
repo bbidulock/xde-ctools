@@ -4,7 +4,8 @@ AM_CFLAGS = $(X11_CFLAGS) $(XINERAMA_CFLAGS) $(XRANDR_CFLAGS) $(GDK_CFLAGS) $(GT
 bin_PROGRAMS = \
 	xde-app \
 	xde-dock \
-	xde-run
+	xde-run \
+	xde-winmenu
 
 xde_app_CPPFLAGS = -DNAME=\"xde-app\"
 xde_app_SOURCES = xde-app.c xde-app.h
@@ -17,4 +18,8 @@ xde_dock_LDADD = $(WNCK_LIBS) $(GTK_LIBS) $(GDK_LIBS) $(XINERAMA_LIBS) $(XRANDR_
 xde_run_CPPFLAGS = -DNAME=\"xde-run\"
 xde_run_SOURCES = xde-run.c xde-run.h
 xde_run_LDADD = $(WNCK_LIBS) $(GTK_LIBS) $(GDK_LIBS) $(XINERAMA_LIBS) $(XRANDR_LIBS) $(X11_LIBS)
+
+xde_winmenu_CPPFLAGS = -DNAME=\"xde-winmenu\"
+xde_winmenu_SOURCES = xde-winmenu.c xde-winmenu.h
+xde_winmenu_LDADD = $(WNCK_LIBS) $(GTK_LIBS) $(GDK_LIBS) $(XINERAMA_LIBS) $(XRANDR_LIBS) $(X11_LIBS)
 
