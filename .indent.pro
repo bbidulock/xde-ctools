@@ -24,6 +24,8 @@
 -ss
 -hnl
 -nbc
+-TGtkMenu
+-TGtkMenuShell
 -TGtkTextBuffer
 -TGtkButton
 -TFILE
