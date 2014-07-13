@@ -204,8 +204,7 @@ Options:\n\
     -v, --verbose [LEVEL]\n\
         increment or set output verbosity LEVEL [default: %3$d]\n\
         this option may be repeated.\n\
-", argv[0], options.debug, options.output, options.runhist, options.recent, options.recapps,
-		options.xdg ? "true" : "false");
+", argv[0], options.debug, options.output, options.runhist, options.recent, options.recapps, options.xdg ? "true" : "false");
 }
 
 void
@@ -251,7 +250,7 @@ get_run_history()
 		free(buf);
 		fclose(f);
 	} else
-		fprintf(stderr, "open: could not open history file %s: %s\n", file, strerror(errno));
+		EPRINTF("open: could not open history file %s: %s\n", file, strerror(errno));
 	return;
 }
 
@@ -299,20 +298,17 @@ find_apps(const char *base, const char *subdir)
 			struct stat st;
 
 			if (!strcmp(d->d_name, ".") || !strcmp(d->d_name, "..")) {
-				if (options.debug)
-					fprintf(stderr, "%s: skipping directory '%s'\n", __FUNCTION__, entry);
+				DPRINTF("%s: skipping directory '%s'\n", __FUNCTION__, entry);
 				continue;
 			}
 			strncpy(entry, path, PATH_MAX);
 			strncat(entry, d->d_name, PATH_MAX);
 			if (stat(entry, &st) == -1) {
-				if (options.debug)
-					fprintf(stderr, "stat: %s: %s\n", entry, strerror(errno));
+				DPRINTF("stat: %s: %s\n", entry, strerror(errno));
 				continue;
 			}
 			if (!S_ISREG(st.st_mode) && !S_ISDIR(st.st_mode)) {
-				if (options.debug)
-					fprintf(stderr, "stat: %s: %s\n", entry, "not regular file or directory");
+				DPRINTF("stat: %s: %s\n", entry, "not regular file or directory");
 				continue;
 			}
 			if (S_ISREG(st.st_mode)) {
@@ -321,8 +317,7 @@ find_apps(const char *base, const char *subdir)
 				GtkTreeIter iter;
 
 				if (!(p = strstr(d->d_name, ".desktop")) || p[8]) {
-					if (options.debug)
-						fprintf(stderr, "%s: not a desktop file '%s'\n", __FUNCTION__, entry);
+					DPRINTF("%s: not a desktop file '%s'\n", __FUNCTION__, entry);
 					continue;
 				}
 				len = strlen(subdir) + strlen(d->d_name) + 1;
@@ -368,29 +363,25 @@ find_bins(const char *base, const char *subdir)
 			struct stat st;
 
 			if (!strcmp(d->d_name, ".") || !strcmp(d->d_name, "..")) {
-				if (options.debug)
-					fprintf(stderr, "%s: skipping directory '%s'\n", __FUNCTION__, entry);
+				DPRINTF("%s: skipping directory '%s'\n", __FUNCTION__, entry);
 				continue;
 			}
 			strncpy(entry, path, PATH_MAX);
 			strncat(entry, d->d_name, PATH_MAX);
 			if (stat(entry, &st) == -1) {
-				if (options.debug)
-					fprintf(stderr, "stat: %s: %s\n", entry, strerror(errno));
+				DPRINTF("stat: %s: %s\n", entry, strerror(errno));
 				continue;
 			}
 			if (!S_ISREG(st.st_mode) && !S_ISDIR(st.st_mode)) {
-				if (options.debug)
-					fprintf(stderr, "stat: %s: %s\n", entry, "not regular file or directory");
+				DPRINTF("stat: %s: %s\n", entry, "not regular file or directory");
 				continue;
 			}
 			if (S_ISREG(st.st_mode)) {
 				char *binid;
 				GtkTreeIter iter;
 
-				if (!(st.st_mode & (S_IXUSR|S_IXGRP|S_IXOTH))) {
-					if (options.debug)
-						fprintf(stderr, "%s: not executable '%s'\n", __FUNCTION__, entry);
+				if (!(st.st_mode & (S_IXUSR | S_IXGRP | S_IXOTH))) {
+					DPRINTF("%s: not executable '%s'\n", __FUNCTION__, entry);
 					continue;
 				}
 				len = strlen(subdir) + strlen(d->d_name) + 1;
@@ -400,7 +391,6 @@ find_bins(const char *base, const char *subdir)
 
 				gtk_list_store_append(store, &iter);
 				gtk_list_store_set(store, &iter, 0, binid, -1);
-
 
 			} else if (S_ISDIR(st.st_mode)) {
 				strncpy(entry, subdir, PATH_MAX);
@@ -495,12 +485,13 @@ on_file_clicked(GtkButton *button, gpointer data)
 							GTK_STOCK_CANCEL, GTK_RESPONSE_CANCEL,
 							GTK_STOCK_OK, GTK_RESPONSE_OK, NULL);
 
-	g_signal_connect(G_OBJECT(choose), "response", G_CALLBACK(on_file_response), (gpointer) NULL);
+	g_signal_connect(G_OBJECT(choose), "response", G_CALLBACK(on_file_response),
+			 (gpointer) NULL);
 	gtk_dialog_run(GTK_DIALOG(choose));
 }
 
 void
-on_dialog_response(GtkDialog * dialog, gint response_id, gpointer data)
+on_dialog_response(GtkDialog *dialog, gint response_id, gpointer data)
 {
 	if (response_id == GTK_RESPONSE_OK || response_id == 0) {
 		char *command;
@@ -536,12 +527,10 @@ on_dialog_response(GtkDialog * dialog, gint response_id, gpointer data)
 		if ((status = system(command)) == 0)
 			exit(0);
 		if (WIFSIGNALED(status)) {
-			fprintf(stderr, "system: %s: exited on signal %d\n", command,
-				WTERMSIG(status));
+			EPRINTF("system: %s: exited on signal %d\n", command, WTERMSIG(status));
 			exit(WTERMSIG(status));
 		} else if (WIFEXITED(status)) {
-			fprintf(stderr, "system: %s: exited with non-zero exit status %d\n",
-				command, WEXITSTATUS(status));
+			EPRINTF("system: %s: exited with non-zero exit status %d\n", command, WEXITSTATUS(status));
 			exit(WEXITSTATUS(status));
 		}
 		exit(EXIT_FAILURE);
@@ -578,14 +567,16 @@ run_command()
 	gtk_entry_completion_set_text_column(GTK_ENTRY_COMPLETION(compl), 0);
 	gtk_entry_completion_set_minimum_key_length(GTK_ENTRY_COMPLETION(compl), 2);
 	gtk_entry_set_completion(GTK_ENTRY(entry), GTK_ENTRY_COMPLETION(compl));
-	g_signal_connect(G_OBJECT(entry), "changed", G_CALLBACK(on_entry_changed), (gpointer) NULL);
+	g_signal_connect(G_OBJECT(entry), "changed", G_CALLBACK(on_entry_changed),
+			 (gpointer) NULL);
 
 	term = gtk_check_button_new_with_label("Run in terminal");
 	gtk_widget_set_sensitive(GTK_WIDGET(term), options.xdg ? FALSE : TRUE);
 
 	GtkWidget *file = gtk_button_new_with_label("Run with file...");
 
-	g_signal_connect(G_OBJECT(file), "clicked", G_CALLBACK(on_file_clicked), (gpointer) NULL);
+	g_signal_connect(G_OBJECT(file), "clicked", G_CALLBACK(on_file_clicked),
+			 (gpointer) NULL);
 
 	GtkWidget *hbox = gtk_hbox_new(FALSE, 12);
 
@@ -616,29 +607,33 @@ run_command()
 	gtk_window_set_skip_taskbar_hint(GTK_WINDOW(dialog), TRUE);
 	gint storage;
 
-	if ((storage = gtk_image_get_storage_type(GTK_IMAGE(icon))) == GTK_IMAGE_PIXBUF || storage == GTK_IMAGE_EMPTY)
+	if ((storage = gtk_image_get_storage_type(GTK_IMAGE(icon))) == GTK_IMAGE_PIXBUF
+	    || storage == GTK_IMAGE_EMPTY)
 		gtk_window_set_icon(GTK_WINDOW(dialog), gtk_image_get_pixbuf(GTK_IMAGE(icon)));
-	gtk_dialog_add_buttons(GTK_DIALOG(dialog), GTK_STOCK_CANCEL, GTK_RESPONSE_CANCEL, GTK_STOCK_EXECUTE, GTK_RESPONSE_OK, NULL);
+	gtk_dialog_add_buttons(GTK_DIALOG(dialog), GTK_STOCK_CANCEL, GTK_RESPONSE_CANCEL,
+			       GTK_STOCK_EXECUTE, GTK_RESPONSE_OK, NULL);
 	GtkWidget *action = gtk_dialog_get_action_area(GTK_DIALOG(dialog));
 
 	gtk_button_box_set_layout(GTK_BUTTON_BOX(action), GTK_BUTTONBOX_END);
 	GtkWidget *content = gtk_dialog_get_content_area(GTK_DIALOG(dialog));
 
 	gtk_box_pack_start(GTK_BOX(content), GTK_WIDGET(mbox), TRUE, TRUE, 0);
-	g_signal_connect(G_OBJECT(dialog), "response", G_CALLBACK(on_dialog_response), (gpointer) NULL);
-	g_signal_connect(G_OBJECT(entry), "activate", G_CALLBACK(on_entry_activate), (gpointer) NULL);
+	g_signal_connect(G_OBJECT(dialog), "response", G_CALLBACK(on_dialog_response),
+			 (gpointer) NULL);
+	g_signal_connect(G_OBJECT(entry), "activate", G_CALLBACK(on_entry_activate),
+			 (gpointer) NULL);
 	gtk_widget_show_all(GTK_WIDGET(dialog));
 }
 
 void
-reparse()
+reparse(Display *dpy, Window root)
 {
 	XTextProperty xtp = { NULL, };
 	char **list = NULL;
 	int strings = 0;
 
 	gtk_rc_reparse_all();
-	if (XGetTextProperty(dpy, root, &xtp, _XA_XDE_THEME_NAME) == Success) {
+	if (XGetTextProperty(dpy, root, &xtp, _XA_XDE_THEME_NAME)) {
 		if (Xutf8TextPropertyToTextList(dpy, &xtp, &list, &strings) == Success) {
 			if (strings >= 1) {
 				static const char *prefix = "gtk-theme-name=\"";
@@ -649,8 +644,8 @@ reparse()
 				len = strlen(prefix) + strlen(list[0]) + strlen(suffix) + 1;
 				rc_string = calloc(len, sizeof(*rc_string));
 				strncpy(rc_string, prefix, len);
-				strncpy(rc_string, list[0], len);
-				strncpy(rc_string, suffix, len);
+				strncat(rc_string, list[0], len);
+				strncat(rc_string, suffix, len);
 				gtk_rc_parse_string(rc_string);
 				free(rc_string);
 			}
@@ -662,29 +657,34 @@ reparse()
 	}
 }
 
-void
-event_handler_PropertyNotify(XEvent *xev)
+static GdkFilterReturn
+event_handler_PropertyNotify(Display *dpy, XEvent *xev)
 {
-	if (options.debug) {
+	if (options.debug > 1) {
 		fprintf(stderr, "==> PropertyNotify:\n");
 		fprintf(stderr, "    --> window = 0x%08lx\n", xev->xproperty.window);
 		fprintf(stderr, "    --> atom = %s\n", XGetAtomName(dpy, xev->xproperty.atom));
 		fprintf(stderr, "    --> time = %ld\n", xev->xproperty.time);
-		fprintf(stderr, "    --> state = %s\n", (xev->xproperty.state == PropertyNewValue) ? "NewValue" : "Delete");
+		fprintf(stderr, "    --> state = %s\n",
+			(xev->xproperty.state == PropertyNewValue) ? "NewValue" : "Delete");
 		fprintf(stderr, "<== PropertyNotify:\n");
 	}
-	if (xev->xproperty.atom == _XA_XDE_THEME_NAME && xev->xproperty.state == PropertyNewValue)
-		reparse();
-	return;
+	if (xev->xproperty.atom == _XA_XDE_THEME_NAME
+	    && xev->xproperty.state == PropertyNewValue) {
+		reparse(dpy, xev->xproperty.window);
+		return GDK_FILTER_REMOVE;	/* event handled */
+	}
+	return GDK_FILTER_CONTINUE;	/* event not handled */
 }
 
-void
-event_handler_ClientMessage(XEvent *xev)
+static GdkFilterReturn
+event_handler_ClientMessage(Display *dpy, XEvent *xev)
 {
-	if (options.debug) {
+	if (options.debug > 1) {
 		fprintf(stderr, "==> ClientMessage:\n");
 		fprintf(stderr, "    --> window = 0x%08lx\n", xev->xclient.window);
-		fprintf(stderr, "    --> message_type = %s\n", XGetAtomName(dpy, xev->xclient.message_type));
+		fprintf(stderr, "    --> message_type = %s\n",
+			XGetAtomName(dpy, xev->xclient.message_type));
 		fprintf(stderr, "    --> format = %d\n", xev->xclient.format);
 		switch (xev->xclient.format) {
 			int i;
@@ -710,101 +710,45 @@ event_handler_ClientMessage(XEvent *xev)
 		}
 		fprintf(stderr, "<== ClientMessage:\n");
 	}
-	if (xev->xclient.message_type == _XA_GTK_READ_RCFILES)
-		reparse();
-	return;
+	if (xev->xclient.message_type == _XA_GTK_READ_RCFILES) {
+		reparse(dpy, xev->xclient.window);
+		return GDK_FILTER_REMOVE;	/* event handled */
+	}
+	return GDK_FILTER_CONTINUE;	/* event not handled */
 }
 
-void
-handle_event(XEvent *xev)
+static GdkFilterReturn
+handle_event(Display *dpy, XEvent *xev)
 {
 	switch (xev->type) {
 	case PropertyNotify:
-		event_handler_PropertyNotify(xev);
-		break;
+		return event_handler_PropertyNotify(dpy, xev);
 	case ClientMessage:
-		event_handler_ClientMessage(xev);
-		break;
+		return event_handler_ClientMessage(dpy, xev);
 	}
+	return GDK_FILTER_CONTINUE;	/* event not handled, continue processing */
 }
 
-void
-handle_events()
+static GdkFilterReturn
+filter_handler(GdkXEvent * xevent, GdkEvent * event, gpointer data)
 {
-	XEvent xev;
+	XEvent *xev = (typeof(xev)) xevent;
+	Display *dpy = (typeof(dpy)) data;
 
-	XSync(dpy, False);
-	while (XPending(dpy) && !shutting_down) {
-		XNextEvent(dpy, &xev);
-		handle_event(&xev);
-	}
-}
-
-gboolean
-on_watch(GIOChannel *chan, GIOCondition cond, gpointer data)
-{
-	if (cond & (G_IO_NVAL | G_IO_HUP | G_IO_ERR)) {
-		fprintf(stderr, "ERROR: poll failed: %s %s %s\n", (cond & G_IO_NVAL) ? "NVAL" : "", (cond & G_IO_HUP) ? "HUP" : "",
-			(cond & G_IO_ERR) ? "ERR" : "");
-		exit(EXIT_FAILURE);
-	} else if (cond & (G_IO_IN | G_IO_PRI)) {
-		handle_events();
-	}
-	return TRUE;		/* keep event source */
-}
-
-void
-on_int_signal(int signum)
-{
-	shutting_down = True;
-	gtk_main_quit();
-}
-
-void
-on_hup_signal(int signum)
-{
-	shutting_down = True;
-	gtk_main_quit();
-}
-
-void
-on_term_signal(int signum)
-{
-	shutting_down = True;
-	gtk_main_quit();
-}
-
-void
-on_quit_signal(int signum)
-{
-	shutting_down = True;
-	gtk_main_quit();
-}
-
-int
-handler(Display *display, XErrorEvent * xev)
-{
-	if (options.debug) {
-		char msg[80], req[80], num[80], def[80];
-
-		snprintf(num, sizeof(num), "%d", xev->request_code);
-		snprintf(def, sizeof(def), "[request_code=%d]", xev->request_code);
-		XGetErrorDatabaseText(dpy, "xdg-setwm", num, def, req, sizeof(req));
-		if (XGetErrorText(dpy, xev->error_code, msg, sizeof(msg)) != Success)
-			msg[0] = '\0';
-		fprintf(stderr, "X error %s(0x%08lx): %s\n", req, xev->resourceid, msg);
-	}
-	return (0);
+	return handle_event(dpy, xev);
 }
 
 void
 startup(int argc, char *argv[])
 {
 	static const char *suffix = "/.gtkrc-2.0.xde";
-	int xfd;
-	GIOChannel *chan;
-	gint srce;
 	const char *home;
+	GdkAtom atom;
+	GdkEventMask mask;
+	GdkDisplay *disp;
+	GdkScreen *scrn;
+	GdkWindow *root;
+	Display *dpy;
 	char *file;
 	int len;
 
@@ -818,29 +762,23 @@ startup(int argc, char *argv[])
 
 	gtk_init(&argc, &argv);
 
-	signal(SIGINT, on_int_signal);
-	signal(SIGHUP, on_hup_signal);
-	signal(SIGTERM, on_term_signal);
-	signal(SIGQUIT, on_quit_signal);
+	disp = gdk_display_get_default();
+	dpy = GDK_DISPLAY_XDISPLAY(disp);
+	gdk_window_add_filter(NULL, filter_handler, dpy);
 
-	if (!(dpy = XOpenDisplay(0))) {
-		fprintf(stderr, "%s: %s %s\n", argv[0], "cannot open display", getenv("DISPLAY") ? : "");
-		exit(127);
-	}
-	xfd = ConnectionNumber(dpy);
-	chan = g_io_channel_unix_new(xfd);
-	srce = g_io_add_watch(chan, G_IO_IN | G_IO_ERR | G_IO_HUP | G_IO_PRI, on_watch, (gpointer) 0);
-	(void) srce;
+	atom = gdk_atom_intern_static_string("_XDE_THEME_NAME");
+	_XA_XDE_THEME_NAME = gdk_x11_atom_to_xatom_for_display(disp, atom);
 
-	XSetErrorHandler(handler);
-	screen = DefaultScreen(dpy);
-	root = RootWindow(dpy, screen);
+	atom = gdk_atom_intern_static_string("_GTK_READ_RCFILES");
+	_XA_GTK_READ_RCFILES = gdk_x11_atom_to_xatom_for_display(disp, atom);
 
-	_XA_XDE_THEME_NAME = XInternAtom(dpy, "_XDE_THEME_NAME", False);
-	_XA_GTK_READ_RCFILES = XInternAtom(dpy, "_GTK_READ_RCFILES", False);
+	scrn = gdk_display_get_default_screen(disp);
+	root = gdk_screen_get_root_window(scrn);
+	mask = gdk_window_get_events(root);
+	mask |= GDK_PROPERTY_CHANGE_MASK | GDK_STRUCTURE_MASK | GDK_SUBSTRUCTURE_MASK;
+	gdk_window_set_events(root, mask);
 
-	XSelectInput(dpy, root, PropertyChangeMask | StructureNotifyMask | SubstructureNotifyMask);
-
+	reparse(dpy, GDK_WINDOW_XID(root));
 }
 
 void
@@ -910,7 +848,8 @@ main(int argc, char *argv[])
 		};
 		/* *INDENT-ON* */
 
-		c = getopt_long_only(argc, argv, "xf:a:D::v::hVCH?", long_options, &option_index);
+		c = getopt_long_only(argc, argv, "xf:a:D::v::hVCH?", long_options,
+				     &option_index);
 #else
 		c = getop(argc, argv, "xf:a:DvhVC?");
 #endif
@@ -983,11 +922,13 @@ main(int argc, char *argv[])
 					fprintf(stderr, "%s: syntax error near '", argv[0]);
 					while (optind < argc) {
 						fprintf(stderr, "%s", argv[optind++]);
-						fprintf(stderr, "%s", (optind < argc) ? " " : "");
+						fprintf(stderr, "%s",
+							(optind < argc) ? " " : "");
 					}
 					fprintf(stderr, "'\n");
 				} else {
-					fprintf(stderr, "%s: missing option or argument", argv[0]);
+					fprintf(stderr, "%s: missing option or argument",
+						argv[0]);
 					fprintf(stderr, "\n");
 				}
 				fflush(stderr);

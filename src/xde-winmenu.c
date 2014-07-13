@@ -658,7 +658,7 @@ reparse(Display *dpy, Window root)
 	int strings = 0;
 
 	gtk_rc_reparse_all();
-	if (XGetTextProperty(dpy, root, &xtp, _XA_XDE_THEME_NAME) == Success) {
+	if (XGetTextProperty(dpy, root, &xtp, _XA_XDE_THEME_NAME)) {
 		if (Xutf8TextPropertyToTextList(dpy, &xtp, &list, &strings) == Success) {
 			if (strings >= 1) {
 				static const char *prefix = "gtk-theme-name=\"";
@@ -669,17 +669,19 @@ reparse(Display *dpy, Window root)
 				len = strlen(prefix) + strlen(list[0]) + strlen(suffix) + 1;
 				rc_string = calloc(len, sizeof(*rc_string));
 				strncpy(rc_string, prefix, len);
-				strncpy(rc_string, list[0], len);
-				strncpy(rc_string, suffix, len);
+				strncat(rc_string, list[0], len);
+				strncat(rc_string, suffix, len);
 				gtk_rc_parse_string(rc_string);
 				free(rc_string);
 			}
 			if (list)
 				XFreeStringList(list);
-		}
+		} else
+			EPRINTF("could not get text list for property\n");
 		if (xtp.value)
 			XFree(xtp.value);
-	}
+	} else
+		DPRINTF("could not get _XDE_THEME_NAME for root 0x%lx\n", root);
 }
 
 static GdkFilterReturn
