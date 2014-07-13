@@ -7,8 +7,8 @@
 -sob
 -bbo
 -ncdb
--l160
--lc100
+-l95
+-lc90
 -i8
 -ip8
 -cli0
@@ -24,6 +24,10 @@
 -ss
 -hnl
 -nbc
+-TXWMIconGeometry
+-TWnckWindow
+-TWnckScreen
+-TXWMState
 -TGtkMenu
 -TGtkMenuShell
 -TGtkTextBuffer

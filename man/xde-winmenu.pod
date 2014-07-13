@@ -140,6 +140,77 @@ exits.
 Specify the X window identifier (XID) of the EWMH/NetWM client window
 for which to popup a menu.  Can also specified with B<--which>.
 
+=item B<--where>, B<-W> {B<pointer>|B<center>|B<topleft>|B<icongeom>}
+
+Specifies the position for the popup menu.  This can be one of the
+following values (case insensitive, may be abbreviated):
+
+=over
+
+=item C<pointer>
+
+Place the northwest corner of the menu under the mouse pointer.  This
+will always succeed.  This is the default when B<--button> is specified
+and non-zero.
+
+=item C<center>
+
+Place the menu in the center of the associated window when visible.
+When not visible (minimized or hidden), defaults to C<icongeom> if there
+is an icon geometry defined, otherwise, defaults to the center of the
+monitor on which the window would normally appear.
+
+=item C<topleft>
+
+Place the menu in the top-left corner of the client window (inside any
+decorative border).  When the window is not visible (minimized or
+hidden), defaults to C<icongeom> if there is an icon geometry defined,
+otherwise, defautls to the top left corner of the monitor in which the
+window would normally appear.
+
+=item C<icongeom>
+
+Place the menu above or below (depending on position) the icon geometry
+area.  This is the area described by the B<_NET_WM_ICON_GEOMETRY>
+property on the associated window.  Note that this is the only location
+that makes sense for a minimized or hidden window and is always the
+first attempted position for a minimized or hidden window.  If there is
+no B<_NET_WM_ICON_GEOMETRY> property, defaults to C<topleft> for the
+window, followed by C<center> for the monitor.
+
+=back
+
+When unspecified, the default placement algorithm is as follows:
+
+=over
+
+=item 1.
+
+If B<--button> is specified and non-zero, place the menu at the
+pointer regardless of the window position or state.
+
+=item 2.
+
+If the window is unmapped (hidden or minimized) and an icon geometry
+exists for the associated window, place the menu above or below the icon
+geometry.
+
+=item 3.
+
+If the window is unmapped (hidden or minimized) and no icon geometry
+exists for the associated window, place the in the center of the monitor
+in which the window would normally be displayed.
+
+=item 4.
+
+If the window is mapped but fully or partially obscured, raise the
+window and the place the menu in the top left corner of the client
+wnidow (inside the decorative boder).
+
+If the window is mapped, 
+
+=back
+
 =item B<--verbose>, B<-v> [I<LEVEL>]
 
 Increases or sets the the output verbosity level to I<LEVEL>.  The

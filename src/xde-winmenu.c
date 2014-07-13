@@ -48,18 +48,27 @@
 #include <getopt.h>
 #endif
 
+Atom _XA_WM_STATE;
 Atom _XA_XDE_THEME_NAME;
 Atom _XA_GTK_READ_RCFILES;
 Atom _XA_NET_WM_ICON_GEOMETRY;
 
 typedef enum {
-	UseWindowDefault,
-	UseWindowActive,
-	UseWindowFocused,
-	UseWindowPointer,
-	UseWindowSpecified,
-	UseWindowSelect,
+	UseWindowDefault,		/* default window by button */
+	UseWindowActive,		/* active window */
+	UseWindowFocused,		/* focused window */
+	UseWindowPointer,		/* window under pointer */
+	UseWindowSpecified,		/* specified window */
+	UseWindowSelect,		/* manually select window */
 } UseWindow;
+
+typedef enum {
+	PositionDefault,		/* default position */
+	PositionPointer,		/* position at pointer */
+	PositionCenter,			/* center of window */
+	PositionTopLeft,		/* top left of window */
+	PositionIconGeom,		/* icon geometry position */
+} MenuPosition;
 
 typedef enum {
 	CommandDefault,
@@ -78,6 +87,7 @@ typedef struct {
 	Time timestamp;
 	UseWindow which;
 	Window window;
+	MenuPosition where;
 	Command command;
 } Options;
 
@@ -90,6 +100,7 @@ Options options = {
 	.timestamp = CurrentTime,
 	.which = UseWindowDefault,
 	.window = None,
+	.where = PositionDefault,
 	.command = CommandDefault,
 };
 
@@ -205,19 +216,19 @@ find_screen(GdkDisplay *disp)
 }
 
 WnckWindow *
-find_specified_window(GdkDisplay *disp, WnckScreen * scrn)
+find_specified_window(GdkDisplay *disp, WnckScreen *scrn)
 {
 	return wnck_window_get(options.window);
 }
 
 WnckWindow *
-find_active_window(GdkDisplay *disp, WnckScreen * scrn)
+find_active_window(GdkDisplay *disp, WnckScreen *scrn)
 {
 	return wnck_screen_get_active_window(scrn);
 }
 
 WnckWindow *
-find_focus_window(GdkDisplay *disp, WnckScreen * scrn)
+find_focus_window(GdkDisplay *disp, WnckScreen *scrn)
 {
 	WnckWindow *wind = NULL;
 	GList *windows, *w;
@@ -235,7 +246,8 @@ find_focus_window(GdkDisplay *disp, WnckScreen * scrn)
 	if (wind)
 		return (wind);
 
-	/* search harder, some window managers do not set _NET_WM_STATE_FOCUSED properly. */
+	/* search harder, some window managers do not set _NET_WM_STATE_FOCUSED properly. 
+	 */
 
 	dpy = GDK_DISPLAY_XDISPLAY(disp);
 	focus = None;
@@ -263,12 +275,18 @@ find_focus_window(GdkDisplay *disp, WnckScreen * scrn)
 }
 
 gboolean
-is_over(Display *dpy, WnckWindow * wind, int px, int py)
+is_over(Display *dpy, WnckWindow *wind, int px, int py)
 {
 	int x, y, w, h;
+	WnckWindowState state;
 	XWindowAttributes xwa;
 	Window win;
 
+	state = wnck_window_get_state(wind);
+	if (state & WNCK_WINDOW_STATE_MINIMIZED)
+		return FALSE;
+	if (state & WNCK_WINDOW_STATE_HIDDEN)
+		return FALSE;
 	if (!(win = wnck_window_get_xid(wind)))
 		return FALSE;
 	if (!XGetWindowAttributes(dpy, win, &xwa))
@@ -282,7 +300,7 @@ is_over(Display *dpy, WnckWindow * wind, int px, int py)
 }
 
 WnckWindow *
-find_pointer_window(GdkDisplay *disp, WnckScreen * scrn)
+find_pointer_window(GdkDisplay *disp, WnckScreen *scrn)
 {
 	WnckWindow *wind = NULL;
 	GList *windows, *w;
@@ -299,7 +317,7 @@ find_pointer_window(GdkDisplay *disp, WnckScreen * scrn)
 }
 
 WnckWindow *
-find_window(GdkDisplay *disp, WnckScreen * scrn)
+find_window(GdkDisplay *disp, WnckScreen *scrn)
 {
 	WnckWindow *wind = NULL;
 
@@ -338,71 +356,260 @@ find_window(GdkDisplay *disp, WnckScreen * scrn)
 	return (wind);
 }
 
-static void
-pos_at_mouse(GtkMenu *menu, gint *x, gint *y, gboolean *push_in, gpointer user_data)
-{
-	GdkDisplay *disp = (typeof(disp)) user_data;
+typedef struct {
+	long x, y;
+	unsigned long width, height;
+} XWMIconGeometry;
 
-	*push_in = TRUE;
-	gdk_display_get_pointer(disp, NULL, x, y, NULL);
-}
-
-static void
-pos_on_wwind(GtkMenu *menu, gint *x, gint *y, gboolean *push_in, gpointer user_data)
+static Status
+XGetWMIconGeometry(Display *display, Window w, XWMIconGeometry *wmicongeom)
 {
-	int xpos, ypos, w, h;
-	GdkDisplay *disp = gtk_widget_get_display(GTK_WIDGET(menu));
-	WnckWindow *wind = (typeof(wind)) user_data;
-	GtkRequisition req = { 0, 0 };
-	Display *dpy = GDK_DISPLAY_XDISPLAY(disp);
-	Window win = wnck_window_get_xid(wind);
 	Atom actual = None;
 	int format = 0;
 	unsigned long nitems = 0, after = 0;
 	unsigned long *data = NULL;
+	Status status = !Success;
 
-	*push_in = TRUE;
-	/* first try to get the icon geometry, and, if set, pop the menu there */
-	if (XGetWindowProperty(dpy, win, _XA_NET_WM_ICON_GEOMETRY, 0, 4, False,
-			       AnyPropertyType, &actual, &format, &nitems,
-			       &after, (unsigned char **) &data) == Success && format
+	if (XGetWindowProperty(display, w, _XA_NET_WM_ICON_GEOMETRY, 0, 4, False,
+			       AnyPropertyType, &actual, &format, &nitems, &after,
+			       (unsigned char **) &data) == Success && format == 32
 	    && nitems >= 4) {
-		int dh, screen;
-		int ix, iy, height;
-		GdkScreen *scrn;
-
-		scrn = gtk_widget_get_screen(GTK_WIDGET(menu));
-		screen = gdk_screen_get_number(scrn);
-		dh = DisplayHeight(dpy, screen);
-
-		ix = data[0];
-		iy = data[1];
-		height = data[3];
-
-		gtk_widget_get_requisition(GTK_WIDGET(menu), &req);
-
-		xpos = ix;
-		ypos = (iy + height < dh / 2) ? iy + height : iy - req.height;
-
-		*x = xpos;
-		*y = ypos;
-		return;
+		wmicongeom->x = data[0];
+		wmicongeom->y = data[1];
+		wmicongeom->width = data[2];
+		wmicongeom->height = data[3];
+		status = Success;
 	}
 	if (data)
 		XFree(data);
-#if 1
-	/* put it in the upper left corner */
-	wnck_window_get_client_window_geometry(wind, &xpos, &ypos, &w, &h);
-#else
-	wnck_window_get_geometry(wind, &xpos, &ypos, &w, &h);
-	xpos += w / 2;
-	ypos += h / 2;
+	return (status);
+}
+
+static gboolean
+position_pointer(GtkMenu *menu, WnckWindow *wind, gint *x, gint *y)
+{
+	GdkDisplay *disp;
+	
+	DPRINT();
+	disp = gtk_widget_get_display(GTK_WIDGET(menu));
+	gdk_display_get_pointer(disp, NULL, x, y, NULL);
+	return TRUE;
+}
+
+static gboolean
+position_center(GtkMenu *menu, WnckWindow *wind, gint *x, gint *y)
+{
+	int cx, cy, cw, ch;
+	GtkRequisition req;
+
+	DPRINT();
 	gtk_widget_get_requisition(GTK_WIDGET(menu), &req);
-	xpos -= req.width / 2;
-	ypos -= req.height / 2;
-#endif
-	*x = xpos;
-	*y = ypos;
+	wnck_window_get_client_window_geometry(wind, &cx, &cy, &cw, &ch);
+
+	*x = cx + (cw - req.width) / 2;
+	*y = cy + (ch - req.height) / 2;
+	return TRUE;
+}
+
+static gboolean
+position_topleft(GtkMenu *menu, WnckWindow *wind, gint *x, gint *y)
+{
+	int cx, cy, cw, ch;
+
+	DPRINT();
+	wnck_window_get_client_window_geometry(wind, &cx, &cy, &cw, &ch);
+
+	*x = cx;
+	*y = cy;
+
+	return TRUE;
+}
+
+static gboolean
+position_icongeom(GtkMenu *menu, WnckWindow *wind, gint *x, gint *y)
+{
+	GdkDisplay *disp;
+	Display *dpy;
+	Window win;
+	GtkRequisition req;
+	XWMIconGeometry xig;
+	GdkScreen *scrn;
+	int height;
+
+	DPRINT();
+	disp = gtk_widget_get_display(GTK_WIDGET(menu));
+	dpy = GDK_DISPLAY_XDISPLAY(disp);
+	win = wnck_window_get_xid(wind);
+
+	if (XGetWMIconGeometry(dpy, win, &xig))
+		return FALSE;
+
+	gtk_widget_get_requisition(GTK_WIDGET(menu), &req);
+
+	scrn = gtk_widget_get_screen(GTK_WIDGET(menu));
+	height = gdk_screen_get_height(scrn);
+
+	*x = xig.x;
+	*y = (xig.y + xig.height < height / 2) ? xig.y + xig.height : xig.y - req.height;
+
+	return TRUE;
+}
+
+static gboolean
+position_center_monitor(GtkMenu *menu, WnckWindow *wind, gint *x, gint *y)
+{
+	GdkDisplay *disp;
+	GdkScreen *scrn;
+	GdkRectangle rect;
+	gint px, py, nmon;
+	GtkRequisition req;
+
+	DPRINT();
+	disp = gtk_widget_get_display(GTK_WIDGET(menu));
+	gdk_display_get_pointer(disp, &scrn, &px, &py, NULL);
+	nmon = gdk_screen_get_monitor_at_point(scrn, px, py);
+	gdk_screen_get_monitor_geometry(scrn, nmon, &rect);
+	gtk_widget_get_requisition(GTK_WIDGET(menu), &req);
+
+	*x = rect.x + (rect.width - req.width) / 2;
+	*y = rect.y + (rect.height - req.height) / 2;
+
+	return TRUE;
+}
+
+typedef struct {
+	unsigned long state;
+	Window icon;
+} XWMState;
+
+static Status
+XGetWMState(Display *display, Window w, XWMState *wmstate)
+{
+	Atom actual = None;
+	int format = 0;
+	unsigned long nitems = 0, after = 0;
+	unsigned long *data = NULL;
+	Status status = !Success;
+
+	if (XGetWindowProperty(display, w, _XA_WM_STATE, 0, 2, False,
+			       AnyPropertyType, &actual, &format, &nitems, &after,
+			       (unsigned char **) &data) == Success && format == 32
+	    && nitems >= 2) {
+		wmstate->state = data[0];
+		wmstate->icon = data[1];
+		status = Success;
+	}
+	if (data)
+		XFree(data);
+	return status;
+}
+
+static gboolean
+is_visible(GtkMenu *menu, WnckWindow *wind)
+{
+	GdkDisplay *disp = gtk_widget_get_display(GTK_WIDGET(menu));
+	Display *dpy = GDK_DISPLAY_XDISPLAY(disp);
+	Window win = wnck_window_get_xid(wind);
+	WnckWindowState state = wnck_window_get_state(wind);
+	XWMState xwms;
+	XWindowAttributes xwa;
+
+	if (state & (WNCK_WINDOW_STATE_MINIMIZED | WNCK_WINDOW_STATE_HIDDEN)) {
+		DPRINTF("target is minimized or hidden!\n");
+		return FALSE;
+	}
+	if (!XGetWMState(dpy, win, &xwms)) {
+		switch (xwms.state) {
+		case NormalState:
+		case IconicState:
+		case ZoomState:
+			break;
+		case WithdrawnState:
+			DPRINTF("target is in the withdrawn state\n");
+			return FALSE;
+		}
+	} else {
+		DPRINTF("target has no WM_STATE property\n");
+		return FALSE;
+	}
+	if (!XGetWindowAttributes(dpy, win, &xwa)) {
+		DPRINTF("cannot get window attributes for target\n");
+		return FALSE;
+	}
+	if (xwa.map_state == IsUnmapped) {
+		DPRINTF("target is unmapped\n");
+		return FALSE;
+	}
+	if (xwa.map_state == IsUnviewable) {
+		DPRINTF("targ is unviewable\n");
+		return FALSE;
+	}
+	if (xwa.map_state == IsViewable)
+		return TRUE;
+	return TRUE;
+}
+
+static void
+position_menu(GtkMenu *menu, gint *x, gint *y, gboolean *push_in, gpointer user_data)
+{
+	WnckWindow *wind = (typeof(wind)) user_data;
+	gboolean visible = is_visible(menu, wind);
+
+	switch (options.where) {
+	case PositionDefault:
+		if (options.button) {
+			position_pointer(menu, wind, x, y);
+			break;
+		}
+		if (visible) {
+			position_topleft(menu, wind, x, y);
+			break;
+		}
+		if (position_icongeom(menu, wind, x, y))
+			break;
+		position_center_monitor(menu, wind, x, y);
+		break;
+	case PositionPointer:
+		position_pointer(menu, wind, x, y);
+		break;
+	case PositionCenter:
+		if (visible) {
+			position_center(menu, wind, x, y);
+			break;
+		}
+		if (options.button) {
+			position_pointer(menu, wind, x, y);
+			break;
+		}
+		position_center_monitor(menu, wind, x, y);
+		break;
+	case PositionTopLeft:
+		if (visible) {
+			position_topleft(menu, wind, x, y);
+			break;
+		}
+		if (position_icongeom(menu, wind, x, y))
+			break;
+		if (options.button) {
+			position_pointer(menu, wind, x, y);
+			break;
+		}
+		position_center_monitor(menu, wind, x, y);
+		break;
+	case PositionIconGeom:
+		if (position_icongeom(menu, wind, x, y))
+			break;
+		if (visible) {
+			position_topleft(menu, wind, x, y);
+			break;
+		}
+		if (options.button) {
+			position_pointer(menu, wind, x, y);
+			break;
+		}
+		position_center_monitor(menu, wind, x, y);
+		break;
+	}
 }
 
 void
@@ -420,30 +627,26 @@ pop_the_menu(int argc, char *argv[])
 	GtkWidget *menu;
 
 	if (!(disp = gdk_display_get_default())) {
-		fprintf(stderr, "ERROR: cannot get default display\n");
+		EPRINTF("cannot get default display\n");
 		exit(EXIT_FAILURE);
 	}
 	if (!(scrn = find_screen(disp))) {
-		fprintf(stderr, "ERROR: cannot find screen\n");
+		EPRINTF("cannot find screen\n");
 		exit(EXIT_FAILURE);
 	}
 	wnck_screen_force_update(scrn);
 	if (!(wind = find_window(disp, scrn))) {
-		fprintf(stderr, "ERROR: cannot find window\n");
+		EPRINTF("cannot find window\n");
 		exit(EXIT_FAILURE);
 	}
 	if (!(menu = wnck_action_menu_new(wind))) {
-		fprintf(stderr, "ERROR: cannot get menu\n");
+		EPRINTF("cannot get menu\n");
 		exit(EXIT_FAILURE);
 	}
-	if (options.button)
-		gtk_menu_popup(GTK_MENU(menu), NULL, NULL, pos_at_mouse, disp,
-			       options.button, options.timestamp);
-	else
-		gtk_menu_popup(GTK_MENU(menu), NULL, NULL, pos_on_wwind, wind,
-			       options.button, options.timestamp);
 	g_signal_connect(G_OBJECT(menu), "selection-done",
 			 G_CALLBACK(on_selection_done), NULL);
+	gtk_menu_popup(GTK_MENU(menu), NULL, NULL, position_menu, wind,
+		       options.button, options.timestamp);
 	gtk_main();
 }
 
@@ -463,8 +666,7 @@ reparse(Display *dpy, Window root)
 				char *rc_string;
 				int len;
 
-				len =
-				    strlen(prefix) + strlen(list[0]) + strlen(suffix) + 1;
+				len = strlen(prefix) + strlen(list[0]) + strlen(suffix) + 1;
 				rc_string = calloc(len, sizeof(*rc_string));
 				strncpy(rc_string, prefix, len);
 				strncpy(rc_string, list[0], len);
@@ -483,15 +685,13 @@ reparse(Display *dpy, Window root)
 static GdkFilterReturn
 event_handler_PropertyNotify(Display *dpy, XEvent *xev)
 {
-	if (options.debug) {
+	if (options.debug > 1) {
 		fprintf(stderr, "==> PropertyNotify:\n");
 		fprintf(stderr, "    --> window = 0x%08lx\n", xev->xproperty.window);
-		fprintf(stderr, "    --> atom = %s\n",
-			XGetAtomName(dpy, xev->xproperty.atom));
+		fprintf(stderr, "    --> atom = %s\n", XGetAtomName(dpy, xev->xproperty.atom));
 		fprintf(stderr, "    --> time = %ld\n", xev->xproperty.time);
 		fprintf(stderr, "    --> state = %s\n",
-			(xev->xproperty.state ==
-			 PropertyNewValue) ? "NewValue" : "Delete");
+			(xev->xproperty.state == PropertyNewValue) ? "NewValue" : "Delete");
 		fprintf(stderr, "<== PropertyNotify:\n");
 	}
 	if (xev->xproperty.atom == _XA_XDE_THEME_NAME
@@ -505,7 +705,7 @@ event_handler_PropertyNotify(Display *dpy, XEvent *xev)
 static GdkFilterReturn
 event_handler_ClientMessage(Display *dpy, XEvent *xev)
 {
-	if (options.debug) {
+	if (options.debug > 1) {
 		fprintf(stderr, "==> ClientMessage:\n");
 		fprintf(stderr, "    --> window = 0x%08lx\n", xev->xclient.window);
 		fprintf(stderr, "    --> message_type = %s\n",
@@ -591,12 +791,15 @@ startup(int argc, char *argv[])
 	nscr = gdk_display_get_n_screens(disp);
 
 	if (options.screen >= 0 && options.screen >= nscr) {
-		fprintf(stderr, "ERROR: bad screen specified: %d\n", options.screen);
+		EPRINTF("bad screen specified: %d\n", options.screen);
 		exit(EXIT_FAILURE);
 	}
 
 	dpy = GDK_DISPLAY_XDISPLAY(disp);
 	gdk_window_add_filter(NULL, filter_handler, dpy);
+
+	atom = gdk_atom_intern_static_string("WM_STATE");
+	_XA_WM_STATE = gdk_x11_atom_to_xatom_for_display(disp, atom);
 
 	atom = gdk_atom_intern_static_string("_XDE_THEME_NAME");
 	_XA_XDE_THEME_NAME = gdk_x11_atom_to_xatom_for_display(disp, atom);
@@ -729,6 +932,24 @@ show_which(UseWindow which)
 	return NULL;
 }
 
+static const char *
+show_where(MenuPosition where)
+{
+	switch (where) {
+	case PositionDefault:
+		return ("default");
+	case PositionPointer:
+		return ("pointer");
+	case PositionCenter:
+		return ("center");
+	case PositionTopLeft:
+		return ("topleft");
+	case PositionIconGeom:
+		return ("icongeom");
+	}
+	return NULL;
+}
+
 static void
 help(int argc, char *argv[])
 {
@@ -767,12 +988,18 @@ Options:\n\
 	 WINDOW   - the EWMH/NetWM client XID to use\n\
     -x, --id WINDOW\n\
         specify the window to use by XID [default: %9$s]\n\
+    -W, --where {pointer|center|topleft|icongeom}\n\
+        specify where to place the menu [default: %10$s]\n\
+	\"pointer\"  - northwest corner under the pointer\n\
+	\"center\"   - center on associated window\n\
+	\"topleft\"  - northwest corner top left of window\n\
+	\"icongeom\" - above or below icon geometry\n\
     -D, --debug [LEVEL]\n\
         increment or set debug LEVEL [default: %2$d]\n\
     -v, --verbose [LEVEL]\n\
         increment or set output verbosity LEVEL [default: %3$d]\n\
         this option may be repeated.\n\
-", argv[0], options.debug, options.output, options.display, options.screen, options.button, options.timestamp, show_which(options.which), show_window(options.window));
+", argv[0], options.debug, options.output, options.display, options.screen, options.button, options.timestamp, show_which(options.which), show_window(options.window), show_where(options.where));
 }
 
 void
@@ -791,8 +1018,7 @@ get_defaults(void)
 	int n;
 
 	if (!options.display) {
-		fprintf(stderr,
-			"ERROR: No DISPLAY environment variable or --display option\n");
+		EPRINTF("No DISPLAY environment variable or --display option\n");
 		exit(EXIT_FAILURE);
 	}
 	if (options.screen < 0 && (p = strrchr(options.display, '.'))
@@ -824,6 +1050,7 @@ main(int argc, char *argv[])
 			{"timestamp",		required_argument,	NULL,	'T'},
 			{"which",		required_argument,	NULL,	'w'},
 			{"id",			required_argument,	NULL,	'x'},
+			{"where",		required_argument,	NULL,	'W'},
 
 			{"debug",		optional_argument,	NULL,	'D'},
 			{"verbose",		optional_argument,	NULL,	'v'},
@@ -835,10 +1062,10 @@ main(int argc, char *argv[])
 		};
 		/* *INDENT-ON* */
 
-		c = getopt_long_only(argc, argv, "d:s:pb:T:w:x:D::v::hVCH?",
+		c = getopt_long_only(argc, argv, "d:s:pb:T:w:x:W:D::v::hVCH?",
 				     long_options, &option_index);
 #else				/* _GNU_SOURCE */
-		c = = getopt(argc, argv, "d:s:pb:T:w:x:D:vhVC?");
+		c = = getopt(argc, argv, "d:s:pb:T:w:x:W:D:vhVC?");
 #endif				/* _GNU_SOURCE */
 		if (c == -1) {
 			if (options.debug)
@@ -887,6 +1114,21 @@ main(int argc, char *argv[])
 			else
 				goto bad_option;
 			break;
+		case 'W':	/* -W, --where WHERE */
+			if (options.where != PositionDefault)
+				goto bad_option;
+			len = strlen(optarg);
+			if (!strncasecmp("pointer", optarg, len))
+				options.where = PositionPointer;
+			else if (!strncasecmp("center", optarg, len))
+				options.where = PositionCenter;
+			else if (!strncasecmp("topleft", optarg, len))
+				options.where = PositionTopLeft;
+			else if (!strncasecmp("icongeom", optarg, len))
+				options.where = PositionIconGeom;
+			else
+				goto bad_option;
+			break;
 		case 'x':	/* -x, --id WINDOW */
 			if (options.which != UseWindowDefault)
 				goto bad_option;
@@ -897,8 +1139,7 @@ main(int argc, char *argv[])
 			break;
 		case 'D':	/* -D, --debug [level] */
 			if (options.debug)
-				fprintf(stderr,
-					"%s: increasing debug verbosity\n", argv[0]);
+				fprintf(stderr, "%s: increasing debug verbosity\n", argv[0]);
 			if (optarg == NULL) {
 				options.debug++;
 			} else {
@@ -909,8 +1150,7 @@ main(int argc, char *argv[])
 			break;
 		case 'v':	/* -v, --verbose [level] */
 			if (options.debug)
-				fprintf(stderr,
-					"%s: increasing output verbosity\n", argv[0]);
+				fprintf(stderr, "%s: increasing output verbosity\n", argv[0]);
 			if (optarg == NULL) {
 				options.output++;
 				break;
@@ -945,8 +1185,7 @@ main(int argc, char *argv[])
 		      bad_nonopt:
 			if (options.output || options.debug) {
 				if (optind < argc) {
-					fprintf(stderr,
-						"%s: syntax error near '", argv[0]);
+					fprintf(stderr, "%s: syntax error near '", argv[0]);
 					while (optind < argc) {
 						fprintf(stderr, "%s", argv[optind++]);
 						fprintf(stderr, "%s",
@@ -955,8 +1194,7 @@ main(int argc, char *argv[])
 					fprintf(stderr, "'\n");
 				} else {
 					fprintf(stderr,
-						"%s: missing option or argument",
-						argv[0]);
+						"%s: missing option or argument", argv[0]);
 					fprintf(stderr, "\n");
 				}
 				fflush(stderr);
@@ -1007,3 +1245,5 @@ main(int argc, char *argv[])
 	}
 	exit(0);
 }
+
+// vim: tw=100 com=sr0\:/**,mb\:*,ex\:*/,sr0\:/*,mb\:*,ex\:*/,b\:TRANS formatoptions+=tcqlor
