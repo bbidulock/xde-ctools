@@ -17,7 +17,7 @@ a window and is normally accessed with a hot-key, or by clicking on the
 decorative border of a window, or by pressing one or more modifier keys
 and clicking on the window.  B<xde-winmenu> supports all of these
 activations.  See L</USAGE> and L</WINDOW MANAGERS> for more information
-about activation.
+about activation.  For hot key activation see L<xde-keys(1)>.
 
 =head1 OPTIONS
 
@@ -25,7 +25,7 @@ B<xde-winmenu> accepts the following options:
 
 =head2 COMMAND OPTIONS
 
-When specified, the following optios alter the primary operating mode of
+When specified, the following options alter the primary operating mode of
 the program:
 
 =over
@@ -34,12 +34,12 @@ the program:
 
 Post a popup menu.  Depending on the setting of the B<--button> option,
 this will either post the popup menu at the current pointer position, or
-centered on the window to which it corresponds.
+centred on the window to which it corresponds.
 
 =item B<--help>, B<-h>
 
 Prints usage information and the current options settings and defaults
-nad exits.
+and exits.
 
 =item B<--version>, B<-V>
 
@@ -84,7 +84,7 @@ a button.
 
 =item B<--timestamp>, B<-T> I<TIMESTAMP>
 
-Provides the X11 server timstamp of the event that caused the popup.
+Provides the X11 server time-stamp of the event that caused the popup.
 
 =item B<--which>, B<-w> {B<active>|B<focused>|B<pointer>|B<select>}
 
@@ -102,7 +102,7 @@ window.
 =item C<focused>
 
 Popup a menu for the focused window (in the EWMH sense or simply the
-client with the keyboard focus).  This is the with with a
+client with the keyboard focus).  This is the with a
 B<_NET_WM_STATE_FOCUSED> atom set in B<_NET_WM_STATE>, or the client
 (visible client with the B<WM_STATE> property set to state C<Normal>)
 that has keyboard focus according to the X server.
@@ -124,7 +124,7 @@ This is the default when B<--button> is specified and non-zero.
 
 Select the client for which the window menu should be posted by having
 the user click on the window.  Use the normal X window selection
-protocol.
+protocol.  (This is not currently supported.)
 
 =item I<WINDOW>
 
@@ -165,7 +165,7 @@ monitor on which the window would normally appear.
 Place the menu in the top-left corner of the client window (inside any
 decorative border).  When the window is not visible (minimized or
 hidden), defaults to C<icongeom> if there is an icon geometry defined,
-otherwise, defautls to the top left corner of the monitor in which the
+otherwise, defaults to the top left corner of the monitor in which the
 window would normally appear.
 
 =item C<icongeom>
@@ -205,7 +205,7 @@ in which the window would normally be displayed.
 
 If the window is mapped but fully or partially obscured, raise the
 window and the place the menu in the top left corner of the client
-wnidow (inside the decorative boder).
+window (inside the decorative border).
 
 If the window is mapped, 
 
@@ -213,9 +213,9 @@ If the window is mapped,
 
 =item B<--verbose>, B<-v> [I<LEVEL>]
 
-Increases or sets the the output verbosity level to I<LEVEL>.  The
-default level is C<1>.  Normal output is printed to standard output.
-This option may be repeated.
+Increases or sets the output verbosity level to I<LEVEL>.  The default
+level is C<1>.  Normal output is printed to standard output.  This
+option may be repeated.
 
 =item B<--debug>, B<-D> [I<LEVEL>]
 

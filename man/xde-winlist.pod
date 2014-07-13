@@ -1,0 +1,307 @@
+=pod
+
+=head1 NAME
+
+xde-winlist - window list for XDE
+
+=head1 SYNOPSIS
+
+B<xde-winlist> [I<OPTIONS>]
+
+=head1 DESCRIPTION
+
+Provides a window list for window managers that do not provide one
+themselves or as a better window list for those that provide an inferior
+one.  The window list is a list of windows on workspaces with a sub-menu
+of actions that can be performed against each window or workspace and is
+normally access with a hot key, or by clicking on the root window, or by
+pressing one or more modifier keys and clicking on a window.
+B<xde-winlist> supports all of these activations.  See L</USAGE> and
+L</WINDOW MANAGERS> for more information about activation.  For hot key
+activation see L<xde-keys(1)>.
+
+=head1 OPTIONS
+
+B<xde-winlist> accepts the following options:
+
+=head2 COMMAND OPTIONS
+
+When specified, the following options alter the primary operating mode
+of the program:
+
+=over
+
+=item [B<--popup>, B<-p>]
+
+Post a pop up menu.  Depending on the setting of the B<--button> option,
+this will either post the pop up menu at the current pointer position,
+or centred on the monitor to which it corresponds.
+
+=item B<--help>, B<-h>
+
+Prints usage information and the current options settings and defaults
+and exits.
+
+=item B<--version>, B<-V>
+
+Prints the version of the program and a brief copyright statement and
+exits.  Parse the first line with L<awk(1)> to obtain just the version
+number.
+
+=item B<--copying>, B<-C>
+
+Prints the long copying permissions statement and exits.
+
+=back
+
+=head2 GENERAL OPTIONS
+
+The following options are general options:
+
+=over
+
+=item B<--display>, B<-d> I<DISPLAY>
+
+Specify the display to use (overriding the B<DISPLAY> environment
+variable).  The default is the value of the B<DISPLAY> environment
+variable.
+
+=item B<--screen>, B<-s> I<SCREEN>
+
+Specify the screen number to use when locating the current window and
+workspace.  The default is either specified by the B<DISPLAY>
+environment variable (which that variable specifies a screen);
+otherwise, all screens will be considered.
+
+=item B<--button>, B<-b> I<BUTTON>
+
+Specifies the button that was used to invoke the pop up.  Defaults to
+zero (0).  This should be the button that was used to pop the menu.  A
+window manager that invokes this command in response to a button press
+should release its passive grab on the button before invoking the window
+menu so that the popped up menu can grab the button.  A I<BUTTON> of
+zero (0) means that the program was invoked with a key-press instead of
+a button.
+
+=item B<--timestamp>, B<-T> I<TIMESTAMP>
+
+Provides the X11 server time-stamp of the event that caused the pop up.
+
+=item B<--which>, B<-w> {B<active>|B<focused>|B<pointer>|B<select>}
+
+Specifies the current window for which the pop up the menu.  This can be
+one of the following values (case insensitive, may be abbreviated):
+
+=over
+
+=item C<active>
+
+Popup a menu with the active window (in the EWMH sense) as the current
+window.  This is the window specified by the B<_NET_ACTIVE_WINDOW>
+property on the root window.
+
+=item C<focused>
+
+Popup a menu with the focused window (in the EWMH sense or simply the
+client with the keyboard focus) as the current window.  This is the with
+a B<_NET_WM_STATE_FOCUSED> atom set in B<_NET_WM_STATE>, or the client
+(visible client with the B<WM_STATE> property set to state C<Normal>)
+that has keyboard focus according to the X server.
+
+If no focused window can be found (e.g. focus is on the root window),
+current window selection falls back to C<pointer> as described below.
+
+This is the default when B<--button> is unspecified, or specified as
+zero.
+
+=item C<pointer>
+
+Popup a menu with the client holding a pointer grab or the client
+or window manager frame directly under the pointer as the current
+window.
+
+This is the default when B<--button> is specified and non-zero.
+
+=item C<select>
+
+Select the client for the current window.  Use the normal X window
+selection protocol.  (This is not currently supported.)
+
+=item I<WINDOW>
+
+Use the window with XID, I<WINDOW>, as the current window.
+
+=back
+
+When a client window cannot be found, B<xde-winmenu> complains and
+exits.
+
+=item B<--id>, B<-x> I<WINDOW>
+
+Specify the X window identifier (XID) of the EWMH/NetWM client window
+to use as the current window.  Can also specified with B<--which>.
+
+=item B<--where>, B<-W> {B<pointer>|B<center>|B<topleft>|B<icongeom>}
+
+Specifies the position for the pop up menu.  This can be one of the
+following values (case insensitive, may be abbreviated):
+
+=over
+
+=item C<pointer>
+
+Place the northwest corner of the menu under the mouse pointer.  This
+will always succeed.  This is the default when B<--button> is specified
+and non-zero.
+
+=item C<center>
+
+Place the menu at the centre of the associated monitor.
+
+=item C<topleft>
+
+Place the menu in the top-left corner of the associated monitor.
+Consider the work area when doing so.
+
+=item C<bottomright>
+
+Place the menu at the bottom-right corner of the associated monitor.
+Consider the work area when doing so.
+
+=back
+
+When unspecified, the default placement algorithm is as follows:
+
+=over
+
+=item 1.
+
+If B<--button> is specified and non-zero, place the menu at the pointer
+regardless of the current window position or state.
+
+=item 2.
+
+If B<--button> is specified, or is zero, place the menu at the centre of
+the associated monitor.
+
+=back
+
+=item B<--cycle>, B<-c>.
+
+Provide a cycle list pop up instead of a list.  Cycle list pop up lists
+will not be dismissed until a modifier key is released.
+
+=item B<--hidden>
+
+When listing or cycling windows, also list or cycle through hidden
+windows.  The default is to skip hidden windows or windows that have the
+skip-window-list attribute.
+
+=item B<--minimized>
+
+When listing or cycling windows, also list or cycle through minimized
+windows.  The default is to skip minimized windows or windows that have
+the skip-window-list attribute.
+
+=item B<--all-monitors>
+
+When listing or cycling windows, also list or cycle through windows
+displayed on monitors other than the current one.  This includes windows
+on workspaces that are currently visible on a monitor.
+
+=item B<--all-workspaces>
+
+When cycling windows, also cycle through windows displayed on workspaces
+other than the current one.  As windows are cycled, the current
+workspace may change as windows from other workspaces are cycled.
+
+=item B<--order>, B<-O> [I<ORDERTYPE>]
+
+Specify the order of the selection list or cycle list.  The I<ORDERTYPE>
+specifies which windows to list or cycle through and the order in which
+to list or cycle them.  The windows in the list can also be adjusted
+using the B<--all-monitors>, B<--all-workspaces>, B<--hidden> and
+B<--minimized> options.  The I<ORDERTYPE> can be one of the following:
+
+=over
+
+=item C<client>
+
+Cycle through the windows in the client list in client order.
+
+=item C<stacking>
+
+Cycle through the windows in the stacking order client list in stacking
+order (or when not supported, determine stacking order directly and use
+the client list in the determined stacking order).
+
+=back
+
+The default is client list order.
+
+=item B<--noactivate>, B<-n>
+
+When selecting or cycling windows, do not activate them.  The default is
+to activate the selected or cycled window.   When neither B<--raise> nor
+B<--focus> are specified, this results in only highlighting the menu
+selection.  Activation of the window will still occur; however, when the
+window is selected (a modifier key is released).
+
+=item B<--raise>, B<-r>
+
+When selecting or cycling windows, raise the window.  The default is to
+only activate the selected or cycled window and not to explicitly raise
+it.  Some window managers raise windows when activated (others do not).
+This provides a modicum of control.
+
+=item B<--restore>, B<-R>
+
+When cycling windows, restore the previous cycled window to its former
+state before activating or raising the next window.  This is useful when
+windows are hidden or minimized and included in the list using the
+B<--hidden> or B<--minimized> options.  Only iconification will be
+restored: window stacking is not restored.
+
+=item B<--key>, B<-k> [I<KEY>:I<KEY>]
+
+Specify the key combination used to pop up the cycle list.  Modifier
+keys have to be specified, only the forward and reverse cycle keys need
+be specified.  Pressing the forward key will cycle forward through the
+selection; the reverse key, backward.  Only useful when B<--cycle> is
+also specified.  The default is C<Alt+Tab:Shift+Alt+Tab>.
+
+=item B<--verbose>, B<-v> [I<LEVEL>]
+
+Increases or sets the output verbosity level to I<LEVEL>.  The default
+level is C<1>.  Normal output is printed to standard output.  This
+option may be repeated.
+
+=item B<--debug>, B<-D> [I<LEVEL>]
+
+Increases or sets the debugging verbosity level to I<LEVEL>.  The
+default level is C<0>.  Debugging output is printed to standard error.
+This option may be repeated.
+
+=back
+
+=head1 USAGE
+
+B<xde-winlist> currently uses F<libwnck+> or F<libwnck> both to identify
+the window manager and to provide the window list.  The range and format
+of the window actions in the window list provided by F<libwcnk+> is
+superior to L<libwnck>.  This use means that B<xde-winlist> does not
+current provide much support for window managers that do not have a
+modicum of compliance with the EWMH/NetWM specifications.  That may
+change in the future.
+
+=head1 AUTHOR
+
+Brian Bidulock L<mailto:bidulock@openss7.org>.
+
+=head1 SEE ALSO
+
+L<xde-keys(1)>
+
+=cut
+
+# vim: set sw=4 tw=72 nocin:
