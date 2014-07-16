@@ -84,7 +84,14 @@ considered.
 =item B<--monitor>, B<-m> I<MONITOR>
 
 Specify the monitor to use when locating the current desktop.  The
-default is the primary monitor (i.e. monitor zero (0)).
+default is the monitor containing the current window as specified by
+B<--which> or the monitor currently containing (or nearest to) the
+pointer.
+
+=item B<--button>, B<-b> I<BUTTON>
+
+Specify that the program was invoked with a button press or button,
+I<BUTTON>.  This is only useful with option B<--popup>.
 
 =item B<--timestamp>, B<-T> I<TIMESTAMP>
 

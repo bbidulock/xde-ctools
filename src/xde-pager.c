@@ -81,30 +81,18 @@ typedef enum {
 	CommandCopying,
 } Command;
 
-typedef enum {
-	WindowOrderDefault,
-	WindowOrderClient,
-	WindowOrderStacking,
-} WindowOrder;
-
 typedef struct {
 	int debug;
 	int output;
 	char *display;
 	int screen;
+	int monitor;
 	int button;
 	Time timestamp;
 	UseWindow which;
 	Window window;
 	MenuPosition where;
 	Bool cycle;
-	Bool hidden;
-	Bool minimized;
-	Bool monitors;
-	Bool workspaces;
-	WindowOrder order;
-	Bool activate;
-	Bool raise;
 	Bool restore;
 	char *keys;
 	Command command;
@@ -115,19 +103,13 @@ Options options = {
 	.output = 1,
 	.display = NULL,
 	.screen = -1,
+	.monitor = -1,
 	.button = 0,
 	.timestamp = CurrentTime,
 	.which = UseWindowDefault,
 	.window = None,
 	.where = PositionDefault,
 	.cycle = False,
-	.hidden = False,
-	.minimized = False,
-	.monitors = False,
-	.workspaces = False,
-	.order = WindowOrderDefault,
-	.activate = True,
-	.raise = False,
 	.restore = True,
 	.keys = NULL,
 	.command = CommandDefault,
@@ -385,6 +367,43 @@ find_window(GdkDisplay *disp, WnckScreen *scrn)
 	return (wind);
 }
 
+gint
+find_monitor(GdkDisplay *disp, WnckScreen *scrn, WnckWindow *wind)
+{
+	GdkScreen *screen = NULL;
+	GdkWindow *wnd = NULL;
+	Window win = None;
+	gint nmon, x, y;
+	int s;
+
+	if ((nmon = options.monitor) >= 0) {
+		s = wnck_screen_get_number(scrn);
+		if ((screen = gdk_display_get_screen(disp, s))) {
+			if (nmon >= gdk_screen_get_n_monitors(screen))
+				nmon = -1;
+		} else
+			nmon = -1;
+	}
+	if (nmon < 0 && wind && (win = wnck_window_get_xid(wind))) {
+		s = wnck_screen_get_number(scrn);
+		if ((screen = gdk_display_get_screen(disp, s)))
+			if ((wnd = gdk_x11_window_foreign_new_for_display(disp, win)))
+				nmon = gdk_screen_get_monitor_at_window(screen, wnd);
+	}
+	if (nmon < 0) {
+		gdk_display_get_pointer(disp, &screen, &x, &y, NULL);
+		if (screen)
+			nmon = gdk_screen_get_monitor_at_point(screen, x, y);
+	}
+	if (nmon < 0) {
+		if (!screen)
+			screen = gdk_display_get_default_screen(disp);
+		nmon = gdk_screen_get_primary_monitor(screen);
+	}
+	options.monitor = nmon;
+	return (nmon);
+}
+
 static gboolean
 position_pointer(GtkMenu *menu, WnckWindow *wind, gint *x, gint *y)
 {
@@ -610,6 +629,7 @@ post_popup(void)
 	GdkDisplay *disp;
 	WnckScreen *scrn;
 	WnckWindow *wind;
+	gint nmon;
 
 	if (!(disp = gdk_display_get_default())) {
 		EPRINTF("cannot get default display\n");
@@ -621,7 +641,10 @@ post_popup(void)
 	}
 	wnck_screen_force_update(scrn);
 	if (!(wind = find_window(disp, scrn))) {
-		EPRINTF("cannot find window\n");
+		DPRINTF("cannot find window\n");
+	}
+	if ((nmon = find_monitor(disp, scrn, wind)) < 0) {
+		EPRINTF("cannot find monitor\n");
 		exit(EXIT_FAILURE);
 	}
 }
@@ -650,8 +673,8 @@ do_popup(int argc, char *argv[])
 		ev.xclient.window = owner;
 		ev.xclient.message_type = XInternAtom(dpy, "XDE_PAGER_POPUP", False);
 		ev.xclient.format = 32;
-		ev.xclient.data.l[0] = 0;
-		ev.xclient.data.l[1] = 0;
+		ev.xclient.data.l[0] = options.button;
+		ev.xclient.data.l[1] = options.timestamp;
 		ev.xclient.data.l[2] = 0;
 		ev.xclient.data.l[3] = 0;
 		ev.xclient.data.l[4] = 0;
@@ -946,20 +969,6 @@ show_window(Window win)
 }
 
 static const char *
-show_order(WindowOrder order)
-{
-	switch (order) {
-	case WindowOrderDefault:
-		return ("default");
-	case WindowOrderClient:
-		return ("client");
-	case WindowOrderStacking:
-		return ("stacking");
-	}
-	return NULL;
-}
-
-static const char *
 show_which(UseWindow which)
 {
 	switch (which) {
@@ -1022,6 +1031,8 @@ Options:\n\
         specify the X display, DISPLAY, to use [default: %4$s]\n\
     -s, --screen SCREEN\n\
         specify the screen number, SCREEN, to use [default: %5$d]\n\
+    -m, --monitor MONITOR\n\
+        specify the monitor number, MONITOR, to use [default: %13$d]\n\
     -b, --button BUTTON\n\
         specify the mouse button number, BUTTON, for popup [default: %6$d]\n\
     -T, --timestamp TIMESTAMP\n\
@@ -1043,24 +1054,8 @@ Options:\n\
 	\"icongeom\" - above or below icon geometry\n\
     -c, --cycle\n\
         show a window cycle list [default: %11$s]\n\
-    --hidden\n\
-        list hidden windows as well [default: %12$s]\n\
-    --minimized\n\
-        list minimized windows as well [default: %13$s]\n\
-    --all-monitors\n\
-        list windows on all monitors [deefault: %14$s]\n\
-    --all-workspaces\n\
-        list windows on all workspaces [default: %15$s]\n\
-    -O, --order {client|stacking}\n\
-        specify the order of windows [default: %16$s]\n\
-    -n, --noactivate\n\
-        do not activate windows [default: %17$s]\n\
-    -r, --raise\n\
-	raise windows when selected/cycling [default: %18$s]\n\
-    -R, --restore\n\
-        restore previous windows when cycling [default: %19$s]\n\
     -k, --keys FORWARD:REVERSE\n\
-        specify keys for cycling [default: %20$s]\n\
+        specify keys for cycling [default: %12$s]\n\
     -D, --debug [LEVEL]\n\
         increment or set debug LEVEL [default: %2$d]\n\
     -v, --verbose [LEVEL]\n\
@@ -1077,15 +1072,8 @@ Options:\n\
 		, show_window(options.window)
 		, show_where(options.where)
 		, show_bool(options.cycle)
-		, show_bool(options.hidden)
-		, show_bool(options.minimized)
-		, show_bool(options.monitors)
-		, show_bool(options.workspaces)
-		, show_order(options.order)
-		, show_bool(!options.activate)
-		, show_bool(options.raise)
-		, show_bool(options.restore)
 		, options.keys ?: ""
+		, options.monitor
 	);
 }
 
