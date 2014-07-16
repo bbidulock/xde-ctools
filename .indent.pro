@@ -24,6 +24,11 @@
 -ss
 -hnl
 -nbc
+-TGdkXEvent
+-TGdkEvent
+-TXdeScreen
+-TWnckWorkspace
+-TWnckPager
 -TXWMIconGeometry
 -TWnckWindow
 -TWnckScreen
