@@ -32,6 +32,19 @@ of the program:
 Begin a desktop cycle by popping up the cycle window.  This is the
 normal and default operating mode of the program.
 
+=item B<--popup>, B<-p>
+
+As a running instance of B<xde-pager> to pop up the desktop selection
+window.
+
+=item B<--quit>, B<-q>
+
+Ask a running instance of B<xde-pager> to quit.
+
+=item B<--replace>, B<-r>
+
+Replace a running instance of B<xde-pager>.
+
 =item B<--help>, B<-h>
 
 Prints usage information and the current options settings and defaults
@@ -220,6 +233,45 @@ Groups the windows in the cycle list.
 =back
 
 =back
+
+=head1 USAGE
+
+B<xde-pager> currently uses F<libwnck+> or F<libwnck> to detect
+workspace changes and to provide the pager feedback, so the window
+manager must support some modicum of EWMH/NetWM compliance for the
+feedback to be effective.  Eventually I might make F<libwnkc+> support
+GNOME1/WinWM, OSF/Motif and even just ICCCM compliant window managers,
+but, for now, some EWMH/NetWM compliance is needed.
+
+Run B<xde-pager> in the background or launch using the supplied XDG
+autostart file.  The program takes the following steps:
+
+=over
+
+=item 1.
+
+Waits for a desktop change as signalled by a change to
+B<_NET_CURRENT_DESKTOP> on the root window of any screen.
+
+=item 2.
+
+When the desktop changes, the program grabs the pointer and the
+keyboard.  If there is a keyboard modifier down, it displays the
+feedback window and proxies key presses and releases to the root window.  
+When all modifiers are released or when a selection is made or its
+pointer grab is broken, it drops the feedback window and waits for
+another desktop change.
+
+=back
+
+=head1 HISTORY
+
+I wrote this program particularly for use with L<adwm(1)> and other
+tiling window managers that provide no feedback for desktop changes and
+do not typically run well with a panel or pager.  It provides workspace
+change feedback without taking up valuable screen real-estate while the
+workspace is not changing.  Also, when used with F<libwnck+>, the pager
+is multiple-monitor aware and can handle per-monitor tagged workspaces.
 
 =head1 AUTHOR
 

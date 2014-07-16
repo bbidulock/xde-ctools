@@ -72,7 +72,10 @@ typedef enum {
 
 typedef enum {
 	CommandDefault,
+	CommandCycle,
 	CommandPopup,
+	CommandQuit,
+	CommandReplace,
 	CommandHelp,
 	CommandVersion,
 	CommandCopying,
@@ -557,8 +560,52 @@ position_list(GtkMenu *menu, gint *x, gint *y, gboolean *push_in, gpointer user_
 	}
 }
 
+Window
+get_selection(Bool replace, Window selwin)
+{
+	char selection[64] = { 0, };
+	GdkDisplay *disp;
+	Display *dpy;
+	int s, nscr;
+	Window owner;
+	Atom atom;
+	Window gotone = None;
+
+	disp = gdk_display_get_default();
+	nscr = gdk_display_get_n_screens(disp);
+
+	dpy = GDK_DISPLAY_XDISPLAY(disp);
+
+	for (s = 0; s < nscr; s++) {
+		snprintf(selection, sizeof(selection), "XDE_PAGER_S%d", s);
+		if (!(atom = XInternAtom(dpy, selection, !replace)))
+			continue;
+		if (!(owner = XGetSelectionOwner(dpy, atom)))
+			continue;
+		if (replace)
+			XSetSelectionOwner(dpy, atom, selwin, CurrentTime);
+		if (!gotone)
+			gotone = owner;
+	}
+	if (replace) {
+		if (gotone) {
+			if (selwin)
+				DPRINTF("%s: replacing running instance\n", NAME);
+			else
+				DPRINTF("%s: quitting running instance\n", NAME);
+		} else {
+			if (selwin)
+				DPRINTF("%s: no running instance to replace\n", NAME);
+			else
+				DPRINTF("%s: no running instance to quit\n", NAME);
+		}
+	} else if (gotone)
+		DPRINTF("%s: not replacing running instance\n", NAME);
+	return (gotone);
+}
+
 void
-pop_the_list(int argc, char *argv[])
+post_popup(void)
 {
 	GdkDisplay *disp;
 	WnckScreen *scrn;
@@ -577,6 +624,53 @@ pop_the_list(int argc, char *argv[])
 		EPRINTF("cannot find window\n");
 		exit(EXIT_FAILURE);
 	}
+}
+
+
+void
+do_cycle(int argc, char *argv[], Bool replace)
+{
+}
+
+void
+do_popup(int argc, char *argv[])
+{
+	Window owner;
+
+	if ((owner = get_selection(False, None))) {
+		Display *dpy = GDK_DISPLAY_XDISPLAY(gdk_display_get_default());
+		XEvent ev;
+
+		/* running instance, send it a message and exit */
+
+		ev.xclient.type = ClientMessage;
+		ev.xclient.serial = 0;
+		ev.xclient.send_event = False;
+		ev.xclient.display = dpy;
+		ev.xclient.window = owner;
+		ev.xclient.message_type = XInternAtom(dpy, "XDE_PAGER_POPUP", False);
+		ev.xclient.format = 32;
+		ev.xclient.data.l[0] = 0;
+		ev.xclient.data.l[1] = 0;
+		ev.xclient.data.l[2] = 0;
+		ev.xclient.data.l[3] = 0;
+		ev.xclient.data.l[4] = 0;
+
+		XSendEvent(dpy, owner, False, NoEventMask, &ev);
+		return;
+	}
+	post_popup();
+}
+
+/** @brief Ask a running instance to quit.
+  *
+  * This is performed by checking for an owner of the XDE_PAGER_S%d selection and clearing the
+  * selection if it exists.
+  */
+void
+do_quit(int argc, char *argv[])
+{
+	get_selection(True, None);
 }
 
 void
@@ -1018,7 +1112,7 @@ get_defaults(void)
 	    && (n = strspn(++p, "0123456789")) && *(p + n) == '\0')
 		options.screen = atoi(p);
 	if (options.command == CommandDefault)
-		options.command = CommandPopup;
+		options.command = CommandCycle;
 
 }
 
@@ -1038,7 +1132,6 @@ main(int argc, char *argv[])
 		static struct option long_options[] = {
 			{"display",		required_argument,	NULL,	'd'},
 			{"screen",		required_argument,	NULL,	's'},
-			{"popup",		no_argument,		NULL,	'p'},
 			{"button",		required_argument,	NULL,	'b'},
 			{"timestamp",		required_argument,	NULL,	'T'},
 			{"which",		required_argument,	NULL,	'w'},
@@ -1046,14 +1139,10 @@ main(int argc, char *argv[])
 			{"where",		required_argument,	NULL,	'W'},
 
 			{"cycle",		no_argument,		NULL,	'c'},
-			{"hidden",		no_argument,		NULL,	'1'},
-			{"minimized",		no_argument,		NULL,	'm'},
-			{"all-monitors",	no_argument,		NULL,	'2'},
-			{"all-workspaces",	no_argument,		NULL,	'3'},
-			{"order",		optional_argument,	NULL,	'O'},
-			{"noactivate",		no_argument,		NULL,	'n'},
-			{"raise",		no_argument,		NULL,	'r'},
-			{"restore",		no_argument,		NULL,	'R'},
+			{"popup",		no_argument,		NULL,	'p'},
+			{"quit",		no_argument,		NULL,	'q'},
+			{"replace",		no_argument,		NULL,	'r'},
+
 			{"key",			optional_argument,	NULL,	'k'},
 
 			{"debug",		optional_argument,	NULL,	'D'},
@@ -1087,13 +1176,6 @@ main(int argc, char *argv[])
 			break;
 		case 's':	/* -s, --screen SCREEN */
 			options.screen = strtoul(optarg, NULL, 0);
-			break;
-		case 'p':	/* -p, --popup */
-			if (options.command != CommandDefault)
-				goto bad_option;
-			if (command == CommandDefault)
-				command = CommandPopup;
-			options.command = CommandPopup;
 			break;
 		case 'b':	/* -b, --button BUTTON */
 			options.button = strtoul(optarg, NULL, 0);
@@ -1143,40 +1225,32 @@ main(int argc, char *argv[])
 			break;
 
 		case 'c':	/* -c, --cycle */
-			options.cycle = True;
-			break;
-		case '1':	/* --hidden */
-			options.hidden = True;
-			break;
-		case 'm':	/* -m, --minimized */
-			options.minimized = True;
-			break;
-		case '2':	/* --all-monitors */
-			options.monitors = True;
-			break;
-		case '3':	/* --all-workspaces */
-			options.workspaces = True;
-			break;
-		case 'O':	/* -O, --order ORDERTYPE */
-			if (options.order != WindowOrderDefault)
+			if (options.command != CommandDefault)
 				goto bad_option;
-			len = strlen(optarg);
-			if (!strncasecmp("client", optarg, len))
-				options.order = WindowOrderClient;
-			else
-			if (!strncasecmp("stacking", optarg, len))
-				options.order = WindowOrderStacking;
-			else
+			if (command == CommandDefault)
+				command = CommandCycle;
+			options.command = CommandCycle;
+			break;
+		case 'p':	/* -p, --popup */
+			if (options.command != CommandDefault)
 				goto bad_option;
+			if (command == CommandDefault)
+				command = CommandPopup;
+			options.command = CommandPopup;
 			break;
-		case 'n':	/* -n, --noactivate */
-			options.activate = False;
+		case 'q':	/* -q, --quit */
+			if (options.command != CommandDefault)
+				goto bad_option;
+			if (command == CommandDefault)
+				command = CommandQuit;
+			options.command = CommandQuit;
 			break;
-		case 'r':	/* -r, --raise */
-			options.raise = True;
-			break;
-		case 'R':	/* -R, --restore */
-			options.restore = True;
+		case 'r':	/* -r, --replace */
+			if (options.command != CommandDefault)
+				goto bad_option;
+			if (command == CommandDefault)
+				command = CommandReplace;
+			options.command = CommandReplace;
 			break;
 		case 'k':	/* -k, --key [KEY1:KEY2] */
 			free(options.keys);
@@ -1269,10 +1343,19 @@ main(int argc, char *argv[])
 	startup(argc, argv);
 	switch (command) {
 	case CommandDefault:
+	case CommandCycle:
+		do_cycle(argc, argv, False);
+		break;
 	case CommandPopup:
 		if (options.debug)
 			fprintf(stderr, "%s: popping the window list\n", argv[0]);
-		pop_the_list(argc, argv);
+		do_popup(argc, argv);
+		break;
+	case CommandQuit:
+		do_quit(argc, argv);
+		break;
+	case CommandReplace:
+		do_cycle(argc, argv, True);
 		break;
 	case CommandHelp:
 		if (options.debug)
