@@ -6,7 +6,9 @@ bin_PROGRAMS = \
 	xde-dock \
 	xde-run \
 	xde-winmenu \
-	xde-winlist
+	xde-winlist \
+	xde-pager \
+	xde-cycle
 
 xde_app_CPPFLAGS = -DNAME=\"xde-app\"
 xde_app_SOURCES = xde-app.c xde-app.h
@@ -27,4 +29,12 @@ xde_winmenu_LDADD = $(WNCK_LIBS) $(GTK_LIBS) $(GDK_LIBS) $(XINERAMA_LIBS) $(XRAN
 xde_winlist_CPPFLAGS = -DNAME=\"xde-winlist\"
 xde_winlist_SOURCES = xde-winlist.c xde-winlist.h
 xde_winlist_LDADD = $(WNCK_LIBS) $(GTK_LIBS) $(GDK_LIBS) $(XINERAMA_LIBS) $(XRANDR_LIBS) $(X11_LIBS)
+
+xde_pager_CPPFLAGS = -DNAME=\"xde-pager\"
+xde_pager_SOURCES = xde-pager.c xde-pager.h
+xde_pager_LDADD = $(WNCK_LIBS) $(GTK_LIBS) $(GDK_LIBS) $(XINERAMA_LIBS) $(XRANDR_LIBS) $(X11_LIBS)
+
+xde_cycle_CPPFLAGS = -DNAME=\"xde-cycle\"
+xde_cycle_SOURCES = xde-cycle.c xde-cycle.h
+xde_cycle_LDADD = $(WNCK_LIBS) $(GTK_LIBS) $(GDK_LIBS) $(XINERAMA_LIBS) $(XRANDR_LIBS) $(X11_LIBS)
 

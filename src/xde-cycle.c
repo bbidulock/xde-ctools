@@ -42,7 +42,7 @@
 
  *****************************************************************************/
 
-#include "xde-winlist.h"
+#include "xde-cycle.h"
 
 #ifdef _GNU_SOURCE
 #include <getopt.h>

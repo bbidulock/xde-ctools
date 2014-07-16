@@ -89,7 +89,7 @@ Provides the X11 server time-stamp of the event that caused the pop up.
 
 =item B<--which>, B<-w> {B<active>|B<focused>|B<pointer>|B<select>}
 
-Specifies the current window for which the pop up the menu.  This can be
+Specifies the current window for which to pop up the menu.  This can be
 one of the following values (case insensitive, may be abbreviated):
 
 =over
@@ -103,10 +103,10 @@ property on the root window.
 =item C<focused>
 
 Popup a menu with the focused window (in the EWMH sense or simply the
-client with the keyboard focus) as the current window.  This is the with
-a B<_NET_WM_STATE_FOCUSED> atom set in B<_NET_WM_STATE>, or the client
-(visible client with the B<WM_STATE> property set to state C<Normal>)
-that has keyboard focus according to the X server.
+client with the keyboard focus) as the current window.  This is the
+client with a B<_NET_WM_STATE_FOCUSED> atom set in B<_NET_WM_STATE>, or
+the client (visible client with the B<WM_STATE> property set to state
+C<Normal>) that has keyboard focus according to the X server.
 
 If no focused window can be found (e.g. focus is on the root window),
 current window selection falls back to C<pointer> as described below.
