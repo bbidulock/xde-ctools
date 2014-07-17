@@ -48,37 +48,17 @@
 #include <getopt.h>
 #endif
 
-Atom _XA_WM_STATE;
-Atom _XA_XDE_THEME_NAME;
-Atom _XA_GTK_READ_RCFILES;
-Atom _XA_NET_WM_ICON_GEOMETRY;
-Atom _XA_NET_DESKTOP_LAYOUT;
-Atom _XA_NET_NUMBER_OF_DESKTOPS;
-Atom _XA_XDE_PAGER_POPUP;
-Atom _XA_WIN_DESKTOP_BUTTON_PROXY;
-Atom _XA_NET_CURRENT_DESKTOP;
-
-typedef enum {
-	UseWindowDefault,		/* default window by button */
-	UseWindowActive,		/* active window */
-	UseWindowFocused,		/* focused window */
-	UseWindowPointer,		/* window under pointer */
-	UseWindowSpecified,		/* specified window */
-	UseWindowSelect,		/* manually select window */
-} UseWindow;
-
-typedef enum {
-	PositionDefault,		/* default position */
-	PositionPointer,		/* position at pointer */
-	PositionCenter,			/* center of monitor */
-	PositionTopLeft,		/* top left of monitor */
-	PositionBottomRight,		/* bottom right of monitor */
-} MenuPosition;
+static Atom _XA_XDE_THEME_NAME;
+static Atom _XA_GTK_READ_RCFILES;
+static Atom _XA_NET_WM_ICON_GEOMETRY;
+static Atom _XA_NET_DESKTOP_LAYOUT;
+static Atom _XA_NET_NUMBER_OF_DESKTOPS;
+static Atom _XA_NET_CURRENT_DESKTOP;
+static Atom _XA_WIN_DESKTOP_BUTTON_PROXY;
 
 typedef enum {
 	CommandDefault,
-	CommandCycle,
-	CommandPopup,
+	CommandRun,
 	CommandQuit,
 	CommandReplace,
 	CommandHelp,
@@ -90,17 +70,9 @@ typedef struct {
 	int debug;
 	int output;
 	char *display;
-	int screen;
-	int monitor;
-	int button;
-	Time timestamp;
-	UseWindow which;
 	unsigned long timeout;
-	Window window;
-	MenuPosition where;
-	Bool cycle;
-	Bool restore;
-	char *keys;
+	unsigned int border;
+	Bool proxy;
 	Command command;
 } Options;
 
@@ -108,485 +80,34 @@ Options options = {
 	.debug = 0,
 	.output = 1,
 	.display = NULL,
-	.screen = -1,
-	.monitor = -1,
-	.button = 0,
-	.timestamp = CurrentTime,
-	.which = UseWindowDefault,
 	.timeout = 1000,
-	.window = None,
-	.where = PositionDefault,
-	.cycle = False,
-	.restore = True,
-	.keys = NULL,
+	.border = 5,
+	.proxy = True,
 	.command = CommandDefault,
 };
 
-WnckScreen *
-find_specified_screen(GdkDisplay *disp)
-{
-	WnckScreen *scrn = NULL;
-	GdkWindow *win;
-	GdkScreen *scr;
-	int screen;
-
-	if (!(win = gdk_x11_window_foreign_new_for_display(disp, options.window)))
-		return (scrn);
-	if (!(scr = gdk_window_get_screen(win))) {
-		g_object_unref(G_OBJECT(win));
-		return (scrn);
-	}
-	g_object_unref(G_OBJECT(win));
-	screen = gdk_screen_get_number(scr);
-	scrn = wnck_screen_get(screen);
-	return (scrn);
-}
-
-/** @brief find the specified screen
-  * 
-  * Either specified with options.screen, or if the DISPLAY environment variable
-  * specifies a screen, use that screen; otherwise, return NULL.
-  */
-WnckScreen *
-find_specific_screen(GdkDisplay *disp)
-{
-	WnckScreen *scrn = NULL;
-	int nscr = gdk_display_get_n_screens(disp);
-
-	if (0 <= options.screen && options.screen < nscr)
-		/* user specified a valid screen number */
-		scrn = wnck_screen_get(options.screen);
-	return (scrn);
-}
-
-/** @brief find the screen of window with the focus
-  */
-WnckScreen *
-find_focus_screen(GdkDisplay *disp)
-{
-	WnckScreen *scrn = NULL;
-	Window focus = None, froot = None;
-	int di;
-	unsigned int du;
-	Display *dpy = GDK_DISPLAY_XDISPLAY(disp);
-
-	XGetInputFocus(dpy, &focus, &di);
-	if (focus != PointerRoot && focus != None) {
-		XGetGeometry(dpy, focus, &froot, &di, &di, &du, &du, &du, &du);
-		if (froot)
-			scrn = wnck_screen_get_for_root(froot);
-	}
-	return (scrn);
-}
-
-WnckScreen *
-find_pointer_screen(GdkDisplay *disp)
-{
-	WnckScreen *scrn = NULL;
-	GdkScreen *screen = NULL;
-
-	gdk_display_get_pointer(disp, &screen, NULL, NULL, NULL);
-	if (screen)
-		scrn = wnck_screen_get(gdk_screen_get_number(screen));
-	return (scrn);
-}
-
-WnckScreen *
-find_screen(GdkDisplay *disp)
-{
-	WnckScreen *scrn = NULL;
-
-	if ((scrn = find_specific_screen(disp)))
-		return (scrn);
-	switch (options.which) {
-	case UseWindowDefault:
-		if (options.button) {
-			if ((scrn = find_pointer_screen(disp)))
-				return (scrn);
-			if ((scrn = find_focus_screen(disp)))
-				return (scrn);
-		} else {
-			if ((scrn = find_focus_screen(disp)))
-				return (scrn);
-			if ((scrn = find_pointer_screen(disp)))
-				return (scrn);
-		}
-		break;
-	case UseWindowActive:
-		break;
-	case UseWindowFocused:
-		if ((scrn = find_focus_screen(disp)))
-			return (scrn);
-		break;
-	case UseWindowPointer:
-		if ((scrn = find_pointer_screen(disp)))
-			return (scrn);
-		break;
-	case UseWindowSelect:
-		break;
-	case UseWindowSpecified:
-		return find_specified_screen(disp);
-	}
-
-	if (!scrn)
-		scrn = wnck_screen_get_default();
-	return (scrn);
-}
-
-WnckWindow *
-find_specified_window(GdkDisplay *disp, WnckScreen *scrn)
-{
-	return wnck_window_get(options.window);
-}
-
-WnckWindow *
-find_active_window(GdkDisplay *disp, WnckScreen *scrn)
-{
-	return wnck_screen_get_active_window(scrn);
-}
-
-WnckWindow *
-find_focus_window(GdkDisplay *disp, WnckScreen *scrn)
-{
-	WnckWindow *wind = NULL;
-	GList *windows, *w;
-	Display *dpy;
-	Window focus, root, *children = NULL;
-	unsigned int n = 0;
-	int di;
-
-	if (!(windows = wnck_screen_get_windows(scrn)))
-		return (wind);
-
-	for (w = g_list_first(windows); w && (!(wind = (WnckWindow *) w->data)
-					      || !wnck_window_is_focused(wind));
-	     wind = NULL, w = g_list_next(w)) ;
-	if (wind)
-		return (wind);
-
-	/* search harder, some window managers do not set _NET_WM_STATE_FOCUSED properly. 
-	 */
-
-	dpy = GDK_DISPLAY_XDISPLAY(disp);
-	focus = None;
-	XGetInputFocus(dpy, &focus, &di);
-
-	if (focus == None || focus == PointerRoot)
-		return (wind);
-	root = None;
-	for (;;) {
-		if (children) {
-			XFree(children);
-			children = NULL;
-			n = 0;
-		}
-		if (focus == None || focus == root)
-			break;
-		if ((wind = wnck_window_get(focus)))
-			break;
-		if (!XQueryTree(dpy, focus, &root, &focus, &children, &n))
-			break;
-	}
-	if (children)
-		XFree(children);
-	return (wind);
-}
-
-gboolean
-is_over(Display *dpy, WnckWindow *wind, int px, int py)
-{
-	int x, y, w, h;
-	WnckWindowState state;
-	XWindowAttributes xwa;
-	Window win;
-
-	state = wnck_window_get_state(wind);
-	if (state & WNCK_WINDOW_STATE_MINIMIZED)
-		return FALSE;
-	if (state & WNCK_WINDOW_STATE_HIDDEN)
-		return FALSE;
-	if (!(win = wnck_window_get_xid(wind)))
-		return FALSE;
-	if (!XGetWindowAttributes(dpy, win, &xwa))
-		return FALSE;
-	if (xwa.map_state != IsViewable)
-		return FALSE;
-	wnck_window_get_geometry(wind, &x, &y, &w, &h);
-	if (x <= px && px < x + w && y <= py && py < y + h)
-		return TRUE;
-	return FALSE;
-}
-
-WnckWindow *
-find_pointer_window(GdkDisplay *disp, WnckScreen *scrn)
-{
-	WnckWindow *wind = NULL;
-	GList *windows, *w;
-	gint x, y;
-	Display *dpy = GDK_DISPLAY_XDISPLAY(disp);
-
-	if (!(windows = wnck_screen_get_windows(scrn)))
-		return (wind);
-	gdk_display_get_pointer(disp, NULL, &x, &y, NULL);
-	for (w = g_list_last(windows); w && (!(wind = (WnckWindow *) w->data)
-					     || !is_over(dpy, wind, x, y));
-	     wind = NULL, w = g_list_previous(w)) ;
-	return (wind);
-}
-
-WnckWindow *
-find_window(GdkDisplay *disp, WnckScreen *scrn)
-{
-	WnckWindow *wind = NULL;
-
-	switch (options.which) {
-	case UseWindowDefault:
-		if (options.button) {
-			if ((wind = find_pointer_window(disp, scrn)))
-				return (wind);
-		} else {
-			if ((wind = find_focus_window(disp, scrn)))
-				return (wind);
-		}
-		if ((wind = find_active_window(disp, scrn)))
-			return (wind);
-		break;
-	case UseWindowActive:
-		if ((wind = find_active_window(disp, scrn)))
-			return (wind);
-		break;
-	case UseWindowFocused:
-		if ((wind = find_focus_window(disp, scrn)))
-			return (wind);
-		break;
-	case UseWindowPointer:
-		if ((wind = find_pointer_window(disp, scrn)))
-			return (wind);
-		break;
-	case UseWindowSpecified:
-		if ((wind = find_specified_window(disp, scrn)))
-			return (wind);
-		break;
-	case UseWindowSelect:
-		/* FIXME */
-		break;
-	}
-	return (wind);
-}
-
-gint
-find_monitor(GdkDisplay *disp, WnckScreen *scrn, WnckWindow *wind)
-{
-	GdkScreen *screen = NULL;
-	GdkWindow *wnd = NULL;
-	Window win = None;
-	gint nmon, x, y;
-	int s;
-
-	if ((nmon = options.monitor) >= 0) {
-		s = wnck_screen_get_number(scrn);
-		if ((screen = gdk_display_get_screen(disp, s))) {
-			if (nmon >= gdk_screen_get_n_monitors(screen))
-				nmon = -1;
-		} else
-			nmon = -1;
-	}
-	if (nmon < 0 && wind && (win = wnck_window_get_xid(wind))) {
-		s = wnck_screen_get_number(scrn);
-		if ((screen = gdk_display_get_screen(disp, s)))
-			if ((wnd = gdk_x11_window_foreign_new_for_display(disp, win)))
-				nmon = gdk_screen_get_monitor_at_window(screen, wnd);
-	}
-	if (nmon < 0) {
-		gdk_display_get_pointer(disp, &screen, &x, &y, NULL);
-		if (screen)
-			nmon = gdk_screen_get_monitor_at_point(screen, x, y);
-	}
-	if (nmon < 0) {
-		if (!screen)
-			screen = gdk_display_get_default_screen(disp);
-		nmon = gdk_screen_get_primary_monitor(screen);
-	}
-	options.monitor = nmon;
-	return (nmon);
-}
-
-static gboolean
-position_pointer(GtkMenu *menu, WnckWindow *wind, gint *x, gint *y)
-{
-	GdkDisplay *disp;
-
-	DPRINT();
-	disp = gtk_widget_get_display(GTK_WIDGET(menu));
-	gdk_display_get_pointer(disp, NULL, x, y, NULL);
-	return TRUE;
-}
-
-static gboolean
-position_center(GtkMenu *menu, WnckWindow *wind, gint *x, gint *y)
-{
-	GdkDisplay *disp;
-	GdkScreen *scrn;
-	GdkRectangle rect;
-	gint px, py, nmon;
-	GtkRequisition req;
-
-	DPRINT();
-	disp = gtk_widget_get_display(GTK_WIDGET(menu));
-	gdk_display_get_pointer(disp, &scrn, &px, &py, NULL);
-	nmon = gdk_screen_get_monitor_at_point(scrn, px, py);
-	gdk_screen_get_monitor_geometry(scrn, nmon, &rect);
-	gtk_widget_get_requisition(GTK_WIDGET(menu), &req);
-
-	*x = rect.x + (rect.width - req.width) / 2;
-	*y = rect.y + (rect.height - req.height) / 2;
-
-	return TRUE;
-}
-
-static gboolean
-position_topleft(GtkMenu *menu, WnckWindow *wind, gint *x, gint *y)
-{
-	GdkDisplay *disp;
-	GdkScreen *scrn;
-	GdkRectangle rect;
-	gint px, py, nmon;
-
-	DPRINT();
-	disp = gtk_widget_get_display(GTK_WIDGET(menu));
-	gdk_display_get_pointer(disp, &scrn, &px, &py, NULL);
-	nmon = gdk_screen_get_monitor_at_point(scrn, px, py);
-	gdk_screen_get_monitor_geometry(scrn, nmon, &rect);
-
-	*x = rect.x;
-	*y = rect.y;
-
-	return TRUE;
-}
-
-static gboolean
-position_bottomright(GtkMenu *menu, WnckWindow *wind, gint *x, gint *y)
-{
-	GdkDisplay *disp;
-	GdkScreen *scrn;
-	GdkRectangle rect;
-	gint px, py, nmon;
-	GtkRequisition req;
-
-	DPRINT();
-	disp = gtk_widget_get_display(GTK_WIDGET(menu));
-	gdk_display_get_pointer(disp, &scrn, &px, &py, NULL);
-	nmon = gdk_screen_get_monitor_at_point(scrn, px, py);
-	gdk_screen_get_monitor_geometry(scrn, nmon, &rect);
-	gtk_widget_get_requisition(GTK_WIDGET(menu), &req);
-
-	*x = rect.x + rect.width - req.width;
-	*y = rect.y + rect.height - req.height;
-
-	return TRUE;
-}
-
 typedef struct {
-	unsigned long state;
-	Window icon;
-} XWMState;
+	GdkDisplay *disp;
+	GdkScreen *screen;
+	GdkWindow *root, *proxy;
+	WnckScreen *scrn;
+	GtkWidget *pager;
+	Window selwin;			/* selection owner window */
+	Atom atom;			/* selection atom for this screen */
+	int width, height;
+	GtkWidget *popup;
+	guint timer;			/* timer source of running timer */
+	Bool keyboard;			/* have a keyboard grab */
+	Bool pointer;			/* have a pointer grab */
+	GdkModifierType mask;
+	int rows;			/* number of rows in layout */
+	int cols;			/* number of cols in layout */
+	int desks;			/* number of desks in layout */
+	int current;			/* current desktop */
+	Bool inside;			/* pointer inside popup */
+} XdeScreen;
 
-static Status
-XGetWMState(Display *display, Window w, XWMState *wmstate)
-{
-	Atom actual = None;
-	int format = 0;
-	unsigned long nitems = 0, after = 0;
-	unsigned long *data = NULL;
-	Status status = !Success;
-
-	if (XGetWindowProperty(display, w, _XA_WM_STATE, 0, 2, False,
-			       AnyPropertyType, &actual, &format, &nitems, &after,
-			       (unsigned char **) &data) == Success && format == 32
-	    && nitems >= 2) {
-		wmstate->state = data[0];
-		wmstate->icon = data[1];
-		status = Success;
-	}
-	if (data)
-		XFree(data);
-	return status;
-}
-
-gboolean
-is_visible(GtkMenu *menu, WnckWindow *wind)
-{
-	GdkDisplay *disp = gtk_widget_get_display(GTK_WIDGET(menu));
-	Display *dpy = GDK_DISPLAY_XDISPLAY(disp);
-	Window win = wnck_window_get_xid(wind);
-	WnckWindowState state = wnck_window_get_state(wind);
-	XWMState xwms;
-	XWindowAttributes xwa;
-
-	if (state & (WNCK_WINDOW_STATE_MINIMIZED | WNCK_WINDOW_STATE_HIDDEN)) {
-		DPRINTF("target is minimized or hidden!\n");
-		return FALSE;
-	}
-	if (!XGetWMState(dpy, win, &xwms)) {
-		switch (xwms.state) {
-		case NormalState:
-		case IconicState:
-		case ZoomState:
-			break;
-		case WithdrawnState:
-			DPRINTF("target is in the withdrawn state\n");
-			return FALSE;
-		}
-	} else {
-		DPRINTF("target has no WM_STATE property\n");
-		return FALSE;
-	}
-	if (!XGetWindowAttributes(dpy, win, &xwa)) {
-		DPRINTF("cannot get window attributes for target\n");
-		return FALSE;
-	}
-	if (xwa.map_state == IsUnmapped) {
-		DPRINTF("target is unmapped\n");
-		return FALSE;
-	}
-	if (xwa.map_state == IsUnviewable) {
-		DPRINTF("targ is unviewable\n");
-		return FALSE;
-	}
-	if (xwa.map_state == IsViewable)
-		return TRUE;
-	return TRUE;
-}
-
-void
-position_list(GtkMenu *menu, gint *x, gint *y, gboolean *push_in, gpointer user_data)
-{
-	WnckWindow *wind = (typeof(wind)) user_data;
-
-	switch (options.where) {
-	case PositionDefault:
-		if (options.button) {
-			position_pointer(menu, wind, x, y);
-			break;
-		}
-		position_center(menu, wind, x, y);
-		break;
-	case PositionPointer:
-		position_pointer(menu, wind, x, y);
-		break;
-	case PositionCenter:
-		position_center(menu, wind, x, y);
-		break;
-	case PositionTopLeft:
-		position_topleft(menu, wind, x, y);
-		break;
-	case PositionBottomRight:
-		position_bottomright(menu, wind, x, y);
-		break;
-	}
-}
-
-Window
+static Window
 get_selection(Bool replace, Window selwin)
 {
 	char selection[64] = { 0, };
@@ -663,116 +184,31 @@ get_selection(Bool replace, Window selwin)
 	return (gotone);
 }
 
-void
-post_popup(void)
-{
-	GdkDisplay *disp;
-	WnckScreen *scrn;
-	WnckWindow *wind;
-	gint nmon;
-
-	if (!(disp = gdk_display_get_default())) {
-		EPRINTF("cannot get default display\n");
-		exit(EXIT_FAILURE);
-	}
-	if (!(scrn = find_screen(disp))) {
-		EPRINTF("cannot find screen\n");
-		exit(EXIT_FAILURE);
-	}
-	wnck_screen_force_update(scrn);
-	if (!(wind = find_window(disp, scrn))) {
-		DPRINTF("cannot find window\n");
-	}
-	if ((nmon = find_monitor(disp, scrn, wind)) < 0) {
-		EPRINTF("cannot find monitor\n");
-		exit(EXIT_FAILURE);
-	}
-}
-
-typedef struct {
-	GdkDisplay *disp;
-	GdkScreen *screen;
-	GdkWindow *root, *proxy;
-	WnckScreen *scrn;
-	GtkWidget *pager;
-	Window selwin;			/* selection owner window */
-	Atom atom;			/* selection atom for this screen */
-	int width, height;
-	GtkWidget *popup;
-	guint timer;			/* timer source of running timer */
-	Bool keyboard;			/* have a keyboard grab */
-	Bool pointer;			/* have a pointer grab */
-	GdkModifierType mask;
-	int rows;			/* number of rows in layout */
-	int cols;			/* number of cols in layout */
-	int desks;			/* number of desks in layout */
-	int current;			/* current desktop */
-	Bool inside;			/* pointer inside popup */
-} XdeScreen;
-
-XdeScreen *screens;
-int nscr;
-Window selwin;
-
-void
+static void
 workspace_destroyed(WnckScreen *screen, WnckWorkspace *space, gpointer user)
 {
 	XdeScreen *xscr = (typeof(xscr)) user;
 }
 
-void
+static void
 workspace_created(WnckScreen *screen, WnckWorkspace *space, gpointer user)
 {
 	XdeScreen *xscr = (typeof(xscr)) user;
 }
 
-void
+static void setup_button_proxy(XdeScreen *xscr);
+
+static void
 window_manager_changed(WnckScreen *screen, gpointer user)
 {
 	XdeScreen *xscr = (typeof(xscr)) user;
+	if (options.proxy)
+		setup_button_proxy(xscr);
 }
 
-void
-viewports_changed(WnckScreen *screen, gpointer user)
-{
-	XdeScreen *xscr = (typeof(xscr)) user;
-}
+static void drop_popup(XdeScreen *xscr);
 
-void
-background_changed(WnckScreen *screen, gpointer user)
-{
-	XdeScreen *xscr = (typeof(xscr)) user;
-}
-
-gboolean stop_popup_timer(XdeScreen *xscr);
-
-void
-release_grabs(XdeScreen *xscr)
-{
-	if (xscr->pointer) {
-		DPRINTF("ungrabbing pointer\n");
-		gdk_display_pointer_ungrab(xscr->disp, GDK_CURRENT_TIME);
-		xscr->pointer = False;
-	}
-	if (xscr->keyboard) {
-		DPRINTF("ungrabbing keyboard\n");
-		gdk_display_keyboard_ungrab(xscr->disp, GDK_CURRENT_TIME);
-		xscr->keyboard = False;
-	}
-}
-
-void
-drop_popup(XdeScreen *xscr)
-{
-	DPRINT();
-	if (gtk_widget_get_mapped(xscr->popup)) {
-		stop_popup_timer(xscr);
-		release_grabs(xscr);
-		gtk_widget_hide(xscr->popup);
-	}
-}
-
-gboolean
+static gboolean
 workspace_timeout(gpointer user)
 {
 	XdeScreen *xscr = (typeof(xscr)) user;
@@ -783,7 +219,7 @@ workspace_timeout(gpointer user)
 	return G_SOURCE_REMOVE;
 }
 
-gboolean
+static gboolean
 stop_popup_timer(XdeScreen *xscr)
 {
 	if (xscr->timer) {
@@ -795,7 +231,7 @@ stop_popup_timer(XdeScreen *xscr)
 	return FALSE;
 }
 
-gboolean
+static gboolean
 start_popup_timer(XdeScreen *xscr)
 {
 	if (xscr->timer)
@@ -813,10 +249,35 @@ restart_popup_timer(XdeScreen *xscr)
 	start_popup_timer(xscr);
 }
 
-void
-active_workspace_changed(WnckScreen *screen, WnckWorkspace *prev, gpointer user)
+static void
+release_grabs(XdeScreen *xscr)
 {
-	XdeScreen *xscr = (typeof(xscr)) user;
+	if (xscr->pointer) {
+		DPRINTF("ungrabbing pointer\n");
+		gdk_display_pointer_ungrab(xscr->disp, GDK_CURRENT_TIME);
+		xscr->pointer = False;
+	}
+	if (xscr->keyboard) {
+		DPRINTF("ungrabbing keyboard\n");
+		gdk_display_keyboard_ungrab(xscr->disp, GDK_CURRENT_TIME);
+		xscr->keyboard = False;
+	}
+}
+
+static void
+drop_popup(XdeScreen *xscr)
+{
+	DPRINT();
+	if (gtk_widget_get_mapped(xscr->popup)) {
+		stop_popup_timer(xscr);
+		release_grabs(xscr);
+		gtk_widget_hide(xscr->popup);
+	}
+}
+
+static void
+something_changed(WnckScreen *screen, XdeScreen *xscr)
+{
 	GdkGrabStatus status;
 	GdkDisplay *disp = gdk_display_get_default();
 	Display *dpy = GDK_DISPLAY_XDISPLAY(disp);
@@ -847,7 +308,7 @@ active_workspace_changed(WnckScreen *screen, WnckWorkspace *prev, gpointer user)
 			xscr->pointer = True;
 			break;
 		case GDK_GRAB_ALREADY_GRABBED:
-			EPRINTF("%s: pointer already grabbed\n", NAME);
+			DPRINTF("%s: pointer already grabbed\n", NAME);
 			break;
 		case GDK_GRAB_INVALID_TIME:
 			EPRINTF("%s: pointer grab invalid time\n", NAME);
@@ -869,7 +330,7 @@ active_workspace_changed(WnckScreen *screen, WnckWorkspace *prev, gpointer user)
 			xscr->keyboard = True;
 			break;
 		case GDK_GRAB_ALREADY_GRABBED:
-			EPRINTF("%s: keyboard already grabbed\n", NAME);
+			DPRINTF("%s: keyboard already grabbed\n", NAME);
 			break;
 		case GDK_GRAB_INVALID_TIME:
 			EPRINTF("%s: keyboard grab invalid time\n", NAME);
@@ -889,6 +350,28 @@ active_workspace_changed(WnckScreen *screen, WnckWorkspace *prev, gpointer user)
 			start_popup_timer(xscr);
 }
 
+static void
+viewports_changed(WnckScreen *screen, gpointer user)
+{
+	XdeScreen *xscr = (typeof(xscr)) user;
+
+	something_changed(screen, xscr);
+}
+
+static void
+background_changed(WnckScreen *screen, gpointer user)
+{
+	XdeScreen *xscr = (typeof(xscr)) user;
+}
+
+static void
+active_workspace_changed(WnckScreen *screen, WnckWorkspace *prev, gpointer user)
+{
+	XdeScreen *xscr = (typeof(xscr)) user;
+
+	something_changed(screen, xscr);
+}
+
 /** @brief grab broken event handler
   *
   * Generated when a pointer or keyboard grab is broken.  On X11, this happens
@@ -897,7 +380,7 @@ active_workspace_changed(WnckScreen *screen, WnckWorkspace *prev, gpointer user)
   * Note that implicity grabs (which are initiated by button presses (or
   * grabbed key presses?)) can also cause GdkEventGrabBroken events.
   */
-gboolean
+static gboolean
 grab_broken_event(GtkWidget *widget, GdkEvent *event, gpointer user)
 {
 	XdeScreen *xscr = (typeof(xscr)) user;
@@ -934,7 +417,7 @@ grab_broken_event(GtkWidget *widget, GdkEvent *event, gpointer user)
 
 static GdkFilterReturn popup_handler(GdkXEvent *xevent, GdkEvent *event, gpointer data);
 
-void
+static void
 widget_realize(GtkWidget *popup, gpointer user)
 {
 	XdeScreen *xscr = (typeof(xscr)) user;
@@ -943,7 +426,7 @@ widget_realize(GtkWidget *popup, gpointer user)
 	gdk_window_add_filter(popup->window, popup_handler, xscr);
 }
 
-gboolean
+static gboolean
 button_press_event(GtkWidget *widget, GdkEvent *event, gpointer user)
 {
 	XdeScreen *xscr = (typeof(xscr)) user;
@@ -953,7 +436,7 @@ button_press_event(GtkWidget *widget, GdkEvent *event, gpointer user)
 	return FALSE;
 }
 
-gboolean
+static gboolean
 button_release_event(GtkWidget *widget, GdkEvent *event, gpointer user)
 {
 	XdeScreen *xscr = (typeof(xscr)) user;
@@ -963,7 +446,7 @@ button_release_event(GtkWidget *widget, GdkEvent *event, gpointer user)
 	return FALSE;
 }
 
-gboolean
+static gboolean
 enter_notify_event(GtkWidget *widget, GdkEvent *event, gpointer user)
 {
 	XdeScreen *xscr = (typeof(xscr)) user;
@@ -975,7 +458,7 @@ enter_notify_event(GtkWidget *widget, GdkEvent *event, gpointer user)
 	return FALSE;
 }
 
-gboolean
+static gboolean
 focus_in_event(GtkWidget *widget, GdkEvent *event, gpointer user)
 {
 	XdeScreen *xscr = (typeof(xscr)) user;
@@ -985,7 +468,7 @@ focus_in_event(GtkWidget *widget, GdkEvent *event, gpointer user)
 	return FALSE;
 }
 
-gboolean
+static gboolean
 focus_out_event(GtkWidget *widget, GdkEvent *event, gpointer user)
 {
 	XdeScreen *xscr = (typeof(xscr)) user;
@@ -995,7 +478,7 @@ focus_out_event(GtkWidget *widget, GdkEvent *event, gpointer user)
 	return FALSE;
 }
 
-void
+static void
 grab_focus(GtkWidget *widget, gpointer user)
 {
 	XdeScreen *xscr = (typeof(xscr)) user;
@@ -1004,7 +487,7 @@ grab_focus(GtkWidget *widget, gpointer user)
 	DPRINT();
 }
 
-gboolean
+static gboolean
 key_press_event(GtkWidget *widget, GdkEvent *event, gpointer user)
 {
 	XdeScreen *xscr = (typeof(xscr)) user;
@@ -1014,7 +497,7 @@ key_press_event(GtkWidget *widget, GdkEvent *event, gpointer user)
 	return FALSE;
 }
 
-gboolean
+static gboolean
 key_release_event(GtkWidget *widget, GdkEvent *event, gpointer user)
 {
 	XdeScreen *xscr = (typeof(xscr)) user;
@@ -1028,7 +511,7 @@ key_release_event(GtkWidget *widget, GdkEvent *event, gpointer user)
 	return FALSE;
 }
 
-gboolean
+static gboolean
 leave_notify_event(GtkWidget *widget, GdkEvent *event, gpointer user)
 {
 	XdeScreen *xscr = (typeof(xscr)) user;
@@ -1040,7 +523,7 @@ leave_notify_event(GtkWidget *widget, GdkEvent *event, gpointer user)
 	return FALSE;
 }
 
-gboolean
+static gboolean
 map_event(GtkWidget *widget, GdkEvent *event, gpointer user)
 {
 	XdeScreen *xscr = (typeof(xscr)) user;
@@ -1050,7 +533,7 @@ map_event(GtkWidget *widget, GdkEvent *event, gpointer user)
 	return FALSE;
 }
 
-gboolean
+static gboolean
 scroll_event(GtkWidget *widget, GdkEvent *event, gpointer user)
 {
 	XdeScreen *xscr = (typeof(xscr)) user;
@@ -1060,21 +543,9 @@ scroll_event(GtkWidget *widget, GdkEvent *event, gpointer user)
 	return FALSE;
 }
 
-gboolean
-event_event(GtkWidget *widget, GdkEvent *event, gpointer user)
-{
-	return TRUE;
-}
-
-void
-event_after(GtkWidget *widget, GdkEvent *event, gpointer user)
-{
-	return;
-}
-
 static GdkFilterReturn proxy_handler(GdkXEvent *xevent, GdkEvent *event, gpointer data);
 
-void
+static void
 setup_button_proxy(XdeScreen *xscr)
 {
 	Display *dpy = GDK_DISPLAY_XDISPLAY(xscr->disp);
@@ -1135,7 +606,7 @@ static void redo_layout(XdeScreen *xscr);
 
 static GdkFilterReturn root_handler(GdkXEvent *xevent, GdkEvent *event, gpointer data);
 
-void
+static void
 init_popup(XdeScreen *xscr)
 {
 	GtkWidget *popup;
@@ -1144,7 +615,8 @@ init_popup(XdeScreen *xscr)
 
 	gdk_window_add_filter(xscr->root, root_handler, xscr);
 
-	setup_button_proxy(xscr);
+	if (options.proxy)
+		setup_button_proxy(xscr);
 
 	xscr->popup = popup = gtk_window_new(GTK_WINDOW_POPUP);
 	gtk_widget_add_events(popup, GDK_ALL_EVENTS_MASK);
@@ -1156,7 +628,7 @@ init_popup(XdeScreen *xscr)
 	wnck_pager_set_display_mode(pager, WNCK_PAGER_DISPLAY_CONTENT);
 	wnck_pager_set_show_all(pager, TRUE);
 	wnck_pager_set_shadow_type(pager, GTK_SHADOW_IN);
-	gtk_container_set_border_width(GTK_CONTAINER(popup), 8);
+	gtk_container_set_border_width(GTK_CONTAINER(popup), options.border);
 	gtk_container_add(GTK_CONTAINER(popup), GTK_WIDGET(pager));
 
 	redo_layout(xscr);
@@ -1201,8 +673,8 @@ init_popup(XdeScreen *xscr)
 
 static GdkFilterReturn selwin_handler(GdkXEvent *xevent, GdkEvent *event, gpointer data);
 
-void
-do_cycle(int argc, char *argv[], Bool replace)
+static void
+do_run(int argc, char *argv[], Bool replace)
 {
 	GdkDisplay *disp = gdk_display_get_default();
 	Display *dpy = GDK_DISPLAY_XDISPLAY(disp);
@@ -1210,8 +682,8 @@ do_cycle(int argc, char *argv[], Bool replace)
 	GdkWindow *root = gdk_screen_get_root_window(screen), *sel;
 	char selection[64] = { 0, };
 	Window selwin, owner;
-	XdeScreen *xscr;
-	int s;
+	XdeScreen *screens, *xscr;
+	int s, nscr;
 
 	selwin = XCreateSimpleWindow(dpy, GDK_WINDOW_XID(root), 0, 0, 1, 1, 0, 0, 0);
 
@@ -1248,48 +720,18 @@ do_cycle(int argc, char *argv[], Bool replace)
 	gtk_main();
 }
 
-void
-do_popup(int argc, char *argv[])
-{
-	Window owner;
-
-	if ((owner = get_selection(False, None))) {
-		Display *dpy = GDK_DISPLAY_XDISPLAY(gdk_display_get_default());
-		XEvent ev;
-
-		/* running instance, send it a message and exit */
-
-		ev.xclient.type = ClientMessage;
-		ev.xclient.serial = 0;
-		ev.xclient.send_event = False;
-		ev.xclient.display = dpy;
-		ev.xclient.window = owner;
-		ev.xclient.message_type = _XA_XDE_PAGER_POPUP;
-		ev.xclient.format = 32;
-		ev.xclient.data.l[0] = (long) options.button;
-		ev.xclient.data.l[1] = (long) options.timestamp;
-		ev.xclient.data.l[2] = (long) options.screen;
-		ev.xclient.data.l[3] = (long) options.monitor;
-		ev.xclient.data.l[4] = 0;
-
-		XSendEvent(dpy, owner, False, NoEventMask, &ev);
-		return;
-	}
-	post_popup();
-}
-
 /** @brief Ask a running instance to quit.
   *
   * This is performed by checking for an owner of the _XDE_PAGER_S%d selection and clearing the
   * selection if it exists.
   */
-void
+static void
 do_quit(int argc, char *argv[])
 {
 	get_selection(True, None);
 }
 
-void
+static void
 reparse(Display *dpy, Window root)
 {
 	XTextProperty xtp = { NULL, };
@@ -1396,7 +838,7 @@ redo_layout(XdeScreen *xscr)
 static GdkFilterReturn
 event_handler_PropertyNotify(Display *dpy, XEvent *xev, XdeScreen *xscr)
 {
-	if (options.debug > 1) {
+	if (options.debug > 2) {
 		fprintf(stderr, "==> PropertyNotify:\n");
 		fprintf(stderr, "    --> window = 0x%08lx\n", xev->xproperty.window);
 		fprintf(stderr, "    --> atom = %s\n", XGetAtomName(dpy, xev->xproperty.atom));
@@ -1461,15 +903,6 @@ event_handler_ClientMessage(Display *dpy, XEvent *xev)
 	if (xev->xclient.message_type == _XA_GTK_READ_RCFILES) {
 		reparse(dpy, xev->xclient.window);
 		return GDK_FILTER_REMOVE;	/* event handled */
-	}
-	if (xev->xclient.message_type == _XA_XDE_PAGER_POPUP) {
-		/* FIXME: pop up the dialog */
-		/* data.l[0] is the button number (or 0 for keyboard) */
-		/* data.l[1] is the timestamp */
-		/* data.l[2] is the screen number */
-		/* data.l[3] is the monitor numhber */
-		/* data.l[4] is zero */
-		return GDK_FILTER_REMOVE;
 	}
 	return GDK_FILTER_CONTINUE;	/* event not handled */
 }
@@ -1647,6 +1080,8 @@ show_mode(int mode)
 		return ("NotifyGrab");
 	case NotifyUngrab:
 		return ("NotifyUngrab");
+	case NotifyWhileGrabbed:
+		return ("NotifyWhileGrabbed");
 	}
 	return NULL;
 }
@@ -1665,6 +1100,12 @@ show_detail(int detail)
 		return ("NotifyNonlinear");
 	case NotifyNonlinearVirtual:
 		return ("NotifyNonlinearVirtual");
+	case NotifyPointer:
+		return ("NotifyPointer");
+	case NotifyPointerRoot:
+		return ("NotifyPointerRoot");
+	case NotifyDetailNone:
+		return ("NotifyDetailNone");
 	}
 	return NULL;
 }
@@ -1734,39 +1175,50 @@ event_handler_LeaveNotify(Display *dpy, XEvent *xev, XdeScreen *xscr)
 }
 
 static GdkFilterReturn
-handle_event(Display *dpy, XEvent *xev, XdeScreen *xscr)
+event_handler_FocusIn(Display *dpy, XEvent *xev, XdeScreen *xscr)
 {
-	switch (xev->type) {
-	case PropertyNotify:
-		return event_handler_PropertyNotify(dpy, xev, xscr);
-	case ClientMessage:
-		return event_handler_ClientMessage(dpy, xev);
-	case KeyPress:
-		return event_handler_KeyPress(dpy, xev, xscr);
-	case KeyRelease:
-		return event_handler_KeyRelease(dpy, xev, xscr);
-	case ButtonPress:
-		return event_handler_ButtonPress(dpy, xev, xscr);
-	case ButtonRelease:
-		return event_handler_ButtonRelease(dpy, xev, xscr);
-	case SelectionClear:
-		return event_handler_SelectionClear(dpy, xev, xscr);
-	case EnterNotify:
-		return event_handler_EnterNotify(dpy, xev, xscr);
-	case LeaveNotify:
-		return event_handler_LeaveNotify(dpy, xev, xscr);
+	DPRINT();
+	if (options.debug > 1) {
+		fprintf(stderr, "==> FocusIn: %p\n", xscr);
+		fprintf(stderr, "    --> send_event = %s\n", xev->xfocus.send_event ? "true" : "false");
+		fprintf(stderr, "    --> window = 0x%lx\n", xev->xfocus.window);
+		fprintf(stderr, "    --> mode = %s\n", show_mode(xev->xfocus.mode));
+		fprintf(stderr, "    --> detail = %s\n", show_detail(xev->xfocus.detail));
+		fprintf(stderr, "<== FocusIn: %p\n", xscr);
 	}
-	return GDK_FILTER_CONTINUE;	/* event not handled, continue processing */
+	switch (xev->xfocus.mode) {
+	case NotifyNormal:
+	case NotifyUngrab:
+		DPRINTF("focused popup\n");
+		break;
+	}
+	return GDK_FILTER_CONTINUE;
 }
 
-GdkFilterReturn
-filter_handler(GdkXEvent *xevent, GdkEvent *event, gpointer data)
+static GdkFilterReturn
+event_handler_FocusOut(Display *dpy, XEvent *xev, XdeScreen *xscr)
 {
-	XEvent *xev = (typeof(xev)) xevent;
-	XdeScreen *xscr = (typeof(xscr)) data;
-	Display *dpy = GDK_DISPLAY_XDISPLAY(gdk_display_get_default());
-
-	return handle_event(dpy, xev, xscr);
+	DPRINT();
+	if (options.debug > 1) {
+		fprintf(stderr, "==> FocusOut: %p\n", xscr);
+		fprintf(stderr, "    --> send_event = %s\n", xev->xfocus.send_event ? "true" : "false");
+		fprintf(stderr, "    --> window = 0x%lx\n", xev->xfocus.window);
+		fprintf(stderr, "    --> mode = %s\n", show_mode(xev->xfocus.mode));
+		fprintf(stderr, "    --> detail = %s\n", show_detail(xev->xfocus.detail));
+		fprintf(stderr, "<== FocusOut: %p\n", xscr);
+	}
+	switch (xev->xfocus.mode) {
+	case NotifyNormal:
+	case NotifyGrab:
+	case NotifyWhileGrabbed:
+		DPRINTF("unfocused popup\n");
+		if (!xscr->keyboard) {
+			DPRINTF("no grab or focus\n");
+			start_popup_timer(xscr);
+		}
+		break;
+	}
+	return GDK_FILTER_CONTINUE;
 }
 
 static GdkFilterReturn
@@ -1803,6 +1255,10 @@ popup_handler(GdkXEvent *xevent, GdkEvent *event, gpointer data)
 		return event_handler_EnterNotify(dpy, xev, xscr);
 	case LeaveNotify:
 		return event_handler_LeaveNotify(dpy, xev, xscr);
+	case FocusIn:
+		return event_handler_FocusIn(dpy, xev, xscr);
+	case FocusOut:
+		return event_handler_FocusOut(dpy, xev, xscr);
 	}
 	return GDK_FILTER_CONTINUE;
 }
@@ -1920,7 +1376,7 @@ proxy_handler(GdkXEvent *xevent, GdkEvent *event, gpointer data)
 	return GDK_FILTER_CONTINUE;
 }
 
-void
+static void
 startup(int argc, char *argv[])
 {
 	static const char *suffix = "/.gtkrc-2.0.xde";
@@ -1932,7 +1388,7 @@ startup(int argc, char *argv[])
 	GdkWindow *root;
 	Display *dpy;
 	char *file;
-	int len, nscr;
+	int len;
 
 	home = getenv("HOME") ? : ".";
 	len = strlen(home) + strlen(suffix) + 1;
@@ -1945,18 +1401,8 @@ startup(int argc, char *argv[])
 	gtk_init(&argc, &argv);
 
 	disp = gdk_display_get_default();
-	nscr = gdk_display_get_n_screens(disp);
-
-	if (options.screen >= 0 && options.screen >= nscr) {
-		EPRINTF("bad screen specified: %d\n", options.screen);
-		exit(EXIT_FAILURE);
-	}
 
 	dpy = GDK_DISPLAY_XDISPLAY(disp);
-	// gdk_window_add_filter(NULL, filter_handler, NULL);
-
-	atom = gdk_atom_intern_static_string("WM_STATE");
-	_XA_WM_STATE = gdk_x11_atom_to_xatom_for_display(disp, atom);
 
 	atom = gdk_atom_intern_static_string("_XDE_THEME_NAME");
 	_XA_XDE_THEME_NAME = gdk_x11_atom_to_xatom_for_display(disp, atom);
@@ -1974,15 +1420,11 @@ startup(int argc, char *argv[])
 	atom = gdk_atom_intern_static_string("_NET_NUMBER_OF_DESKTOPS");
 	_XA_NET_NUMBER_OF_DESKTOPS = gdk_x11_atom_to_xatom_for_display(disp, atom);
 
-	atom = gdk_atom_intern_static_string("_XDE_PAGER_POPUP");
-	_XA_XDE_PAGER_POPUP = gdk_x11_atom_to_xatom_for_display(disp, atom);
-	gdk_display_add_client_message_filter(disp, atom, client_handler, dpy);
+	atom = gdk_atom_intern_static_string("_NET_CURRENT_DESKTOP");
+	_XA_NET_CURRENT_DESKTOP = gdk_x11_atom_to_xatom_for_display(disp, atom);
 
 	atom = gdk_atom_intern_static_string("_WIN_DESKTOP_BUTTON_PROXY");
 	_XA_WIN_DESKTOP_BUTTON_PROXY = gdk_x11_atom_to_xatom_for_display(disp, atom);
-
-	atom = gdk_atom_intern_static_string("_NET_CURRENT_DESKTOP");
-	_XA_NET_CURRENT_DESKTOP = gdk_x11_atom_to_xatom_for_display(disp, atom);
 
 	scrn = gdk_display_get_default_screen(disp);
 	root = gdk_screen_get_root_window(scrn);
@@ -2083,55 +1525,6 @@ show_bool(Bool value)
 	return ("false");
 }
 
-static const char *
-show_window(Window win)
-{
-	static char window[64] = { 0, };
-
-	if (!options.window)
-		return ("None");
-	snprintf(window, sizeof(window), "0x%lx", options.window);
-	return (window);
-}
-
-static const char *
-show_which(UseWindow which)
-{
-	switch (which) {
-	case UseWindowDefault:
-		return ("default");
-	case UseWindowActive:
-		return ("active");
-	case UseWindowFocused:
-		return ("focused");
-	case UseWindowPointer:
-		return ("pointer");
-	case UseWindowSelect:
-		return ("select");
-	case UseWindowSpecified:
-		return show_window(options.window);
-	}
-	return NULL;
-}
-
-static const char *
-show_where(MenuPosition where)
-{
-	switch (where) {
-	case PositionDefault:
-		return ("default");
-	case PositionPointer:
-		return ("pointer");
-	case PositionCenter:
-		return ("center");
-	case PositionTopLeft:
-		return ("topleft");
-	case PositionBottomRight:
-		return ("bottomright");
-	}
-	return NULL;
-}
-
 static void
 help(int argc, char *argv[])
 {
@@ -2141,12 +1534,16 @@ help(int argc, char *argv[])
 	(void) fprintf(stdout, "\
 Usage:\n\
     %1$s [options]\n\
+    %1$s {-r|--replace} [options]\n\
+    %1$s {-q|--quit} [options]\n\
     %1$s {-h|--help}\n\
     %1$s {-V|--version}\n\
     %1$s {-C|--copying}\n\
 Command options:\n\
-   [-p, --popup]\n\
-        popup the menu\n\
+    -r, --replace\n\
+        replace a running instance\n\
+    -q, --quit\n\
+        ask a running instance to quit\n\
     -h, --help, -?, --?\n\
         print this usage information and exit\n\
     -V, --version\n\
@@ -2155,60 +1552,30 @@ Command options:\n\
         print copying permission and exit\n\
 Options:\n\
     -d, --display DISPLAY\n\
-        specify the X display, DISPLAY, to use [default: %4$s]\n\
-    -s, --screen SCREEN\n\
-        specify the screen number, SCREEN, to use [default: %5$d]\n\
-    -m, --monitor MONITOR\n\
-        specify the monitor number, MONITOR, to use [default: %13$d]\n\
-    -b, --button BUTTON\n\
-        specify the mouse button number, BUTTON, for popup [default: %6$d]\n\
-    -T, --timestamp TIMESTAMP\n\
-        use the time, TIMESTAMP, for button/keyboard event [default: %7$lu]\n\
-    -w, --which {active|focused|pointer|select|WINDOW}\n\
-        specify the window for which to pop the menu [default: %8$s]\n\
-	\"active\"  - the EWMH/NetWM active client\n\
-	\"focused\" - the EWMH/NetWM focused client\n\
-	\"pointer\" - the EWMH/NetWM client under the pointer\n\
-	\"select\"  - the EWMH/NetWM client from selection\n\
-	 WINDOW   - the EWMH/NetWM client XID to use\n\
-    -x, --id WINDOW\n\
-        specify the window to use by XID [default: %9$s]\n\
-    -W, --where {pointer|center|topleft|icongeom}\n\
-        specify where to place the menu [default: %10$s]\n\
-	\"pointer\"  - northwest corner under the pointer\n\
-	\"center\"   - center on associated window\n\
-	\"topleft\"  - northwest corner top left of window\n\
-	\"icongeom\" - above or below icon geometry\n\
+        specify the X display, DISPLAY, to use [default: %2$s]\n\
     -t, --timeout MILLISECONDS\n\
-        specify timeout when not modifier [default: %14$lu]\n\
-    -c, --cycle\n\
-        show a window cycle list [default: %11$s]\n\
-    -k, --keys FORWARD:REVERSE\n\
-        specify keys for cycling [default: %12$s]\n\
+        specify timeout when not modifier [default: %3$lu]\n\
+    -b, --border PIXELS\n\
+        border surrounding feedback popup [default: %4$u]\n\
+    -n, --noproxy\n\
+        do not respond to button proxy [default: %5$s]\n\
     -D, --debug [LEVEL]\n\
-        increment or set debug LEVEL [default: %2$d]\n\
+        increment or set debug LEVEL [default: %6$d]\n\
     -v, --verbose [LEVEL]\n\
-        increment or set output verbosity LEVEL [default: %3$d]\n\
+        increment or set output verbosity LEVEL [default: %7$d]\n\
         this option may be repeated.\n\
 ", argv[0] 
+	, options.display
+	, options.timeout
+	, options.border
+	, show_bool(options.proxy)
 	, options.debug
 	, options.output
-	, options.display
-	, options.screen
-	, options.button
-	, options.timestamp
-	, show_which(options.which)
-	, show_window(options.window)
-	, show_where(options.where)
-	, show_bool(options.cycle)
-	, options.keys ? : ""
-	, options.monitor
-	, options.timeout
 );
 	/* *INDENT-ON* */
 }
 
-void
+static void
 set_defaults(void)
 {
 	const char *env;
@@ -2217,21 +1584,15 @@ set_defaults(void)
 		options.display = strdup(env);
 }
 
-void
+static void
 get_defaults(void)
 {
-	const char *p;
-	int n;
-
 	if (!options.display) {
 		EPRINTF("No DISPLAY environment variable or --display option\n");
 		exit(EXIT_FAILURE);
 	}
-	if (options.screen < 0 && (p = strrchr(options.display, '.'))
-	    && (n = strspn(++p, "0123456789")) && *(p + n) == '\0')
-		options.screen = atoi(p);
 	if (options.command == CommandDefault)
-		options.command = CommandCycle;
+		options.command = CommandRun;
 
 }
 
@@ -2243,27 +1604,19 @@ main(int argc, char *argv[])
 	set_defaults();
 
 	while (1) {
-		int c, val, len;
+		int c, val;
 
 #ifdef _GNU_SOURCE
 		int option_index = 0;
 		/* *INDENT-OFF* */
 		static struct option long_options[] = {
 			{"display",		required_argument,	NULL,	'd'},
-			{"screen",		required_argument,	NULL,	's'},
-			{"button",		required_argument,	NULL,	'b'},
-			{"timestamp",		required_argument,	NULL,	'T'},
-			{"which",		required_argument,	NULL,	'w'},
-			{"id",			required_argument,	NULL,	'x'},
-			{"where",		required_argument,	NULL,	'W'},
 			{"timeout",		required_argument,	NULL,	't'},
+			{"border",		required_argument,	NULL,	'b'},
+			{"noproxy",		no_argument,		NULL,	'n'},
 
-			{"cycle",		no_argument,		NULL,	'c'},
-			{"popup",		no_argument,		NULL,	'p'},
 			{"quit",		no_argument,		NULL,	'q'},
 			{"replace",		no_argument,		NULL,	'r'},
-
-			{"key",			optional_argument,	NULL,	'k'},
 
 			{"debug",		optional_argument,	NULL,	'D'},
 			{"verbose",		optional_argument,	NULL,	'v'},
@@ -2294,75 +1647,20 @@ main(int argc, char *argv[])
 			free(options.display);
 			options.display = strdup(optarg);
 			break;
-		case 's':	/* -s, --screen SCREEN */
-			options.screen = strtoul(optarg, NULL, 0);
-			break;
-		case 'b':	/* -b, --button BUTTON */
-			options.button = strtoul(optarg, NULL, 0);
-			break;
-		case 'T':	/* -T, --timestamp TIMESTAMP */
-			options.timestamp = strtoul(optarg, NULL, 0);
-			break;
-		case 'w':	/* -w, --which WHICH */
-			if (options.which != UseWindowDefault)
-				goto bad_option;
-			len = strlen(optarg);
-			if (!strncasecmp("active", optarg, len))
-				options.which = UseWindowActive;
-			else if (!strncasecmp("focused", optarg, len))
-				options.which = UseWindowFocused;
-			else if (!strncasecmp("pointer", optarg, len))
-				options.which = UseWindowPointer;
-			else if (!strncasecmp("select", optarg, len))
-				options.which = UseWindowSelect;
-			else if ((options.window = strtoul(optarg, NULL, 0)))
-				options.which = UseWindowSpecified;
-			else
-				goto bad_option;
-			break;
-		case 'W':	/* -W, --where WHERE */
-			if (options.where != PositionDefault)
-				goto bad_option;
-			len = strlen(optarg);
-			if (!strncasecmp("pointer", optarg, len))
-				options.where = PositionPointer;
-			else if (!strncasecmp("center", optarg, len))
-				options.where = PositionCenter;
-			else if (!strncasecmp("topleft", optarg, len))
-				options.where = PositionTopLeft;
-			else if (!strncasecmp("bottomright", optarg, len))
-				options.where = PositionBottomRight;
-			else
-				goto bad_option;
-			break;
 		case 't':	/* -t, --timeout MILLISECONDS */
 			options.timeout = strtoul(optarg, NULL, 0);
 			if (!options.timeout)
 				goto bad_option;
 			break;
-		case 'x':	/* -x, --id WINDOW */
-			if (options.which != UseWindowDefault)
+		case 'b':	/* -b, --border PIXELS */
+			options.border = strtoul(optarg, NULL, 0);
+			if (options.border > 20)
 				goto bad_option;
-			options.window = strtoul(optarg, NULL, 0);
-			if (!options.window)
-				goto bad_option;
-			options.which = UseWindowSpecified;
+			break;
+		case 'n':	/* -n, --noproxy */
+			options.proxy = False;
 			break;
 
-		case 'c':	/* -c, --cycle */
-			if (options.command != CommandDefault)
-				goto bad_option;
-			if (command == CommandDefault)
-				command = CommandCycle;
-			options.command = CommandCycle;
-			break;
-		case 'p':	/* -p, --popup */
-			if (options.command != CommandDefault)
-				goto bad_option;
-			if (command == CommandDefault)
-				command = CommandPopup;
-			options.command = CommandPopup;
-			break;
 		case 'q':	/* -q, --quit */
 			if (options.command != CommandDefault)
 				goto bad_option;
@@ -2376,10 +1674,6 @@ main(int argc, char *argv[])
 			if (command == CommandDefault)
 				command = CommandReplace;
 			options.command = CommandReplace;
-			break;
-		case 'k':	/* -k, --key [KEY1:KEY2] */
-			free(options.keys);
-			options.keys = strdup(optarg);
 			break;
 
 		case 'D':	/* -D, --debug [level] */
@@ -2467,19 +1761,20 @@ main(int argc, char *argv[])
 	startup(argc, argv);
 	switch (command) {
 	case CommandDefault:
-	case CommandCycle:
-		do_cycle(argc, argv, False);
-		break;
-	case CommandPopup:
+	case CommandRun:
 		if (options.debug)
-			fprintf(stderr, "%s: popping the window list\n", argv[0]);
-		do_popup(argc, argv);
+			fprintf(stderr, "%s: running a new instance\n", argv[0]);
+		do_run(argc, argv, False);
 		break;
 	case CommandQuit:
+		if (options.debug)
+			fprintf(stderr, "%s: asking existing instance to quit\n", argv[0]);
 		do_quit(argc, argv);
 		break;
 	case CommandReplace:
-		do_cycle(argc, argv, True);
+		if (options.debug)
+			fprintf(stderr, "%s: replacing existing instance\n", argv[0]);
+		do_run(argc, argv, True);
 		break;
 	case CommandHelp:
 		if (options.debug)

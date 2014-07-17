@@ -10,11 +10,12 @@ B<xde-pager> [I<OPTIONS>]
 
 =head1 DESCRIPTIONS
 
-Provides keyboard-based desktop cycling feedback for window managers
+Provides desktop cycling feedback for window managers
 that do not provide desktop cycling themselves or for those that provide
-an inferior feedback.  The desktop cycling list is a list of desktops,
-each corresponding to a workspace on the current monitor (or multiple
-monitors) and is accessed with a hot key.
+an inferior feedback.  The desktop cycling feedback is a pager where
+each cell corresponds to a workspace on the current monitor (or multiple
+monitors).  The feedback popup can also have a desktop selected using
+the mouse.
 
 =head1 OPTIONS
 
@@ -27,23 +28,18 @@ of the program:
 
 =over
 
-=item [B<--cycle>, B<-c>]
+=item I<unspecified>
 
-Begin a desktop cycle by popping up the cycle window.  This is the
-normal and default operating mode of the program.
+When no command option is specified, the default is to run the pager
+without replacing an existing instance.
 
-=item B<--popup>, B<-p>
+=item B<--replace>, B<-r>
 
-As a running instance of B<xde-pager> to pop up the desktop selection
-window.
+Run the pager, but replace a running instance of B<xde-pager>.
 
 =item B<--quit>, B<-q>
 
 Ask a running instance of B<xde-pager> to quit.
-
-=item B<--replace>, B<-r>
-
-Replace a running instance of B<xde-pager>.
 
 =item B<--help>, B<-h>
 
@@ -74,170 +70,36 @@ Specify the display to use (overriding the B<DISPLAY> environment
 variable).  The default is the value of the B<DISPLAY> environment
 variable.
 
-=item B<--screen>, B<-s> I<SCREEN>
+=item B<--timeout>, B<-t> I<TIMEOUT>
 
-Specify the screen number to use when locating the current workspace.
-The default is either specified by the B<DISPLAY> environment variable
-(which that variable specifies a screen); otherwise, all screens will be
-considered.
+When cycling the desktops with the mouse or other than a modified
+keystroke, or if a key is pressed that does not result in a desktop
+change, the feedback window will persist for I<TIMEOUT> milliseconds.
+The default is 1000 (or 1 second).
 
-=item B<--monitor>, B<-m> I<MONITOR>
+=item B<--border>, B<-b> I<WIDTH>
 
-Specify the monitor to use when locating the current desktop.  The
-default is the monitor containing the current window as specified by
-B<--which> or the monitor currently containing (or nearest to) the
-pointer.
+Places a border around the pager of I<WIDTH> pixels.  The default is 5
+pixels.
 
-=item B<--button>, B<-b> I<BUTTON>
+=item B<--noproxy>, B<-n>
 
-Specify that the program was invoked with a button press or button,
-I<BUTTON>.  This is only useful with option B<--popup>.
+Normally the pager will translate scroll wheel events received on a
+B<_WIN_DESKTOP_BUTTON_PROXY> window into desktop changes.  As other
+programs (such as a desktop) may also be doing so, this option causes
+the pager to ignore the desktop button proxy.
 
-=item B<--timestamp>, B<-T> I<TIMESTAMP>
+=item B<--verbose>, B<-v> [I<LEVEL>]
 
-Provides the X11 server time-stamp of the event that initiated the
-window cycle.
+Print extra information on standard error while running.  When
+I<LEVEL> is not specified, simply increments the output verbosity;
+otherwise, the output verbosity is set to I<LEVEL>.
 
-=item B<--which>, B<-w> {B<active>|B<focused>|B<pointer>|B<select>|I<WINDOW>}
+=item B<--debug>, B<-D> [I<LEVEL>]
 
-Specifies which window to use to find the current monitor for cycling.
-This can be one of the following values (case insensitive, may be
-abbreviated):
-
-=over
-
-=item C<active>
-
-Use the monitor of the active active window (in the EWMH sense) as the
-current monitor.  This is the window specified by the
-B<_NET_ACTIVE_WINDOW> property on the
-root window.
-
-=item C<focused>
-
-Use the focused window (in the EWMH sense or simply the client with the
-keyboard focus) as the current window.  This is the client with a
-B<_NET_WM_STATE_FOCUSED> atom set in B<_NET_WM_STATE>, or the client
-(visible client with the B<WM_STATE> property set to state C<Normal>)
-that has the keyboard focus according to the X server.
-
-If no focused client can be found (e.g. focus is on the root window),
-current window selection falls back to C<active>, as described above.
-
-=item C<pointer>
-
-Use the client holding a pointer grab or the client or window manager
-frame directly under the pointer as the current window.
-
-=item I<WINDOW>
-
-Specifies the XID of a window to use as the current window.
-
-=back
-
-When a client window cannot be found to use as the current window, no
-current window is selected until the first cycle.
-
-=item B<--id>, B<-x> I<WINDOW>
-
-Specify the X window identifier (XID) of the EWMH/NetWM client window to
-use as the current window.  Can also be specified with B<--which>.
-
-=item B<--where>, B<-W> (B<pointer>|B<center>|B<topleft>|B<bottomright>|I<GEOMETRY>
-
-Specifies the position of the cycle window.  This can be one of the
-following values (case insensitive, may be abbreviated):
-
-=over
-
-=item C<pointer>
-
-Place the northwest corner of the cycle window under the mouse pointer.
-
-=item C<center>
-
-Place the cycle window in the centre of the active monitor.
-
-=item C<topleft>
-
-Place the cycle window in the top-left corner of the active monitor.
-
-=item C<bottomright>
-
-Place the cycle window in the bottom-left corner of the active monitor.
-
-=item I<GEOMETRY>
-
-Specify the position of the menu by geometry specification, I<GEOMETRY>.
-
-=back
-
-When unspecified, the default is C<center>.
-
-=item B<--hidden>
-
-Also list hidden windows when cycling.  The default is to skip hidden
-windows.
-
-=item B<--minimized>
-
-Also list minimized windows when cycling.  The default is to skip
-minimized windows.
-
-=item B<--all-monitors>
-
-When cycling windows, also cycle through windows displayed on monitors
-other than the current monitor.  This includes windows on workspaces
-that are currently visible on a monitor.
-
-=item B<--all-workspaces>
-
-When cycling windows, also cycle through windows displayed on workspaces
-other than the current one.  As windows are cycled, the current
-workspace may change as windows from other workspaces are cycled.
-
-=item B<--order>, B<-O> [I<ORDERTYPE>]
-
-Specify the order of the windows in the cycle list.  The I<ORDERTYPE>
-specifies which windows to cycle through and the order in which to
-cycle.  The windows in the cycle list can also be adjusted using the
-B<--all-monitors>, B<--all-workspaces>, B<--hidden> and B<--minimized>
-options.  The I<ORDERTYPE> can be one of the following:
-
-=over
-
-=item C<client>
-
-Cycle through the windows in the client list in client order.  See also
-the B<--group> option.
-
-=item C<stacking>
-
-Cycle through the windows in the client list in stacking order.  See
-also the B<--group> option.
-
-=back
-
-=item B<--group>, B<-G> [I<GROUPTYPE>]
-
-Specify the grouping of the windows in the cycle list.  The I<GROUPTYPE>
-specifies the grouping of windows for cycling, and can be one of the
-following:
-
-=over
-
-=item C<none>
-
-Do not group the windows in the cycle list, simply list them in the
-order specified by B<--order>.
-
-=item C<workspace>
-
-Groups the windows in the cycle list.
-
-=item C<monitor>
-
-=back
+Print debugging information on standard error while running.  When
+I<LEVEL> is not specified, simply increments the debug level; otherwise,
+the debug level is set to I<LEVEL>.
 
 =back
 
@@ -268,6 +130,215 @@ feedback window and proxies key presses and releases to the root window.
 When all modifiers are released or when a selection is made or its
 pointer grab is broken, it drops the feedback window and waits for
 another desktop change.
+
+While the feedback popup is display, the mouse can be used to select a
+desktop.  When selected the window will not drop until the mouse leaves
+the popup, a modifier is released, or a keypress is made that does not
+result in a desktop change.
+
+=back
+
+=head2 WINDOW MANAGERS
+
+=over
+
+=item L<2bwm(1)>
+
+is supported and works well.
+
+=item L<adwm(1)>
+
+is supported and works well.
+
+=item L<aewm(1)>
+
+L<aewm(1)> does not really support desktops and is, therefore, not supported.
+
+=item L<afterstep(1)>
+
+L<afterstep(1)> provides both workspaces and viewports (large desktops).
+F<libwnck+> does not support these well, so when B<xde-pager> detects
+that it is running under L<afterstep(1)> is does nothing.  (It has a
+desktop button proxy, but it does not relay scroll wheel events by
+default.)
+
+=item L<awesome(1)>
+
+is supported and works well.
+
+=item L<blackbox(1)>
+
+is supported and works well.
+
+=item L<bspwm(1)>
+
+is supported and works well.
+
+=item L<ctwm(1)>
+
+L<ctwm(1)> is only GNOME/WinWM compliant and is not yet supported by
+F<libwnck+>.  Use L<etwm(1)> instead.
+
+=item L<cwm(1)>
+
+L<cwm(1)> is supported, but it doesn't work that well because L<cwm(1)>
+is not placing B<_NET_WM_STATE> on client windows, so F<libwnck+> cannot
+locate them and will not provide contents in the pager.
+
+=item L<dtwm(1)>
+
+L<dtwm(1)> is only OSF/Motif compliant and does support mutliple
+desktops; however, F<libwnck+> does not yet support OSF/Motif/CDE.
+
+=item L<dwm(1)>
+
+L<dwm(1)> is barely ICCCM compliant.  It is not supported.
+
+=item L<echinus(1)>
+
+is supported and works well.
+
+=item L<etwm(1)>
+
+is supported and works well.
+
+=item L<failsafewm(1)>
+
+L<failsafewm(1)> has no desktops.
+
+=item L<fluxbox(1)>
+
+is supported and works well.
+
+=item L<flwm(1)>
+
+L<flwm(1)> supports GNOME/WinWM but not EWMH/NetWM and is not currently
+supported by F<libwnck+>.
+
+=item L<fvwm(1)>
+
+is supported and works well.  L<fvwm(1)> provides a desktop
+button proxy but it needs the B<--noproxy> option.  Viewports work
+better than on L<afterstep(1)> and behaviour is predictable.
+
+=item L<herbstluftwm(1)>
+
+is supported and works well.
+
+=item L<i3(1)>
+
+L<i3(1)> is supported; however,  L<i3(1)> does not support
+B<_NET_NUMBER_OF_DESKTOPS>, so only the current desktop is shown at any
+given time, which makes it less effective.
+
+=item L<icewm(1)>
+
+L<icewm(1)> provides its own pager on the panel, but does respect
+B<_NET_DESKTOP_LAYOUT> in some versions.  Although a desktop button
+proxy is provided, older versions of L<icewm(1)> will not proxy
+button events sent by the pager.  Use the version at
+L<https://github.com/bbidulock/icewm> for best results.
+
+=item L<jwm(1)>
+
+L<jwm(1)> provides its own pager on the panel, but does not respect or
+set B<_NET_DESKTOP_LAYOUT>, and key bindings are confused.
+When B<xde-pager> detects that it is running under L<jwm(1)> it will
+simply do nothing.
+
+=item L<matwm2(1)>
+
+is supported and works well.
+
+=item L<metacity(1)>
+
+L<metacity(1)> provides its own compentent desktop switching feedback
+popup.
+When B<xde-pager> detects that it is running under L<metacity(1)> it
+will simply do nothing.
+
+=item L<mwm(1)>
+
+L<mwm(1)> only supports OSF/Motif and does not support multiple
+desktops.  Is is not supported.
+
+=item L<openbox(1)>
+
+L<openbox(1)> provides its own meager desktop switching feedback popup.
+It does respect B<_NET_DESKTOP_LAYOUT> but does not provide any of the
+contents of the desktop.  When both are running it is a little
+confusing, so when B<xde-pager> detects that it is running under
+L<openbox(1)> it will simply do nothing.
+
+=item L<pekwm(1)>
+
+L<pekwm(1)> provides its own broken desktop switching feedback popup;
+however, it does not respect B<_NET_DESKTOP_LAYOUT> and key bindings are
+confused.
+When B<xde-pager> detects that it is running under L<pekwm(1)> it will
+simply do nothing.
+
+=item L<spectrwm(1)>
+
+L<spectrwm(1)> is supported, but it doesn't work that well because, like
+L<cwm(1)>, L<spectrwm(1)> is not placing B<_NET_WM_STATE> on client
+windows, so F<libwnck+> cannot locate them and will not provide contents
+in the pager.
+
+=item L<twm(1)>
+
+L<twm(1)> does not support multiple desktops and is unsupported.
+
+=item L<uwm(1)>
+
+is supported and works well.
+
+=item L<vtwm(1)>
+
+L<vtwm(1)> is barely ICCCM compliant and currently unsupported: use
+L<etwm(1)> instead.
+
+=item L<waimea(1)>
+
+is supported; however, waimea defaults to triple-sized large desktops
+in a 2x2 arrangement.  With large virtual desktops F<libwnck+> gets
+confused just as with L<afterstep(1)>.  L<fvwm(1)> must be doing
+something right.  It appears to be B<_NET_DESKTOP_VIEWPORT>, which is
+supposed to be set to the viewport position of each desktop (and isn't).
+Use the waimea at L<https://github.com/bbidulock/waimea> for a corrected
+version.
+
+=item L<wind(1)>
+
+is supported and works well.
+
+=item L<wm2(1)>
+
+L<wm2(1)> is barely ICCCM compliant and currently unsupported: use its
+L<wmx(1)> derivative.
+
+=item L<wmaker(1)>
+
+is supported and works well.
+
+=item L<wmii(1)>
+
+is supported and works well.  L<wmii(1)> was stealing the focus back
+from the popup, but this was fixed.
+
+=item L<wmx(1)>
+
+is supported and works well.
+
+=item L<xdwm(1)>
+
+L<xdwm(1)> does not support EWMH/NetWM for desktops.
+
+=item L<yeahwm(1)>
+
+L<yeahwm(1)> does not support EWMH/NetWM and is currently unsupported.
+The pager will simply not do anything while this window manager is
+running.
 
 =back
 
