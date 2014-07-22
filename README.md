@@ -13,25 +13,25 @@ available from perl(1).
 
 This is the `xde-ctools-0.1.34` package, released 2014-07-22.  This release,
 and the latest version, can be obtained from the GitHub repository at
-[](http://github.com/bbidulock/xde-ctools), using a command such as:
+[xde-ctools](http://github.com/bbidulock/xde-ctools), using a command such as:
 
 ```bash
 git clone http://github.com/bbidulock/xde-ctools.git
 ```
 
-Please see the [](NEWS) file for release notes and history of user visible
-changes for the current version, and the [](ChangeLog) file for a more
-detailed history of implementation changes.  The [](TODO) file lists
+Please see the [NEWS](NEWS) file for release notes and history of user visible
+changes for the current version, and the [ChangeLog](ChangeLog) file for a more
+detailed history of implementation changes.  The [TODO](TODO) file lists
 features not yet implemented and other outstanding items.
 
-Please see the [](INSTALL) file for installation instructions.
+Please see the [INSTALL](INSTALL) file for installation instructions.
 
-When working from `git(1)', please see the [](README-git) file.  An
+When working from `git(1)', please see the [README-git](README-git) file.  An
 abbreviated installation procedure that works for most applications
 appears below.
 
 This release is published under the GPL license that can be found in
-the file [](COPYING).
+the file [COPYING](COPYING).
 
 ### Quick Start:
 
@@ -52,7 +52,7 @@ those who would like to spend the extra 15 seconds reading `./configure
 --help`, some compile time options can be turned on and off before the
 build.
 
-For general information on GNU's `./configure`, see the file [](INSTALL).
+For general information on GNU's `./configure`, see the file [INSTALL](INSTALL).
 
 ### Running xde-ctools
 
@@ -62,5 +62,5 @@ Read the manual pages after installation:
 
 ### Issues
 
-Report issues to [](http://github.com/bbidulock/xde-ctools/issues).
+Report issues to [issues](http://github.com/bbidulock/xde-ctools/issues).
 
