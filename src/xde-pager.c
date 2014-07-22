@@ -714,10 +714,7 @@ setup_button_proxy(XdeScreen *xscr)
 	unsigned long *data = NULL;
 
 	DPRINT();
-	if (xscr->proxy) {
-		gdk_window_add_filter(xscr->proxy, NULL, NULL);
-		xscr->proxy = NULL;
-	}
+	xscr->proxy = NULL;
 	if (XGetWindowProperty(dpy, root, _XA_WIN_DESKTOP_BUTTON_PROXY,
 			       0, 1, False, XA_CARDINAL, &actual, &format,
 			       &nitems, &after, (unsigned char **) &data) == Success &&
