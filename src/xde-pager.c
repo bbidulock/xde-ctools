@@ -252,6 +252,9 @@ window_manager_changed(WnckScreen *screen, gpointer user)
 		exit(EXIT_FAILURE);
 	}
 	DPRINT();
+	wnck_screen_force_update(screen);
+	if (options.proxy)
+		setup_button_proxy(xscr);
 	free(xscr->wmname);
 	xscr->wmname = NULL;
 	xscr->goodwm = False;
@@ -712,7 +715,7 @@ setup_button_proxy(XdeScreen *xscr)
 
 	DPRINT();
 	if (xscr->proxy) {
-		gdk_window_add_filter(xscr->proxy, NULL, NULL);
+//		gdk_window_add_filter(xscr->proxy, NULL, NULL);
 		xscr->proxy = NULL;
 	}
 	if (XGetWindowProperty(dpy, root, _XA_WIN_DESKTOP_BUTTON_PROXY,
