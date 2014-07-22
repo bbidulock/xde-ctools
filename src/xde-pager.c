@@ -105,6 +105,8 @@ typedef struct {
 	int desks;			/* number of desks in layout */
 	int current;			/* current desktop */
 	Bool inside;			/* pointer inside popup */
+	char *wmname;			/* window manager name (adjusted) */
+	Bool goodwm;			/* is the window manager usable? */
 } XdeScreen;
 
 static Window
@@ -198,12 +200,64 @@ workspace_created(WnckScreen *screen, WnckWorkspace *space, gpointer user)
 
 static void setup_button_proxy(XdeScreen *xscr);
 
+static Bool
+good_window_manager(XdeScreen *xscr)
+{
+	/* ignore non fully compliant names */
+	if (!xscr->wmname)
+		return False;
+	if (!strcasecmp(xscr->wmname, "afterstep"))
+		return False;
+	if (!strcasecmp(xscr->wmname, "jwm"))
+		return False;
+	if (!strcasecmp(xscr->wmname, "metacity"))
+		return False;
+	if (!strcasecmp(xscr->wmname, "openbox"))
+		return False;
+	if (!strcasecmp(xscr->wmname, "pekwm"))
+		return False;
+	if (!strcasecmp(xscr->wmname, "xdwm"))
+		return False;
+#if 0
+	if (!strcasecmp(xscr->wmname, "cwm"))
+		return False;
+	if (!strcasecmp(xscr->wmname, "spectrwm"))
+		return False;
+#endif
+	return True;
+}
+
 static void
 window_manager_changed(WnckScreen *screen, gpointer user)
 {
 	XdeScreen *xscr = (typeof(xscr)) user;
+	const char *name;
+
+	wnck_screen_force_update(screen);
 	if (options.proxy)
 		setup_button_proxy(xscr);
+	free(xscr->wmname);
+	xscr->wmname = NULL;
+	xscr->goodwm = False;
+	if ((name = wnck_screen_get_window_manager_name(screen))) {
+		xscr->wmname = strdup(name);
+		*strchrnul(xscr->wmname, ' ') = '\0';
+		/* Some versions of wmx have an error in that they only set the
+		   _NET_WM_NAME to the first letter of wmx. */
+		if (!strcmp(xscr->wmname, "w")) {
+			free(xscr->wmname);
+			xscr->wmname = strdup("wmx");
+		}
+		/* Ahhhh, the strange naming of μwm...  Unfortunately there are several
+		   ways to make a μ in utf-8!!! */
+		if (!strcmp(xscr->wmname, "\xce\xbcwm") || !strcmp(xscr->wmname, "\xc2\xb5wm")) {
+			free(xscr->wmname);
+			xscr->wmname = strdup("uwm");
+		}
+		xscr->goodwm = good_window_manager(xscr);
+	}
+	DPRINTF("window manager is '%s'\n", xscr->wmname);
+	DPRINTF("window manager is %s\n", xscr->goodwm ? "usable" : "unusable");
 }
 
 static void drop_popup(XdeScreen *xscr);
@@ -279,9 +333,14 @@ static void
 something_changed(WnckScreen *screen, XdeScreen *xscr)
 {
 	GdkGrabStatus status;
-	GdkDisplay *disp = gdk_display_get_default();
-	Display *dpy = GDK_DISPLAY_XDISPLAY(disp);
+	GdkDisplay *disp;
+	Display *dpy;
 	Window win;
+
+	if (!xscr->goodwm)
+		return;
+	disp = gdk_display_get_default();
+	dpy = GDK_DISPLAY_XDISPLAY(disp);
 
 	gdk_display_get_pointer(disp, NULL, NULL, NULL, &xscr->mask);
 	DPRINTF("modifier mask was: 0x%08x\n", xscr->mask);
@@ -711,6 +770,7 @@ do_run(int argc, char *argv[], Bool replace)
 		xscr->root = gdk_screen_get_root_window(screen);
 		xscr->scrn = wnck_screen_get(s);
 		wnck_screen_force_update(xscr->scrn);
+		window_manager_changed(xscr->scrn, xscr);
 		xscr->pager = wnck_pager_new(xscr->scrn);
 		xscr->selwin = selwin;
 		xscr->width = gdk_screen_get_width(screen);
