@@ -62,5 +62,5 @@ Read the manual pages after installation:
 
 ### Issues
 
-Report issues to [](https://github.com/bbidulock/xde-ctools/issues).
+Report issues to [](http://github.com/bbidulock/xde-ctools/issues).
 
