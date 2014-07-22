@@ -13,7 +13,7 @@ available from perl(1).
 
 This is the `xde-ctools-0.1.34` package, released 2014-07-22.  This release,
 and the latest version, can be obtained from the GitHub repository at
-[xde-ctools](http://github.com/bbidulock/xde-ctools), using a command such as:
+http://github.com/bbidulock/xde-ctools, using a command such as:
 
 ```bash
 git clone http://github.com/bbidulock/xde-ctools.git
@@ -62,5 +62,5 @@ Read the manual pages after installation:
 
 ### Issues
 
-Report issues to [issues](http://github.com/bbidulock/xde-ctools/issues).
+Report issues to http://github.com/bbidulock/xde-ctools/issues.
 
