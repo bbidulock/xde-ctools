@@ -1,0 +1,15 @@
+[Desktop Entry]
+Encoding=UTF-8
+Type=Application
+Name=Workspace Pager
+GenericName=Pager
+Comment=Popup pager for the X Desktop Environment
+Icon=pager
+TryExec=xde-pager
+Exec=xde-pager
+Terminal=false
+Categories=XDE;System;Utilities;
+NotShowIn=GNOME;KDE;XFCE;LXDE;
+StartupNotify=true
+StartupWMClass=xde-pager
+X-GNOME-Autostart-enabled=true

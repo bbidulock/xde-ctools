@@ -35,3 +35,8 @@ TODO: TODO.in
 
 dist_noinst_SCRIPTS = autogen.sh
 
+dist_autostart_DATA = \
+	data/xde-pager.desktop
+
+dist_applications_DATA = \
+	data/xde-pager.desktop
