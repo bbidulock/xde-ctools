@@ -39,4 +39,6 @@ dist_autostart_DATA = \
 	data/xde-pager.desktop
 
 dist_applications_DATA = \
-	data/xde-pager.desktop
+	data/xde-pager.desktop \
+	data/xde-run.desktop \
+	data/xde-app.desktop

@@ -1,0 +1,13 @@
+[Desktop Entry]
+Encoding=UTF-8
+Type=Application
+Name=Run Command
+GenericName=Launcher
+Comment=Run a command from the desktop in the background.
+Icon=system-run
+TryExec=xde-run
+Exec=xde-run
+Terminal=false
+Categories=System;Utility;
+StartupNotify=true
+StartupWMClass=xde-run
