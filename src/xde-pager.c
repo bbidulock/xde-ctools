@@ -869,6 +869,8 @@ init_popup(XdeScreen *xscr)
 	gtk_window_set_type_hint(GTK_WINDOW(popup), GDK_WINDOW_TYPE_HINT_SPLASHSCREEN);
 	gtk_window_stick(GTK_WINDOW(popup));
 	gtk_window_set_keep_above(GTK_WINDOW(popup), TRUE);
+	wnck_pager_set_orientation(pager, GTK_ORIENTATION_HORIZONTAL);
+	wnck_pager_set_n_rows(pager, 2);
 	wnck_pager_set_layout_policy(pager, WNCK_PAGER_LAYOUT_POLICY_AUTOMATIC);
 	wnck_pager_set_display_mode(pager, WNCK_PAGER_DISPLAY_CONTENT);
 	wnck_pager_set_show_all(pager, TRUE);
