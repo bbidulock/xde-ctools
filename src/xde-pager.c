@@ -173,7 +173,6 @@ typedef struct {
 	Command command;
 	char *clientId;
 	char *saveFile;
-	char *themeName;
 } Options;
 
 Options options = {
@@ -186,7 +185,6 @@ Options options = {
 	.command = CommandDefault,
 	.clientId = NULL,
 	.saveFile = NULL,
-	.themeName = NULL,
 };
 
 typedef struct {
@@ -222,7 +220,7 @@ typedef struct {
 	GdkPixmap *pixmap;		/* pixmap for entire screen */
 	char *theme;			/* XDE theme name */
 	int nimg;			/* number of images */
-	XdeImage *images;		/* the images for the theme */
+	XdeImage *sources;		/* the images for the theme */
 	Window selwin;			/* selection owner window */
 	Atom atom;			/* selection atom for this screen */
 	int width, height;
@@ -230,7 +228,7 @@ typedef struct {
 	int rows;			/* number of rows in layout */
 	int cols;			/* number of cols in layout */
 	int desks;			/* number of desks in layout */
-	int *backdrops;			/* images (by index) assigned to each workspace */
+	int *images;			/* images (by index) assigned to each workspace */
 	int current;			/* current desktop for this screen */
 	char *wmname;			/* window manager name (adjusted) */
 	Bool goodwm;			/* is the window manager usable? */
@@ -1213,6 +1211,7 @@ update_theme(XdeScreen *xscr, Atom prop)
 	char **list = NULL;
 	int strings = 0;
 	Bool changed = False;
+	GtkSettings *set;
 
 	DPRINT();
 	gtk_rc_reparse_all();
@@ -1245,7 +1244,22 @@ update_theme(XdeScreen *xscr, Atom prop)
 			XFree(xtp.value);
 	} else
 		DPRINTF("could not get _XDE_THEME_NAME for root 0x%lx\n", root);
+	if ((set = gtk_settings_get_for_screen(xscr->scrn))) {
+		GValue theme_v = G_VALUE_INIT;
+		const char *theme;
+
+		g_value_init(&theme_v, G_TYPE_STRING);
+		g_object_get_property(G_OBJECT(set), "gtk-theme-name", &theme_v);
+		theme = g_value_get_string(&theme_v);
+		if (theme && (!xscr->theme || strcmp(xscr->theme, theme))) {
+			free(xscr->theme);
+			xscr->theme = strdup(theme);
+			changed = True;
+		}
+		g_value_unset(&theme_v);
+	}
 	if (changed) {
+		DPRINTF("New theme is %s\n", xscr->theme);
 		/* FIXME: do somthing more about it. */
 	}
 }

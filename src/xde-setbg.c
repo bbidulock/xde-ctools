@@ -173,7 +173,6 @@ typedef struct {
 	Command command;
 	char *clientId;
 	char *saveFile;
-	char *themeName;
 } Options;
 
 Options options = {
@@ -186,7 +185,6 @@ Options options = {
 	.command = CommandDefault,
 	.clientId = NULL,
 	.saveFile = NULL,
-	.themeName = NULL,
 };
 
 typedef struct {
@@ -221,8 +219,9 @@ typedef struct {
 	XdeMonitor *mons;		/* monitors for this screen */
 	GdkPixmap *pixmap;		/* pixmap for entire screen */
 	char *theme;			/* XDE theme name */
+	GKeyFile *entry;		/* XDE theme file entry */
 	int nimg;			/* number of images */
-	XdeImage *images;		/* the images for the theme */
+	XdeImage *sources;		/* the images for the theme */
 	Window selwin;			/* selection owner window */
 	Atom atom;			/* selection atom for this screen */
 	int width, height;
@@ -230,7 +229,7 @@ typedef struct {
 	int rows;			/* number of rows in layout */
 	int cols;			/* number of cols in layout */
 	int desks;			/* number of desks in layout */
-	int *backdrops;			/* images (by index) assigned to each workspace */
+	int *images;			/* images (by index) assigned to each workspace */
 	int current;			/* current desktop for this screen */
 	char *wmname;			/* window manager name (adjusted) */
 	Bool goodwm;			/* is the window manager usable? */
@@ -820,6 +819,239 @@ do_quit(int argc, char *argv[])
 	get_selection(True, None);
 }
 
+static char **
+get_data_dirs(int *np)
+{
+	char *home, *xhome, *xdata, *dirs, *pos, *end, **xdg_dirs;
+	int len, n;
+
+	home = getenv("HOME") ? : ".";
+	xhome = getenv("XDG_DATA_HOME");
+	xdata = getenv("XDG_DATA_DIRS") ? : "/usr/local/share:/usr/share";
+
+	len = (xhome ? strlen(xhome) : strlen(home) + strlen("/.local/share")) + strlen(xdata) + 2;
+	dirs = calloc(len, sizeof(*dirs));
+	if (xhome)
+		strcpy(dirs, xhome);
+	else {
+		strcpy(dirs, home);
+		strcat(dirs, "/.local/share");
+	}
+	strcat(dirs, ":");
+	strcat(dirs, xdata);
+	end = dirs + strlen(dirs);
+	for (n = 0, pos = dirs; pos < end;
+	     n++, *strchrnul(pos, ':') = '\0', pos += strlen(pos) + 1) ;
+	xdg_dirs = calloc(n + 1, sizeof(*xdg_dirs));
+	for (n = 0, pos = dirs; pos < end; n++, pos += strlen(pos) + 1)
+		xdg_dirs[n] = strdup(pos);
+	free(dirs);
+	if (np)
+		*np = n;
+	return (xdg_dirs);
+}
+
+static char *
+find_theme_file(XdeScreen *xscr)
+{
+	char *buf, *file = NULL;
+	char **xdg_dirs, **dirs;
+	int i, n = 0;
+
+	if (!xscr->theme)
+		return (file);
+
+	if (!(xdg_dirs = get_data_dirs(&n)) || !n)
+		return (file);
+
+	buf = calloc(PATH_MAX + 1, sizeof(*buf));
+
+	for (i = 0, dirs = &xdg_dirs[i]; i < n; i++, dirs++) {
+		strncpy(buf, *dirs, PATH_MAX);
+		strncat(buf, "/themes/", PATH_MAX);
+		strncat(buf, xscr->theme, PATH_MAX);
+		strncat(buf, "/xde/theme.ini", PATH_MAX);
+
+		if (!access(buf, R_OK)) {
+			file = strdup(buf);
+			break;
+		}
+	}
+
+	free(buf);
+
+	for (i = 0; i < n; i++)
+		free(xdg_dirs[i]);
+	free(xdg_dirs);
+
+	return (file);
+}
+
+char *
+find_image_file(char *name, int dirc, char *dirv[])
+{
+	char *buf, *file = NULL;
+	char **xdg_dirs, **dirs, **d;
+	int i, j, n = 0;
+
+	if (!name)
+		return (file);
+
+	if (!(xdg_dirs = get_data_dirs(&n)) || !n)
+		return (file);
+
+	buf = calloc(PATH_MAX + 1, sizeof(*buf));
+
+	for (j = 0, d = &dirv[j]; j < dirc; j++, d++) {
+		for (i = 0, dirs = &xdg_dirs[i]; i < n; i++, dirs++) {
+			strncpy(buf, *dirs, PATH_MAX);
+			strncat(buf, *d, PATH_MAX);
+			strncat(buf, "/", PATH_MAX);
+			strncat(buf, name, PATH_MAX);
+
+			if (!access(buf, R_OK)) {
+				file = strdup(buf);
+				break;
+			}
+		}
+		if (file)
+			break;
+	}
+
+	free(buf);
+
+	return (file);
+}
+
+static void
+set_workspaces(XdeScreen *xscr, gint count)
+{
+	DPRINTF("Setting the workspace count to %d\n", count);
+}
+
+static void
+set_workspace_names(XdeScreen *xscr, gchar **names, gsize num)
+{
+	if (options.debug) {
+		gsize i;
+
+		DPRINTF("Setting the workspace names to: ");
+		for (i = 0; i < num; i++)
+			fprintf(stderr, ";%s", names[i]);
+		fprintf(stderr, ";\n");
+	}
+}
+
+static void
+set_workspace_images(XdeScreen *xscr, gchar **images, gsize num, gboolean center, gboolean scaled,
+		gboolean tiled, gboolean full)
+{
+	if (options.debug) {
+		gsize i;
+
+		DPRINTF("Setting the workspace images to: ");
+		for (i = 0; i < num; i++)
+			fprintf(stderr, ";%s", images[i]);
+		fprintf(stderr, ";\n");
+	}
+}
+
+static void
+set_workspace_image(XdeScreen *xscr, gchar *image, gboolean center, gboolean scaled, gboolean tiled,
+		gboolean full)
+{
+	DPRINTF("Setting workspace image to: %s\n", image);
+}
+
+static void
+set_workspace_color(XdeScreen *xscf, gchar *color)
+{
+	DPRINTF("Setting workspace color to: %s\n", color);
+}
+
+static void
+read_theme(XdeScreen *xscr)
+{
+	GKeyFile *entry = NULL;
+	char *file;
+	gint ival;
+	gchar **list, **images, *image;
+	gsize len;
+	gboolean center, scaled, tiled, full;
+	gchar *color;
+
+	if (!(file = find_theme_file(xscr)))
+		return;
+
+	if (!(entry = g_key_file_new())) {
+		EPRINTF("%s: could not allocate key file\n", file);
+		return;
+	}
+	if (!g_key_file_load_from_file(entry, file, G_KEY_FILE_NONE, NULL)) {
+		EPRINTF("%s: could not load keyfile\n", file);
+		g_key_file_unref(entry);
+		return;
+	}
+	if (!g_key_file_has_group(entry, "Theme")) {
+		EPRINTF("%s: has no [%s] section\n", file, "Theme");
+		g_key_file_free(entry);
+		return;
+	}
+	if (!g_key_file_has_key(entry, "Theme", "Name", NULL)) {
+		EPRINTF("%s: has no %s= entry\n", file, "Name");
+		g_key_file_free(entry);
+		return;
+	}
+	if (xscr->entry) {
+		g_key_file_free(xscr->entry);
+		xscr->entry = NULL;
+	}
+	xscr->entry = entry;
+	DPRINTF("got theme file: %s (%s)\n", xscr->theme, file);
+
+	if (!(ival = g_key_file_get_integer(entry, xscr->wmname, "Workspaces", NULL)))
+		ival = g_key_file_get_integer(entry, "Theme", "Workskspaces", NULL);
+	if (1 <= ival && ival <= 64)
+		set_workspaces(xscr, ival);
+
+	if (!(list =
+	      g_key_file_get_string_list(entry, xscr->wmname, "WorkspaceNames", &len, NULL)))
+		list = g_key_file_get_string_list(entry, "Theme", "WorkspaceName", &len, NULL);
+	set_workspace_names(xscr, list, len);
+	if (list)
+		g_strfreev(list);
+
+	if (!(center = g_key_file_get_boolean(entry, xscr->wmname, "WorkspaceCenter", NULL)))
+		center = g_key_file_get_boolean(entry, "Theme", "WorkspaceCenter", NULL);
+	if (!(scaled = g_key_file_get_boolean(entry, xscr->wmname, "WorkspaceScaled", NULL)))
+		scaled = g_key_file_get_boolean(entry, "Theme", "WorkspaceScaled", NULL);
+	if (!(tiled = g_key_file_get_boolean(entry, xscr->wmname, "WorkspaceTiled", NULL)))
+		tiled = g_key_file_get_boolean(entry, "Theme", "WorkspaceTiled", NULL);
+	if (!(full = g_key_file_get_boolean(entry, xscr->wmname, "WorkspaceFull", NULL)))
+		full = g_key_file_get_boolean(entry, "Theme", "WorkspaceFull", NULL);
+
+	if (!(color = g_key_file_get_string(entry, xscr->wmname, "WorkspaceColor", NULL)))
+		color = g_key_file_get_string(entry, "Theme", "WorkspaceColor", NULL);
+
+	if (!(image = g_key_file_get_string(entry, xscr->wmname, "WorkspaceImage", NULL)))
+		image = g_key_file_get_string(entry, "Theme", "WorkspaceImage", NULL);
+
+	if (!(images =
+	      g_key_file_get_string_list(entry, xscr->wmname, "WorkspaceImages", &len, NULL)))
+		images =
+		    g_key_file_get_string_list(entry, "Theme", "WorkspaceImages", &len, NULL);
+
+	set_workspace_images(xscr, images, len, center, scaled, tiled, full);
+	if (images)
+		g_strfreev(images);
+	if (!images || !len)
+		set_workspace_image(xscr, image, center, scaled, tiled, full);
+	if (!image)
+		set_workspace_color(xscr, color);
+	if (image)
+		g_free(image);
+}
+
 static void
 update_theme(XdeScreen *xscr, Atom prop)
 {
@@ -829,6 +1061,7 @@ update_theme(XdeScreen *xscr, Atom prop)
 	char **list = NULL;
 	int strings = 0;
 	Bool changed = False;
+	GtkSettings *set;
 
 	DPRINT();
 	gtk_rc_reparse_all();
@@ -861,8 +1094,24 @@ update_theme(XdeScreen *xscr, Atom prop)
 			XFree(xtp.value);
 	} else
 		DPRINTF("could not get _XDE_THEME_NAME for root 0x%lx\n", root);
+	if ((set = gtk_settings_get_for_screen(xscr->scrn))) {
+		GValue theme_v = G_VALUE_INIT;
+		const char *theme;
+
+		g_value_init(&theme_v, G_TYPE_STRING);
+		g_object_get_property(G_OBJECT(set), "gtk-theme-name", &theme_v);
+		theme = g_value_get_string(&theme_v);
+		if (theme && (!xscr->theme || strcmp(xscr->theme, theme))) {
+			free(xscr->theme);
+			xscr->theme = strdup(theme);
+			changed = True;
+		}
+		g_value_unset(&theme_v);
+	}
 	if (changed) {
+		DPRINTF("New theme is %s\n", xscr->theme);
 		/* FIXME: do somthing more about it. */
+		read_theme(xscr);
 	}
 }
 
@@ -873,7 +1122,7 @@ refresh_layout(XdeScreen *xscr)
 
 	xscr->images = realloc(xscr->images, xscr->desks * sizeof(*xscr->images));
 	for (i = 0; i < xscr->desks; i++)
-		xscr->backdrops[i] = xscr->nimg ? (i % xscr->nimg) : -1;
+		xscr->images[i] = xscr->nimg ? (i % xscr->nimg) : -1;
 }
 
 static void
