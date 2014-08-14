@@ -8,7 +8,7 @@ xde-wincycl - window cycling for XDE
 
 B<xde-cycle> [I<OPTIONS>]
 
-=head1 DESCRIPTIONS
+=head1 DESCRIPTION
 
 Provides keyboard-based window cycling for window managers that do not
 provide cycling themselves or for those that provide an inferior one.

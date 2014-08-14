@@ -1,0 +1,425 @@
+=pod
+
+=head1 NAME
+
+xde-keys - key bindings for XDE
+
+=head1 SYNOPSIS
+
+B<xde-keys> [I<OPTIONS>]
+
+=head1 DESCRIPTION
+
+Provides generic key binding management for window managers that do not
+provide key bindings themselves or for those that provide a inferior or
+incomplete set of bindings.  Key bindings are hot keys bound to the root
+window that invoke actions on windows, workspaces or the window manager.
+
+=head1 OPTIONS
+
+B<xde-keys> accepts the following options:
+
+=head2 COMMAND OPTIONS
+
+When specified, the following options alter the primary operating mode
+of the program:
+
+=over
+
+=item B<--replace>, B<-r>
+
+Normally, B<xde-keys> will refuse to run when another instance of the
+program is running on the display.  This option can be used to replace a
+running instance when one is found.
+
+=item B<--quit>, B<-q>
+
+Used to ask a running instance of B<xde-keys> to quit.
+
+=item B<--edit>, B<-e>
+
+Used to invoke the key binding editor on the running instance, or, when
+a running instance does not exist, simply launches the key binding
+editor.  The key binding editor is a graphical dialog that can be used
+to interactively edit the key bindings for the current user.
+
+=item B<--help>, B<-h>
+
+Prints usage information and the current options settings and defaults
+and exits.
+
+=item B<--version>, B<-V>
+
+Prints the version of the program and a brief copyright statement and
+exits.  Parts the first line with L<awk(1)> to obtain just the version
+number.
+
+=item B<--copying>, B<-C>
+
+Prints the long copying permission statement and exits.
+
+=back
+
+The default when no command options are specified is to simply run the
+program.
+
+=head2 GENERAL OPTIONS
+
+The following are more general options:
+
+=over
+
+=item B<--display>, B<-d> I<DISPLAY>
+
+Specify the display to use (overriding the B<DISPLAY> environment
+variable).  The default is the value of the B<DISPLAY> environment
+variable.
+
+=item B<--screen>, B<-s> I<SCREEN>
+
+Only bind to the root window of the specified screen.
+
+=item B<--nowait>, B<-W>
+
+Do not wait for a window manager to appear before performing key
+bindings.  The default behaviour is to wait for a window manager to
+appear before binding keys.
+
+When started before a window manager, if global key bindings are taken
+that conflict with those defined for the window manager, the window
+manager will fail to obtain its key bindings.  Some window manager just
+drudge along if this happens, others complain about being able to bind,
+and for each key!  If you want to override the window manager key
+bindings, set this option.
+
+Otherwise, when this option is specified, the window manager will obtain
+its key bindings first and then only those that are undefined will be
+bound by B<xde-keys>.  This can be important because some window
+managers bind keys that perform actions that would otherwise be
+impossible for B<xde-keys> to perform.
+
+=item B<--delay>, B<-W> I<MILLISECONDS>
+
+When B<--nowait> is not set, specifies the interval of time in
+milliseconds to wait after the window manager appears before attempting
+to bind keys.  Some ICCCM 2.0 compliant window managers advertise their
+presence (by sending a MANAGER client message) before obtaining additional
+resources such as key bindings.  This delay is intended to permit the
+window manager to obtain its key bindings after it has advertized its
+presence.  The default is 250 milliseconds.
+
+=item B<--profile>, B<-P> I<PROFILE>
+
+Specify a profile name to use.  Normally the profile name is derived
+from the name of the window manager running; however, when the
+B<--nowait> option is used and B<xde-keys> is started before the window
+manager, it cannot determine the specific profile for the window
+manager.
+
+=item B<--file>, B<-f> I<FILENAME>
+
+Do not look up the profile but, instead, use the key bindings specified
+in the file, I<FILENAME>.
+
+=item B<--gconf>, B<-g>
+
+Do not read a configuration file, but use the key binding settings
+specified for the GNOME desktop in the F<gconf> database.
+
+=item B<--write>, B<-w>
+
+Write the key binding configuration read from files to the F<gconf>
+database.
+
+=item B<--verbose>, B<-v> [I<LEVEL>]
+
+Print extra information on standard error while running.  When
+I<LEVEL> is not specified, simply increments the output verbosity;
+otherwise, the output verbosity is set to I<LEVEL>.
+
+=item B<--debug>, B<-D> [I<LEVEL>]
+
+Print debugging information on standard error while running.  When
+I<LEVEL> is not specified, simply increments the debug level; otherwise,
+the debug level is set to I<LEVEL>.
+
+=back
+
+=head2 SESSION OPTIONS
+
+Session options are only useful to the session manager and need not be
+specified directly by the user.  When specified, these options will be
+used to restore the profile from a prefious session.
+
+=over
+
+=item B<--clientId> I<CLIENTID>
+
+Specifies the client identifier that was assigned to B<xde-keys> in the
+previous session that is being restored.
+
+=item B<--saveFile> I<SAVEFILE>
+
+Specifies the location of the file that was used to save state of the
+previous session.
+
+=back
+
+=head1 USAGE
+
+B<xde-keys> currently uses F<libwnck+> or F<libwnck> to detect window
+managers and window manager changes, so the window manager must support
+some modicum of EWMH/NetWM compliance for the key binder to work.
+Nevertheless, no standard other than bare ICCCM supports many key
+actions, so the lack of an EWMH/NetWM compliant window manager severely
+reduces the ability of B<xde-keys> anyway.
+
+Run B<xde-keys> in the background or launch it using the supplied XDG
+autostart file.  The program takes the following steps:
+
+=over
+
+=item 1.
+
+Waits for a window manager to appear unless the B<--nowait> option has
+been specified.  Waits the interval specified by the B<--delay> option
+before proceeding.
+
+=item 2.
+
+Determines the profile using the B<--profile> option or by taking the
+window manager name and folding it to uppercase.  Reads the
+configuration associated with the profile.  When B<--gconf> is
+specified, read the F<gconf> database instead.  When B<--write> is
+specified, write the resulting configuration to the F<gconf> database.
+
+=item 3.
+
+Proceeds to bind each key action that is defined by the profile and
+supported by the window manager.
+
+=item 4.
+
+Waits in the background for keystrokes and performes the actions
+associated with the keystroke.  If the program detects that the window
+manager has changed, it will restart the process at step (1).
+
+=back
+
+=head1 CONFIGURATION
+
+The configuration file format is a standard X Resource Management file
+with the resource names listed in the table that follows.  (Note that
+the resources names are the same as the field names of the
+F<org.gnome.desktop.wm.keybinds> resources.)
+
+=over
+
+=item activate-window-menu
+
+=item begin-move
+
+=item begin-resize
+
+=item close
+
+=item cycle-group
+
+=item cycle-group-backward
+
+=item cycle-panels
+
+=item cycle-panels-backward
+
+=item cycle-windows
+
+=item cycle-windows-backward
+
+=item lower
+
+=item maximize-horizontally
+
+=item maximize
+
+=item maximize-vertically
+
+=item minimize
+
+=item move-to-center
+
+=item move-to-corner-ne
+
+=item move-to-corner-nw
+
+=item move-to-corner-se
+
+=item move-to-corner-sw
+
+=item move-to-side-e
+
+=item move-to-side-n
+
+=item move-to-side-s
+
+=item move-to-side-w
+
+=item move-to-workspace-10
+
+=item move-to-workspace-11
+
+=item move-to-workspace-12
+
+=item move-to-workspace-1
+
+=item move-to-workspace-2
+
+=item move-to-workspace-3
+
+=item move-to-workspace-4
+
+=item move-to-workspace-5
+
+=item move-to-workspace-6
+
+=item move-to-workspace-7
+
+=item move-to-workspace-8
+
+=item move-to-workspace-9
+
+=item move-to-workspace-down
+
+=item move-to-workspace-left
+
+=item move-to-workspace-right
+
+=item move-to-workspace-up
+
+=item panel-main-menu
+
+=item panel-run-dialog
+
+=item raise-or-lower
+
+=item raise
+
+=item set-spew-mark
+
+=item show-desktop
+
+=item switch-applications
+
+=item switch-applications-backward
+
+=item switch-group
+
+=item switch-group-backward
+
+=item switch-input-source
+
+=item switch-input-source-backward
+
+=item switch-panels
+
+=item switch-panels-backward
+
+=item switch-to-workspace-10
+
+=item switch-to-workspace-11
+
+=item switch-to-workspace-12
+
+=item switch-to-workspace-1
+
+=item switch-to-workspace-2
+
+=item switch-to-workspace-3
+
+=item switch-to-workspace-4
+
+=item switch-to-workspace-5
+
+=item switch-to-workspace-6
+
+=item switch-to-workspace-7
+
+=item switch-to-workspace-8
+
+=item switch-to-workspace-9
+
+=item switch-to-workspace-down
+
+=item switch-to-workspace-left
+
+=item switch-to-workspace-right
+
+=item switch-to-workspace-up
+
+=item switch-windows
+
+=item switch-windows-backward
+
+=item toggle-above
+
+=item toggle-fullscreen
+
+=item toggle-maximized
+
+=item toggle-on-all-workspaces
+
+=item toggle-shaded
+
+=item unmaximize
+
+=back
+
+The following are from F<org.gnome.mutter.keybindings>:
+
+=over
+
+=item tab-popup-cancel
+
+=item tab-popup-select
+
+=item toggle-tiled-left
+
+=item toggle-tiled-right
+
+=back
+
+Not listed under F<org.gnome>
+
+=over
+
+=item execute-terminal
+
+=item hide-menus
+
+=item kill
+
+=item mouse-group
+
+=item mouse-lower
+
+=item mouse=move
+
+=item mouse-resize
+
+=item mouse-tab
+
+=item mouse-viewport
+
+=back
+
+=head1 AUTHOR
+
+Brian Bidulock L<mailto:bidulock@openss7org>.
+
+=head1 SEE ALSO
+
+L<xde-keys(1)>
+
+
+=cut
+
+# vim: set sw=4 tw=72 nocin:

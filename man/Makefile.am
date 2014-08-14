@@ -7,7 +7,9 @@ xde_man_files = \
 	xde-winmenu.man \
 	xde-winlist.man \
 	xde-pager.man \
-	xde-cycle.man
+	xde-cycle.man \
+	xde-keys.man \
+	xde-setbg.man
 
 nodist_man1_MANS = $(xde_man_files)
 CLEANFILES = $(xde_man_files)
@@ -20,7 +22,9 @@ EXTRA_DIST = \
 	xde-winmenu.pod \
 	xde-winlist.pod \
 	xde-pager.pod \
-	xde-cycle.pod
+	xde-cycle.pod \
+	xde-keys.pod \
+	xde-setbg.pod
 
 SUFFIXES = .man .pod
 

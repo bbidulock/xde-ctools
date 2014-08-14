@@ -133,7 +133,7 @@
 #define EXIT_FAILURE	1
 #define EXIT_SYNTAXERR	2
 
-#define XA_SELECTION_NAME	"_XDE_PAGER_S%d"
+#define XA_SELECTION_NAME	"_XDE_SETBG_S%d"
 
 static int saveArgc;
 static char **saveArgv;
@@ -235,11 +235,6 @@ typedef struct {
 	char *wmname;			/* window manager name (adjusted) */
 	Bool goodwm;			/* is the window manager usable? */
 	GdkWindow *proxy;
-	GtkWidget *popup;
-	Bool inside;			/* pointer inside popup */
-	Bool keyboard;			/* have a keyboard grab */
-	Bool pointer;			/* have a pointer grab */
-	GdkModifierType mask;
 } XdeScreen;
 
 XdeScreen *screens;			/* array of screens */
@@ -414,165 +409,9 @@ window_manager_changed(WnckScreen *wnck, gpointer user)
 	DPRINTF("window manager is %s\n", xscr->goodwm ? "usable" : "unusable");
 }
 
-static void drop_popup(XdeScreen *xscr);
-
-static gboolean
-workspace_timeout(gpointer user)
-{
-	XdeScreen *xscr = (typeof(xscr)) user;
-
-	if (!xscr) {
-		EPRINTF("xscr is NULL\n");
-		exit(EXIT_FAILURE);
-	}
-	DPRINTF("popup timeout!\n");
-	drop_popup(xscr);
-	xscr->timer = 0;
-	return G_SOURCE_REMOVE;
-}
-
-static gboolean
-stop_popup_timer(XdeScreen *xscr)
-{
-	DPRINT();
-	if (xscr->timer) {
-		DPRINTF("stopping popup timer\n");
-		g_source_remove(xscr->timer);
-		xscr->timer = 0;
-		return TRUE;
-	}
-	return FALSE;
-}
-
-static gboolean
-start_popup_timer(XdeScreen *xscr)
-{
-	DPRINT();
-	if (xscr->timer)
-		return FALSE;
-	DPRINTF("starting popup timer\n");
-	xscr->timer = g_timeout_add(options.timeout, workspace_timeout, xscr);
-	return TRUE;
-}
-
-void
-restart_popup_timer(XdeScreen *xscr)
-{
-	DPRINTF("restarting popup timer\n");
-	stop_popup_timer(xscr);
-	start_popup_timer(xscr);
-}
-
-static void
-release_grabs(XdeScreen *xscr)
-{
-	DPRINT();
-	if (xscr->pointer) {
-		DPRINTF("ungrabbing pointer\n");
-		gdk_display_pointer_ungrab(xscr->disp, GDK_CURRENT_TIME);
-		xscr->pointer = False;
-	}
-	if (xscr->keyboard) {
-		DPRINTF("ungrabbing keyboard\n");
-		gdk_display_keyboard_ungrab(xscr->disp, GDK_CURRENT_TIME);
-		xscr->keyboard = False;
-	}
-}
-
-static void
-drop_popup(XdeScreen *xscr)
-{
-	DPRINT();
-	if (gtk_widget_get_mapped(xscr->popup)) {
-		stop_popup_timer(xscr);
-		release_grabs(xscr);
-		gtk_widget_hide(xscr->popup);
-	}
-}
-
 static void
 something_changed(WnckScreen *wnck, XdeScreen *xscr)
 {
-	GdkGrabStatus status;
-	GdkDisplay *disp;
-	Display *dpy;
-	Window win;
-
-	if (!xscr) {
-		EPRINTF("xscr is NULL\n");
-		exit(EXIT_FAILURE);
-	}
-	DPRINT();
-	if (!xscr->goodwm)
-		return;
-	disp = gdk_display_get_default();
-	dpy = GDK_DISPLAY_XDISPLAY(disp);
-
-	gdk_display_get_pointer(disp, NULL, NULL, NULL, &xscr->mask);
-	DPRINTF("modifier mask was: 0x%08x\n", xscr->mask);
-
-	stop_popup_timer(xscr);
-	gtk_window_set_position(GTK_WINDOW(xscr->popup), GTK_WIN_POS_CENTER_ALWAYS);
-	gtk_window_present(GTK_WINDOW(xscr->popup));
-	gtk_widget_show_now(GTK_WIDGET(xscr->popup));
-	win = GDK_WINDOW_XID(xscr->popup->window);
-	if (!xscr->pointer) {
-		GdkEventMask mask =
-		    GDK_POINTER_MOTION_MASK |
-		    GDK_POINTER_MOTION_HINT_MASK |
-		    GDK_BUTTON_MOTION_MASK |
-		    GDK_BUTTON_PRESS_MASK |
-		    GDK_BUTTON_RELEASE_MASK | GDK_ENTER_NOTIFY_MASK | GDK_LEAVE_NOTIFY_MASK;
-		DPRINT();
-		XSetInputFocus(dpy, win, RevertToPointerRoot, CurrentTime);
-		status = gdk_pointer_grab(xscr->popup->window, TRUE,
-					  mask, NULL, NULL, GDK_CURRENT_TIME);
-		switch (status) {
-		case GDK_GRAB_SUCCESS:
-			DPRINTF("pointer grabbed\n");
-			xscr->pointer = True;
-			break;
-		case GDK_GRAB_ALREADY_GRABBED:
-			DPRINTF("%s: pointer already grabbed\n", NAME);
-			break;
-		case GDK_GRAB_INVALID_TIME:
-			EPRINTF("%s: pointer grab invalid time\n", NAME);
-			break;
-		case GDK_GRAB_NOT_VIEWABLE:
-			EPRINTF("%s: pointer grab on unviewable window\n", NAME);
-			break;
-		case GDK_GRAB_FROZEN:
-			EPRINTF("%s: pointer grab on frozen pointer\n", NAME);
-			break;
-		}
-	}
-	if (!xscr->keyboard) {
-		XSetInputFocus(dpy, win, RevertToPointerRoot, CurrentTime);
-		status = gdk_keyboard_grab(xscr->popup->window, TRUE, GDK_CURRENT_TIME);
-		switch (status) {
-		case GDK_GRAB_SUCCESS:
-			DPRINTF("keyboard grabbed\n");
-			xscr->keyboard = True;
-			break;
-		case GDK_GRAB_ALREADY_GRABBED:
-			DPRINTF("%s: keyboard already grabbed\n", NAME);
-			break;
-		case GDK_GRAB_INVALID_TIME:
-			EPRINTF("%s: keyboard grab invalid time\n", NAME);
-			break;
-		case GDK_GRAB_NOT_VIEWABLE:
-			EPRINTF("%s: keyboard grab on unviewable window\n", NAME);
-			break;
-		case GDK_GRAB_FROZEN:
-			EPRINTF("%s: keyboard grab on frozen keyboard\n", NAME);
-			break;
-		}
-	}
-	// if (!xscr->keyboard || !xscr->pointer)
-	if (!(xscr->mask & ~(GDK_LOCK_MASK | GDK_BUTTON1_MASK |
-			     GDK_BUTTON2_MASK | GDK_BUTTON3_MASK)))
-		if (!xscr->inside)
-			start_popup_timer(xscr);
 }
 
 static void
@@ -611,229 +450,6 @@ active_workspace_changed(WnckScreen *wnck, WnckWorkspace *prev, gpointer user)
 		exit(EXIT_FAILURE);
 	}
 	something_changed(wnck, xscr);
-}
-
-/** @brief grab broken event handler
-  *
-  * Generated when a pointer or keyboard grab is broken.  On X11, this happens
-  * when a grab window becomes unviewable (i.e. it or one of its ancestors is
-  * unmapped), or if the same application grabs the pointer or keyboard again.
-  * Note that implicity grabs (which are initiated by button presses (or
-  * grabbed key presses?)) can also cause GdkEventGrabBroken events.
-  */
-static gboolean
-grab_broken_event(GtkWidget *widget, GdkEvent *event, gpointer user)
-{
-	XdeScreen *xscr = (typeof(xscr)) user;
-	GdkEventGrabBroken *ev = (typeof(ev)) event;
-
-	if (!xscr) {
-		EPRINTF("xscr is NULL\n");
-		exit(EXIT_FAILURE);
-	}
-	DPRINT();
-	if (ev->keyboard) {
-		DPRINTF("keyboard grab was broken\n");
-		xscr->keyboard = False;
-		/* IF we lost a keyboard grab, it is because another hot-key was pressed, 
-		   either doing something else or moving to another desktop.  Start the
-		   timeout in this case. */
-		start_popup_timer(xscr);
-	} else {
-		DPRINTF("pointer grab was broken\n");
-		xscr->pointer = False;
-		/* If we lost a pointer grab, it is because somebody clicked on another
-		   window.  In this case we want to drop the popup altogether.  This will 
-		   break the keyboard grab if any. */
-		drop_popup(xscr);
-	}
-	if (ev->implicit) {
-		DPRINTF("broken grab was implicit\n");
-	} else {
-		DPRINTF("broken grab was explicit\n");
-	}
-	if (ev->grab_window) {
-		DPRINTF("we broke the grab\n");
-	} else {
-		DPRINTF("another application broke the grab\n");
-	}
-	return TRUE;		/* event handled */
-}
-
-static GdkFilterReturn popup_handler(GdkXEvent *xevent, GdkEvent *event, gpointer data);
-
-static void
-widget_realize(GtkWidget *popup, gpointer user)
-{
-	XdeScreen *xscr = (typeof(xscr)) user;
-
-	if (!xscr) {
-		EPRINTF("xscr is NULL\n");
-		exit(EXIT_FAILURE);
-	}
-	DPRINT();
-	gdk_window_add_filter(popup->window, popup_handler, xscr);
-}
-
-static gboolean
-button_press_event(GtkWidget *widget, GdkEvent *event, gpointer user)
-{
-	XdeScreen *xscr = (typeof(xscr)) user;
-
-	if (!xscr) {
-		EPRINTF("xscr is NULL\n");
-		exit(EXIT_FAILURE);
-	}
-	(void) xscr;
-	DPRINT();
-	return FALSE;
-}
-
-static gboolean
-button_release_event(GtkWidget *widget, GdkEvent *event, gpointer user)
-{
-	XdeScreen *xscr = (typeof(xscr)) user;
-
-	if (!xscr) {
-		EPRINTF("xscr is NULL\n");
-		exit(EXIT_FAILURE);
-	}
-	(void) xscr;
-	DPRINT();
-	return FALSE;
-}
-
-static gboolean
-enter_notify_event(GtkWidget *widget, GdkEvent *event, gpointer user)
-{
-	XdeScreen *xscr = (typeof(xscr)) user;
-
-	if (!xscr) {
-		EPRINTF("xscr is NULL\n");
-		exit(EXIT_FAILURE);
-	}
-	DPRINT();
-	(void) xscr;
-	// stop_popup_timer(xscr);
-	// xscr->inside = True;
-	return FALSE;
-}
-
-static gboolean
-focus_in_event(GtkWidget *widget, GdkEvent *event, gpointer user)
-{
-	XdeScreen *xscr = (typeof(xscr)) user;
-
-	if (!xscr) {
-		EPRINTF("xscr is NULL\n");
-		exit(EXIT_FAILURE);
-	}
-	(void) xscr;
-	DPRINT();
-	return FALSE;
-}
-
-static gboolean
-focus_out_event(GtkWidget *widget, GdkEvent *event, gpointer user)
-{
-	XdeScreen *xscr = (typeof(xscr)) user;
-
-	if (!xscr) {
-		EPRINTF("xscr is NULL\n");
-		exit(EXIT_FAILURE);
-	}
-	(void) xscr;
-	DPRINT();
-	return FALSE;
-}
-
-static void
-grab_focus(GtkWidget *widget, gpointer user)
-{
-	XdeScreen *xscr = (typeof(xscr)) user;
-
-	if (!xscr) {
-		EPRINTF("xscr is NULL\n");
-		exit(EXIT_FAILURE);
-	}
-	(void) xscr;
-	DPRINT();
-}
-
-static gboolean
-key_press_event(GtkWidget *widget, GdkEvent *event, gpointer user)
-{
-	XdeScreen *xscr = (typeof(xscr)) user;
-
-	if (!xscr) {
-		EPRINTF("xscr is NULL\n");
-		exit(EXIT_FAILURE);
-	}
-	(void) xscr;
-	DPRINT();
-	return FALSE;
-}
-
-static gboolean
-key_release_event(GtkWidget *widget, GdkEvent *event, gpointer user)
-{
-	XdeScreen *xscr = (typeof(xscr)) user;
-	GdkEventKey *ev = (typeof(ev)) event;
-
-	if (!xscr) {
-		EPRINTF("xscr is NULL\n");
-		exit(EXIT_FAILURE);
-	}
-	DPRINT();
-	if (ev->is_modifier) {
-		DPRINTF("released key is modifier: dropping popup\n");
-		drop_popup(xscr);
-	}
-	return FALSE;
-}
-
-static gboolean
-leave_notify_event(GtkWidget *widget, GdkEvent *event, gpointer user)
-{
-	XdeScreen *xscr = (typeof(xscr)) user;
-
-	if (!xscr) {
-		EPRINTF("xscr is NULL\n");
-		exit(EXIT_FAILURE);
-	}
-	DPRINT();
-	(void) xscr;
-	// start_popup_timer(xscr);
-	// xscr->inside = False;
-	return FALSE;
-}
-
-static gboolean
-map_event(GtkWidget *widget, GdkEvent *event, gpointer user)
-{
-	XdeScreen *xscr = (typeof(xscr)) user;
-
-	if (!xscr) {
-		EPRINTF("xscr is NULL\n");
-		exit(EXIT_FAILURE);
-	}
-	(void) xscr;
-	DPRINT();
-	return FALSE;
-}
-
-static gboolean
-scroll_event(GtkWidget *widget, GdkEvent *event, gpointer user)
-{
-	XdeScreen *xscr = (typeof(xscr)) user;
-
-	if (!xscr) {
-		EPRINTF("xscr is NULL\n");
-		exit(EXIT_FAILURE);
-	}
-	(void) xscr;
-	DPRINT();
-	return FALSE;
 }
 
 static GdkFilterReturn proxy_handler(GdkXEvent *xevent, GdkEvent *event, gpointer data);
@@ -941,7 +557,7 @@ update_current_desktop(XdeScreen *xscr, Atom prop)
 static void
 init_popup(XdeScreen *xscr)
 {
-#if 1
+#if 0
 	GtkWidget *popup;
 	GtkWidget *pager;
 
@@ -1253,14 +869,11 @@ update_theme(XdeScreen *xscr, Atom prop)
 static void
 refresh_layout(XdeScreen *xscr)
 {
-	unsigned int w, h, f, wmax, hmax;
+	int i;
 
-	w = xscr->width * xscr->cols;
-	h = xscr->height * xscr->rows;
-	wmax = (xscr->width * 8) / 10;
-	hmax = (xscr->height * 8) / 10;
-	for (f = 10; w > wmax * f || h > hmax * f; f++) ;
-	gtk_window_set_default_size(GTK_WINDOW(xscr->popup), w / f, h / f);
+	xscr->images = realloc(xscr->images, xscr->desks * sizeof(*xscr->images));
+	for (i = 0; i < xscr->desks; i++)
+		xscr->backdrops[i] = xscr->nimg ? (i % xscr->nimg) : -1;
 }
 
 static void
@@ -1442,153 +1055,6 @@ event_handler_ClientMessage(Display *dpy, XEvent *xev)
 	return GDK_FILTER_CONTINUE;	/* event not handled */
 }
 
-#define PASSED_EVENT_MASK (KeyPressMask|KeyReleaseMask|ButtonPressMask|ButtonReleaseMask|SubstructureNotifyMask|SubstructureRedirectMask)
-
-static GdkFilterReturn
-event_handler_KeyPress(Display *dpy, XEvent *xev, XdeScreen *xscr)
-{
-	DPRINT();
-	if (options.debug > 1) {
-		fprintf(stderr, "==> KeyPress: %p\n", xscr);
-		fprintf(stderr, "    --> send_event = %s\n",
-			xev->xkey.send_event ? "true" : "false");
-		fprintf(stderr, "    --> window = 0x%lx\n", xev->xkey.window);
-		fprintf(stderr, "    --> root = 0x%lx\n", xev->xkey.root);
-		fprintf(stderr, "    --> subwindow = 0x%lx\n", xev->xkey.subwindow);
-		fprintf(stderr, "    --> time = %lu\n", xev->xkey.time);
-		fprintf(stderr, "    --> x = %d\n", xev->xkey.x);
-		fprintf(stderr, "    --> y = %d\n", xev->xkey.y);
-		fprintf(stderr, "    --> x_root = %d\n", xev->xkey.x_root);
-		fprintf(stderr, "    --> y_root = %d\n", xev->xkey.y_root);
-		fprintf(stderr, "    --> state = 0x%08x\n", xev->xkey.state);
-		fprintf(stderr, "    --> keycode = %u\n", xev->xkey.keycode);
-		fprintf(stderr, "    --> same_screen = %s\n",
-			xev->xkey.same_screen ? "true" : "false");
-		fprintf(stderr, "<== KeyPress: %p\n", xscr);
-	}
-	if (!xev->xkey.send_event) {
-		XEvent ev = *xev;
-
-		start_popup_timer(xscr);
-		ev.xkey.window = ev.xkey.root;
-		XSendEvent(dpy, ev.xkey.root, True, PASSED_EVENT_MASK, &ev);
-		XFlush(dpy);
-		return GDK_FILTER_CONTINUE;
-	}
-	return GDK_FILTER_REMOVE;
-}
-
-static GdkFilterReturn
-event_handler_KeyRelease(Display *dpy, XEvent *xev, XdeScreen *xscr)
-{
-	DPRINT();
-	if (options.debug > 1) {
-		fprintf(stderr, "==> KeyRelease: %p\n", xscr);
-		fprintf(stderr, "    --> send_event = %s\n",
-			xev->xkey.send_event ? "true" : "false");
-		fprintf(stderr, "    --> window = 0x%lx\n", xev->xkey.window);
-		fprintf(stderr, "    --> root = 0x%lx\n", xev->xkey.root);
-		fprintf(stderr, "    --> subwindow = 0x%lx\n", xev->xkey.subwindow);
-		fprintf(stderr, "    --> time = %lu\n", xev->xkey.time);
-		fprintf(stderr, "    --> x = %d\n", xev->xkey.x);
-		fprintf(stderr, "    --> y = %d\n", xev->xkey.y);
-		fprintf(stderr, "    --> x_root = %d\n", xev->xkey.x_root);
-		fprintf(stderr, "    --> y_root = %d\n", xev->xkey.y_root);
-		fprintf(stderr, "    --> state = 0x%08x\n", xev->xkey.state);
-		fprintf(stderr, "    --> keycode = %u\n", xev->xkey.keycode);
-		fprintf(stderr, "    --> same_screen = %s\n",
-			xev->xkey.same_screen ? "true" : "false");
-		fprintf(stderr, "<== KeyRelease: %p\n", xscr);
-	}
-	if (!xev->xkey.send_event) {
-		XEvent ev = *xev;
-
-		// start_popup_timer(xscr);
-		ev.xkey.window = ev.xkey.root;
-		XSendEvent(dpy, ev.xkey.root, True, PASSED_EVENT_MASK, &ev);
-		XFlush(dpy);
-		return GDK_FILTER_CONTINUE;
-	}
-	return GDK_FILTER_REMOVE;
-}
-
-static GdkFilterReturn
-event_handler_ButtonPress(Display *dpy, XEvent *xev, XdeScreen *xscr)
-{
-	DPRINT();
-	if (options.debug > 1) {
-		fprintf(stderr, "==> ButtonPress: %p\n", xscr);
-		fprintf(stderr, "    --> send_event = %s\n",
-			xev->xbutton.send_event ? "true" : "false");
-		fprintf(stderr, "    --> window = 0x%lx\n", xev->xbutton.window);
-		fprintf(stderr, "    --> root = 0x%lx\n", xev->xbutton.root);
-		fprintf(stderr, "    --> subwindow = 0x%lx\n", xev->xbutton.subwindow);
-		fprintf(stderr, "    --> time = %lu\n", xev->xbutton.time);
-		fprintf(stderr, "    --> x = %d\n", xev->xbutton.x);
-		fprintf(stderr, "    --> y = %d\n", xev->xbutton.y);
-		fprintf(stderr, "    --> x_root = %d\n", xev->xbutton.x_root);
-		fprintf(stderr, "    --> y_root = %d\n", xev->xbutton.y_root);
-		fprintf(stderr, "    --> state = 0x%08x\n", xev->xbutton.state);
-		fprintf(stderr, "    --> button = %u\n", xev->xbutton.button);
-		fprintf(stderr, "    --> same_screen = %s\n",
-			xev->xbutton.same_screen ? "true" : "false");
-		fprintf(stderr, "<== ButtonPress: %p\n", xscr);
-	}
-	if (!xev->xbutton.send_event) {
-		XEvent ev = *xev;
-
-		if (ev.xbutton.button == 4 || ev.xbutton.button == 5) {
-			if (!xscr->inside)
-				start_popup_timer(xscr);
-			DPRINTF("ButtonPress = %d passing to root window\n",
-				ev.xbutton.button);
-			ev.xbutton.window = ev.xbutton.root;
-			XSendEvent(dpy, ev.xbutton.root, True, PASSED_EVENT_MASK, &ev);
-			XFlush(dpy);
-		}
-		return GDK_FILTER_CONTINUE;
-	}
-	return GDK_FILTER_REMOVE;
-}
-
-static GdkFilterReturn
-event_handler_ButtonRelease(Display *dpy, XEvent *xev, XdeScreen *xscr)
-{
-	DPRINT();
-	if (options.debug > 1) {
-		fprintf(stderr, "==> ButtonRelease: %p\n", xscr);
-		fprintf(stderr, "    --> send_event = %s\n",
-			xev->xbutton.send_event ? "true" : "false");
-		fprintf(stderr, "    --> window = 0x%lx\n", xev->xbutton.window);
-		fprintf(stderr, "    --> root = 0x%lx\n", xev->xbutton.root);
-		fprintf(stderr, "    --> subwindow = 0x%lx\n", xev->xbutton.subwindow);
-		fprintf(stderr, "    --> time = %lu\n", xev->xbutton.time);
-		fprintf(stderr, "    --> x = %d\n", xev->xbutton.x);
-		fprintf(stderr, "    --> y = %d\n", xev->xbutton.y);
-		fprintf(stderr, "    --> x_root = %d\n", xev->xbutton.x_root);
-		fprintf(stderr, "    --> y_root = %d\n", xev->xbutton.y_root);
-		fprintf(stderr, "    --> state = 0x%08x\n", xev->xbutton.state);
-		fprintf(stderr, "    --> button = %u\n", xev->xbutton.button);
-		fprintf(stderr, "    --> same_screen = %s\n",
-			xev->xbutton.same_screen ? "true" : "false");
-		fprintf(stderr, "<== ButtonRelease: %p\n", xscr);
-	}
-	if (!xev->xbutton.send_event) {
-		XEvent ev = *xev;
-
-		if (ev.xbutton.button == 4 || ev.xbutton.button == 5) {
-			// start_popup_timer(xscr);
-			DPRINTF("ButtonRelease = %d passing to root window\n",
-				ev.xbutton.button);
-			ev.xbutton.window = ev.xbutton.root;
-			XSendEvent(dpy, ev.xbutton.root, True, PASSED_EVENT_MASK, &ev);
-			XFlush(dpy);
-		}
-		return GDK_FILTER_CONTINUE;
-	}
-	return GDK_FILTER_REMOVE;
-}
-
 static GdkFilterReturn
 event_handler_SelectionClear(Display *dpy, XEvent *xev, XdeScreen *xscr)
 {
@@ -1611,167 +1077,6 @@ event_handler_SelectionClear(Display *dpy, XEvent *xev, XdeScreen *xscr)
 	return GDK_FILTER_CONTINUE;
 }
 
-static const char *
-show_mode(int mode)
-{
-	DPRINT();
-	switch (mode) {
-	case NotifyNormal:
-		return ("NotifyNormal");
-	case NotifyGrab:
-		return ("NotifyGrab");
-	case NotifyUngrab:
-		return ("NotifyUngrab");
-	case NotifyWhileGrabbed:
-		return ("NotifyWhileGrabbed");
-	}
-	return NULL;
-}
-
-static const char *
-show_detail(int detail)
-{
-	DPRINT();
-	switch (detail) {
-	case NotifyAncestor:
-		return ("NotifyAncestor");
-	case NotifyVirtual:
-		return ("NotifyVirtual");
-	case NotifyInferior:
-		return ("NotifyInferior");
-	case NotifyNonlinear:
-		return ("NotifyNonlinear");
-	case NotifyNonlinearVirtual:
-		return ("NotifyNonlinearVirtual");
-	case NotifyPointer:
-		return ("NotifyPointer");
-	case NotifyPointerRoot:
-		return ("NotifyPointerRoot");
-	case NotifyDetailNone:
-		return ("NotifyDetailNone");
-	}
-	return NULL;
-}
-
-static GdkFilterReturn
-event_handler_EnterNotify(Display *dpy, XEvent *xev, XdeScreen *xscr)
-{
-	DPRINT();
-	if (options.debug > 1) {
-		fprintf(stderr, "==> EnterNotify: %p\n", xscr);
-		fprintf(stderr, "    --> send_event = %s\n",
-			xev->xcrossing.send_event ? "true" : "false");
-		fprintf(stderr, "    --> window = 0x%lx\n", xev->xcrossing.window);
-		fprintf(stderr, "    --> root = 0x%lx\n", xev->xcrossing.root);
-		fprintf(stderr, "    --> subwindow = 0x%lx\n", xev->xcrossing.subwindow);
-		fprintf(stderr, "    --> time = %lu\n", xev->xcrossing.time);
-		fprintf(stderr, "    --> x = %d\n", xev->xcrossing.x);
-		fprintf(stderr, "    --> y = %d\n", xev->xcrossing.y);
-		fprintf(stderr, "    --> x_root = %d\n", xev->xcrossing.x_root);
-		fprintf(stderr, "    --> y_root = %d\n", xev->xcrossing.y_root);
-		fprintf(stderr, "    --> mode = %s\n", show_mode(xev->xcrossing.mode));
-		fprintf(stderr, "    --> detail = %s\n", show_detail(xev->xcrossing.detail));
-		fprintf(stderr, "    --> same_screen = %s\n",
-			xev->xcrossing.same_screen ? "true" : "false");
-		fprintf(stderr, "    --> focus = %s\n",
-			xev->xcrossing.focus ? "true" : "false");
-		fprintf(stderr, "    --> state = 0x%08x\n", xev->xcrossing.state);
-		fprintf(stderr, "<== EnterNotify: %p\n", xscr);
-	}
-	if (xev->xcrossing.mode == NotifyNormal) {
-		if (!xscr->inside) {
-			DPRINTF("entered popup\n");
-			stop_popup_timer(xscr);
-			xscr->inside = True;
-		}
-	}
-	return GDK_FILTER_CONTINUE;
-}
-
-static GdkFilterReturn
-event_handler_LeaveNotify(Display *dpy, XEvent *xev, XdeScreen *xscr)
-{
-	DPRINT();
-	if (options.debug > 1) {
-		fprintf(stderr, "==> LeaveNotify: %p\n", xscr);
-		fprintf(stderr, "    --> send_event = %s\n",
-			xev->xcrossing.send_event ? "true" : "false");
-		fprintf(stderr, "    --> window = 0x%lx\n", xev->xcrossing.window);
-		fprintf(stderr, "    --> root = 0x%lx\n", xev->xcrossing.root);
-		fprintf(stderr, "    --> subwindow = 0x%lx\n", xev->xcrossing.subwindow);
-		fprintf(stderr, "    --> time = %lu\n", xev->xcrossing.time);
-		fprintf(stderr, "    --> x = %d\n", xev->xcrossing.x);
-		fprintf(stderr, "    --> y = %d\n", xev->xcrossing.y);
-		fprintf(stderr, "    --> x_root = %d\n", xev->xcrossing.x_root);
-		fprintf(stderr, "    --> y_root = %d\n", xev->xcrossing.y_root);
-		fprintf(stderr, "    --> mode = %s\n", show_mode(xev->xcrossing.mode));
-		fprintf(stderr, "    --> detail = %s\n", show_detail(xev->xcrossing.detail));
-		fprintf(stderr, "    --> same_screen = %s\n",
-			xev->xcrossing.same_screen ? "true" : "false");
-		fprintf(stderr, "    --> focus = %s\n",
-			xev->xcrossing.focus ? "true" : "false");
-		fprintf(stderr, "    --> state = 0x%08x\n", xev->xcrossing.state);
-		fprintf(stderr, "<== LeaveNotify: %p\n", xscr);
-	}
-	if (xev->xcrossing.mode == NotifyNormal) {
-		if (xscr->inside) {
-			DPRINTF("left popup\n");
-			start_popup_timer(xscr);
-			xscr->inside = False;
-		}
-	}
-	return GDK_FILTER_CONTINUE;
-}
-
-static GdkFilterReturn
-event_handler_FocusIn(Display *dpy, XEvent *xev, XdeScreen *xscr)
-{
-	DPRINT();
-	if (options.debug > 1) {
-		fprintf(stderr, "==> FocusIn: %p\n", xscr);
-		fprintf(stderr, "    --> send_event = %s\n",
-			xev->xfocus.send_event ? "true" : "false");
-		fprintf(stderr, "    --> window = 0x%lx\n", xev->xfocus.window);
-		fprintf(stderr, "    --> mode = %s\n", show_mode(xev->xfocus.mode));
-		fprintf(stderr, "    --> detail = %s\n", show_detail(xev->xfocus.detail));
-		fprintf(stderr, "<== FocusIn: %p\n", xscr);
-	}
-	switch (xev->xfocus.mode) {
-	case NotifyNormal:
-	case NotifyUngrab:
-		DPRINTF("focused popup\n");
-		break;
-	}
-	return GDK_FILTER_CONTINUE;
-}
-
-static GdkFilterReturn
-event_handler_FocusOut(Display *dpy, XEvent *xev, XdeScreen *xscr)
-{
-	DPRINT();
-	if (options.debug > 1) {
-		fprintf(stderr, "==> FocusOut: %p\n", xscr);
-		fprintf(stderr, "    --> send_event = %s\n",
-			xev->xfocus.send_event ? "true" : "false");
-		fprintf(stderr, "    --> window = 0x%lx\n", xev->xfocus.window);
-		fprintf(stderr, "    --> mode = %s\n", show_mode(xev->xfocus.mode));
-		fprintf(stderr, "    --> detail = %s\n", show_detail(xev->xfocus.detail));
-		fprintf(stderr, "<== FocusOut: %p\n", xscr);
-	}
-	switch (xev->xfocus.mode) {
-	case NotifyNormal:
-	case NotifyGrab:
-	case NotifyWhileGrabbed:
-		DPRINTF("unfocused popup\n");
-		if (!xscr->keyboard) {
-			DPRINTF("no grab or focus\n");
-			start_popup_timer(xscr);
-		}
-		break;
-	}
-	return GDK_FILTER_CONTINUE;
-}
-
 static GdkFilterReturn
 root_handler(GdkXEvent *xevent, GdkEvent *event, gpointer data)
 {
@@ -1787,39 +1092,6 @@ root_handler(GdkXEvent *xevent, GdkEvent *event, gpointer data)
 	switch (xev->type) {
 	case PropertyNotify:
 		return event_handler_PropertyNotify(dpy, xev, xscr);
-	}
-	return GDK_FILTER_CONTINUE;
-}
-
-static GdkFilterReturn
-popup_handler(GdkXEvent *xevent, GdkEvent *event, gpointer data)
-{
-	XEvent *xev = (typeof(xev)) xevent;
-	XdeScreen *xscr = (typeof(xscr)) data;
-	Display *dpy = GDK_DISPLAY_XDISPLAY(xscr->disp);
-
-	DPRINT();
-	if (!xscr) {
-		EPRINTF("xscr is NULL\n");
-		exit(EXIT_FAILURE);
-	}
-	switch (xev->type) {
-	case KeyPress:
-		return event_handler_KeyPress(dpy, xev, xscr);
-	case KeyRelease:
-		return event_handler_KeyRelease(dpy, xev, xscr);
-	case ButtonPress:
-		return event_handler_ButtonPress(dpy, xev, xscr);
-	case ButtonRelease:
-		return event_handler_ButtonRelease(dpy, xev, xscr);
-	case EnterNotify:
-		return event_handler_EnterNotify(dpy, xev, xscr);
-	case LeaveNotify:
-		return event_handler_LeaveNotify(dpy, xev, xscr);
-	case FocusIn:
-		return event_handler_FocusIn(dpy, xev, xscr);
-	case FocusOut:
-		return event_handler_FocusOut(dpy, xev, xscr);
 	}
 	return GDK_FILTER_CONTINUE;
 }
@@ -2625,9 +1897,6 @@ main(int argc, char *argv[])
 		/* *INDENT-OFF* */
 		static struct option long_options[] = {
 			{"display",	required_argument,	NULL,	'd'},
-			{"timeout",	required_argument,	NULL,	't'},
-			{"border",	required_argument,	NULL,	'b'},
-			{"noproxy",	no_argument,		NULL,	'n'},
 
 			{"quit",	no_argument,		NULL,	'q'},
 			{"replace",	no_argument,		NULL,	'r'},
@@ -2645,10 +1914,9 @@ main(int argc, char *argv[])
 		};
 		/* *INDENT-ON* */
 
-		c = getopt_long_only(argc, argv, "d:s:pb:T:w:x:W:D::v::hVCH?",
-				     long_options, &option_index);
+		c = getopt_long_only(argc, argv, "d:D::v::bVCH?", long_options, &option_index);
 #else				/* _GNU_SOURCE */
-		c = getopt(argc, argv, "d:s:pb:T:w:x:W:D:vhVC?");
+		c = getopt(argc, argv, "d:D:vhVC?");
 #endif				/* _GNU_SOURCE */
 		if (c == -1) {
 			if (options.debug)
@@ -2663,19 +1931,6 @@ main(int argc, char *argv[])
 			setenv("DISPLAY", optarg, TRUE);
 			free(options.display);
 			options.display = strdup(optarg);
-			break;
-		case 't':	/* -t, --timeout MILLISECONDS */
-			options.timeout = strtoul(optarg, NULL, 0);
-			if (!options.timeout)
-				goto bad_option;
-			break;
-		case 'b':	/* -b, --border PIXELS */
-			options.border = strtoul(optarg, NULL, 0);
-			if (options.border > 20)
-				goto bad_option;
-			break;
-		case 'n':	/* -n, --noproxy */
-			options.proxy = False;
 			break;
 
 		case 'q':	/* -q, --quit */

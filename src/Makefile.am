@@ -9,7 +9,8 @@ bin_PROGRAMS = \
 	xde-winmenu \
 	xde-winlist \
 	xde-pager \
-	xde-cycle
+	xde-cycle \
+	xde-setbg
 
 xde_app_CPPFLAGS = -DNAME=\"xde-app\"
 xde_app_SOURCES = xde-app.c xde-app.h
@@ -33,4 +34,9 @@ xde_pager_LDFLAGS = $(SMLIB_LIBS) $(ICE_LIBS) $(AM_LDFLAGS)
 
 xde_cycle_CPPFLAGS = -DNAME=\"xde-cycle\"
 xde_cycle_SOURCES = xde-cycle.c xde-cycle.h
+
+xde_setbg_CPPFLAGS = -DNAME=\"xde-setbg\"
+xde_setbg_SOURCES = xde-setbg.c
+xde_setbg_CFLAGS = $(AM_CFLAGS) $(ICE_CFLAGS) $(SMLIB_CFLAGS)
+xde_setbg_LDFLAGS = $(SMLIB_LIBS) $(ICE_LIBS) $(AM_LDFLAGS)
 
