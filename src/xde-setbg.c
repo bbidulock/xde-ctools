@@ -222,7 +222,6 @@ typedef struct {
 	XdeMonitor *mons;		/* monitors for this screen */
 	Bool mhaware;			/* multi-head aware NetWM */
 	Pixmap pixmap;			/* current pixmap for the entire screen */
-	Pixmap pixmaps[2];		/* alternate pixmaps for entire screen */
 	char *theme;			/* XDE theme name */
 	GKeyFile *entry;		/* XDE theme file entry */
 	int nimg;			/* number of images */
@@ -242,9 +241,57 @@ typedef struct {
 	char *wmname;			/* window manager name (adjusted) */
 	Bool goodwm;			/* is the window manager usable? */
 	GdkWindow *proxy;
+	guint deferred_refresh_layout;
+	guint deferred_refresh_desktop;
 } XdeScreen;
 
 XdeScreen *screens;			/* array of screens */
+
+static void refresh_layout(XdeScreen *xscr);
+static void refresh_desktop(XdeScreen *xscr);
+
+static gboolean
+on_deferred_refresh_layout(gpointer data)
+{
+	XdeScreen *xscr = data;
+
+	xscr->deferred_refresh_layout = 0;
+	refresh_layout(xscr);
+	return G_SOURCE_REMOVE;
+}
+
+static gboolean
+on_deferred_refresh_desktop(gpointer data)
+{
+	XdeScreen *xscr = data;
+
+	xscr->deferred_refresh_desktop = 0;
+	refresh_desktop(xscr);
+	return G_SOURCE_REMOVE;
+}
+
+static void
+add_deferred_refresh_layout(XdeScreen *xscr)
+{
+	if (!xscr->deferred_refresh_layout)
+		xscr->deferred_refresh_layout =
+			g_idle_add(on_deferred_refresh_layout, xscr);
+	if (xscr->deferred_refresh_desktop) {
+		g_source_remove(xscr->deferred_refresh_desktop);
+		xscr->deferred_refresh_desktop = 0;
+	}
+}
+
+static void
+add_deferred_refresh_desktop(XdeScreen *xscr)
+{
+	if (xscr->deferred_refresh_layout)
+		return;
+	if (xscr->deferred_refresh_desktop)
+		return;
+	xscr->deferred_refresh_desktop =
+		g_idle_add(on_deferred_refresh_desktop, xscr);
+}
 
 void
 xde_pixmap_ref(XdePixmap *pixmap)
@@ -610,8 +657,6 @@ setup_button_proxy(XdeScreen *xscr)
 	}
 }
 
-static void refresh_current_desktop(XdeScreen *xscr);
-
 static void
 update_current_desktop(XdeScreen *xscr, Atom prop)
 {
@@ -672,7 +717,7 @@ update_current_desktop(XdeScreen *xscr, Atom prop)
 	}
 	if (changed) {
 		DPRINTF("Current desktop changed.\n");
-		refresh_current_desktop(xscr);
+		add_deferred_refresh_desktop(xscr);
 	} else
 		DPRINTF("No change in current desktop.\n");
 }
@@ -756,6 +801,44 @@ update_screen(XdeScreen *xscr)
 static void
 update_root_pixmap(XdeScreen *xscr, Atom prop)
 {
+	Display *dpy = GDK_DISPLAY_XDISPLAY(xscr->disp);
+	Window root = RootWindow(dpy, xscr->index);
+	Atom actual = None;
+	int format = 0;
+	unsigned long nitems = 0, after = 0;
+	unsigned long *data = NULL;
+	Pixmap pmap = None;
+
+	DPRINT();
+	if (prop == None || prop == _XA_ESETROOT_PMAP_ID) {
+		if (XGetWindowProperty
+				(dpy, root, _XA_ESETROOT_PMAP_ID, 0, 1, False, AnyPropertyType, &actual,
+				 &format, &nitems, &after, (unsigned char **)&data) == Success
+				&& format == 32 && actual && nitems >= 1 && data) {
+			pmap = data[0];
+		}
+		if (data) {
+			XFree(data);
+			data = NULL;
+		}
+	}
+	if (prop == None || prop == _XA_XROOTPMAP_ID) {
+		if (XGetWindowProperty
+				(dpy, root, _XA_XROOTPMAP_ID, 0, 1, False, AnyPropertyType, &actual,
+				 &format, &nitems, &after, (unsigned char **)&data) == Success
+				&& format == 32 && actual && nitems >= 1 && data) {
+			pmap = data[0];
+		}
+		if (data) {
+			XFree(data);
+			data = NULL;
+		}
+	}
+	if (pmap && xscr->pixmap != pmap) {
+		DPRINTF("root pixmap changed from 0x%08lx to 0x%08lx\n", xscr->pixmap, pmap);
+		xscr->pixmap = pmap;
+		/* FIXME: do more */
+	}
 }
 
 static void
@@ -925,6 +1008,7 @@ do_run(int argc, char *argv[], Bool replace)
 		init_popup(xscr);
 		if (options.proxy)
 			setup_button_proxy(xscr);
+		update_root_pixmap(xscr, None);
 		update_layout(xscr, None);
 		update_current_desktop(xscr, None);
 		update_theme(xscr, None);
@@ -1178,8 +1262,6 @@ set_workspace_names(XdeScreen *xscr, gchar **names, gsize num)
 	free(alloc);
 }
 
-static void refresh_layout(XdeScreen *xscr);
-
 static void
 set_workspace_images(XdeScreen *xscr, gchar **images, gsize num, gboolean center, gboolean scaled,
 		gboolean tiled, gboolean full)
@@ -1229,7 +1311,7 @@ set_workspace_images(XdeScreen *xscr, gchar **images, gsize num, gboolean center
 			DPRINTF("Could not find file for %s\n", images[i]);
 	}
 	xscr->nimg = n;
-	refresh_layout(xscr);
+	add_deferred_refresh_layout(xscr);
 }
 
 static void
@@ -1422,33 +1504,27 @@ update_theme(XdeScreen *xscr, Atom prop)
 		DPRINTF("No change in current theme %s\n", xscr->theme);
 }
 
-static void
-get_temporary_pixmaps(XdeScreen *xscr, Bool force)
+static Pixmap
+get_temporary_pixmap(XdeScreen *xscr)
 {
 	Display *dpy;
-	int s, i;
+	Pixmap pmap;
+	int s;
 
-	if (!force && xscr->pixmaps[0] && xscr->pixmaps[1])
-		return;
 	if (!(dpy = XOpenDisplay(NULL))) {
-		EPRINTF("cannot open display %s\n", getenv("DISPLAY"));
-		return;
+		DPRINTF("cannot open display %s\n", getenv("DISPLAY"));
+		return (None);
 	}
 	XSetCloseDownMode(dpy, RetainTemporary);
 	s = xscr->index;
-	for (i = 0; i < 2; i++)
-		if (!xscr->pixmaps[i]) {
-			DPRINTF("Creating temporary pixmap %d with geom %dx%d\n",
-				i, xscr->width, xscr->height);
-			xscr->pixmaps[i] = XCreatePixmap(dpy, RootWindow(dpy, s),
-							 xscr->width,
-							 xscr->height, DefaultDepth(dpy, s));
-		}
+	pmap = XCreatePixmap(dpy, RootWindow(dpy, s),
+			     xscr->width, xscr->height, DefaultDepth(dpy, s));
 	XCloseDisplay(dpy);
+	return (pmap);
 }
 
 static void
-refresh_current_desktop(XdeScreen *xscr)
+refresh_desktop(XdeScreen *xscr)
 {
 	GdkDisplay *disp = gdk_screen_get_display(xscr->scrn);
 	GdkWindow *root = gdk_screen_get_root_window(xscr->scrn);
@@ -1462,14 +1538,8 @@ refresh_current_desktop(XdeScreen *xscr)
 	Pixmap pmap;
 
 	/* render the current desktop on the screen */
-	get_temporary_pixmaps(xscr, True);
-	if ((xscr->pixmaps[0] != xscr->pixmap)) {
-		pmap = xscr->pixmaps[0];
-		DPRINTF("using temporary pixmap 0 (0x%08lx)\n", pmap);
-	} else {
-		pmap = xscr->pixmaps[1];
-		DPRINTF("using temporary pixmap 1 (0x%08lx)\n", pmap);
-	}
+	pmap = get_temporary_pixmap(xscr);
+	DPRINTF("using temporary pixmap (0x%08lx)\n", pmap);
 	DPRINTF("creating temporary pixmap contents\n");
 	pixmap = gdk_pixmap_foreign_new_for_display(disp, pmap);
 	gdk_drawable_set_colormap(GDK_DRAWABLE(pixmap), cmap);
@@ -1547,8 +1617,7 @@ refresh_current_desktop(XdeScreen *xscr)
 			XA_PIXMAP, 32, PropModeReplace, (unsigned char *) &pmap, 1);
 	gdk_window_set_back_pixmap(root, pixmap, FALSE);
 	gdk_window_clear(root);
-	if (xscr->pixmap && xscr->pixmap != xscr->pixmaps[0]
-	    && xscr->pixmap != xscr->pixmaps[1]) {
+	if (xscr->pixmap) {
 		DPRINTF("killing old unused temporary pixmap 0x%08lx\n", xscr->pixmap);
 		XKillClient(GDK_DISPLAY_XDISPLAY(disp), xscr->pixmap);
 	}
@@ -1576,7 +1645,7 @@ refresh_layout(XdeScreen *xscr)
 			DPRINTF("desktop %d assigned source image %d\n", d, n);
 			xde_image_ref((xscr->desktops[d] = xscr->sources[n]));
 		}
-	refresh_current_desktop(xscr);
+	refresh_desktop(xscr);
 }
 
 static void
@@ -1649,7 +1718,7 @@ update_layout(XdeScreen *xscr, Atom prop)
 	if (xscr->rows == 0)
 		for (num = xscr->desks; num > 0; xscr->rows++, num -= xscr->cols) ;
 
-	refresh_layout(xscr);
+	add_deferred_refresh_layout(xscr);
 }
 
 static GdkFilterReturn
