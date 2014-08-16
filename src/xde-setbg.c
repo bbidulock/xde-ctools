@@ -134,6 +134,7 @@
 #define EXIT_SYNTAXERR	2
 
 #define XA_SELECTION_NAME	"_XDE_SETBG_S%d"
+#define XA_NET_DESKTOP_LAYOUT	"_NET_DESKTOP_LAYOUT_S%d"
 
 static int saveArgc;
 static char **saveArgv;
@@ -142,6 +143,7 @@ static Atom _XA_XDE_THEME_NAME;
 static Atom _XA_GTK_READ_RCFILES;
 static Atom _XA_NET_WM_ICON_GEOMETRY;
 static Atom _XA_NET_DESKTOP_LAYOUT;
+static Atom _XA_NET_DESKTOP_NAMES;
 static Atom _XA_NET_NUMBER_OF_DESKTOPS;
 static Atom _XA_NET_CURRENT_DESKTOP;
 static Atom _XA_WIN_DESKTOP_BUTTON_PROXY;
@@ -187,9 +189,11 @@ Options options = {
 	.saveFile = NULL,
 };
 
-typedef struct {
+typedef struct _XdePixmap {
 	int refs;			/* number of references */
 	int index;			/* background image index */
+	struct _XdePixmap *next;	/* next pixmap in list */
+	struct _XdePixmap **pprev;	/* previous next pointer in list */
 	GdkPixmap *pixmap;		/* pixmap for background image */
 	GdkRectangle geom;		/* pixmap geometry */
 } XdePixmap;
@@ -199,8 +203,7 @@ typedef struct {
 	int index;			/* background image index */
 	char *file;			/* filename of image source */
 	GdkPixbuf *pixbuf;		/* pixbuf for this image */
-	int npix;			/* number of pixmaps for this image */
-	XdePixmap *pixmaps;		/* array of pixmaps at various geometries */
+	XdePixmap *pixmaps;		/* list of pixmaps at various geometries */
 } XdeImage;
 
 typedef struct {
@@ -217,19 +220,24 @@ typedef struct {
 	WnckScreen *wnck;
 	gint nmon;			/* number of monitors */
 	XdeMonitor *mons;		/* monitors for this screen */
-	GdkPixmap *pixmap;		/* pixmap for entire screen */
+	Bool mhaware;			/* multi-head aware NetWM */
+	Pixmap pixmap;			/* current pixmap for the entire screen */
+	Pixmap pixmaps[2];		/* alternate pixmaps for entire screen */
 	char *theme;			/* XDE theme name */
 	GKeyFile *entry;		/* XDE theme file entry */
 	int nimg;			/* number of images */
-	XdeImage *sources;		/* the images for the theme */
+	XdeImage **sources;		/* the images for the theme */
 	Window selwin;			/* selection owner window */
 	Atom atom;			/* selection atom for this screen */
+	Window laywin;			/* desktop layout selection owner */
+	Atom prop;			/* dekstop layout selection atom */
 	int width, height;
 	guint timer;			/* timer source of running timer */
 	int rows;			/* number of rows in layout */
 	int cols;			/* number of cols in layout */
 	int desks;			/* number of desks in layout */
-	int *images;			/* images (by index) assigned to each workspace */
+	int ndsk;			/* number of desktops */
+	XdeImage **desktops;		/* the desktops */
 	int current;			/* current desktop for this screen */
 	char *wmname;			/* window manager name (adjusted) */
 	Bool goodwm;			/* is the window manager usable? */
@@ -237,6 +245,70 @@ typedef struct {
 } XdeScreen;
 
 XdeScreen *screens;			/* array of screens */
+
+void
+xde_pixmap_ref(XdePixmap *pixmap)
+{
+	if (pixmap)
+		pixmap->refs++;
+}
+
+void
+xde_pixmap_delete(XdePixmap *pixmap)
+{
+	if (pixmap) {
+		if (pixmap->pprev) {
+			if ((*(pixmap->pprev) = pixmap->next))
+				pixmap->next->pprev = pixmap->pprev;
+		}
+		free(pixmap);
+	}
+}
+
+void
+xde_pixmap_unref(XdePixmap ** pixmapp)
+{
+	if (pixmapp && *pixmapp) {
+		if (--(*pixmapp)->refs <= 0) {
+			xde_pixmap_delete(*pixmapp);
+			*pixmapp = NULL;
+		}
+	}
+}
+
+void
+xde_image_ref(XdeImage *image)
+{
+	if (image)
+		image->refs++;
+}
+
+void
+xde_image_delete(XdeImage *image)
+{
+	XdePixmap *pixmap;
+
+	while ((pixmap = image->pixmaps))
+		xde_pixmap_delete(pixmap);
+	if (image->file)
+		free(image->file);
+	if (image->pixbuf)
+		g_object_unref(image->pixbuf);
+	free(image);
+}
+
+void
+xde_image_unref(XdeImage **imagep)
+{
+	if (imagep && *imagep) {
+		(*imagep)->refs -= 1;
+		if ((*imagep)->refs <= 0) {
+			xde_image_delete(*imagep);
+			*imagep = NULL;
+		} else
+			DPRINTF("There are %d refs left for %p\n", (*imagep)->refs, *imagep);
+	}
+}
 
 static Window
 get_selection(Bool replace, Window selwin)
@@ -314,6 +386,56 @@ get_selection(Bool replace, Window selwin)
 	} else if (gotone)
 		DPRINTF("%s: not replacing running instance\n", NAME);
 	return (gotone);
+}
+
+static GdkFilterReturn laywin_handler(GdkXEvent *xevent, GdkEvent *event, gpointer data);
+
+static Window
+get_desktop_layout_selection(XdeScreen *xscr)
+{
+	GdkDisplay *disp = gdk_screen_get_display(xscr->scrn);
+	Display *dpy = GDK_DISPLAY_XDISPLAY(disp);
+	Window root = RootWindow(dpy, xscr->index);
+	char selection[64] = { 0, };
+	GdkWindow *lay;
+	Window owner;
+	Atom atom;
+
+	if (xscr->laywin)
+		return None;
+	
+	xscr->laywin = XCreateSimpleWindow(dpy, root, 0, 0, 1, 1, 0, 0, 0);
+	XSelectInput(dpy, xscr->laywin,
+		StructureNotifyMask | SubstructureNotifyMask | PropertyChangeMask);
+	lay = gdk_x11_window_foreign_new_for_display(disp, xscr->laywin);
+	gdk_window_add_filter(lay, laywin_handler, xscr);
+	snprintf(selection, sizeof(selection), XA_NET_DESKTOP_LAYOUT, xscr->index);
+	atom = XInternAtom(dpy, selection, False);
+	if (!(owner = XGetSelectionOwner(dpy, atom)))
+		DPRINTF("No owner for %s\n", selection);
+	XSetSelectionOwner(dpy, atom, xscr->laywin, CurrentTime);
+	XSync(dpy, False);
+	
+	if (xscr->laywin) {
+		XEvent ev;
+
+		ev.xclient.type = ClientMessage;
+		ev.xclient.serial = 0;
+		ev.xclient.send_event = False;
+		ev.xclient.display = dpy;
+		ev.xclient.window = root;
+		ev.xclient.message_type = XInternAtom(dpy, "MANAGER", False);
+		ev.xclient.format = 32;
+		ev.xclient.data.l[0] = CurrentTime;
+		ev.xclient.data.l[1] = atom;
+		ev.xclient.data.l[2] = xscr->laywin;
+		ev.xclient.data.l[3] = 0;
+		ev.xclient.data.l[4] = 0;
+
+		XSendEvent(dpy, root, False, StructureNotifyMask, &ev);
+		XFlush(dpy);
+	}
+	return (owner);
 }
 
 static void
@@ -488,6 +610,8 @@ setup_button_proxy(XdeScreen *xscr)
 	}
 }
 
+static void refresh_current_desktop(XdeScreen *xscr);
+
 static void
 update_current_desktop(XdeScreen *xscr, Atom prop)
 {
@@ -495,7 +619,7 @@ update_current_desktop(XdeScreen *xscr, Atom prop)
 	Window root = RootWindow(dpy, xscr->index);
 	Atom actual = None;
 	int format = 0;
-	unsigned long nitems = 0, after = 0, i;
+	unsigned long nitems = 0, after = 0, i, j = 0, *x;
 	unsigned long *data = NULL;
 	Bool changed = False;
 	XdeMonitor *xmon;
@@ -510,14 +634,13 @@ update_current_desktop(XdeScreen *xscr, Atom prop)
 				xscr->current = data[0];
 				changed = True;
 			}
-			if (nitems >= xscr->nmon) {
-				for (i = 0, xmon = xscr->mons; i < xscr->nmon; i++, xmon++) {
-					if (xmon->current != (int) data[i]) {
-						xmon->current = data[i];
-						changed = True;
-					}
-
+			x = (xscr->mhaware = (nitems >= xscr->nmon)) ? &i : &j;
+			for (i = 0, xmon = xscr->mons; i < xscr->nmon; i++, xmon++) {
+				if (xmon->current != (int) data[*x]) {
+					xmon->current = data[*x];
+					changed = True;
 				}
+
 			}
 		}
 		if (data) {
@@ -534,12 +657,11 @@ update_current_desktop(XdeScreen *xscr, Atom prop)
 				xscr->current = data[0];
 				changed = True;
 			}
-			if (nitems >= xscr->nmon) {
-				for (i = 0, xmon = xscr->mons; i < xscr->nmon; i++, xmon++) {
-					if (xmon->current != (int) data[i]) {
-						xmon->current = data[i];
-						changed = True;
-					}
+			x = (xscr->mhaware = (nitems >= xscr->nmon)) ? &i : &j;
+			for (i = 0, xmon = xscr->mons; i < xscr->nmon; i++, xmon++) {
+				if (xmon->current != (int) data[*x]) {
+					xmon->current = data[*x];
+					changed = True;
 				}
 			}
 		}
@@ -549,8 +671,10 @@ update_current_desktop(XdeScreen *xscr, Atom prop)
 		}
 	}
 	if (changed) {
-		/* FIXME: if changed update something */
-	}
+		DPRINTF("Current desktop changed.\n");
+		refresh_current_desktop(xscr);
+	} else
+		DPRINTF("No change in current desktop.\n");
 }
 
 static void
@@ -660,6 +784,7 @@ refresh_screen(XdeScreen *xscr, GdkScreen *scrn)
 		xscr->height = height;
 	}
 	nmon = gdk_screen_get_n_monitors(scrn);
+	DPRINTF("Reallocating %d monitors\n", nmon);
 	xscr->mons = realloc(xscr->mons, nmon * sizeof(*xscr->mons));
 	if (nmon > xscr->nmon) {
 		DPRINTF("Screen %d number of monitors increased from %d to %d\n",
@@ -926,12 +1051,120 @@ find_image_file(char *name, int dirc, char *dirv[])
 static void
 set_workspaces(XdeScreen *xscr, gint count)
 {
+	Display *dpy = GDK_DISPLAY_XDISPLAY(xscr->disp);
+	Window root = RootWindow(dpy, xscr->index);
+	XEvent ev;
+
 	DPRINTF("Setting the workspace count to %d\n", count);
+	ev.xclient.type = ClientMessage;
+	ev.xclient.serial = 0;
+	ev.xclient.send_event = False;
+	ev.xclient.display = dpy;
+	ev.xclient.window = root;
+	ev.xclient.message_type = _XA_NET_NUMBER_OF_DESKTOPS;
+	ev.xclient.format = 32;
+	ev.xclient.data.l[0] = count;
+	ev.xclient.data.l[1] = 0;
+	ev.xclient.data.l[2] = 0;
+	ev.xclient.data.l[3] = 0;
+	ev.xclient.data.l[4] = 0;
+
+	XSendEvent(dpy, root, False,
+		SubstructureNotifyMask|SubstructureRedirectMask, &ev);
+	XFlush(dpy);
+}
+
+#define _NET_WM_ORIENTATION_HORZ	0
+#define _NET_WM_ORIENTATION_VERT	1
+
+#define _NET_WM_TOPLEFT		0
+#define _NET_WM_TOPRIGHT	1
+#define _NET_WM_BOTTOMRIGHT	2
+#define _NET_WM_BOTTOMLEFT	3
+
+static void
+set_workspace_layout(XdeScreen *xscr, gint *array, gsize num)
+{
+	GdkDisplay *disp = gdk_screen_get_display(xscr->scrn);
+	Display *dpy = GDK_DISPLAY_XDISPLAY(disp);
+	Window root = RootWindow(dpy, xscr->index);
+	long data[4] = { 0, };
+
+	if (!array)
+		num = 0;
+
+	if (options.debug) {
+		gsize i;
+
+		DPRINTF("Setting the workspace layout to: ");
+		for (i = 0; i < num; i++)
+			fprintf(stderr, ";%d", array[i]);
+		fprintf(stderr, ";\n");
+	}
+	switch (num) {
+	case 0:
+	default:
+		EPRINTF("wrong number of integers\n");
+		break;
+	case 1:
+		/* assume it is just rows */
+		data[0] = _NET_WM_ORIENTATION_HORZ;
+		data[1] = 0;
+		data[2] = array[0];
+		data[3] = _NET_WM_TOPLEFT;
+		break;
+	case 2:
+		/* assume it is columns and rows */
+		data[0] = _NET_WM_ORIENTATION_HORZ;
+		data[1] = array[0];
+		data[2] = array[1];
+		data[3] = _NET_WM_TOPLEFT;
+		break;
+	case 3:
+		/* assume it is orientation, columns and rows */
+		data[0] = array[0];
+		data[1] = array[1];
+		data[2] = array[2];
+		data[3] = _NET_WM_TOPLEFT;
+		break;
+	case 4:
+		/* assume it is fully specified */
+		data[0] = array[0];
+		data[1] = array[1];
+		data[2] = array[2];
+		data[3] = array[3];
+		break;
+	}
+
+	if (!xscr->laywin)
+		get_desktop_layout_selection(xscr);
+	XChangeProperty(dpy, root, _XA_NET_DESKTOP_LAYOUT, XA_CARDINAL, 32, PropModeReplace,
+			(unsigned char *)data, 4);
+	XFlush(dpy);
 }
 
 static void
 set_workspace_names(XdeScreen *xscr, gchar **names, gsize num)
 {
+	GdkDisplay *disp = gdk_screen_get_display(xscr->scrn);
+	Display *dpy = GDK_DISPLAY_XDISPLAY(disp);
+	Window root = RootWindow(dpy, xscr->index);
+	gchar **alloc = NULL;
+	XTextProperty xtp;
+
+	if (!names)
+		num = 0;
+
+	if (num == 1) {
+		gchar *p, *q, *str;
+
+		str = names[0];
+		for (q = str, num = 0; *q; num++, p = strchrnul(q, ','), q = *p ? p + 1 : p) ;
+		alloc = names = calloc(num, sizeof(*names));
+		for (q = str, num = 0; *q;
+		     names[num] = q, num++, p = strchrnul(q, ','),
+		     q = *p ? p + 1 : p, *p = '\0') ;
+	}
 	if (options.debug) {
 		gsize i;
 
@@ -940,20 +1173,63 @@ set_workspace_names(XdeScreen *xscr, gchar **names, gsize num)
 			fprintf(stderr, ";%s", names[i]);
 		fprintf(stderr, ";\n");
 	}
+	Xutf8TextListToTextProperty(dpy, names, num, XUTF8StringStyle, &xtp);
+	XSetTextProperty(dpy, root, &xtp, _XA_NET_DESKTOP_NAMES);
+	free(alloc);
 }
+
+static void refresh_layout(XdeScreen *xscr);
 
 static void
 set_workspace_images(XdeScreen *xscr, gchar **images, gsize num, gboolean center, gboolean scaled,
 		gboolean tiled, gboolean full)
 {
-	if (options.debug) {
-		gsize i;
+	char *file;
+	char *dirv[] = { "/images" };
+	int dirc = 1, n;
+	gsize i;
+	GdkPixbuf *pb;
+	XdeImage *im;
 
+	if (!images)
+		num = 0;
+	if (options.debug) {
 		DPRINTF("Setting the workspace images to: ");
 		for (i = 0; i < num; i++)
 			fprintf(stderr, ";%s", images[i]);
 		fprintf(stderr, ";\n");
 	}
+	DPRINTF("There are %d images\n", xscr->nimg);
+	for (n = 0; n < xscr->nimg; n++) {
+		DPRINTF("Attempting to unref image %d (sources is %p)\n", n, xscr->sources + n);
+		xde_image_unref(xscr->sources + n);
+	}
+	DPRINTF("Reallocating %d sources\n", (int) num);
+	xscr->sources = realloc(xscr->sources, num * sizeof(*xscr->sources));
+	memset(xscr->sources, 0, num * sizeof(*xscr->sources));
+	for (i = 0, n = 0; i < num; i++) {
+		if ((file = find_image_file(images[i], dirc, dirv))) {
+			DPRINTF("Found file for %s: %s\n", images[i], file);
+			if ((pb = gdk_pixbuf_new_from_file(file, NULL))) {
+				/* save resident memory, get it again when we need it */
+				g_object_unref(pb);
+				pb = NULL;
+				im = calloc(1, sizeof(*im));
+				im->refs = 1;
+				im->index = n;
+				im->file = file;
+				im->pixbuf = pb;
+				xscr->sources[n] = im;
+				n++;
+			} else {
+				DPRINTF("Could not read file %s\n", file);
+				free(file);
+			}
+		} else
+			DPRINTF("Could not find file for %s\n", images[i]);
+	}
+	xscr->nimg = n;
+	refresh_layout(xscr);
 }
 
 static void
@@ -974,7 +1250,7 @@ read_theme(XdeScreen *xscr)
 {
 	GKeyFile *entry = NULL;
 	char *file;
-	gint ival;
+	gint count, *layout;
 	gchar **list, **images, *image;
 	gsize len;
 	gboolean center, scaled, tiled, full;
@@ -1009,14 +1285,22 @@ read_theme(XdeScreen *xscr)
 	xscr->entry = entry;
 	DPRINTF("got theme file: %s (%s)\n", xscr->theme, file);
 
-	if (!(ival = g_key_file_get_integer(entry, xscr->wmname, "Workspaces", NULL)))
-		ival = g_key_file_get_integer(entry, "Theme", "Workskspaces", NULL);
-	if (1 <= ival && ival <= 64)
-		set_workspaces(xscr, ival);
+	if (!(count = g_key_file_get_integer(entry, xscr->wmname, "Workspaces", NULL)))
+		count = g_key_file_get_integer(entry, "Theme", "Workskspaces", NULL);
+	if (1 <= count && count <= 64)
+		set_workspaces(xscr, count);
+	else
+		count = xscr->desks;
+
+	if (!(layout = g_key_file_get_integer_list(entry, xscr->wmname, "WorkspaceLayout", &len, NULL)))
+		layout = g_key_file_get_integer_list(entry, "Theme", "WorkspaceLayout", &len, NULL);
+	set_workspace_layout(xscr, layout, len);
+	if (layout)
+		g_free(layout);
 
 	if (!(list =
 	      g_key_file_get_string_list(entry, xscr->wmname, "WorkspaceNames", &len, NULL)))
-		list = g_key_file_get_string_list(entry, "Theme", "WorkspaceName", &len, NULL);
+		list = g_key_file_get_string_list(entry, "Theme", "WorkspaceNames", &len, NULL);
 	set_workspace_names(xscr, list, len);
 	if (list)
 		g_strfreev(list);
@@ -1040,16 +1324,38 @@ read_theme(XdeScreen *xscr)
 	      g_key_file_get_string_list(entry, xscr->wmname, "WorkspaceImages", &len, NULL)))
 		images =
 		    g_key_file_get_string_list(entry, "Theme", "WorkspaceImages", &len, NULL);
+	if (!images) {
+		char buf[64] = { 0, };
 
+		images = calloc(64, sizeof(*images));
+		for (len = 0; len < 64; len++) {
+			snprintf(buf, sizeof(buf), "Workspace%dImage", (int)len);
+			if (!(images[len] = g_key_file_get_string(entry, xscr->wmname, buf, NULL)))
+				break;
+		}
+		if (len == 0) {
+			for (len = 0; len < 64; len++) {
+				snprintf(buf, sizeof(buf), "Workspace%dImage", (int)len);
+				if (!(images[len] = g_key_file_get_string(entry, "Theme", buf, NULL)))
+					break;
+			}
+		}
+		if (len == 0) {
+			free(images);
+			images = NULL;
+		}
+	}
 	set_workspace_images(xscr, images, len, center, scaled, tiled, full);
 	if (images)
 		g_strfreev(images);
 	if (!images || !len)
 		set_workspace_image(xscr, image, center, scaled, tiled, full);
-	if (!image)
-		set_workspace_color(xscr, color);
 	if (image)
 		g_free(image);
+	if (color) {
+		set_workspace_color(xscr, color);
+		g_free(color);
+	}
 }
 
 static void
@@ -1112,17 +1418,165 @@ update_theme(XdeScreen *xscr, Atom prop)
 		DPRINTF("New theme is %s\n", xscr->theme);
 		/* FIXME: do somthing more about it. */
 		read_theme(xscr);
+	} else
+		DPRINTF("No change in current theme %s\n", xscr->theme);
+}
+
+static void
+get_temporary_pixmaps(XdeScreen *xscr, Bool force)
+{
+	Display *dpy;
+	int s, i;
+
+	if (!force && xscr->pixmaps[0] && xscr->pixmaps[1])
+		return;
+	if (!(dpy = XOpenDisplay(NULL))) {
+		EPRINTF("cannot open display %s\n", getenv("DISPLAY"));
+		return;
 	}
+	XSetCloseDownMode(dpy, RetainTemporary);
+	s = xscr->index;
+	for (i = 0; i < 2; i++)
+		if (!xscr->pixmaps[i]) {
+			DPRINTF("Creating temporary pixmap %d with geom %dx%d\n",
+				i, xscr->width, xscr->height);
+			xscr->pixmaps[i] = XCreatePixmap(dpy, RootWindow(dpy, s),
+							 xscr->width,
+							 xscr->height, DefaultDepth(dpy, s));
+		}
+	XCloseDisplay(dpy);
+}
+
+static void
+refresh_current_desktop(XdeScreen *xscr)
+{
+	GdkDisplay *disp = gdk_screen_get_display(xscr->scrn);
+	GdkWindow *root = gdk_screen_get_root_window(xscr->scrn);
+	GdkColormap *cmap = gdk_drawable_get_colormap(GDK_DRAWABLE(root));
+	GdkPixmap *pixmap;
+	cairo_t *cr;
+	XdeMonitor *xmon;
+	XdeImage *im;
+	XdePixmap *pm;
+	int d, m;
+	Pixmap pmap;
+
+	/* render the current desktop on the screen */
+	get_temporary_pixmaps(xscr, True);
+	if ((xscr->pixmaps[0] != xscr->pixmap)) {
+		pmap = xscr->pixmaps[0];
+		DPRINTF("using temporary pixmap 0 (0x%08lx)\n", pmap);
+	} else {
+		pmap = xscr->pixmaps[1];
+		DPRINTF("using temporary pixmap 1 (0x%08lx)\n", pmap);
+	}
+	DPRINTF("creating temporary pixmap contents\n");
+	pixmap = gdk_pixmap_foreign_new_for_display(disp, pmap);
+	gdk_drawable_set_colormap(GDK_DRAWABLE(pixmap), cmap);
+	cr = gdk_cairo_create(GDK_DRAWABLE(pixmap));
+	for (m = 0, xmon = xscr->mons; m < xscr->nmon; m++, xmon++) {
+		DPRINTF("adding monitor %d to pixmap\n", m);
+		d = xmon->current;
+		DPRINTF("monitor %d current destop is %d\n", m, d);
+		if ((im = xscr->desktops[d]) && (im->pixbuf || im->file)) {
+			DPRINTF("monitor %d desktop %d has an image\n", m, d);
+			for (pm = im->pixmaps; pm; pm = pm->next) {
+				if (pm->geom.width == xmon->geom.width &&
+				    pm->geom.height == xmon->geom.height)
+					break;
+			}
+			if (!pm && !im->pixbuf) {
+				DPRINTF("creating pixbuf from file %s\n", im->file);
+				im->pixbuf = gdk_pixbuf_new_from_file(im->file, NULL);
+			}
+			if (!pm && im->pixbuf) {
+				GdkPixbuf *scaled;
+				cairo_t *cr;
+
+				DPRINTF("allocating a new pixmap for image\n");
+				pm = calloc(1, sizeof(*pm));
+				pm->refs = 1;
+				pm->index = im->index;
+				if ((pm->next = im->pixmaps))
+					pm->next->pprev = &pm->next;
+				pm->pprev = &im->pixmaps;
+				im->pixmaps = pm;
+				pm->geom = xmon->geom;
+				pm->pixmap =
+				    gdk_pixmap_new(GDK_DRAWABLE(root),
+						   xmon->geom.width, xmon->geom.height, -1);
+				gdk_drawable_set_colormap(GDK_DRAWABLE(pm->pixmap), cmap);
+				cr = gdk_cairo_create(GDK_DRAWABLE(pm->pixmap));
+				/* FIXME: tiling and other things.... */
+				scaled = gdk_pixbuf_scale_simple(im->pixbuf,
+								 pm->geom.width,
+								 pm->geom.height,
+								 GDK_INTERP_BILINEAR);
+				gdk_cairo_set_source_pixbuf(cr, scaled, 0, 0);
+				cairo_paint(cr);
+				cairo_set_source_rgb(cr, 0.0, 0.0, 0.0);
+				cairo_destroy(cr);
+				g_object_unref(scaled);
+				if (im->pixbuf && im->file) {
+					g_object_unref(im->pixbuf);
+					im->pixbuf = NULL;
+					/* save some resident memory */
+				}
+			} else
+				DPRINTF("using existing pixmap for image\n");
+			gdk_cairo_rectangle(cr, &xmon->geom);
+			if (pm) {
+				DPRINTF("painting pixmap into screen image\n");
+				gdk_cairo_set_source_pixmap(cr, pm->pixmap, 0, 0);
+				cairo_pattern_set_extend(cairo_get_source(cr),
+							 CAIRO_EXTEND_REPEAT);
+				cairo_paint(cr);
+			} else {
+				/* FIXME: use color for desktop */
+				DPRINTF("painting color into screen image\n");
+				cairo_set_source_rgb(cr, 0.0, 0.0, 0.0);
+				cairo_paint(cr);
+			}
+		} else {
+			DPRINTF("monitor %d desktop %d has no image\n", m, d);
+		}
+	}
+	cairo_destroy(cr);
+	DPRINTF("installing pixmap 0x%08lx as root pixmap\n", pmap);
+	XChangeProperty(GDK_DISPLAY_XDISPLAY(disp), GDK_WINDOW_XID(root), _XA_XROOTPMAP_ID,
+			XA_PIXMAP, 32, PropModeReplace, (unsigned char *) &pmap, 1);
+	gdk_window_set_back_pixmap(root, pixmap, FALSE);
+	gdk_window_clear(root);
+	if (xscr->pixmap && xscr->pixmap != xscr->pixmaps[0]
+	    && xscr->pixmap != xscr->pixmaps[1]) {
+		DPRINTF("killing old unused temporary pixmap 0x%08lx\n", xscr->pixmap);
+		XKillClient(GDK_DISPLAY_XDISPLAY(disp), xscr->pixmap);
+	}
+	xscr->pixmap = pmap;
 }
 
 static void
 refresh_layout(XdeScreen *xscr)
 {
-	int i;
+	int n, d;
 
-	xscr->images = realloc(xscr->images, xscr->desks * sizeof(*xscr->images));
-	for (i = 0; i < xscr->desks; i++)
-		xscr->images[i] = xscr->nimg ? (i % xscr->nimg) : -1;
+	/* redistribute images over desktops */
+	DPRINTF("There are %d desktops\n", xscr->ndsk);
+	for (d = 0; d < xscr->ndsk; d++) {
+		DPRINTF("Attempting to unref image %d (desktops is %p)\n", d,
+			xscr->desktops + d);
+		xde_image_unref(xscr->desktops + d);
+	}
+	d = xscr->ndsk = xscr->desks;
+	DPRINTF("Reallocating %d desktops\n", (int) d);
+	xscr->desktops = realloc(xscr->desktops, d * sizeof(*xscr->desktops));
+	memset(xscr->desktops, 0, d * sizeof(*xscr->desktops));
+	if (xscr->nimg)
+		for (n = 0, d = 0; d < xscr->ndsk; d++, n = (n + 1) % xscr->nimg) {
+			DPRINTF("desktop %d assigned source image %d\n", d, n);
+			xde_image_ref((xscr->desktops[d] = xscr->sources[n]));
+		}
+	refresh_current_desktop(xscr);
 }
 
 static void
@@ -1172,8 +1626,7 @@ update_layout(XdeScreen *xscr, Atom prop)
 			XFree(data);
 			data = NULL;
 		}
-	} else
-		EPRINTF("wrong property passed\n");
+	}
 
 	if (xscr->desks <= 0)
 		xscr->desks = 1;
@@ -1323,6 +1776,10 @@ event_handler_SelectionClear(Display *dpy, XEvent *xev, XdeScreen *xscr)
 		EPRINTF("selection cleared, exiting\n");
 		exit(EXIT_SUCCESS);
 	}
+	if (xscr && xev->xselectionclear.window == xscr->laywin){
+		XDestroyWindow(dpy, xscr->laywin);
+		xscr->laywin = None;
+	}
 	return GDK_FILTER_CONTINUE;
 }
 
@@ -1349,7 +1806,7 @@ static GdkFilterReturn
 selwin_handler(GdkXEvent *xevent, GdkEvent *event, gpointer data)
 {
 	XEvent *xev = (typeof(xev)) xevent;
-	XdeScreen *xscr = (typeof(xscr)) data;
+	XdeScreen *xscr = data;
 	Display *dpy = GDK_DISPLAY_XDISPLAY(xscr->disp);
 
 	DPRINT();
@@ -1360,6 +1817,26 @@ selwin_handler(GdkXEvent *xevent, GdkEvent *event, gpointer data)
 	switch (xev->type) {
 	case SelectionClear:
 		return event_handler_SelectionClear(dpy, xev, xscr);
+	}
+	EPRINTF("wrong message type for handler %d\n", xev->type);
+	return GDK_FILTER_CONTINUE;
+}
+
+static GdkFilterReturn
+laywin_handler(GdkXEvent *xevent, GdkEvent *event, gpointer data)
+{
+	XEvent *xev = (typeof(xev)) xevent;
+	XdeScreen *xscr = data;
+	Display *dpy = GDK_DISPLAY_XDISPLAY(xscr->disp);
+
+	DPRINT();
+	if (!xscr) {
+		EPRINTF("xscr is NULL\n");
+		exit(EXIT_FAILURE);
+	}
+	switch (xev->type) {
+	case SelectionClear:
+		return event_handler_SelectionClear(dpy ,xev, xscr);
 	}
 	EPRINTF("wrong message type for handler %d\n", xev->type);
 	return GDK_FILTER_CONTINUE;
@@ -1938,6 +2415,9 @@ startup(int argc, char *argv[])
 
 	atom = gdk_atom_intern_static_string("_NET_DESKTOP_LAYOUT");
 	_XA_NET_DESKTOP_LAYOUT = gdk_x11_atom_to_xatom_for_display(disp, atom);
+
+	atom = gdk_atom_intern_static_string("_NET_DESKTOP_NAMES");
+	_XA_NET_DESKTOP_NAMES = gdk_x11_atom_to_xatom_for_display(disp, atom);
 
 	atom = gdk_atom_intern_static_string("_NET_NUMBER_OF_DESKTOPS");
 	_XA_NET_NUMBER_OF_DESKTOPS = gdk_x11_atom_to_xatom_for_display(disp, atom);
