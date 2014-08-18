@@ -181,7 +181,7 @@ Options options = {
 	.display = NULL,
 	.timeout = 1000,
 	.border = 5,
-	.proxy = True,
+	.proxy = False,
 	.command = CommandDefault,
 	.clientId = NULL,
 	.saveFile = NULL,
@@ -2582,8 +2582,8 @@ Options:\n\
         specify timeout when not modifier [default: %3$lu]\n\
     -b, --border PIXELS\n\
         border surrounding feedback popup [default: %4$u]\n\
-    -n, --noproxy\n\
-        do not respond to button proxy [default: %5$s]\n\
+    -p, --proxy\n\
+        respond to button proxy [default: %5$s]\n\
     -D, --debug [LEVEL]\n\
         increment or set debug LEVEL [default: %6$d]\n\
     -v, --verbose [LEVEL]\n\
@@ -2641,7 +2641,7 @@ main(int argc, char *argv[])
 			{"display",	required_argument,	NULL,	'd'},
 			{"timeout",	required_argument,	NULL,	't'},
 			{"border",	required_argument,	NULL,	'b'},
-			{"noproxy",	no_argument,		NULL,	'n'},
+			{"proxy",	no_argument,		NULL,	'p'},
 
 			{"quit",	no_argument,		NULL,	'q'},
 			{"replace",	no_argument,		NULL,	'r'},
@@ -2659,10 +2659,10 @@ main(int argc, char *argv[])
 		};
 		/* *INDENT-ON* */
 
-		c = getopt_long_only(argc, argv, "d:s:pb:T:w:x:W:D::v::hVCH?",
+		c = getopt_long_only(argc, argv, "d:t:b:pqrD::v::hVCH?",
 				     long_options, &option_index);
 #else				/* _GNU_SOURCE */
-		c = getopt(argc, argv, "d:s:pb:T:w:x:W:D:vhVC?");
+		c = getopt(argc, argv, "d:t:b:pqrD:vhVC?");
 #endif				/* _GNU_SOURCE */
 		if (c == -1) {
 			if (options.debug)
@@ -2688,8 +2688,8 @@ main(int argc, char *argv[])
 			if (options.border > 20)
 				goto bad_option;
 			break;
-		case 'n':	/* -n, --noproxy */
-			options.proxy = False;
+		case 'p':	/* -p, --proxy */
+			options.proxy = True;
 			break;
 
 		case 'q':	/* -q, --quit */
