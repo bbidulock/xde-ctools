@@ -1519,6 +1519,8 @@ get_temporary_pixmap(XdeScreen *xscr)
 	s = xscr->index;
 	pmap = XCreatePixmap(dpy, RootWindow(dpy, s),
 			     xscr->width, xscr->height, DefaultDepth(dpy, s));
+	XFlush(dpy);
+	XSync(dpy, True);
 	XCloseDisplay(dpy);
 	return (pmap);
 }
