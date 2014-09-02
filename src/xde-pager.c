@@ -2626,6 +2626,8 @@ main(int argc, char *argv[])
 {
 	Command command = CommandDefault;
 
+	setlocale(LC_ALL, "");
+
 	set_defaults();
 
 	saveArgc = argc;

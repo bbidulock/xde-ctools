@@ -1472,6 +1472,8 @@ runit(int argc, char *argv[])
 int
 main(int argc, char *argv[])
 {
+	setlocale(LC_ALL, "");
+
 	while (1) {
 		int c, val;
 
