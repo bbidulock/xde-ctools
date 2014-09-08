@@ -236,26 +236,26 @@ Command options:\n\
     -C, --copying\n\
         print copying permission and exit\n\
 General options:\n\
-    -d, --display DISPLAY		[default: %2$s]\n\
+    -d, --display DISPLAY			[default: %2$s]\n\
         specify the display to use\n\
-    -s, --screen SCREEN			[default: %3$d]\n\
+    -s, --screen SCREEN				[default: %3$d]\n\
         only bind to screen number SCREEN\n\
-    -n, --nowait			[default: %4$s]\n\
+    -n, --nowait				[default: %4$s]\n\
         do not wait for window manager to appear\n\
-    -W, --delay DELAY			[default: %5$lu]\n\
+    -W, --delay DELAY				[default: %5$lu]\n\
         wait DELAY milliseconds after window manager appears\n\
-    -P, --profile PROFILE		[default: %6$s]\n\
+    -P, --profile PROFILE			[default: %6$s]\n\
         specify the window manager profile to use\n\
-    -f, --file FILE			[default: %7$s]\n\
+    -f, --file FILE				[default: %7$s]\n\
         use key bindings specified in resource file FILE\n\
-    -g, --gconf				[default: %8$s]\n\
+    -g, --gconf					[default: %8$s]\n\
         use gconf database instead of resource file\n\
-    -w, --write				[default: %9$s]\n\
+    -w, --write					[default: %9$s]\n\
         write operational key bindings to gconf\n\
-    -v, --verbose [LEVEL]		[default: %10$d]\n\
+    -v, --verbose [LEVEL]			[default: %10$d]\n\
         increment or set output verbosity LEVEL\n\
         this option may be repeated.\n\
-    -D, --debug [LEVEL]			[default: %11$d]\n\
+    -D, --debug [LEVEL]				[default: %11$d]\n\
         increment or set debug LEVEL\n\
 "	,argv[0]
 	,options.display
@@ -330,9 +330,9 @@ main(int argc, char *argv[])
 		};
 		/* *INDENT-ON* */
 
-		c = getopt_long_only(argc, argv, "D::v::hVCH?", long_options, &option_index);
+		c = getopt_long_only(argc, argv, "rqed:s:nW:P:F:D::v::hVCH?", long_options, &option_index);
 #else				/* _GNU_SOURCE */
-		c = getopt(argc, argv, "DvhVC?");
+		c = getopt(argc, argv, "rqed:s:nW:P:F:DvhVC?");
 #endif				/* _GNU_SOURCE */
 		if (c == -1) {
 			if (options.debug)

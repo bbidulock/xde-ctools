@@ -79,7 +79,7 @@ variable.
 
 Only bind to the root window of the specified screen.
 
-=item B<--nowait>, B<-W>
+=item B<--nowait>, B<-n>
 
 Do not wait for a window manager to appear before performing key
 bindings.  The default behaviour is to wait for a window manager to
@@ -212,6 +212,128 @@ The configuration file format is a standard X Resource Management file
 with the resource names listed in the table that follows.  (Note that
 the resources names are the same as the field names of the
 F<org.gnome.desktop.wm.keybinds> resources.)
+
+=head2 SYNTAX
+
+The general syntax of key commands, as specified directly in the
+B<xde-keys> resource file, is as follows:
+
+=over
+
+=item I<E<lt>resourceE<gt>> = C<XDE-Keys*>I<E<lt>commandE<gt>>C<:> I<E<lt>listE<gt>>
+
+Resources are specified using standard X resource file notation and
+syntax.
+
+=item I<E<lt>listE<gt>> = I<E<lt>bindingE<gt>> [C<,> I<...>]
+
+A list of one or more key values, separated by commas.  The list
+represents the list of key bindings associated with the I<E<lt>commandE<gt>>.
+Each I<E<lt>bindingE<gt>> in the list represents a single key binding to
+the I<E<lt>commandE<gt>> with arguments.
+
+=item I<E<lt>bindingE<gt>> = I<E<lt>chainE<gt>> [C<=> I<E<lt>argsE<gt>>]
+
+A key chain followed by an optional equal-sign and key arguments list.
+The I<E<lt>chainE<gt>> specifies the sequence of key presses necessary
+to invoke the I<E<lt>commandE<gt>>, and the I<E<lt>argsE<gt>> specify
+the arguments to command that are associated with this key binding,
+describe for each I<E<lt>commandE<gt>>, below, under L<COMMANDS>.
+
+=item I<E<lt>argsE<gt>> = I<E<lt>argE<gt>> [C< > I<...>]
+
+A list of key arguments separated by spaces.  The number and role of
+arguments is specific to the
+I<E<lt>commandE<gt>>.
+
+=item I<E<lt>argE<gt>>
+
+A key argument.  Key arguments cannot contain comma, colon nor space
+characters.
+
+=item I<E<lt>chainE<gt>> = I<E<lt>specE<gt>>[C<:> I<...>]
+
+A list of one ore more key specifications, separated by colons.  Each
+I<E<lt>specE<gt>> specifies a keypress combination that must be
+performed in sequence to cause the
+I<E<lt>commandE<gt>>
+action to be performed.
+
+=over
+
+=item Example:
+
+I<W + w : h>
+
+=back
+
+=item I<E<lt>specE<gt>> = [I<E<lt>modifiersE<gt>> C<+>] I<E<lt>symbolE<gt>>
+
+An optional set of modifiers and a plus-sign, followed by a key symbol.
+The 
+I<E<lt>symbolE<gt>>
+is the name of the key symbol;
+I<E<lt>modifiersE<gt>>
+is a string of characters specifying key modifiers.
+
+=item I<E<lt>symbolE<gt>>
+
+An X11 key symbol.
+
+=item I<E<lt>modifiersE<gt>>
+
+A string containing one or more of the following characters:
+
+=over
+
+=item C<A>
+
+The Alt key.
+
+=item C<C>
+
+The Control key.
+
+=item C<S>
+
+The Shift key.
+
+=item C<W>
+
+The Windows key.
+
+=item C<M>
+
+The Mod key.
+This key is definable using the C<modkey> resource and defaults to the
+Alt key.
+
+=item C<N>
+
+The not-Mod key. When C<modkey> is defined to C<A>, this is the same as
+C<W>; otherwise, the other way around.
+
+=back
+
+=back
+
+Note that whitespace is optional (except in the arguments list where
+aguments are separated by spaces).
+
+The following is an example of vim-like window key movement key chains:
+
+    XDE-Keys*move-to-side-w:  W+w:H, CS+w:h
+    XDE-Keys*move-to-side-n:  W+w:J, CS+w:j
+    XDE-Keys*move-to-side-s:  W+w:K, CS+w:k
+    XDE-Keys*move-to-side-e:  W+w:L, CS+w:l
+
+=head2 COMMANDS
+
+The commands are described below.  Each heading provides the format of
+the command resource (without the C<XDE-Keys*> portion) and the possible
+arguments to each key binding.
+
+The possible I<E<lt>commandE<gt>> values and arguments are as follows:
 
 =over
 
@@ -401,13 +523,48 @@ Not listed under F<org.gnome>
 
 =item mouse-lower
 
-=item mouse=move
+=item mouse-move
 
 =item mouse-resize
 
 =item mouse-tab
 
 =item mouse-viewport
+
+=back
+
+=head1 HISTORY
+
+I wrote B<xde-keys> for several reasons:
+
+=over
+
+=item 1.
+
+Some window managers are incapable of providing a useful set of key
+bindings (e.g. L<blackbox(1)>).
+
+=item 2.
+
+Some window managers are incapable of attaching more than one key
+sequence to the same action.
+
+=item 3.
+
+Many window managers are incapable of providing for key chaining.
+
+=item 4.
+
+Some tiling window managers only have a very limited compiled-in set of
+key bindings.
+
+=item 5.
+
+L<bbkeys(1)>, although a good basic tool for use with the L<blackbox(1)>
+window manager, has limited capabilities and extensibility.  All other
+external keybinders that were assocaiated with a window manager (such as
+the one for early versions of L<openbox(1)>) have stagnated and
+deteriorated.
 
 =back
 
