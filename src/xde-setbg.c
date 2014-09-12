@@ -1186,9 +1186,10 @@ set_workspace_layout(XdeScreen *xscr, gint *array, gsize num)
 		fprintf(stderr, ";\n");
 	}
 	switch (num) {
-	case 0:
 	default:
 		EPRINTF("wrong number of integers\n");
+		break;
+	case 0:
 		break;
 	case 1:
 		/* assume it is just rows */
@@ -1222,8 +1223,9 @@ set_workspace_layout(XdeScreen *xscr, gint *array, gsize num)
 
 	if (!xscr->laywin)
 		get_desktop_layout_selection(xscr);
-	XChangeProperty(dpy, root, _XA_NET_DESKTOP_LAYOUT, XA_CARDINAL, 32, PropModeReplace,
-			(unsigned char *)data, 4);
+	if (num)
+		XChangeProperty(dpy, root, _XA_NET_DESKTOP_LAYOUT, XA_CARDINAL, 32, PropModeReplace,
+				(unsigned char *) data, 4);
 	XFlush(dpy);
 }
 
@@ -1376,14 +1378,16 @@ read_theme(XdeScreen *xscr)
 
 	if (!(layout = g_key_file_get_integer_list(entry, xscr->wmname, "WorkspaceLayout", &len, NULL)))
 		layout = g_key_file_get_integer_list(entry, "Theme", "WorkspaceLayout", &len, NULL);
-	set_workspace_layout(xscr, layout, len);
+	if (layout && len >= 3)
+		set_workspace_layout(xscr, layout, len);
 	if (layout)
 		g_free(layout);
 
 	if (!(list =
 	      g_key_file_get_string_list(entry, xscr->wmname, "WorkspaceNames", &len, NULL)))
 		list = g_key_file_get_string_list(entry, "Theme", "WorkspaceNames", &len, NULL);
-	set_workspace_names(xscr, list, len);
+	if (len)
+		set_workspace_names(xscr, list, len);
 	if (list)
 		g_strfreev(list);
 
