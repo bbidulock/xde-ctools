@@ -34,8 +34,18 @@ typedef enum {
 	ElementMerge,
 } ElementType;
 
+typedef enum {
+	MenuContextNone,
+	MenuContextMenu,
+	MenuContextRule,
+	MenuContextMove,
+	MenuContextLayout,
+} MenuContextType;
+
 typedef struct {
 	const gchar *name;
+	MenuContext context, interior;
+	gboolean nest, cdata;
 	void (*beg) (GMarkupParseContext *, const gchar *, const gchar **, const gchar **, gpointer,
 		     GError **);
 	void (*dat) (GMarkupParseContext *, const gchar *, gsize, gpointer, GError **);
@@ -44,30 +54,47 @@ typedef struct {
 
 extern Elements elements[];
 
+typedef enum {
+	MenuRuleInclude,
+	MenuRuleExclude,
+	MenuRuleFilename,
+	MenuRuleCategory,
+	MenuRuleAll,
+	MenuRuleAnd,
+	MenuRuleOr,
+	MenuRuleNot,
+} MenuRuleType;
+
+typedef struct _MenuRule MenuRule;
+
+typedef struct {
+	MenuRuleType type;
+	char *text;
+	GQueue *rules;
+} MenuRule;
+
 typedef struct _MenuContext MenuContext;
 
 struct _MenuContext {
 	MenuContext *parent;		/* parent menu for this one (NULL for root) */
-	struct {
-		MenuContext *next;	/* the next menu in the submenu list */
-		MenuContext *list;	/* the list of submenus of this menu */
-		MenuContext **tail;	/* pointer to the pointer at the end of the list */
-	} submenu;
-	Element *element;		/* current element being processed */
+	char *name;			/* name of the menu */
+	gboolean onlyunallocated;	/* whether unallocated entries only */
+	gboolean deleted;		/* whether the menu is deleted */
+	GQueue *submenu;		/* submenus for this menu */
+	GQueue *appdirs;		/* applications directories for menu and subdirs */
+	GQueue *dirdirs;		/* directory directories for menu and subdirs */
+	GQueue *directory;		/* directory entries in order of appearance */
+	GQueue *rules;			/* rules */
+	GQueue *stack;			/* rule stack */
+	GQueue *merge;			/* menu trees to merge */
 };
 
-typedef struct _MenuTree MenuTree;
-
-struct _MenuTree {
+typedef struct {
 	gchar *filename;		/* the file name of the parsed menu file */
-	MenuContext *root;		/* the root of the DOM */
-	MenuContext *current;		/* the currently parsed <Menu></Menu> tag */
-	struct {
-		MenuTree *next;		/* the next tree in the merge list */
-		MenuTree *list;		/* the list of trees to merge into this one */
-		MenuTree **tail;	/* pointer to the pointer at the end of the list */
-	} merge;
-};
+	GQueue *menus;			/* the currently parsed <Menu></Menu> tag */
+	GQueue *element;		/* element stack for this tree */
+} MenuTree;
+
 
 static void beg_element(GMarkupParseContext *, const gchar *,
 			const gchar **, const gchar **, gpointer, GError **);
