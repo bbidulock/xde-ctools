@@ -40,6 +40,77 @@ Element elements[] = {
 	/* *INDENT-ON* */
 };
 
+static char *
+xdg_conf_dirs(void)
+{
+	char *conf, *home, *dirs;
+
+	conf = strdup(getenv("XDG_CONFIG_DIRS") ? : "/etc/xdg");
+	if (getenv("XDG_CONFIG_HOME"))
+		home = strdup(getenv("XDG_CONFIG_HOME"));
+	else {
+		const char *user = getenv("HOME") ? : ".";
+
+		len = strlen(user) + strlen("/.config");
+		home = calloc(len + 1, sizeof(*home));
+		strncpy(home, user, len);
+		strncat(home, "/.config", len);
+	}
+	len = strlen(home) + 1 + strlen(conf);
+	dirs = calloc(len + 1, sizeof(*dirs));
+	strncpy(dirs, home, len);
+	strncat(dirs, ":", len);
+	strncat(dirs, conf, len);
+	free(home);
+	free(conf);
+	return (dirs);
+}
+
+static char *
+xdg_data_dirs(void)
+{
+	char *data, *home, *dirs;
+
+	data = strdup(getenv("XDG_DATA_DIRS") ? : "/usr/local/share:/usr/share");
+	if (getenv("XDG_DATA_HOME"))
+		home = strdup(getenv("XDG_DATA_HOME"));
+	else {
+		const char *user = getenv("HOME") ? : ".";
+
+		len = strlen(user) + strlen("/.local/share");
+		home = calloc(len + 1, sizeof(*home));
+		strncpy(home, user, len);
+		strncat(home, "/.local/share", len);
+	}
+	len = strlen(home) + 1 + strlen(data);
+	dirs = calloc(len + 1, sizeof(*dirs));
+	strncpy(dirs, home, len);
+	strncat(dirs, ":", len);
+	strncat(dirs, data, len);
+	free(home);
+	free(data);
+	return (dirs);
+}
+
+static char *
+make_absolute(MenuTree * tree, const gchar *text, gsize text_len)
+{
+	char *path;
+
+	if (text[0] == '/') {
+		path = calloc(len + 1, sizeof(*path));
+		strncpy(path, text, text_len);
+	} else {
+		int len = text_len + 1 + strlen(tree->path);
+
+		path = calloc(len + 1, sizeof(*path));
+		strncpy(path, tree->path, len);
+		strncat(path, "/", len);
+		strncat(path, text, len);
+	}
+	return (path);
+}
+
 static void
 beg_Menu(GMarkupParseContext * context, const gchar *element_name,
 	 const gchar **attribute_names, const gchar **attribute_values,
@@ -56,6 +127,8 @@ beg_Menu(GMarkupParseContext * context, const gchar *element_name,
 	menu->rules = g_queue_new();
 	menu->stack = g_queue_new();
 	menu->merge = g_queue_new();
+	menu->moves = g_queue_new();
+	menu->layout = g_queue_new();
 	menu->parent = parent = g_queue_peek_tail(tree->menus);
 	g_queue_push_tail(tree->menus, menu);
 }
@@ -89,16 +162,11 @@ static void
 dat_AppDir(GMarkupParseContext * context, const gchar *text, gsize text_len,
 	   gpointer user_data, GError ** error)
 {
-	MenuTree *tree;
-	MenuContext *menu;
-	char *cdata;
+	MenuTree *tree = user_data;
+	MenuContext *menu = g_queue_peek_tail(tree->menus);
+	char *path = make_absolute(tree, text, text_len);
 
-	/* basically append the directory to the application directory list for the menu */
-	tree = user_data;
-	menu = g_queue_peek_tail(tree->menus);
-	cdata = calloc(text_len + 1, sizeof(*cdata));
-	strncpy(cdata, text, text_len);
-	g_queue_push_tail(menu->appdirs, cdata);
+	g_queue_push_tail(menu->appdirs, path);
 }
 
 static void
@@ -127,42 +195,18 @@ static void
 end_DefaultAppDirs(GMarkupParseContext * context, const gchar *element_name,
 		   gpointer user_data, GError ** error)
 {
-	MenuTree *tree;
-	MenuContext *menu;
-	char *data, *home, *dirs, *p;
-	int len;
+	MenuTree *tree = user_data;
+	MenuContext *menu = g_queue_peek_tail(tree->menus);
+	char *dirs = xdg_data_dirs();
 
 	/* basically append the reverse of $XDG_DATA_DIRS/applications to the application 
 	   directory list for the menu */
 
-	data = strdup(getenv("XDG_DATA_DIRS") ? : "/usr/local/share:/usr/share");
-	if (getenv("XDG_DATA_HOME"))
-		home = strdup(getenv("XDG_DATA_HOME"));
-	else {
-		const char *user = getenv("HOME") ? : ".";
-
-		len = strlen(user) + strlen("/.local/share");
-		home = calloc(len + 1, sizeof(*home));
-		strncpy(home, user, len);
-		strncat(home, "/.local/share", len);
-	}
-	len = strlen(data) + 1 + strlen(home);
-	dirs = calloc(len + 1, sizeof(*dirs));
-	strncpy(dirs, home, len);
-	strncat(dirs, ":", len);
-	strncat(dirs, data, len);
-	free(home);
-	free(data);
-
-	tree = user_data;
-	menu = g_queue_peek_tail(tree->menus);
-
 	for (;;) {
-		char *dir;
+		char *p = (p = strrchr(dirs, ':')) ? p + 1 : dirs;
+		int len = strlen(p) + strlen("/applications");
+		char *dir = calloc(len + 1, sizeof(*dir));
 
-		p = (p = strchr(dirs, ':')) ? p + 1 : dirs;
-		len = strlen(p) + strlen("/applications");
-		dir = calloc(len + 1, sizeof(*dir));
 		strncpy(dir, p, len);
 		strncat(dir, "/applications", len);
 		g_queue_push_tail(menu->appdirs, dir);
@@ -185,16 +229,11 @@ static void
 dat_DirectoryDir(GMarkupParseContext * context, const gchar *text, gsize text_len,
 		 gpointer user_data, GError ** error)
 {
-	MenuTree *tree;
-	MenuContext *menu;
-	char *cdata;
+	MenuTree *tree = user_data;
+	MenuContext *menu = g_queue_peak_tail(tree->menus);
+	char *path = make_absolute(tree, text, text_len);
 
-	/* basically append the directory to the directory directory list for the menu */
-	tree = user_data;
-	menu = g_queue_peek_tail(tree->menus);
-	cdata = calloc(text_len + 1, sizeof(*cdata));
-	strncpy(cdata, text, text_len);
-	g_queue_push_tail(menu->dirdirs, cdata);
+	g_queue_push_tail(menu->dirdirs, path);
 }
 
 static void
@@ -223,42 +262,18 @@ static void
 end_DefaultDirectoryDirs(GMarkupParseContext * context, const gchar *element_name,
 			 gpointer user_data, GError ** error)
 {
-	MenuTree *tree;
-	MenuContext *menu;
-	char *conf, *home, *dirs, *p;
-	int len;
+	MenuTree *tree = user_data;
+	MenuContext *menu = g_queue_peek_tail(tree->menus);
+	char *dirs = xdg_conf_dirs();
 
-	/* basically append the reverse of $XDG_DATA_DIRS/desktop-directories to the directory
-	 * directories list for the menu */
-
-	conf = strdup(getenv("XDG_CONFIG_DIRS") ? : "/etc/xdg");
-	if (getenv("XDG_CONFIG_HOME"))
-		home = strdup(getenv("XDG_CONFIG_HOME"));
-	else {
-		const char *user = getenv("HOME") ? : ".";
-
-		len = strlen(user) + strlen("/.config");
-		home = calloc(len + 1, sizeof(*home));
-		strncpy(home, user, len);
-		strncat(home, "/.config", len);
-	}
-	len = strlen(conf) + 1 + strlen(home);
-	dirs = calloc(len + 1, sizeof(*dirs));
-	strncpy(dirs, home, len);
-	strncat(dirs, ":", len);
-	strncat(dirs, conf, len);
-	free(home);
-	free(conf);
-
-	tree = user_data;
-	menu = g_queue_peek_tail(tree->menus);
+	/* basically append the reverse of $XDG_CONFIG_DIRS/desktop-directories to the
+	   directory directories list for the menu */
 
 	for (;;) {
-		char *dir;
+		char *p = (p = strrchr(dirs, ':')) ? p + 1 : dirs;
+		int len = strlen(p) + strlen("/desktop-directories");
+		char *dir = calloc(len + 1, sizeof(*dir));
 
-		p = (p = strchr(dirs, ':')) ? p + 1 : dirs;
-		len = strlen(p) + strlen("/desktop-directories");
-		dir = calloc(len + 1, sizeof(*dir));
 		strncpy(dir, p, len);
 		strncat(dir, "/desktop-directories", len);
 		g_queue_push_tail(menu->dirdirs, dir);
@@ -450,9 +465,8 @@ beg_Include(GMarkupParseContext * context, const gchar *element_name,
 	MenuRule *rule;
 
 	if (!g_queue_is_empty(menu->stack)) {
-		*error = g_error_new_literal(
-				G_MARKUP_ERROR, G_MARKUP_ERROR_INVALID_CONTENT,
-				"Include cannot be nested in Include or Exclude.");
+		*error = g_error_new_literal(G_MARKUP_ERROR, G_MARKUP_ERROR_INVALID_CONTENT,
+					     "Include cannot be nested in Include or Exclude.");
 		return;
 	}
 	rule = calloc(1, sizeof(*rule));
@@ -489,9 +503,8 @@ beg_Exclude(GMarkupParseContext * context, const gchar *element_name,
 	MenuRule *rule;
 
 	if (!g_queue_is_empty(menu->stack)) {
-		*error = g_error_new_literal(
-				G_MARKUP_ERROR, G_MARKUP_ERROR_INVALID_CONTENT,
-				"Exclude cannot be nested in Include or Exclude.");
+		*error = g_error_new_literal(G_MARKUP_ERROR, G_MARKUP_ERROR_INVALID_CONTENT,
+					     "Exclude cannot be nested in Include or Exclude.");
 		return;
 	}
 	rule = calloc(1, sizeof(*rule));
@@ -529,9 +542,8 @@ beg_Filename(GMarkupParseContext * context, const gchar *element_name,
 	MenuRule *rule;
 
 	if (!stack) {
-		*error = g_error_new_literal(
-				G_MARKUP_ERROR, G_MARKUP_ERROR_INVALID_CONTENT,
-				"<Filename> must be nested in a rule");
+		*error = g_error_new_literal(G_MARKUP_ERROR, G_MARKUP_ERROR_INVALID_CONTENT,
+					     "<Filename> must be nested in a rule");
 		return;
 	}
 	rule = calloc(1, sizeof(*rule));
@@ -560,7 +572,7 @@ end_Filename(GMarkupParseContext * context, const gchar *element_name,
 {
 	MenuTree *tree = user_data;
 	MenuContext *menu = g_queue_peek_tail(tree->menus);
-	
+
 	g_queue_pop_tail(menu->stack);
 }
 
@@ -575,9 +587,8 @@ beg_Category(GMarkupParseContext * context, const gchar *element_name,
 	MenuRule *rule;
 
 	if (!stack) {
-		*error = g_error_new_literal(
-				G_MARKUP_ERROR, G_MARKUP_ERROR_INVALID_CONTENT,
-				"<Category> must be nested in a rule");
+		*error = g_error_new_literal(G_MARKUP_ERROR, G_MARKUP_ERROR_INVALID_CONTENT,
+					     "<Category> must be nested in a rule");
 		return;
 	}
 	rule = calloc(1, sizeof(*rule));
@@ -606,7 +617,7 @@ end_Category(GMarkupParseContext * context, const gchar *element_name,
 {
 	MenuTree *tree = user_data;
 	MenuContext *menu = g_queue_peek_tail(tree->menus);
-	
+
 	g_queue_pop_tail(menu->stack);
 }
 
@@ -621,9 +632,8 @@ beg_All(GMarkupParseContext * context, const gchar *element_name,
 	MenuRule *rule;
 
 	if (!stack) {
-		*error = g_error_new_literal(
-				G_MARKUP_ERROR, G_MARKUP_ERROR_INVALID_CONTENT,
-				"<All> must be nested in a rule");
+		*error = g_error_new_literal(G_MARKUP_ERROR, G_MARKUP_ERROR_INVALID_CONTENT,
+					     "<All> must be nested in a rule");
 		return;
 	}
 	rule = calloc(1, sizeof(*rule));
@@ -645,7 +655,7 @@ end_All(GMarkupParseContext * context, const gchar *element_name,
 {
 	MenuTree *tree = user_data;
 	MenuContext *menu = g_queue_peek_tail(tree->menus);
-	
+
 	g_queue_pop_tail(menu->stack);
 }
 
@@ -660,9 +670,8 @@ beg_And(GMarkupParseContext * context, const gchar *element_name,
 	MenuRule *rule;
 
 	if (!stack) {
-		*error = g_error_new_literal(
-				G_MARKUP_ERROR, G_MARKUP_ERROR_INVALID_CONTENT,
-				"<And> must be nested in a rule");
+		*error = g_error_new_literal(G_MARKUP_ERROR, G_MARKUP_ERROR_INVALID_CONTENT,
+					     "<And> must be nested in a rule");
 		return;
 	}
 	rule = calloc(1, sizeof(*rule));
@@ -685,7 +694,7 @@ end_And(GMarkupParseContext * context, const gchar *element_name,
 {
 	MenuTree *tree = user_data;
 	MenuContext *menu = g_queue_peek_tail(tree->menus);
-	
+
 	g_queue_pop_tail(menu->stack);
 }
 
@@ -700,9 +709,8 @@ beg_Or(GMarkupParseContext * context, const gchar *element_name,
 	MenuRule *rule;
 
 	if (!stack) {
-		*error = g_error_new_literal(
-				G_MARKUP_ERROR, G_MARKUP_ERROR_INVALID_CONTENT,
-				"<Or> must be nested in a rule");
+		*error = g_error_new_literal(G_MARKUP_ERROR, G_MARKUP_ERROR_INVALID_CONTENT,
+					     "<Or> must be nested in a rule");
 		return;
 	}
 	rule = calloc(1, sizeof(*rule));
@@ -725,7 +733,7 @@ end_Or(GMarkupParseContext * context, const gchar *element_name,
 {
 	MenuTree *tree = user_data;
 	MenuContext *menu = g_queue_peek_tail(tree->menus);
-	
+
 	g_queue_pop_tail(menu->stack);
 }
 
@@ -740,9 +748,8 @@ beg_Not(GMarkupParseContext * context, const gchar *element_name,
 	MenuRule *rule;
 
 	if (!stack) {
-		*error = g_error_new_literal(
-				G_MARKUP_ERROR, G_MARKUP_ERROR_INVALID_CONTENT,
-				"<Not> must be nested in a rule");
+		*error = g_error_new_literal(G_MARKUP_ERROR, G_MARKUP_ERROR_INVALID_CONTENT,
+					     "<Not> must be nested in a rule");
 		return;
 	}
 	rule = calloc(1, sizeof(*rule));
@@ -765,7 +772,7 @@ end_Not(GMarkupParseContext * context, const gchar *element_name,
 {
 	MenuTree *tree = user_data;
 	MenuContext *menu = g_queue_peek_tail(tree->menus);
-	
+
 	g_queue_pop_tail(menu->stack);
 }
 
@@ -774,18 +781,79 @@ beg_MergeFile(GMarkupParseContext * context, const gchar *element_name,
 	      const gchar **attribute_names, const gchar **attribute_values,
 	      gpointer user_data, GError ** error)
 {
+	MenuTree *tree = user_data;
+	MenuContext *menu = g_queue_peek_tail(tree->menus);
+
+	menu->path = TRUE;
+	if (attribute_names) {
+		char **a, **v;
+
+		for (a = attribute_names, v = attribute_values; *a && *v; a++, v++) {
+			if (!strcmp(*a, "type")) {
+				if (!strcmp(*v, "path"))
+					menu->path = TRUE;
+				else if (!strcmp(*v, "parent"))
+					menu->path = FALSE;
+				break;
+			}
+		}
+	}
 }
 
 static void
 dat_MergeFile(GMarkupParseContext * context, const gchar *text, gsize text_len,
 	      gpointer user_data, GError ** error)
 {
+	MenuTree *tree = user_data;
+	MenuContext *menu = g_queue_peek_tail(tree->menus);
+	MenuMerge *merge;
+
+	if (!menu->path)
+		return;
+	merge = calloc(1, sizeof(*merge));
+	merge->type = MenuMergeFilename;
+	merge->path = make_absolute(tree, text, text_len);
+	g_queue_push_tail(menu->merge, merge);
 }
 
 static void
 end_MergeFile(GMarkupParseContext * context, const gchar *element_name,
 	      gpointer user_data, GError ** error)
 {
+	MenuTree *tree = user_data;
+	MenuContext *menu = g_queue_peek_tail(tree->menus);
+	char *dirs, *p, *e;
+	gboolean found = FALSE;
+	int plen;
+
+	if (menu->path)
+		return;
+
+	dirs = xdg_conf_dirs();
+	plen = strlen(tree->path);
+
+	for (p = dirs, e = p + strlen(p); p < e; p += strlen(p) + 1) {
+		char *dir;
+		int len;
+
+		*strchrnul(p, ':') = '\0';
+		len = strlen(p) + strlen("/menus/") + strlen(tree->name);
+		dir = calloc(len + 1, sizeof(*dir));
+		strncpy(dir, p, len);
+		strncat(dir, "/menus/", len);
+		strncat(dir, tree->name, len);
+		if (found && !access(dir, R_OK)) {
+			MenuMerge *merge = calloc(1, sizeof(*merge));
+
+			merge->type = MenuMergeFilename;
+			merge->path = dir;
+			g_queue_push_tail(menu->merge, merge);
+			break;
+		} else if (!found && !strncmp(tree->path, dir, plen))
+			found = TRUE;
+		free(dir);
+	}
+	free(dirs);
 }
 
 static void
@@ -793,12 +861,21 @@ beg_MergeDir(GMarkupParseContext * context, const gchar *element_name,
 	     const gchar **attribute_names, const gchar **attribute_values,
 	     gpointer user_data, GError ** error)
 {
+	/* do nothing */
 }
 
 static void
 dat_MergeDir(GMarkupParseContext * context, const gchar *text, gsize text_len,
 	     gpointer user_data, GError ** error)
 {
+	MenuTree *tree = user_data;
+	MenuContext *menu = g_queue_peek_tail(tree->menus);
+	MenuMerge *merge = calloc(1, sizeof(*merge));
+
+	merge->type = MenuMergeDirectory;
+	merge->path = make_absolute(tree, text, text_len);
+
+	g_queue_push_tail(menu->merge, merge);
 }
 
 static void
@@ -812,18 +889,41 @@ beg_DefaultMergeDirs(GMarkupParseContext * context, const gchar *element_name,
 		     const gchar **attribute_names, const gchar **attribute_values,
 		     gpointer user_data, GError ** error)
 {
+	MenuTree *tree = user_data;
+	MenuContext *menu = g_queue_peek_tail(tree->menus);
+	MenuMerge *merge;
+	char *dirs = xdg_conf_dirs();
+
+	for (;;) {
+		char *p = (p = strrchr(dirs, ':')) ? p + 1 : dirs;
+		int len = strlen(p) + strlen("/menus/applications-merged");
+		char *dir = calloc(len + 1, sizeof(*dir));
+
+		strncpy(dir, p, len);
+		strncat(dir, "/menus/applications-merged", len);
+		merge = calloc(1, sizeof(*merge));
+		merge->type = MenuMergeDirectory;
+		merge->path = dir;
+		g_queue_push_tail(menu->merge, merge);
+		if (p == dirs)
+			break;
+		*(p - 1) = '\0';
+	}
+	free(dirs);
 }
 
 static void
 dat_DefaultMergeDirs(GMarkupParseContext * context, const gchar *text, gsize text_len,
 		     gpointer user_data, GError ** error)
 {
+	/* do nothing */
 }
 
 static void
 end_DefaultMergeDirs(GMarkupParseContext * context, const gchar *element_name,
 		     gpointer user_data, GError ** error)
 {
+	/* do nothing */
 }
 
 static void
@@ -831,18 +931,39 @@ beg_LegacyDir(GMarkupParseContext * context, const gchar *element_name,
 	      const gchar **attribute_names, const gchar **attribute_values,
 	      gpointer user_data, GError ** error)
 {
+	MenuTree *tree = user_data;
+	MenuContext *menu = g_queue_peek_tail(tree->menus);
+	MenuMerge *merge;
+	char **a, **v;
+
+	merge = calloc(1, sizeof(*merge));
+	merge->type = MenuMergeLegacy;
+
+	for (a = attributes_names, v = attribute_values; a && *a; a++, v++) {
+		if (!strcmp(*a, "prefix")) {
+			merge->prefix = strdup(*v);
+			break;
+		}
+	}
+	g_queue_push_tail(menu->merge, merge);
 }
 
 static void
 dat_LegacyDir(GMarkupParseContext * context, const gchar *text, gsize text_len,
 	      gpointer user_data, GError ** error)
 {
+	MenuTree *tree = user_data;
+	MenuContext *menu = g_queue_peek_tail(tree->menus);
+	MenuMerge *merge = g_queue_peek_tail(menu->merge);
+
+	merge->path = make_absolute(tree, text, text_len);
 }
 
 static void
 end_LegacyDir(GMarkupParseContext * context, const gchar *element_name,
 	      gpointer user_data, GError ** error)
 {
+	/* do nothing */
 }
 
 static void
@@ -850,18 +971,42 @@ beg_KDELegacyDirs(GMarkupParseContext * context, const gchar *element_name,
 		  const gchar **attribute_names, const gchar **attribute_values,
 		  gpointer user_data, GError ** error)
 {
+	MenuTree *tree = user_data;
+	MenuContext *menu = g_queue_peek_tail(tree->menus);
+	MenuMerge *merge;
+	char *dirs = kde_app_dirs();
+
+	for (;;) {
+		char *p = (p = strrchr(dirs, ':')) ? p + 1 : dirs;
+		int len = strlen(p) + strlen("/apps");
+		char *dir = calloc(len + 1, sizeof(*dir));
+
+		strncpy(dir, p, len);
+		strncat(dir, "/apps", len);
+		merge = calloc(1, sizeof(*merge));
+		merge->type = MenuMergeLegacy;
+		merge->prefix = strdup("kde-");
+		merge->path = dir;
+		g_queue_push_tail(menu->merge, merge);
+		if (p == dirs)
+			break;
+		*(p - 1) = '\0';
+	}
+	free(dirs);
 }
 
 static void
 dat_KDELegacyDirs(GMarkupParseContext * context, const gchar *text, gsize text_len,
 		  gpointer user_data, GError ** error)
 {
+	/* do nothing */
 }
 
 static void
 end_KDELegacyDirs(GMarkupParseContext * context, const gchar *element_name,
 		  gpointer user_data, GError ** error)
 {
+	/* do nothing */
 }
 
 static void
@@ -869,18 +1014,25 @@ beg_Move(GMarkupParseContext * context, const gchar *element_name,
 	 const gchar **attribute_names, const gchar **attribute_values,
 	 gpointer user_data, GError ** error)
 {
+	MenuTree *tree = user_data;
+	MenuContext *menu = g_queue_peek_tail(tree->menus);
+	MenuMove *move = calloc(1, sizeof(*move));
+
+	g_queue_push_tail(menu->moves, move);
 }
 
 static void
 dat_Move(GMarkupParseContext * context, const gchar *text, gsize text_len,
 	 gpointer user_data, GError ** error)
 {
+	/* do nothing */
 }
 
 static void
 end_Move(GMarkupParseContext * context, const gchar *element_name,
 	 gpointer user_data, GError ** error)
 {
+	/* do nothing */
 }
 
 static void
@@ -888,18 +1040,26 @@ beg_Old(GMarkupParseContext * context, const gchar *element_name,
 	const gchar **attribute_names, const gchar **attribute_values,
 	gpointer user_data, GError ** error)
 {
+	/* do nothing */
 }
 
 static void
 dat_Old(GMarkupParseContext * context, const gchar *text, gsize text_len,
 	gpointer user_data, GError ** error)
 {
+	MenuTree *tree = user_data;
+	MenuContext *menu = g_queue_peek_tail(tree->menus);
+	MenuMove *move = g_queue_peek_tail(menu->moves);
+
+	free(move->old_name);
+	move->old_name = strndup(text, text_len);
 }
 
 static void
 end_Old(GMarkupParseContext * context, const gchar *element_name,
 	gpointer user_data, GError ** error)
 {
+	/* do nothing */
 }
 
 static void
@@ -907,18 +1067,26 @@ beg_New(GMarkupParseContext * context, const gchar *element_name,
 	const gchar **attribute_names, const gchar **attribute_values,
 	gpointer user_data, GError ** error)
 {
+	/* do nothing */
 }
 
 static void
 dat_New(GMarkupParseContext * context, const gchar *text, gsize text_len,
 	gpointer user_data, GError ** error)
 {
+	MenuTree *tree = user_data;
+	MenuContext *menu = g_queue_peek_tail(tree->menus);
+	MenuMove *move = g_queue_peek_tail(menu->moves);
+
+	free(move->new_name);
+	move->new_name = strndup(text, text_len);
 }
 
 static void
 end_New(GMarkupParseContext * context, const gchar *element_name,
 	gpointer user_data, GError ** error)
 {
+	/* do nothing */
 }
 
 static void
@@ -926,6 +1094,19 @@ beg_Layout(GMarkupParseContext * context, const gchar *element_name,
 	   const gchar **attribute_names, const gchar **attribute_values,
 	   gpointer user_data, GError ** error)
 {
+	MenuTree *tree = user_data;
+	MenuContext *menu = g_queue_peek_tail(tree->menus);
+	MenuLayout *layout = calloc(1, sizeof(*layout));
+
+	layout->type = MenuLayoutLayout;
+	layout->flags = 0;
+	layout->show_empty = FALSE;
+	layout->is_inline = FALSE;
+	layout->inline_limit = 4;
+	layout->inline_header = TRUE;
+	layout->inline_alias = FALSE;
+	layout->items = g_queue_new();
+	g_queue_push_tail(menu->layout, layout);
 }
 
 static void
@@ -945,6 +1126,58 @@ beg_DefaultLayout(GMarkupParseContext * context, const gchar *element_name,
 		  const gchar **attribute_names, const gchar **attribute_values,
 		  gpointer user_data, GError ** error)
 {
+	MenuTree *tree = user_data;
+	MenuContext *menu = g_queue_peek_tail(tree->menus);
+	MenuLayout *layout = calloc(1, sizeof(*layout));
+	char **a, **v;
+
+	layout->type = MenuLayoutDefault;
+	layout->flags = 0;
+	layout->show_empty = FALSE;
+	layout->is_inline = FALSE;
+	layout->inline_limit = 4;
+	layout->inline_header = TRUE;
+	layout->inline_alias = FALSE;
+	layout->items = g_queue_new();
+	for (a = attribute_names, v = attribute_values; a && *a; a++, v++) {
+		if (!strcmp(*a, "show_empty")) {
+			layout->flags |= MenuFlagShowEmpty;
+			if (!(strcasecmp(*v, "true")))
+				layout->show_empty = TRUE;
+			} else
+			if (!(strcasecmp(*v, "false")))
+				layout->show_empty = FALSE;
+		} else
+		if (!strcmp(*a, "inline")) {
+			layout->flags |= MenuFlagInline;
+			if (!(strcasecmp(*v, "true")))
+				layout->is_inline = TRUE;
+			} else
+			if (!(strcasecmp(*v, "false")))
+				layout->is_inline = FALSE;
+		} else
+		if (!strcmp(*a, "inline_limit")) {
+			layout->flags |= MenuFlagInlineLimit;
+			layout->inline_limit = atoi(*v);
+		} else
+		if (!strcmp(*a, "inline_header")) {
+			layout->flags |= MenuFlagInlineHeader;
+			if (!(strcasecmp(*v, "true")))
+				layout->inline_header = TRUE;
+			} else
+			if (!(strcasecmp(*v, "false")))
+				layout->inline_header = FALSE;
+		} else
+		if (!strcmp(*a, "inline_alias")) {
+			layout->flags |= MenuFlagInlineAlias;
+			if (!(strcasecmp(*v, "true")))
+				layout->inline_alias = TRUE;
+			} else
+			if (!(strcasecmp(*v, "false")))
+				layout->inline_alias = FALSE;
+		}
+	}
+	g_queue_push_tail(menu->layout, layout);
 }
 
 static void
@@ -957,6 +1190,11 @@ static void
 end_DefaultLayout(GMarkupParseContext * context, const gchar *element_name,
 		  gpointer user_data, GError ** error)
 {
+	MenuTree *tree = user_data;
+	MenuContext *menu = g_queue_peek_tail(tree->menus);
+	MenuLayout *layout = g_queue_pop_tail(menu->layout);
+
+	g_queue_push_head(menu->layout, layout);
 }
 
 static void
@@ -964,18 +1202,80 @@ beg_Menuname(GMarkupParseContext * context, const gchar *element_name,
 	     const gchar **attribute_names, const gchar **attribute_values,
 	     gpointer user_data, GError ** error)
 {
+	MenuTree *tree = user_data;
+	MenuContext *menu = g_queue_peek_tail(tree->menus);
+	MenuLayout *layout = g_queue_peek_tail(menu->layout);
+	MenuLayout *item = calloc(1, sizeof(*item));
+	char **a, **v;
+
+	item->type = MenuLayoutName;
+	item->flags = 0;
+	item->show_empty = FALSE;
+	item->is_inline = FALSE;
+	item->inline_limit = 4;
+	item->inline_header = TRUE;
+	item->inline_alias = FALSE;
+	item->items = NULL;
+	item->name = NULL;
+	for (a = attribute_names, v = attribute_values; a && *a; a++, v++) {
+		if (!strcmp(*a, "show_empty")) {
+			item->flags |= MenuFlagShowEmpty;
+			if (!(strcasecmp(*v, "true")))
+				item->show_empty = TRUE;
+			} else
+			if (!(strcasecmp(*v, "false")))
+				item->show_empty = FALSE;
+		} else
+		if (!strcmp(*a, "inline")) {
+			item->flags |= MenuFlagInline;
+			if (!(strcasecmp(*v, "true")))
+				item->is_inline = TRUE;
+			} else
+			if (!(strcasecmp(*v, "false")))
+				item->is_inline = FALSE;
+		} else
+		if (!strcmp(*a, "inline_limit")) {
+			item->flags |= MenuFlagInlineLimit;
+			item->inline_limit = atoi(*v);
+		} else
+		if (!strcmp(*a, "inline_header")) {
+			item->flags |= MenuFlagInlineHeader;
+			if (!(strcasecmp(*v, "true")))
+				item->inline_header = TRUE;
+			} else
+			if (!(strcasecmp(*v, "false")))
+				item->inline_header = FALSE;
+		} else
+		if (!strcmp(*a, "inline_alias")) {
+			item->flags |= MenuFlagInlineAlias;
+			if (!(strcasecmp(*v, "true")))
+				item->inline_alias = TRUE;
+			} else
+			if (!(strcasecmp(*v, "false")))
+				item->inline_alias = FALSE;
+		}
+	}
+	g_queue_push_tail(layout->items, item);
 }
 
 static void
 dat_Menuname(GMarkupParseContext * context, const gchar *text, gsize text_len,
 	     gpointer user_data, GError ** error)
 {
+	MenuTree *tree = user_data;
+	MenuContext *menu = g_queue_peek_tail(tree->menus);
+	MenuLayout *layout = g_queue_peek_tail(menu->layout);
+	MenuLayout *item = g_queue_peek_tail(layout->items);
+
+	free(item->name);
+	item->name = strndup(text, text_len);
 }
 
 static void
 end_Menuname(GMarkupParseContext * context, const gchar *element_name,
 	     gpointer user_data, GError ** error)
 {
+	/* do nothing */
 }
 
 static void

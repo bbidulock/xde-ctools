@@ -73,6 +73,51 @@ typedef struct {
 	GQueue *rules;
 } MenuRule;
 
+typedef enum {
+	MenuMergeFilename,
+	MenuMergeDirectory,
+	MenuMergeLegacy,
+} MenuMergeType;
+
+typedef struct {
+	MenuMergeType type;
+	char *path;
+	char *prefix;
+} MenuMerge;
+
+typedef struct {
+	char *old_path;
+	char *new_path;
+} MenuMove;
+
+typedef enum {
+	MenuLayoutLayout,
+	MenuLayoutDefault,
+	MenuLayoutAll,
+	MenuLayoutFiles,
+	MenuLayoutDirs,
+	MenuLayoutName,
+	MenuLayoutSeparator,
+} MenuLayoutType;
+
+#define MenuFlagShowEmpty	(1<<0)
+#define MenuFlagInline		(1<<1)
+#define MenuFlagInlineLimit	(1<<2)
+#define MenuFlagInlineHeader	(1<<3)
+#define MenuFlagInlineAlias	(1<<4)
+
+typedef struct {
+	MenuLayoutType type;
+	gint flags;
+	gboolean show_empty;
+	gboolean is_inline;
+	gint inline_limit;
+	gboolean inline_header;
+	gboolean inline_alias;
+	char *name;
+	GQueue *items;
+} MenuLayout;
+
 typedef struct _MenuContext MenuContext;
 
 struct _MenuContext {
@@ -87,10 +132,15 @@ struct _MenuContext {
 	GQueue *rules;			/* rules */
 	GQueue *stack;			/* rule stack */
 	GQueue *merge;			/* menu trees to merge */
+	GQueue *moves;			/* directory moves */
+	GQueue *layout;			/* layouts for this menu */
+	gboolean path;			/* path/parent for current MergeFile */
 };
 
 typedef struct {
-	gchar *filename;		/* the file name of the parsed menu file */
+	gchar *filename;		/* the full path and file name of the parsed menu file */
+	gchar *name;			/* just the file name under /menus */
+	gchar *path;			/* just the path up to /menus */
 	GQueue *menus;			/* the currently parsed <Menu></Menu> tag */
 	GQueue *element;		/* element stack for this tree */
 } MenuTree;
