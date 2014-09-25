@@ -54,6 +54,25 @@ typedef struct {
 
 extern Elements elements[];
 
+typedef struct {
+	char *filename;
+	char *id;
+	bool exists;
+	GKeyFile *entry;
+} MenuApplication;
+
+typedef struct {
+	char *path;
+	bool exists;
+	GHashTable *apps;
+} MenuAppDir;
+
+typedef struct {
+	char *path;
+	bool exists;
+	GHashTable *dirs;
+} MenuDirDir;
+
 typedef enum {
 	MenuRuleInclude,
 	MenuRuleExclude,

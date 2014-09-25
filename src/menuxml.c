@@ -95,7 +95,7 @@ xdg_data_dirs(void)
 static char *
 make_absolute(MenuTree * tree, const gchar *text, gsize text_len)
 {
-	char *path;
+	char *path, *p, *e;
 
 	if (text[0] == '/') {
 		path = calloc(len + 1, sizeof(*path));
@@ -107,6 +107,32 @@ make_absolute(MenuTree * tree, const gchar *text, gsize text_len)
 		strncpy(path, tree->path, len);
 		strncat(path, "/", len);
 		strncat(path, text, len);
+	}
+	/* remove stray relative components */
+	/* // => / */
+	for (p = path, e = p + strlen(p); p < e; p++) {
+		while (p[0] == '/' && p[1] == '/') {
+			memmove(p, p + 1, strlen(p + 1) + 1);
+			e--;
+		}
+	}
+	/* /./ => / */
+	for (p = path, e = p + strlen(p); p < e; p++) {
+		while (p[0] == '/' && p[1] == '.' && p[2] == '/') {
+			memmove(p, p + 2, strlen(p + 2) + 1);
+			e -= 2;
+		}
+	}
+	/* /element/../ => / */
+	while ((p = strstr(path, "/../"))) {
+		for (e = p; e >= path; e--) {
+			if (*e == '/') {
+				memmove(e, p + 3, strlen(p + 3) + 1);
+				break;
+			}
+		}
+		if (e < path)
+			break;
 	}
 	return (path);
 }
@@ -164,9 +190,12 @@ dat_AppDir(GMarkupParseContext * context, const gchar *text, gsize text_len,
 {
 	MenuTree *tree = user_data;
 	MenuContext *menu = g_queue_peek_tail(tree->menus);
-	char *path = make_absolute(tree, text, text_len);
+	MenuAppDir *dir = calloc(1, sizeof(*dir));
 
-	g_queue_push_tail(menu->appdirs, path);
+	dir->path = make_absolute(tree, text, text_len);
+	dir->exists = TRUE;
+	dir->apps = NULL;
+	g_queue_push_tail(menu->appdirs, dir);
 }
 
 static void
@@ -205,10 +234,14 @@ end_DefaultAppDirs(GMarkupParseContext * context, const gchar *element_name,
 	for (;;) {
 		char *p = (p = strrchr(dirs, ':')) ? p + 1 : dirs;
 		int len = strlen(p) + strlen("/applications");
-		char *dir = calloc(len + 1, sizeof(*dir));
+		char *path = calloc(len + 1, sizeof(*path));
+		MenuAppDir *dir = calloc(1, sizeof(*dir));
 
-		strncpy(dir, p, len);
-		strncat(dir, "/applications", len);
+		strncpy(path, p, len);
+		strncat(path, "/applications", len);
+		dir->path = path;
+		dir->exists = TRUE;
+		dir->apps = NULL;
 		g_queue_push_tail(menu->appdirs, dir);
 		if (p == dirs)
 			break;
@@ -231,9 +264,12 @@ dat_DirectoryDir(GMarkupParseContext * context, const gchar *text, gsize text_le
 {
 	MenuTree *tree = user_data;
 	MenuContext *menu = g_queue_peak_tail(tree->menus);
-	char *path = make_absolute(tree, text, text_len);
+	MenuDirDir *dir = calloc(1, sizeof(*dir));
 
-	g_queue_push_tail(menu->dirdirs, path);
+	dir->path = make_absolute(tree, text, text_len);
+	dir->exists = TRUE;
+	dir->dirs = NULL;
+	g_queue_push_tail(menu->dirdirs, dir);
 }
 
 static void
@@ -272,10 +308,14 @@ end_DefaultDirectoryDirs(GMarkupParseContext * context, const gchar *element_nam
 	for (;;) {
 		char *p = (p = strrchr(dirs, ':')) ? p + 1 : dirs;
 		int len = strlen(p) + strlen("/desktop-directories");
-		char *dir = calloc(len + 1, sizeof(*dir));
+		char *path = calloc(len + 1, sizeof(*path));
+		MenuDirDir *dir = calloc(1, sizeof(*dir));
 
-		strncpy(dir, p, len);
-		strncat(dir, "/desktop-directories", len);
+		strncpy(path, p, len);
+		strncat(path, "/desktop-directories", len);
+		dir->path = path;
+		dir->exists = TRUE;
+		dir->dirs = NULL;
 		g_queue_push_tail(menu->dirdirs, dir);
 		if (p == dirs)
 			break;
@@ -874,7 +914,6 @@ dat_MergeDir(GMarkupParseContext * context, const gchar *text, gsize text_len,
 
 	merge->type = MenuMergeDirectory;
 	merge->path = make_absolute(tree, text, text_len);
-
 	g_queue_push_tail(menu->merge, merge);
 }
 
