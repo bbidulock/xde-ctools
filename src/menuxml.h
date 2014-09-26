@@ -1,3 +1,6 @@
+#ifndef _LOCAL_MENUXML_H_
+#define _LOCAL_MENUXML_H_
+
 
 typedef enum {
 	ElementMenu,
@@ -240,3 +243,5 @@ static void beg_Filename(GMarkupParseContext *, const gchar *,
 			 const gchar **, const gchar **, gpointer, GError **);
 static void dat_Filename(GMarkupParseContext *, char gchar *, gsize, gpointer, GError **);
 static void end_Filename(GMarkupParseContext *, const gchar *, gpointer, GError **);
+
+#endif /* _LOCAL_MENUXML_H_ */
