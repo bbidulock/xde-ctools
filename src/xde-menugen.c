@@ -304,7 +304,7 @@ startup(int argc, char *argv[])
 		EPRINTF("%s: could not open display %s\n", argv[0], getenv("DISPLAY"));
 		exit(EXIT_FAILURE);
 	}
-	root DefaultRootWindow(dpy);
+	root = DefaultRootWindow(dpy);
 
 	_XA_XDE_THEME_NAME = XInternAtom(dpy, "_XDE_THEME_NAME", False);
 	_XA_GTK_READ_RCFILES = XInternAtom(dpy, "_GTK_READ_RCFILE", False);
