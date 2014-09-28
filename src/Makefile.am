@@ -11,7 +11,8 @@ bin_PROGRAMS = \
 	xde-pager \
 	xde-cycle \
 	xde-setbg \
-	xde-keys
+	xde-keys \
+	xde-menugen
 
 xde_app_CPPFLAGS = -DNAME=\"xde-app\"
 xde_app_SOURCES = xde-app.c xde-app.h
@@ -43,5 +44,10 @@ xde_setbg_LDFLAGS = $(SMLIB_LIBS) $(ICE_LIBS) $(AM_LDFLAGS)
 
 xde_keys_CPPFLAGS = -DNAME=\"xde-keys\"
 xde_keys_SOURCES = xde-keys.c xde-keys.h
+
+xde_menugen_CPPFLAGS = -DNAME=\"xde-menugen\"
+xde_menugen_SOURCES = xde-menugen.c xde-menugen.h
+xde_menugen_CFLAGS = $(AM_CFLAGS) $(ICE_CFLAGS) $(SMLIB_CFLAGS)
+xde_menugen_LDFLAGS = $(SMLIB_LIBS) $(ICE_LIBS) $(AM_LDFLAGS)
 
 

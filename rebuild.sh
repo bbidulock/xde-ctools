@@ -1,6 +1,8 @@
 #!/bin/bash
 
-rm -f cscope.*
 ./autogen.sh
 ./configure.sh
-make clean all cscope
+rm -f cscope.*
+make cscope
+cscope -b
+make clean all
