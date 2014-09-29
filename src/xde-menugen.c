@@ -1116,6 +1116,32 @@ init_smclient(void)
 	g_io_add_watch(chan, mask, on_ifd_watch, smcConn);
 }
 
+#if 0
+typedef struct {
+	char *path;
+	int descriptor;
+} XdeWatch;
+
+static gboolean
+on_nfd_watch(GIOChannel *chan, GIOCondition cond, pointer data)
+{
+}
+
+static void
+init_notify(void)
+{
+	GIOChannel *chan;
+	int nfd, mask = G_IO_IN | G_IO_ERR | G_IO_HUP | G_IO_PRI;
+
+	if ((nfd = inotify_init1(IN_NONBLOCK | IN_CLOEXEC)) == -1) {
+		EPRINTF("%s: inotify_init1: %s\n", strerror(errno));
+		return;
+	}
+	chan = g_io_channel_unix_new(nfd);
+	g_io_add_watch(chan, mask, on_nfd_watch, nfd);
+}
+#endif
+
 static void
 startup(int argc, char *argv[])
 {
