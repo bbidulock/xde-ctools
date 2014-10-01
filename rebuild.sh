@@ -5,4 +5,5 @@ rm -f cscope.*
 ./configure.sh
 make cscope
 cscope -b
-make clean all
+make clean
+make all
