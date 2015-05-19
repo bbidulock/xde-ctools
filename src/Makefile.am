@@ -7,6 +7,7 @@ bin_PROGRAMS = \
 	xde-dock \
 	xde-run \
 	xde-winmenu \
+	xde-recent \
 	xde-winlist \
 	xde-pager \
 	xde-cycle \
@@ -25,6 +26,9 @@ xde_run_SOURCES = xde-run.c xde-run.h
 
 xde_winmenu_CPPFLAGS = -DNAME=\"xde-winmenu\"
 xde_winmenu_SOURCES = xde-winmenu.c xde-winmenu.h
+
+xde_recent_CPPFLAGS = -DNAME=\"xde-recent\"
+xde_recent_SOURCES = xde-recent.c
 
 xde_winlist_CPPFLAGS = -DNAME=\"xde-winlist\"
 xde_winlist_SOURCES = xde-winlist.c xde-winlist.h
