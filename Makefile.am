@@ -1,14 +1,14 @@
 
 ACLOCAL_AMFLAGS = -I m4
 
-SUBDIRS = src man
+SUBDIRS = src man data
 
 EXTRA_DIST = INSTALL COPYING AUTHORS AUTHORS.in NEWS NEWS.in README README.in THANKS THANKS.in TODO TODO.in ChangeLog
 
 ChangeLog:
 	( \
 	  echo -e "# created with git log --stat=76 -M -C|fmt -sct -w80\n" ; \
-	  git log --stat=76 -M -C|fmt -sct -w80 ; \
+	  git log --stat=76 -M -C|fmt -sct -w80 \
 	)>$@
 
 AUTHORS.in:
@@ -33,12 +33,5 @@ THANKS: THANKS.in
 TODO: TODO.in
 	sed -r -e 's:\@PACKAGE\@:$(PACKAGE):g;s:\@VERSION\@:$(VERSION):g;s:\@DATE\@:$(DATE):g' $< >$@
 
-dist_noinst_SCRIPTS = autogen.sh
+dist_noinst_SCRIPTS = autogen.sh configure.sh rebuild.sh
 
-dist_autostart_DATA = \
-	data/xde-pager.desktop
-
-dist_applications_DATA = \
-	data/xde-pager.desktop \
-	data/xde-run.desktop \
-	data/xde-app.desktop
