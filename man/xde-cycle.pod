@@ -2,7 +2,7 @@
 
 =head1 NAME
 
-xde-wincycl - window cycling for XDE
+xde-cycle - window cycling for XDE
 
 =head1 SYNOPSIS
 
@@ -18,7 +18,7 @@ accessed with a hot key.
 
 =head1 OPTIONS
 
-B<xde-wincycl> accepts the following options:
+B<xde-cycle> accepts the following options:
 
 =head2 COMMAND OPTIONS
 
