@@ -55,7 +55,7 @@ xde-setbg: works really good
 xde-winlist: not fully functional yet
 
  [ ] the purpose of this program was to display a graphical window
-     list a feedback when cycling windows.
+     list a feedback when cycling windows using the keyboard.
 
 xde-winmenu: works pretty good
 
