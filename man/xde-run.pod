@@ -10,8 +10,9 @@ B<xde-run> [I<OPTIONS>]
 
 =head1 DESCRIPTION
 
-Provides a run command dialog for running applications from the command
-line using a graphical utility.
+Provides a binary command and XDG application launcher command dialog
+for running executables or freedesktop.org applications as though from
+the command line using a graphical utility.
 
 =head1 OPTIONS
 
@@ -24,7 +25,7 @@ B<xde-run> recognizes the following options:
 =head2 COMMAND OPTIONS
 
 Command options affect the major operating mode of the program.  Only
-noe of the following command options should be specified.  When no
+one of the following command options should be specified.  When no
 command option is specified, B<xde-run> will assume normal operation is
 requested and launch the run command dialog.
 
@@ -32,9 +33,15 @@ B<xde-run> provides the following command options:
 
 =over
 
+=item [B<--binary>, B<-b>]
+
+Run the dialog as a binary command instead of an XDG launcher.
+For B<xde-run>, this command is assumed if no other command is provided.
+
 =item B<--xdg>, B<-x>
 
 Run the dialog as an XDG launcher instead of a binary command launcher.
+For L<xde-app(1)>, this command is assumed if no other command is provided.
 
 =item B<--help>, B<-h>
 
@@ -58,7 +65,22 @@ B<xde-run> provides the following general options:
 
 =over
 
+=item B<--recent>, B<-r> I<NUMBER>
+
+Only show and save I<NUMBER> of most recent entries.  The default value
+is 10.
+
 =item B<--file>, B<-f> I<FILENAME>
+
+When in binary command mode, run the command dialog with the specified
+F<run-history> file.  In this case, the default is
+F<$XDG_CONFIG_HOME/xde/run-history>.
+
+When in XDG launcher mode, runt the command dialog with the specified
+F<recent-applications> file.  In this case, the default is
+F<$XDG_CONFIG_HOME/xde/recent-applications>.
+
+=item B<--history>, B<-H> I<FILENAME>
 
 Run the command dialog with the specified F<run-history> file.  The
 default is F<$XDG_CONFIG_HOME/xde/run-history>.
@@ -94,6 +116,12 @@ The default location of the F<run-history> file.  This is a simple text
 file with the commands that were last run using the dialog, one per
 line, with the oldest entries lower in the file.
 
+=item F<$XDG_CONFIG_HOME/xde/recent-applications>
+
+The default location of the F<recent-applications> file.  This is a simple text
+file with the application ids that were last run using the dialog, one per
+line, with the oldest entries lower in the file.
+
 =item F<$HOME/.gtkrc-2.0.xde>
 
 The location of the XDE theme file that will be used for the GTK theme
@@ -107,6 +135,13 @@ launched.
 
 B<xde-run> does not perform its own XDG startup notification.
 Instead, it uses the L<xdg-launch(1)> command to perform this function.
+
+B<xde-run> and L<xde-app(1)> differ only in the default behaviour
+(whether to run a binary command dialog or an XDG application launcher).
+
+=head1 BUGS
+
+B<xde-run> is quite stable, performs well and has no known bugs.
 
 =head1 AUTHOR
 

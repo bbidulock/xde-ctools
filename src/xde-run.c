@@ -191,11 +191,15 @@ Command options:\n\
     -C, --copying\n\
         print copying permission and exit\n\
 Options:\n\
+    -b, --binary\n\
+        operate as a binary launcher [default: %8$s]\n\
     -x, --xdg\n\
         operate as an XDG launcher [default: %7$s]\n\
     -r, --recent NUMBER\n\
         only show and save NUMBER of most recent entries [default: %5$d]\n\
     -f, --file FILENAME\n\
+        use alternate recent file [default: %9$s]\n\
+    -l, --list FILENAME\n\
         use alternate run history file [default: %4$s]\n\
     -a, --apps FILENAME\n\
         use alternate recent application file [default: %6$s]\n\
@@ -204,7 +208,16 @@ Options:\n\
     -v, --verbose [LEVEL]\n\
         increment or set output verbosity LEVEL [default: %3$d]\n\
         this option may be repeated.\n\
-", argv[0], options.debug, options.output, options.runhist, options.recent, options.recapps, options.xdg ? "true" : "false");
+", argv[0],
+	options.debug,
+	options.output,
+	options.runhist,
+	options.recent,
+	options.recapps,
+	options.xdg ? "true" : "false",
+	options.xdg ? "false" : "true",
+	options.xdg ? options.recapps : options.runhist
+);
 }
 
 void
@@ -837,8 +850,11 @@ main(int argc, char *argv[])
 		int option_index = 0;
 		/* *INDENT-OFF* */
 		static struct option long_options[] = {
+			{"binary",	    no_argument,	NULL, 'b'},
 			{"xdg",		    no_argument,	NULL, 'x'},
+			{"recent",	    required_argument,	NULL, 'r'},
 			{"file",	    required_argument,	NULL, 'f'},
+			{"list",	    required_argument,	NULL, 'l'},
 			{"apps",	    required_argument,	NULL, 'a'},
 			{"debug",	    optional_argument,	NULL, 'D'},
 			{"verbose",	    optional_argument,	NULL, 'v'},
@@ -850,10 +866,10 @@ main(int argc, char *argv[])
 		};
 		/* *INDENT-ON* */
 
-		c = getopt_long_only(argc, argv, "xf:a:D::v::hVCH?", long_options,
+		c = getopt_long_only(argc, argv, "bxf:l:a:D::v::hVCH?", long_options,
 				     &option_index);
 #else
-		c = getop(argc, argv, "xf:a:DvhVC?");
+		c = getopt(argc, argv, "bxf:l:a:DvhVCH?");
 #endif
 		if (c == -1) {
 			if (options.debug)
@@ -864,10 +880,31 @@ main(int argc, char *argv[])
 		case 0:
 			goto bad_usage;
 
+		case 'b':	/* -b, --binary */
+			options.xdg = 0;
+			break;
 		case 'x':	/* -x, --xdg */
 			options.xdg = 1;
 			break;
-		case 'f':	/* -f, --file RUNHIST_FILE */
+		case 'r':	/* -r, --recent NUMBER */
+			if ((val = strtoul(optarg, NULL, 0)) < 0)
+				goto bad_option;
+			if (val < 1)
+				val = 1;
+			if (val > 100)
+				val = 100;
+			options.recent = val;
+			break;
+		case 'f':	/* -f, --file FILENAME */
+			if (options.xdg) {
+				free(options.recapps);
+				options.recapps = strdup(optarg);
+			} else {
+				free(options.runhist);
+				options.runhist = strdup(optarg);
+			}
+			break;
+		case 'l':	/* -l, --list RUNHIST_FILE */
 			free(options.runhist);
 			options.runhist = strdup(optarg);
 			break;
