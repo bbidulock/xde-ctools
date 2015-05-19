@@ -1,3 +1,70 @@
 @PACKAGE@ -- TODO file.  @DATE@
 
+Work to do on commands:
+
+xde-app: works pretty good
+
+ [ ] this is an xdg application launcher much like a command
+     dialog but launches XDG programs.
+
+xde-cycle: not fully functional yet
+
+ [ ] doesn't really do much yet.
+ [ ] this was supposed to put up a window list that could
+     be displayed while windows are being cycled much in
+     the same fashion as the xde-pager feelback.
+
+xde-dock: doesn't work so well yet
+
+ [ ] this works a little bit and was kinda based on flipse.
+ [ ] needs work to operate correctly, have configuration,
+     and do nice things like autohide the panel and choose
+     configurations
+
+xde-keys: not fully functional yet
+
+ [ ] this was supposed to be our own kind of bbkeys thing
+     where a basic set of key definitions that do not rely
+     on the window manager internals could be specified in
+     a single location
+
+ [ ] haven't really done that much work yet.
+
+xde-menugen: not fully functional yet
+
+ [ ] need to fill out the functionality from the perl program
+     of the same name
+
+ [ ] need to have the menu run in the background and be invokable
+     from the xde-panel
+
+xde-pager: works pretty good
+
+ [ ] I use this one all the time.  It think that it is finished.
+
+xde-run: works pretty good
+
+ [ ] this is a command application launcher similar to xde-app.
+ [ ] I think that it is finished.
+
+xde-setbg: works really good
+
+ [ ] this is a multiple backdrop changer that changes backdrop
+     according to a sytle or theme when the desktop changes.
+
+xde-winlist: not fully functional yet
+
+ [ ] the purpose of this program was to display a graphical window
+     list a feedback when cycling windows.
+
+xde-winmenu: works pretty good
+
+ [ ] this is a command that can be used to popup a window menu
+     for any window.  Note that it uses libwnck++ which is needed
+     by many of the programs in this package.  We invoke this
+     program from the Alt-Space key sequence to always be able to
+     pop a window menu.  ADWM does not have internal menus, so a
+     click on the titlebar or menu button uses this program to
+     pop the window menu.  It think that it is finished.
+
 # vim: set ft=asciidoc tw=72 nocin nosi fo+=tcqlorn:
