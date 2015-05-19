@@ -1,32 +1,34 @@
 
 xde_man_files = \
 	xde-app.man \
+	xde-ctools.man \
+	xde-cycle.man \
 	xde-dock.man \
+	xde-keys.man \
+	xde-menugen.man \
+	xde-pager.man \
 	xde-preferred.man \
 	xde-run.man \
-	xde-winmenu.man \
-	xde-winlist.man \
-	xde-pager.man \
-	xde-cycle.man \
-	xde-keys.man \
 	xde-setbg.man \
-	xde-menugen.man
+	xde-winlist.man \
+	xde-winmenu.man
 
 nodist_man1_MANS = $(xde_man_files)
 CLEANFILES = $(xde_man_files)
 
 EXTRA_DIST = \
-	xde-app.man \
-	xde-dock.pod \
-	xde-preferred.man \
-	xde-run.pod \
-	xde-winmenu.pod \
-	xde-winlist.pod \
-	xde-pager.pod \
+	xde-app.pod \
+	xde-ctools.pod \
 	xde-cycle.pod \
+	xde-dock.pod \
 	xde-keys.pod \
+	xde-menugen.pod \
+	xde-pager.pod \
+	xde-preferred.pod \
+	xde-run.pod \
 	xde-setbg.pod \
-	xde-menugen.pod
+	xde-winlist.pod \
+	xde-winmenu.pod
 
 SUFFIXES = .man .pod
 

@@ -1,0 +1,132 @@
+=pod
+
+=head1 NAME
+
+xde-ctools - package of 'C' language tools for XDE
+
+=head1 DESCRIPTION
+
+Provides a set of F<libwnck++> based tools for use with various
+lightweight window managers.  The tools provided by this package are as
+follows:
+
+=over
+
+=item L<xde-app(1)>
+
+Provides an XDG compliant application launcher command dialog for
+running freedesktop.org applications as though from the command line
+using a graphical utility.
+
+=item L<xde-cycle(1)>
+
+Provides keyboard-based window cycling for window managers that do not
+provide cycling themselves or for those that provide an inferior one.
+The window cycling list is a list of windows on the current monitor (or
+multiple monitors) and current workspace (or multiple workspaces) and is
+accessed with a hot key.
+
+=item L<xde-dock(1)>
+
+Provides a dock (of WindowMaker dock apps) for window managers that do
+not support one and provides a more consistent and rich experience for
+those that do.
+
+=item L<xde-keys(1)>,
+
+Provides generic key binding management for window managers that do not
+provide key bindings themselves or for those that provide a inferior or
+incomplete set of bindings.  Key bindings are hot keys bound to the root
+window that invoke actions on windows, workspaces or the window manager.
+
+=item L<xde-menugen(1)>
+
+Provides a command-line program that can be used to generate an XDG
+compliant menu in a number of formats to support configuration of the
+root menu for light-weight window managers.  It is capable of generating
+either a complete menu for a number of well-known window managers, or
+for generating a sub-menu that can be included in the root menu of those
+window managers.
+
+=item L<xde-pager(1)>,
+
+Provides desktop cycling feedback for window managers that do not
+provide desktop cycling themselves or for those that provide an inferior
+feedback.  The desktop cycling feedback is a pager where each cell
+corresponds to a workspace on the current monitor (or multiple
+monitors).  The feedback popup can also have a desktop selected using
+the mouse.
+
+=item L<xde-preferred(1)>
+
+Provides an XDG preferred applications launcher and preferences dialog
+for setting or running preferred applications.
+
+=item L<xde-run(1)>
+
+Provides a run command dialog for running applications from the command
+line using a graphical utility.
+
+=item L<xde-setbg(1)>
+
+Provides a per-workspace background changer for window managers that do
+not provide any per-workspace backgrounds themselves or for those that
+provide an inferior or incomplete set of background facilities.
+Backgrounds are the image that is display on the root window.
+
+=item L<xde-winlist(1)>
+
+Provides a window list for window managers that do not provide one
+themselves or as a better window list for those that provide an inferior
+one.  The window list is a list of windows on workspaces with a sub-menu
+of actions that can be performed against each window or workspace and is
+normally access with a hot key, or by clicking on the root window, or by
+pressing one or more modifier keys and clicking on a window.
+
+=item L<xde-winmenu(1)>
+
+Provides a window menu for window managers that do not provide one
+themselves or as a better window menu for those that provide an inferior
+one.  The window menu is a menu of actions that can be performed against
+a window and is normally accessed with a hot-key, or by clicking on the
+decorative border of a window, or by pressing one or more modifier keys
+and clicking on the window.
+
+=back
+
+=head1 CAVEATS
+
+Not all of the programs of the original B<xde-tools> perl package have
+been converted successfully to "C".
+
+=head1 HISTORY
+
+Many of the tools in the B<xde-ctools> package were originally written
+as perl programs in the B<xde-tools> package.  One of the problems with
+using perl for various things X is that perl has no support for various
+libraries such as ICE, X11 session management and startup notification.
+These libraries are useful things for a desktop environment.  Therefore,
+each of the utilities in the B<xde-tools> package were converted from
+perl programs to "C" language programs.
+
+=head1 AUTHOR
+
+Brian Bidulock L<mailto:bidulock@openss7.org>.
+
+=head1 SEE ALSO
+
+L<xde-app(1)>,
+L<xde-cycle(1)>,
+L<xde-dock(1)>,
+L<xde-keys(1)>,
+L<xde-menugen(1)>,
+L<xde-pager(1)>,
+L<xde-preferred(1)>,
+L<xde-run(1)>,
+L<xde-setbg(1)>,
+L<xde-winlist(1)>,
+L<xde-winmenu(1)>
+
+=cut
+
+# vim: set sw=4 tw=72 nocin:
