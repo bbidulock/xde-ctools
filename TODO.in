@@ -4,8 +4,16 @@ Work to do on commands:
 
 xde-app: works pretty good
 
-- [ ] this is an xdg application launcher much like a command
+- [X] this is an xdg application launcher much like a command
       dialog but launches XDG programs.
+- [ ] I think that it is finished.
+- [ ] convert program to use GtkRecentManager object.
+
+xde-run: works pretty good
+
+- [X] this is a command application launcher similar to xde-app.
+- [ ] I think that it is finished.
+- [ ] convert program to use GtkRecentManager object.
 
 xde-cycle: not fully functional yet
 
@@ -41,11 +49,6 @@ xde-menugen: not fully functional yet
 xde-pager: works pretty good
 
 - [ ] I use this one all the time.  It think that it is finished.
-
-xde-run: works pretty good
-
-- [ ] this is a command application launcher similar to xde-app.
-- [ ] I think that it is finished.
 
 xde-setbg: works really good
 
