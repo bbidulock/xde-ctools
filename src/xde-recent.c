@@ -89,6 +89,7 @@
 #define SN_API_NOT_YET_FROZEN
 #include <libsn/sn.h>
 #endif
+#include <glib.h>
 #include <gtk/gtk.h>
 #include <gdk/gdkx.h>
 #define WNCK_I_KNOW_THIS_IS_UNSTABLE
@@ -129,6 +130,7 @@ typedef struct {
 	int recent;
 	char *runhist;
 	char *recapps;
+	char *recently;
 	int xdg;
 } Options;
 
@@ -139,6 +141,7 @@ Options options = {
 	.recent = 10,
 	.runhist = NULL,
 	.recapps = NULL,
+	.recently = NULL,
 	.xdg = 1,
 };
 
@@ -149,6 +152,7 @@ Options defaults = {
 	.recent = 10,
 	.runhist = "~/.config/xde/run-history",
 	.recapps = "~/.config/xde/recent-applications",
+	.recently = "~/.local/share/recently-used",
 	.xdg = 1,
 };
 
@@ -275,6 +279,12 @@ GtkRecentManager *manager = NULL;
 GList *items = NULL;
 
 void
+items_free(gpointer data)
+{
+	gtk_recent_info_unref((GtkRecentInfo *) data);
+}
+
+void
 items_print(gpointer data, gpointer user_data)
 {
 	FILE *f = (typeof(f)) user_data;
@@ -310,12 +320,13 @@ items_print(gpointer data, gpointer user_data)
 			guint count;
 			time_t time_;
 
-			fprintf(f, "\t%s\n", apps[n]);
-			if (gtk_recent_info_get_application_info(i, apps[n], &app_exec, &count, &time_)) {
-				fprintf(f, "\tName:\t\t%s\n", apps[n]);
-				fprintf(f, "\tExec:\t\t%s\n", app_exec);
-				fprintf(f, "\tCount:\t\t%u\n", count);
-				fprintf(f, "\tTime:\t\t%lu\n", time_);
+			fprintf(f, "\t\t%s\n", apps[n]);
+			if (gtk_recent_info_get_application_info
+			    (i, apps[n], &app_exec, &count, &time_)) {
+				fprintf(f, "\t\tName:\t\t%s\n", apps[n]);
+				fprintf(f, "\t\tExec:\t\t%s\n", app_exec);
+				fprintf(f, "\t\tCount:\t\t%u\n", count);
+				fprintf(f, "\t\tTime:\t\t%lu\n", time_);
 			}
 		}
 		g_strfreev(apps);
@@ -324,33 +335,316 @@ items_print(gpointer data, gpointer user_data)
 	if ((apps = gtk_recent_info_get_groups(i, &length))) {
 		fprintf(f, "Groups:\t\t\n");
 		for (n = 0; n < length; n++) {
-			fprintf(f, "\t%s\n", apps[n]);
+			fprintf(f, "\t\t%s\n", apps[n]);
 		}
 		g_strfreev(apps);
 		apps = NULL;
 	}
-	gtk_recent_info_unref(i);
+}
+
+GList *recent = NULL;
+
+typedef struct {
+	gchar *uri;
+	gchar *mime;
+	time_t stamp;
+	gboolean private;
+	GSList *groups;
+} RecentItem;
+
+RecentItem *current = NULL;
+
+static void
+xml_start_element(GMarkupParseContext * context, const gchar *element_name,
+		  const gchar **attribute_names, const gchar **attribute_values, gpointer user_data,
+		  GError ** error)
+{
+	if (!strcmp(element_name, "RecentFiles")) {
+		/* don't care */
+	} else if (!strcmp(element_name, "RecentItem")) {
+		if (!current && !(current = calloc(1, sizeof(*current)))) {
+			EPRINTF("could not allocate element\n");
+			exit(1);
+		}
+	} else if (!strcmp(element_name, "URI")) {
+		/* don't care */
+	} else if (!strcmp(element_name, "Mime-Type")) {
+		/* don't care */
+	} else if (!strcmp(element_name, "Timestamp")) {
+		/* don't care */
+	} else if (!strcmp(element_name, "Private")) {
+		current->private = TRUE;
+	} else if (!strcmp(element_name, "Groups")) {
+		/* don't care */
+	} else if (!strcmp(element_name, "Group")) {
+		/* don't care */
+	} else {
+		DPRINTF("bad element name '%s'\n", element_name);
+		return;
+	}
+}
+
+static void
+xml_end_element(GMarkupParseContext * context, const gchar *element_name, gpointer user_data,
+		GError ** error)
+{
+	if (!strcmp(element_name, "RecentFiles")) {
+		/* don't care */
+	} else if (!strcmp(element_name, "RecentItem")) {
+		recent = g_list_append(recent, (gpointer) current);
+		current = NULL;
+	} else if (!strcmp(element_name, "URI")) {
+		/* don't care */
+	} else if (!strcmp(element_name, "Mime-Type")) {
+		/* don't care */
+	} else if (!strcmp(element_name, "Timestamp")) {
+		/* don't care */
+	} else if (!strcmp(element_name, "Private")) {
+		/* don't care */
+	} else if (!strcmp(element_name, "Groups")) {
+		/* don't care */
+	} else if (!strcmp(element_name, "Group")) {
+		/* don't care */
+	} else {
+		DPRINTF("bad element name '%s'\n", element_name);
+		return;
+	}
+}
+
+static void
+xml_character_data(GMarkupParseContext * context, const gchar *text, gsize text_len,
+		   gpointer user_data, GError ** error)
+{
+	const gchar *element_name;
+
+	element_name = g_markup_parse_context_get_element(context);
+	if (!strcmp(element_name, "RecentFiles")) {
+		/* don't care */
+	} else if (!strcmp(element_name, "RecentItem")) {
+		/* don't care */
+	} else if (!strcmp(element_name, "URI")) {
+		free(current->uri);
+		current->uri = calloc(1, text_len + 1);
+		memcpy(current->uri, text, text_len);
+	} else if (!strcmp(element_name, "Mime-Type")) {
+		free(current->mime);
+		current->mime = calloc(1, text_len + 1);
+		memcpy(current->mime, text, text_len);
+	} else if (!strcmp(element_name, "Timestamp")) {
+		char *buf, *end = NULL;
+		unsigned long int val;
+
+		current->stamp = 0;
+		buf = calloc(1, text_len + 1);
+		memcpy(buf, text, text_len);
+		val = strtoul(buf, &end, 0);
+		if (end && *end == '\0')
+			current->stamp = val;
+	} else if (!strcmp(element_name, "Private")) {
+		/* don't care */
+	} else if (!strcmp(element_name, "Groups")) {
+		/* don't care */
+	} else if (!strcmp(element_name, "Group")) {
+		char *buf;
+
+		buf = calloc(1, text_len + 1);
+		memcpy(buf, text, text_len);
+		current->groups = g_slist_append(current->groups, (gpointer) buf);
+	} else {
+		DPRINTF("bad element name '%s'\n", element_name);
+		return;
+	}
+}
+
+static void
+xml_passthrough(GMarkupParseContext * context, const gchar *passthrough_text, gsize text_len,
+		gpointer user_data, GError ** error)
+{
+	/* don't care */
+}
+
+static void
+xml_error(GMarkupParseContext * context, GError * error, gpointer user_data)
+{
+	EPRINTF("got an error during parsing\n");
+	exit(1);
+}
+
+GMarkupParser xml_parser = {
+	.start_element = xml_start_element,
+	.end_element = xml_end_element,
+	.text = xml_character_data,
+	.passthrough = xml_passthrough,
+	.error = xml_error,
+};
+
+void
+group_free(gpointer data)
+{
+	free((char *) data);
+}
+
+void
+recent_free(gpointer data)
+{
+	RecentItem *r = (typeof(r)) data;
+
+	free(r->uri);
+	free(r->mime);
+	g_slist_free_full(r->groups, group_free);
+	free(r);
+}
+
+static void
+group_print(gpointer data, gpointer user_data)
+{
+	FILE *f = (typeof(f)) user_data;
+	gchar *s = (typeof(s)) data;
+
+	fprintf(f, "\t\t%s\n", s);
+}
+
+static void
+recent_print(gpointer data, gpointer user_data)
+{
+	FILE *f = (typeof(f)) user_data;
+	RecentItem *r = (typeof(r)) data;
+	char *path, *name;
+
+	fprintf(f, "----------------------------------\n");
+	if ((name = path = r->uri)) {
+		path = strncmp(name, "file://", 7) ? name : name + 7;
+		name = strrchr(path, '/') ? strrchr(path, '/') + 1 : path;
+	}
+
+	if (name && name != r->uri)
+		fprintf(f, "Name:\t\t%s\n", name);
+	if (path && path != r->uri) {
+		fprintf(f, "Path:\t\t%s\n", path);
+		fprintf(f, "Local:\t\t%s\n", "yes");
+		fprintf(f, "Exists:\t\t%s\n", access(path, F_OK) ? "no" : "yes");
+	} else {
+		fprintf(f, "Local:\t\t%s\n", "no");
+		fprintf(f, "Exists:\t\t%s\n", "no");
+	}
+	fprintf(f, "URI:\t\t%s\n", r->uri);
+	/* FIXME: pull this from the .desktop file if specified or discoverable */
+	fprintf(f, "DisplayName:\t%s\n", "(null)");
+	/* FIXME: pull this from the .desktop file if specified or discoverable */
+	fprintf(f, "Description:\t%s\n", "(null)");
+	fprintf(f, "MimeType:\t%s\n", r->mime);
+	fprintf(f, "Added:\t\t%lu\n", r->stamp);
+	fprintf(f, "Modified:\t%lu\n", r->stamp);
+	fprintf(f, "Visited:\t%lu\n", r->stamp);
+	fprintf(f, "Private:\t%s\n", r->private ? "yes" : "no");
+#if 0
+	/* FIXME: pull this out from the .desktop file if recently-used-apps
+	 * or from equivalent desktop file if group is also an APPID */
+	fprintf(f, "Applications:\t\n");
+#endif
+	if (r->groups) {
+		fprintf(f, "Groups:\t\t\n");
+		g_slist_foreach(r->groups, group_print, user_data);
+	}
+}
+
+static void
+run_command2(int argc, char *argv[])
+{
+	GMarkupParseContext *context;
+	GError *error = NULL;
+	gchar buffer[BUFSIZ];
+	gsize got;
+	FILE *file;
+	int dummy;
+
+	g_list_free_full(recent, recent_free);
+
+	if (!(file = fopen(options.recently, "r"))) {
+		EPRINTF("cannot open file for reading: %s\n", options.recently);
+		exit(1);
+	}
+	dummy = lockf(fileno(file), F_LOCK, 0);
+	if (!(context = g_markup_parse_context_new(&xml_parser,
+						   G_MARKUP_TREAT_CDATA_AS_TEXT |
+						   G_MARKUP_PREFIX_ERROR_POSITION |
+						   G_MARKUP_IGNORE_QUALIFIED, NULL, NULL))) {
+		EPRINTF("cannot create XML parser\n");
+		exit(1);
+	}
+	while ((got = fread(buffer, 1, BUFSIZ, file)) > 0) {
+		if (!g_markup_parse_context_parse(context, buffer, got, &error)) {
+			EPRINTF("could not parse buffer contents\n");
+			exit(1);
+		}
+	}
+	if (!g_markup_parse_context_end_parse(context, &error)) {
+		EPRINTF("could not end parsing\n");
+		exit(1);
+	}
+	g_markup_parse_context_unref(context);
+	dummy = lockf(fileno(file), F_ULOCK, 0);
+	fclose(file);
+	g_list_foreach(recent, recent_print, (gpointer) stdout);
+	g_list_free_full(recent, recent_free);
+	recent = NULL;
+	(void) dummy;
 }
 
 static void
 run_command(int argc, char *argv[])
 {
 	if (!manager && !(manager = gtk_recent_manager_get_default())) {
-		EPRINTF("could not get recent manager instance");
+		EPRINTF("could not get recent manager instance\n");
 		exit(1);
 	}
 	if (!(items = gtk_recent_manager_get_items(manager))) {
-		EPRINTF("could not get recent items list");
+		EPRINTF("could not get recent items list\n");
 		exit(1);
 	}
 	g_list_foreach(items, items_print, (gpointer) stdout);
-	g_list_free(items);
+	g_list_free_full(items, items_free);
 	items = NULL;
 }
 
 void
 set_defaults(void)
 {
+	static const char *xsuffix = "/recently-used";
+	static const char *hsuffix = "/.recently-used";
+	int len;
+	char *env;
+
+	free(options.recently);
+	options.recently = NULL;
+
+	if ((env = getenv("XDG_DATA_HOME"))) {
+		len = strlen(env) + strlen(xsuffix) + 1;
+		free(options.recently);
+		options.recently = calloc(len, sizeof(*options.recently));
+		strcpy(options.recently, env);
+		strcpy(options.recently, xsuffix);
+	} else {
+		static const char *subdir = "/.local/share";
+
+		env = getenv("HOME") ? : ".";
+
+		len = strlen(env) + strlen(subdir) + strlen(xsuffix) + 1;
+		free(options.recently);
+		options.recently = calloc(len, sizeof(*options.recently));
+		strcpy(options.recently, env);
+		strcat(options.recently, subdir);
+		strcat(options.recently, xsuffix);
+	}
+	if (access(options.recently, R_OK|W_OK)) {
+		env = getenv("HOME") ? : ".";
+
+		len = strlen(env) + strlen(hsuffix) + 1;
+		free(options.recently);
+		options.recently = calloc(len, sizeof(*options.recently));
+		strcpy(options.recently, env);
+		strcat(options.recently, hsuffix);
+	}
 }
 
 int
@@ -472,6 +766,7 @@ main(int argc, char *argv[])
 	default:
 		if (options.debug)
 			fprintf(stderr, "%s: running command\n", argv[0]);
+		run_command2(argc, argv);
 		run_command(argc, argv);
 		break;
 	case COMMAND_HELP:
