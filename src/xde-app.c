@@ -370,7 +370,7 @@ recent_copy(gpointer data, gpointer user)
 				free(appid);
 				return;
 			}
-			history = g_list_append(history, appid);
+			history = g_list_prepend(history, appid);
 			return;
 		}
 	}
@@ -446,8 +446,6 @@ get_run_history()
 	FILE *f;
 	int n;
 
-	g_list_free_full(history, history_free);
-
 	file = options.xdg ? options.recapps : options.runhist;
 	if ((f = fopen(file, "r"))) {
 		char *buf = calloc(PATH_MAX + 2, sizeof(*buf));
@@ -480,9 +478,19 @@ get_run_history()
 		fclose(f);
 	} else
 		EPRINTF("open: could not open history file %s: %s\n", file, strerror(errno));
+	return;
+}
+
+void
+get_history()
+{
+	g_list_free_full(history, history_free);
+
 	if (options.xdg)
 		get_recently_used();
-	return;
+
+	if (!history)
+		get_run_history();
 }
 
 void
@@ -739,7 +747,7 @@ on_dialog_response(GtkDialog *dialog, gint response_id, gpointer data)
 			strncpy(command, launch, len);
 			strncat(command, text, len);
 			if (!g_list_find_custom(history, text, history_sort))
-				history = g_list_append(history, (gpointer) strdup(text));
+				history = g_list_prepend(history, (gpointer) strdup(text));
 			else
 				DPRINTF("found %s in list!\n", text);
 		} else if (gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(term))) {
@@ -750,7 +758,7 @@ on_dialog_response(GtkDialog *dialog, gint response_id, gpointer data)
 			strcpy(command, xterm);
 			strcat(command, text);
 			if (!g_list_find_custom(history, command, history_sort))
-				history = g_list_append(history, (gpointer) strdup(command));
+				history = g_list_prepend(history, (gpointer) strdup(command));
 			else
 				DPRINTF("found %s in list!\n", command);
 		} else {
@@ -758,7 +766,7 @@ on_dialog_response(GtkDialog *dialog, gint response_id, gpointer data)
 			command = calloc(len, sizeof(*command));
 			strcpy(command, text);
 			if (!g_list_find_custom(history, command, history_sort))
-				history = g_list_append(history, (gpointer) strdup(command));
+				history = g_list_prepend(history, (gpointer) strdup(command));
 			else
 				DPRINTF("found %s in list!\n", command);
 		}
@@ -1247,7 +1255,7 @@ main(int argc, char *argv[])
 			fprintf(stderr, "%s: running command\n", argv[0]);
 		startup(argc, argv);
 		create_store();
-		get_run_history();
+		get_history();
 		run_command();
 		gtk_main();
 		break;
