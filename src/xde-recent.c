@@ -355,9 +355,9 @@ typedef struct {
 RecentItem *current = NULL;
 
 static void
-xml_start_element(GMarkupParseContext * context, const gchar *element_name,
+xml_start_element(GMarkupParseContext *context, const gchar *element_name,
 		  const gchar **attribute_names, const gchar **attribute_values, gpointer user_data,
-		  GError ** error)
+		  GError **error)
 {
 	if (!strcmp(element_name, "RecentFiles")) {
 		/* don't care */
@@ -385,8 +385,8 @@ xml_start_element(GMarkupParseContext * context, const gchar *element_name,
 }
 
 static void
-xml_end_element(GMarkupParseContext * context, const gchar *element_name, gpointer user_data,
-		GError ** error)
+xml_end_element(GMarkupParseContext *context, const gchar *element_name, gpointer user_data,
+		GError **error)
 {
 	if (!strcmp(element_name, "RecentFiles")) {
 		/* don't care */
@@ -412,8 +412,8 @@ xml_end_element(GMarkupParseContext * context, const gchar *element_name, gpoint
 }
 
 static void
-xml_character_data(GMarkupParseContext * context, const gchar *text, gsize text_len,
-		   gpointer user_data, GError ** error)
+xml_character_data(GMarkupParseContext *context, const gchar *text, gsize text_len,
+		   gpointer user_data, GError **error)
 {
 	const gchar *element_name;
 
@@ -457,14 +457,14 @@ xml_character_data(GMarkupParseContext * context, const gchar *text, gsize text_
 }
 
 static void
-xml_passthrough(GMarkupParseContext * context, const gchar *passthrough_text, gsize text_len,
-		gpointer user_data, GError ** error)
+xml_passthrough(GMarkupParseContext *context, const gchar *passthrough_text, gsize text_len,
+		gpointer user_data, GError **error)
 {
 	/* don't care */
 }
 
 static void
-xml_error(GMarkupParseContext * context, GError * error, gpointer user_data)
+xml_error(GMarkupParseContext *context, GError *error, gpointer user_data)
 {
 	EPRINTF("got an error during parsing\n");
 	exit(1);
@@ -538,8 +538,8 @@ recent_print(gpointer data, gpointer user_data)
 	fprintf(f, "Visited:\t%lu\n", r->stamp);
 	fprintf(f, "Private:\t%s\n", r->private ? "yes" : "no");
 #if 0
-	/* FIXME: pull this out from the .desktop file if recently-used-apps
-	 * or from equivalent desktop file if group is also an APPID */
+	/* FIXME: pull this out from the .desktop file if recently-used-apps or from
+	   equivalent desktop file if group is also an APPID */
 	fprintf(f, "Applications:\t\n");
 #endif
 	if (r->groups) {
@@ -636,7 +636,7 @@ set_defaults(void)
 		strcat(options.recently, subdir);
 		strcat(options.recently, xsuffix);
 	}
-	if (access(options.recently, R_OK|W_OK)) {
+	if (access(options.recently, R_OK | W_OK)) {
 		env = getenv("HOME") ? : ".";
 
 		len = strlen(env) + strlen(hsuffix) + 1;

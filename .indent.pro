@@ -288,3 +288,7 @@
 -TXSession
 -TXWMIconGeometry
 -TXWMState
+-TGMarkupParseContext
+-TGError
+-TRecentItem
+-Tgsize
