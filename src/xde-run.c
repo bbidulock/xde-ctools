@@ -428,8 +428,6 @@ get_recently_used()
 	fclose(f);
 	recent = g_list_sort(recent, recent_sort);
 	g_list_foreach(recent, recent_copy, (gpointer) NULL);
-	g_list_free_full(recent, recent_free);
-	recent = NULL;
 	(void) dummy;
 }
 
@@ -493,6 +491,69 @@ get_history()
 		get_run_history();
 }
 
+static void
+groups_write(gpointer data, gpointer user)
+{
+	char *g = (typeof(g)) data;
+	FILE *f = (typeof(f)) user;
+	gchar *s;
+
+	s = g_markup_printf_escaped("<Group>%s</Group>", g);
+	fprintf(f, "      %s\n", s);
+	g_free(s);
+}
+
+static void
+recent_write(gpointer data, gpointer user)
+{
+	RecentItem *r = (typeof(r)) data;
+	FILE *f = (typeof(f)) user;
+	gchar *s;
+
+	fprintf(f, "  %s\n", "<RecentItem>");
+
+	s = g_markup_printf_escaped("<URI>%s</URI>", r->uri);
+	fprintf(f, "    %s\n", s);
+	g_free(s);
+	s = g_markup_printf_escaped("<Mime-Type>%s</Mime-Type>", r->mime);
+	fprintf(f, "    %s\n", s);
+	g_free(s);
+	fprintf(f, "    <Timestamp>%lu</Timestamp>\n", r->stamp);
+	if (r->private)
+		fprintf(f, "    %s\n", "<Private/>");
+	if (r->groups) {
+		fprintf(f, "    %s\n", "<Groups>");
+		g_slist_foreach(r->groups, groups_write, (gpointer)f);
+		fprintf(f, "    %s\n", "</Groups>");
+	}
+
+	fprintf(f, "  %s\n", "</RecentItem>");
+}
+
+void
+put_recently_used()
+{
+	FILE *f;
+	int dummy;
+
+	if (!(f = fopen(options.recently, "w"))) {
+		EPRINTF("cannot open file for writing: '%s'\n", options.recently);
+		return;
+	}
+	dummy = lockf(fileno(f), F_LOCK, 0);
+
+	fprintf(f, "%s\n", "<?xml version=\"1.0\"?>");
+	fprintf(f, "%s\n", "<RecentFiles>");
+
+	g_list_foreach(recent, recent_write, (gpointer) f);
+
+	fprintf(f, "%s\n", "</RecentFiles>");
+	fflush(f);
+	dummy = lockf(fileno(f), F_ULOCK, 0);
+	fclose(f);
+	(void) dummy;
+}
+
 void
 history_write(gpointer data, gpointer user)
 {
@@ -513,6 +574,17 @@ put_run_history()
 		g_list_foreach(history, history_write, (gpointer) f);
 		fclose(f);
 	}
+}
+
+void
+put_history()
+{
+	if (options.xdg && recent)
+		put_recently_used();
+	g_list_free_full(recent, recent_free);
+	recent = NULL;
+	if (history)
+		put_run_history();
 	g_list_free_full(history, history_free);
 	history = NULL;
 }
@@ -770,7 +842,7 @@ on_dialog_response(GtkDialog *dialog, gint response_id, gpointer data)
 			else
 				DPRINTF("found %s in list!\n", command);
 		}
-		put_run_history();
+		put_history();
 
 		strncat(command, " &", len);
 		if ((status = system(command)) == 0)
