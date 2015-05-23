@@ -237,8 +237,8 @@ typedef struct {
 RecentItem *current = NULL;
 
 static void
-ru_xml_start_element(GMarkupParseContext * ctx, const gchar * name, const gchar ** attrs,
-		     const gchar ** values, gpointer user, GError ** err)
+ru_xml_start_element(GMarkupParseContext *ctx, const gchar *name, const gchar **attrs,
+		     const gchar **values, gpointer user, GError **err)
 {
 	if (!strcmp(name, "RecentItem")) {
 		if (!current && !(current = calloc(1, sizeof(*current)))) {
@@ -251,7 +251,7 @@ ru_xml_start_element(GMarkupParseContext * ctx, const gchar * name, const gchar 
 }
 
 static void
-ru_xml_end_element(GMarkupParseContext * ctx, const gchar * name, gpointer user, GError ** err)
+ru_xml_end_element(GMarkupParseContext *ctx, const gchar *name, gpointer user, GError **err)
 {
 	if (!strcmp(name, "RecentItem")) {
 		recent = g_list_append(recent, current);
@@ -260,7 +260,7 @@ ru_xml_end_element(GMarkupParseContext * ctx, const gchar * name, gpointer user,
 }
 
 static void
-ru_xml_text(GMarkupParseContext * ctx, const gchar * text, gsize len, gpointer user, GError ** err)
+ru_xml_text(GMarkupParseContext *ctx, const gchar *text, gsize len, gpointer user, GError **err)
 {
 	const gchar *name;
 	char *buf, *end = NULL;
@@ -287,14 +287,14 @@ ru_xml_text(GMarkupParseContext * ctx, const gchar * text, gsize len, gpointer u
 }
 
 static void
-ru_xml_passthrough(GMarkupParseContext * ctx, const gchar * text, gsize len, gpointer user,
-		   GError ** err)
+ru_xml_passthrough(GMarkupParseContext *ctx, const gchar *text, gsize len, gpointer user,
+		   GError **err)
 {
 	/* don't care */
 }
 
 static void
-ru_xml_error(GMarkupParseContext * ctx, GError * err, gpointer user)
+ru_xml_error(GMarkupParseContext *ctx, GError *err, gpointer user)
 {
 	EPRINTF("got an error during parsing\n");
 	exit(1);
@@ -771,7 +771,7 @@ create_store()
 }
 
 void
-on_entry_changed(GtkTextBuffer * textbuffer, gpointer data)
+on_entry_changed(GtkTextBuffer *textbuffer, gpointer data)
 {
 	char *p;
 	const char *command = gtk_entry_get_text(GTK_ENTRY(entry));
@@ -788,7 +788,7 @@ on_entry_changed(GtkTextBuffer * textbuffer, gpointer data)
 }
 
 void
-on_file_response(GtkDialog * dialog, gint response_id, gpointer data)
+on_file_response(GtkDialog *dialog, gint response_id, gpointer data)
 {
 	if (response_id == GTK_RESPONSE_OK || response_id == 0) {
 		char *file = gtk_file_chooser_get_filename(GTK_FILE_CHOOSER(dialog));
@@ -807,7 +807,7 @@ on_file_response(GtkDialog * dialog, gint response_id, gpointer data)
 }
 
 void
-on_file_clicked(GtkButton * button, gpointer data)
+on_file_clicked(GtkButton *button, gpointer data)
 {
 	GtkWidget *choose = gtk_file_chooser_dialog_new("Choose File", GTK_WINDOW(dialog),
 							GTK_FILE_CHOOSER_ACTION_OPEN,
@@ -819,7 +819,7 @@ on_file_clicked(GtkButton * button, gpointer data)
 }
 
 void
-on_dialog_response(GtkDialog * dialog, gint response_id, gpointer data)
+on_dialog_response(GtkDialog *dialog, gint response_id, gpointer data)
 {
 	if (response_id == GTK_RESPONSE_OK || response_id == 0) {
 		char *command;
@@ -877,7 +877,7 @@ on_dialog_response(GtkDialog * dialog, gint response_id, gpointer data)
 }
 
 void
-on_entry_activate(GtkEntry * entry, gpointer data)
+on_entry_activate(GtkEntry *entry, gpointer data)
 {
 	gtk_signal_emit_by_name(GTK_OBJECT(dialog), "response", GTK_RESPONSE_OK, data);
 }
@@ -1063,7 +1063,7 @@ handle_event(Display *dpy, XEvent *xev)
 }
 
 static GdkFilterReturn
-filter_handler(GdkXEvent * xevent, GdkEvent *event, gpointer data)
+filter_handler(GdkXEvent *xevent, GdkEvent *event, gpointer data)
 {
 	XEvent *xev = (typeof(xev)) xevent;
 	Display *dpy = (typeof(dpy)) data;
