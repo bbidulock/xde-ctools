@@ -760,7 +760,7 @@ static GdkFilterReturn
 filter_handler(GdkXEvent * xevent, GdkEvent * event, gpointer data)
 {
 	XEvent *xev = (typeof(xev)) xevent;
-	Display *dpy = (typeof(dpy)) data;
+	Display *dpy = data;
 
 	return handle_event(dpy, xev);
 }
@@ -983,19 +983,19 @@ Options:\n\
         use the time, TIMESTAMP, for button/keyboard event [default: %7$lu]\n\
     -w, --which {active|focused|pointer|select|WINDOW}\n\
         specify the window for which to pop the menu [default: %8$s]\n\
-	\"active\"  - the EWMH/NetWM active client\n\
-	\"focused\" - the EWMH/NetWM focused client\n\
-	\"pointer\" - the EWMH/NetWM client under the pointer\n\
-	\"select\"  - the EWMH/NetWM client from selection\n\
-	 WINDOW   - the EWMH/NetWM client XID to use\n\
+        \"active\"  - the EWMH/NetWM active client\n\
+        \"focused\" - the EWMH/NetWM focused client\n\
+        \"pointer\" - the EWMH/NetWM client under the pointer\n\
+        \"select\"  - the EWMH/NetWM client from selection\n\
+         WINDOW   - the EWMH/NetWM client XID to use\n\
     -x, --id WINDOW\n\
         specify the window to use by XID [default: %9$s]\n\
     -W, --where {pointer|center|topleft|icongeom}\n\
         specify where to place the menu [default: %10$s]\n\
-	\"pointer\"  - northwest corner under the pointer\n\
-	\"center\"   - center on associated window\n\
-	\"topleft\"  - northwest corner top left of window\n\
-	\"icongeom\" - above or below icon geometry\n\
+        \"pointer\"  - northwest corner under the pointer\n\
+        \"center\"   - center on associated window\n\
+        \"topleft\"  - northwest corner top left of window\n\
+        \"icongeom\" - above or below icon geometry\n\
     -D, --debug [LEVEL]\n\
         increment or set debug LEVEL [default: %2$d]\n\
     -v, --verbose [LEVEL]\n\
