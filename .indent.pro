@@ -96,6 +96,7 @@
 -TGList
 -Tglock_t
 -TGMarkupParseContext
+-TGMarkupParser
 -Tgpointer
 -Tgroupview_t
 -Tgsize
