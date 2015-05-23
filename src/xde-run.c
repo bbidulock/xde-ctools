@@ -579,8 +579,11 @@ put_run_history()
 void
 put_history()
 {
+#if 0
+	/* would probably prefer if xdg-launch did this */
 	if (options.xdg && recent)
 		put_recently_used();
+#endif
 	g_list_free_full(recent, recent_free);
 	recent = NULL;
 	if (history)

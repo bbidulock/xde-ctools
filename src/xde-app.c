@@ -237,8 +237,8 @@ typedef struct {
 RecentItem *current = NULL;
 
 static void
-ru_xml_start_element(GMarkupParseContext *ctx, const gchar *name, const gchar **attrs,
-		  const gchar **values, gpointer user, GError **err)
+ru_xml_start_element(GMarkupParseContext * ctx, const gchar * name, const gchar ** attrs,
+		     const gchar ** values, gpointer user, GError ** err)
 {
 	if (!strcmp(name, "RecentItem")) {
 		if (!current && !(current = calloc(1, sizeof(*current)))) {
@@ -251,16 +251,16 @@ ru_xml_start_element(GMarkupParseContext *ctx, const gchar *name, const gchar **
 }
 
 static void
-ru_xml_end_element(GMarkupParseContext *ctx, const gchar *name, gpointer user, GError **err)
+ru_xml_end_element(GMarkupParseContext * ctx, const gchar * name, gpointer user, GError ** err)
 {
 	if (!strcmp(name, "RecentItem")) {
-		recent = g_list_append(recent, (gpointer) current);
+		recent = g_list_append(recent, current);
 		current = NULL;
 	}
 }
 
 static void
-ru_xml_text(GMarkupParseContext *ctx, const gchar *text, gsize len, gpointer user, GError **err)
+ru_xml_text(GMarkupParseContext * ctx, const gchar * text, gsize len, gpointer user, GError ** err)
 {
 	const gchar *name;
 	char *buf, *end = NULL;
@@ -269,35 +269,32 @@ ru_xml_text(GMarkupParseContext *ctx, const gchar *text, gsize len, gpointer use
 	name = g_markup_parse_context_get_element(ctx);
 	if (!strcmp(name, "URI")) {
 		free(current->uri);
-		current->uri = calloc(1, len + 1);
-		memcpy(current->uri, text, len);
+		current->uri = strndup(text, len);
 	} else if (!strcmp(name, "Mime-Type")) {
 		free(current->mime);
-		current->mime = calloc(1, len + 1);
-		memcpy(current->mime, text, len);
+		current->mime = strndup(text, len);
 	} else if (!strcmp(name, "Timestamp")) {
 		current->stamp = 0;
-		buf = calloc(1, len + 1);
-		memcpy(buf, text, len);
+		buf = strndup(text, len);
 		val = strtoul(buf, &end, 0);
 		if (end && *end == '\0')
 			current->stamp = val;
+		free(buf);
 	} else if (!strcmp(name, "Group")) {
-		buf = calloc(1, len + 1);
-		memcpy(buf, text, len);
-		current->groups = g_slist_append(current->groups, (gpointer) buf);
+		buf = strndup(text, len);
+		current->groups = g_slist_append(current->groups, buf);
 	}
 }
 
 static void
-ru_xml_passthrough(GMarkupParseContext *ctx, const gchar *text, gsize len, gpointer user,
-		   GError **err)
+ru_xml_passthrough(GMarkupParseContext * ctx, const gchar * text, gsize len, gpointer user,
+		   GError ** err)
 {
 	/* don't care */
 }
 
 static void
-ru_xml_error(GMarkupParseContext *ctx, GError *err, gpointer user)
+ru_xml_error(GMarkupParseContext * ctx, GError * err, gpointer user)
 {
 	EPRINTF("got an error during parsing\n");
 	exit(1);
@@ -411,23 +408,28 @@ get_recently_used()
 					       G_MARKUP_PREFIX_ERROR_POSITION |
 					       G_MARKUP_IGNORE_QUALIFIED, NULL, NULL))) {
 		EPRINTF("cannot create XML parser\n");
+		fclose(f);
 		return;
 	}
 	while ((got = fread(buf, 1, BUFSIZ, f)) > 0) {
 		if (!g_markup_parse_context_parse(ctx, buf, got, &err)) {
 			EPRINTF("could not parse buffer contents\n");
+			g_markup_parse_context_unref(ctx);
+			fclose(f);
 			return;
 		}
 	}
 	if (!g_markup_parse_context_end_parse(ctx, &err)) {
 		EPRINTF("could not end parsing\n");
+		g_markup_parse_context_unref(ctx);
+		fclose(f);
 		return;
 	}
 	g_markup_parse_context_unref(ctx);
 	dummy = lockf(fileno(f), F_ULOCK, 0);
 	fclose(f);
 	recent = g_list_sort(recent, recent_sort);
-	g_list_foreach(recent, recent_copy, (gpointer) NULL);
+	g_list_foreach(recent, recent_copy, NULL);
 	(void) dummy;
 }
 
@@ -448,6 +450,9 @@ get_run_history()
 	if ((f = fopen(file, "r"))) {
 		char *buf = calloc(PATH_MAX + 2, sizeof(*buf));
 		int discarding = 0;
+		int dummy;
+
+		dummy = lockf(fileno(f), F_LOCK, 0);
 
 		n = 0;
 		while (fgets(buf, PATH_MAX, f)) {
@@ -468,12 +473,15 @@ get_run_history()
 
 			if (g_list_find_custom(history, p, history_sort))
 				continue;
-			history = g_list_append(history, (gpointer) strdup(p));
+			history = g_list_append(history, strdup(p));
 			if (++n >= options.recent)
 				break;
 		}
+
+		dummy = lockf(fileno(f), F_ULOCK, 0);
 		free(buf);
 		fclose(f);
+		(void) dummy;
 	} else
 		EPRINTF("open: could not open history file %s: %s\n", file, strerror(errno));
 	return;
@@ -523,7 +531,7 @@ recent_write(gpointer data, gpointer user)
 		fprintf(f, "    %s\n", "<Private/>");
 	if (r->groups) {
 		fprintf(f, "    %s\n", "<Groups>");
-		g_slist_foreach(r->groups, groups_write, (gpointer)f);
+		g_slist_foreach(r->groups, groups_write, f);
 		fprintf(f, "    %s\n", "</Groups>");
 	}
 
@@ -545,7 +553,7 @@ put_recently_used()
 	fprintf(f, "%s\n", "<?xml version=\"1.0\"?>");
 	fprintf(f, "%s\n", "<RecentFiles>");
 
-	g_list_foreach(recent, recent_write, (gpointer) f);
+	g_list_foreach(recent, recent_write, f);
 
 	fprintf(f, "%s\n", "</RecentFiles>");
 	fflush(f);
@@ -571,16 +579,25 @@ put_run_history()
 
 	file = options.xdg ? options.recapps : options.runhist;
 	if ((f = fopen(file, "w"))) {
-		g_list_foreach(history, history_write, (gpointer) f);
+		int dummy;
+
+		dummy = lockf(fileno(f), F_LOCK, 0);
+		g_list_foreach(history, history_write, f);
+		fflush(f);
+		dummy = lockf(fileno(f), F_ULOCK, 0);
 		fclose(f);
+		(void) dummy;
 	}
 }
 
 void
 put_history()
 {
+#if 0
+	/* would probably prefer if xdg-launch did this */
 	if (options.xdg && recent)
 		put_recently_used();
+#endif
 	g_list_free_full(recent, recent_free);
 	recent = NULL;
 	if (history)
@@ -754,7 +771,7 @@ create_store()
 }
 
 void
-on_entry_changed(GtkTextBuffer *textbuffer, gpointer data)
+on_entry_changed(GtkTextBuffer * textbuffer, gpointer data)
 {
 	char *p;
 	const char *command = gtk_entry_get_text(GTK_ENTRY(entry));
@@ -771,7 +788,7 @@ on_entry_changed(GtkTextBuffer *textbuffer, gpointer data)
 }
 
 void
-on_file_response(GtkDialog *dialog, gint response_id, gpointer data)
+on_file_response(GtkDialog * dialog, gint response_id, gpointer data)
 {
 	if (response_id == GTK_RESPONSE_OK || response_id == 0) {
 		char *file = gtk_file_chooser_get_filename(GTK_FILE_CHOOSER(dialog));
@@ -790,20 +807,19 @@ on_file_response(GtkDialog *dialog, gint response_id, gpointer data)
 }
 
 void
-on_file_clicked(GtkButton *button, gpointer data)
+on_file_clicked(GtkButton * button, gpointer data)
 {
 	GtkWidget *choose = gtk_file_chooser_dialog_new("Choose File", GTK_WINDOW(dialog),
 							GTK_FILE_CHOOSER_ACTION_OPEN,
 							GTK_STOCK_CANCEL, GTK_RESPONSE_CANCEL,
 							GTK_STOCK_OK, GTK_RESPONSE_OK, NULL);
 
-	g_signal_connect(G_OBJECT(choose), "response", G_CALLBACK(on_file_response),
-			 (gpointer) NULL);
+	g_signal_connect(G_OBJECT(choose), "response", G_CALLBACK(on_file_response), NULL);
 	gtk_dialog_run(GTK_DIALOG(choose));
 }
 
 void
-on_dialog_response(GtkDialog *dialog, gint response_id, gpointer data)
+on_dialog_response(GtkDialog * dialog, gint response_id, gpointer data)
 {
 	if (response_id == GTK_RESPONSE_OK || response_id == 0) {
 		char *command;
@@ -819,7 +835,7 @@ on_dialog_response(GtkDialog *dialog, gint response_id, gpointer data)
 			strncpy(command, launch, len);
 			strncat(command, text, len);
 			if (!g_list_find_custom(history, text, history_sort))
-				history = g_list_prepend(history, (gpointer) strdup(text));
+				history = g_list_prepend(history, strdup(text));
 			else
 				DPRINTF("found %s in list!\n", text);
 		} else if (gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(term))) {
@@ -830,7 +846,7 @@ on_dialog_response(GtkDialog *dialog, gint response_id, gpointer data)
 			strcpy(command, xterm);
 			strcat(command, text);
 			if (!g_list_find_custom(history, command, history_sort))
-				history = g_list_prepend(history, (gpointer) strdup(command));
+				history = g_list_prepend(history, strdup(command));
 			else
 				DPRINTF("found %s in list!\n", command);
 		} else {
@@ -838,7 +854,7 @@ on_dialog_response(GtkDialog *dialog, gint response_id, gpointer data)
 			command = calloc(len, sizeof(*command));
 			strcpy(command, text);
 			if (!g_list_find_custom(history, command, history_sort))
-				history = g_list_prepend(history, (gpointer) strdup(command));
+				history = g_list_prepend(history, strdup(command));
 			else
 				DPRINTF("found %s in list!\n", command);
 		}
@@ -861,7 +877,7 @@ on_dialog_response(GtkDialog *dialog, gint response_id, gpointer data)
 }
 
 void
-on_entry_activate(GtkEntry *entry, gpointer data)
+on_entry_activate(GtkEntry * entry, gpointer data)
 {
 	gtk_signal_emit_by_name(GTK_OBJECT(dialog), "response", GTK_RESPONSE_OK, data);
 }
@@ -889,14 +905,14 @@ run_command()
 	gtk_entry_completion_set_text_column(GTK_ENTRY_COMPLETION(compl), 0);
 	gtk_entry_completion_set_minimum_key_length(GTK_ENTRY_COMPLETION(compl), 2);
 	gtk_entry_set_completion(GTK_ENTRY(entry), GTK_ENTRY_COMPLETION(compl));
-	g_signal_connect(G_OBJECT(entry), "changed", G_CALLBACK(on_entry_changed), (gpointer) NULL);
+	g_signal_connect(G_OBJECT(entry), "changed", G_CALLBACK(on_entry_changed), NULL);
 
 	term = gtk_check_button_new_with_label("Run in terminal");
 	gtk_widget_set_sensitive(GTK_WIDGET(term), options.xdg ? FALSE : TRUE);
 
 	GtkWidget *file = gtk_button_new_with_label("Run with file...");
 
-	g_signal_connect(G_OBJECT(file), "clicked", G_CALLBACK(on_file_clicked), (gpointer) NULL);
+	g_signal_connect(G_OBJECT(file), "clicked", G_CALLBACK(on_file_clicked), NULL);
 
 	GtkWidget *hbox = gtk_hbox_new(FALSE, 12);
 
@@ -938,10 +954,8 @@ run_command()
 	GtkWidget *content = gtk_dialog_get_content_area(GTK_DIALOG(dialog));
 
 	gtk_box_pack_start(GTK_BOX(content), GTK_WIDGET(mbox), TRUE, TRUE, 0);
-	g_signal_connect(G_OBJECT(dialog), "response", G_CALLBACK(on_dialog_response),
-			 (gpointer) NULL);
-	g_signal_connect(G_OBJECT(entry), "activate", G_CALLBACK(on_entry_activate),
-			 (gpointer) NULL);
+	g_signal_connect(G_OBJECT(dialog), "response", G_CALLBACK(on_dialog_response), NULL);
+	g_signal_connect(G_OBJECT(entry), "activate", G_CALLBACK(on_entry_activate), NULL);
 	gtk_widget_show_all(GTK_WIDGET(dialog));
 }
 
@@ -1049,7 +1063,7 @@ handle_event(Display *dpy, XEvent *xev)
 }
 
 static GdkFilterReturn
-filter_handler(GdkXEvent *xevent, GdkEvent *event, gpointer data)
+filter_handler(GdkXEvent * xevent, GdkEvent *event, gpointer data)
 {
 	XEvent *xev = (typeof(xev)) xevent;
 	Display *dpy = (typeof(dpy)) data;
