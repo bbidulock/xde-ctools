@@ -229,7 +229,7 @@ typedef struct {
 	gchar *exec;
 	time_t modified;
 	guint count;
-} XbelApplication;
+} RecentAppl;
 
 typedef struct {
 	gchar *href;
@@ -243,7 +243,7 @@ typedef struct {
 	GList *groups;
 	GList *applications;
 	gboolean private;
-} XbelBookmark;
+} RecentItem;
 
 static void
 xbel_start_element(GMarkupParseContext *ctx, const gchar *name, const gchar
@@ -251,7 +251,7 @@ xbel_start_element(GMarkupParseContext *ctx, const gchar *name, const gchar
 {
 	GList **list = user;
 	GList *item = g_list_last(*list);
-	XbelBookmark *mark = item ? item->data : NULL;
+	RecentItem *mark = item ? item->data : NULL;
 
 	if (!strcmp(name, "xbel")) {
 	} else if (!strcmp(name, "bookmark")) {
@@ -308,7 +308,7 @@ xbel_start_element(GMarkupParseContext *ctx, const gchar *name, const gchar
 	} else if (!strcmp(name, "bookmark:applications")) {
 	} else if (!strcmp(name, "bookmark:application")) {
 		if (mark) {
-			XbelApplication *appl;
+			RecentAppl *appl;
 			struct tm tm = { 0, };
 
 			if (!(appl = calloc(1, sizeof(*appl)))) {
@@ -348,7 +348,7 @@ xbel_text(GMarkupParseContext *ctx, const gchar *text, gsize len, gpointer user,
 {
 	GList **list = user;
 	GList *item = g_list_last(*list);
-	XbelBookmark *mark = item ? item->data : NULL;
+	RecentItem *mark = item ? item->data : NULL;
 	const gchar *name;
 
 	name = g_markup_parse_context_get_element(ctx);
@@ -389,7 +389,7 @@ text_free(gpointer data)
 static void
 appl_free(gpointer data)
 {
-	XbelApplication *appl = data;
+	RecentAppl *appl = data;
 
 	free(appl->name);
 	appl->name = NULL;
@@ -403,7 +403,7 @@ appl_free(gpointer data)
 static void
 xbel_free(gpointer data)
 {
-	XbelBookmark *book = data;
+	RecentItem *book = data;
 
 	free(book->href);
 	book->href = NULL;
@@ -426,8 +426,8 @@ xbel_free(gpointer data)
 static gint
 xbel_sort(gconstpointer a, gconstpointer b)
 {
-	const XbelBookmark *A = a;
-	const XbelBookmark *B = b;
+	const RecentItem *A = a;
+	const RecentItem *B = b;
 
 	if (A->modified < B->modified)
 		return (-1);
@@ -445,7 +445,7 @@ grp_match(gconstpointer data, gconstpointer user)
 static gint
 app_match(gconstpointer data, gconstpointer user)
 {
-	const XbelApplication *a = data;
+	const RecentAppl *a = data;
 
 	return (strcmp(a->name, user));
 }
@@ -459,7 +459,7 @@ appid_match(gconstpointer data, gconstpointer user)
 static void
 xbel_copy(gpointer data, gpointer user)
 {
-	XbelBookmark *b = data;
+	RecentItem *b = data;
 	GList **list = user;
 	char *path, *name, *appid;
 	int len;
@@ -543,39 +543,31 @@ get_recent_applications_xbel(char *filename)
 	(void) dummy;
 }
 
-typedef struct {
-	gchar *uri;
-	gchar *mime;
-	time_t stamp;
-	gboolean private;
-	GSList *groups;
-} RecentItem;
-
 static void
-ru_xml_start_element(GMarkupParseContext *ctx, const gchar *name, const gchar **attrs,
+recent_start_element(GMarkupParseContext *ctx, const gchar *name, const gchar **attrs,
 		     const gchar **values, gpointer user, GError **err)
 {
 	GList **list = user;
 	GList *item = g_list_last(*list);
-	RecentItem *current = item ? item->data : NULL;
+	RecentItem *mark = item ? item->data : NULL;
 
 	if (!strcmp(name, "RecentItem")) {
-		if (!(current = calloc(1, sizeof(*current)))) {
+		if (!(mark = calloc(1, sizeof(*mark)))) {
 			EPRINTF("could not allocate element\n");
 			exit(1);
 		}
-		*list = g_list_append(*list, current);
+		*list = g_list_append(*list, mark);
 	} else if (!strcmp(name, "Private")) {
-		current->private = TRUE;
+		mark->private = TRUE;
 	}
 }
 
 static void
-ru_xml_text(GMarkupParseContext *ctx, const gchar *text, gsize len, gpointer user, GError **err)
+recent_text(GMarkupParseContext *ctx, const gchar *text, gsize len, gpointer user, GError **err)
 {
 	GList **list = user;
 	GList *item = g_list_last(*list);
-	RecentItem *current = item ? item->data : NULL;
+	RecentItem *mark = item ? item->data : NULL;
 
 	const gchar *name;
 	char *buf, *end = NULL;
@@ -584,39 +576,22 @@ ru_xml_text(GMarkupParseContext *ctx, const gchar *text, gsize len, gpointer use
 	name = g_markup_parse_context_get_element(ctx);
 
 	if (!strcmp(name, "URI")) {
-		free(current->uri);
-		current->uri = strndup(text, len);
+		free(mark->href);
+		mark->href = strndup(text, len);
 	} else if (!strcmp(name, "Mime-Type")) {
-		free(current->mime);
-		current->mime = strndup(text, len);
+		free(mark->mime);
+		mark->mime = strndup(text, len);
 	} else if (!strcmp(name, "Timestamp")) {
-		current->stamp = 0;
+		mark->modified = 0;
 		buf = strndup(text, len);
 		val = strtoul(buf, &end, 0);
 		if (end && *end == '\0')
-			current->stamp = val;
+			mark->modified = val;
 		free(buf);
 	} else if (!strcmp(name, "Group")) {
 		buf = strndup(text, len);
-		current->groups = g_slist_append(current->groups, buf);
+		mark->groups = g_list_append(mark->groups, buf);
 	}
-}
-
-static void
-group_free(gpointer data)
-{
-	free((char *) data);
-}
-
-static void
-recent_free(gpointer data)
-{
-	RecentItem *r = data;
-
-	free(r->uri);
-	free(r->mime);
-	g_slist_free_full(r->groups, group_free);
-	free(r);
 }
 
 gint
@@ -633,50 +608,6 @@ history_sort(gconstpointer a, gconstpointer b)
 	return (strcmp(A, B));
 }
 
-static void
-recent_copy(gpointer data, gpointer user)
-{
-	RecentItem *r = data;
-	GList **list = user;
-	char *path, *name, *appid;
-	int len;
-
-	if (r->mime && strcmp(r->mime, "application/x-desktop"))
-		return;
-	if (!(name = path = r->uri))
-		return;
-	path = strncmp(name, "file://", 7) ? name : name + 7;
-	name = strrchr(path, '/') ? strrchr(path, '/') + 1 : path;
-	if ((len = strlen(name) - strlen(".desktop")) <= 0)
-		return;
-	if (strcmp(name + len, ".desktop"))
-		return;
-	if (r->groups)
-		if (!g_slist_find_custom(r->groups, "recently-used-apps", grp_match))
-			if (!g_slist_find_custom(r->groups, "Application", grp_match))
-				return;
-	appid = strndup(name, len);
-	if (g_list_find_custom(*list, appid, appid_match)) {
-		free(appid);
-		return;
-	}
-	*list = g_list_prepend(*list, appid);
-	return;
-}
-
-gint
-recent_sort(gconstpointer a, gconstpointer b)
-{
-	const RecentItem *A = a;
-	const RecentItem *B = b;
-
-	if (A->stamp < B->stamp)
-		return (-1);
-	if (A->stamp > B->stamp)
-		return (1);
-	return (0);
-}
-
 void
 get_recent_applications(char *filename)
 {
@@ -689,9 +620,9 @@ get_recent_applications(char *filename)
 	GList *list = NULL;
 
 	GMarkupParser parser = {
-		.start_element = ru_xml_start_element,
+		.start_element = recent_start_element,
 		.end_element = NULL,
-		.text = ru_xml_text,
+		.text = recent_text,
 		.passthrough = NULL,
 		.error = NULL,
 	};
@@ -722,9 +653,9 @@ get_recent_applications(char *filename)
       unlock_done:
 	dummy = lockf(fileno(f), F_ULOCK, 0);
 	fclose(f);
-	list = g_list_sort(list, recent_sort);
-	g_list_foreach(list, recent_copy, &history);
-	g_list_free_full(list, recent_free);
+	list = g_list_sort(list, xbel_sort);
+	g_list_foreach(list, xbel_copy, &history);
+	g_list_free_full(list, xbel_free);
       no_file:
 	(void) dummy;
 }

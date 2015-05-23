@@ -209,6 +209,7 @@
 -Tqnode_t
 -Tqpair_t
 -Tqueue_t
+-TRecentAppl
 -TRecentItem
 -Trecv_fp_t
 -Treq_nod_t
