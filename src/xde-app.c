@@ -62,7 +62,6 @@ Window root;
 Atom _XA_XDE_THEME_NAME;
 Atom _XA_GTK_READ_RCFILES;
 
-GList *history;
 GtkListStore *store;
 GtkWidget *dialog;
 GtkWidget *combo;
@@ -401,7 +400,7 @@ appl_free(gpointer data)
 }
 
 static void
-xbel_free(gpointer data)
+recent_free(gpointer data)
 {
 	RecentItem *book = data;
 
@@ -424,7 +423,7 @@ xbel_free(gpointer data)
 }
 
 static gint
-xbel_sort(gconstpointer a, gconstpointer b)
+recent_sort(gconstpointer a, gconstpointer b)
 {
 	const RecentItem *A = a;
 	const RecentItem *B = b;
@@ -457,7 +456,7 @@ appid_match(gconstpointer data, gconstpointer user)
 }
 
 static void
-xbel_copy(gpointer data, gpointer user)
+recent_copy(gpointer data, gpointer user)
 {
 	RecentItem *b = data;
 	GList **list = user;
@@ -492,7 +491,7 @@ xbel_copy(gpointer data, gpointer user)
 }
 
 void
-get_recent_applications_xbel(char *filename)
+get_recent_applications_xbel(GList **list, char *filename)
 {
 	GMarkupParseContext *ctx;
 	gchar buf[BUFSIZ];
@@ -500,7 +499,6 @@ get_recent_applications_xbel(char *filename)
 	FILE *f;
 	int dummy;
 	char *file;
-	GList *list = NULL;
 
 	GMarkupParser parser = {
 		.start_element = xbel_start_element,
@@ -517,7 +515,7 @@ get_recent_applications_xbel(char *filename)
 		goto no_file;
 	}
 	dummy = lockf(fileno(f), F_LOCK, 0);
-	if (!(ctx = g_markup_parse_context_new(&parser, 0, &list, NULL))) {
+	if (!(ctx = g_markup_parse_context_new(&parser, 0, list, NULL))) {
 		EPRINTF("cannot create XML parser\n");
 		goto unlock_done;
 	}
@@ -536,9 +534,6 @@ get_recent_applications_xbel(char *filename)
       unlock_done:
 	dummy = lockf(fileno(f), F_ULOCK, 0);
 	fclose(f);
-	list = g_list_sort(list, xbel_sort);
-	g_list_foreach(list, xbel_copy, &history);
-	g_list_free_full(list, xbel_free);
       no_file:
 	(void) dummy;
 }
@@ -609,7 +604,7 @@ history_sort(gconstpointer a, gconstpointer b)
 }
 
 void
-get_recent_applications(char *filename)
+get_recent_applications(GList **list, char *filename)
 {
 	GMarkupParseContext *ctx;
 	gchar buf[BUFSIZ];
@@ -617,7 +612,6 @@ get_recent_applications(char *filename)
 	FILE *f;
 	int dummy;
 	char *file;
-	GList *list = NULL;
 
 	GMarkupParser parser = {
 		.start_element = recent_start_element,
@@ -634,7 +628,7 @@ get_recent_applications(char *filename)
 		goto no_file;
 	}
 	dummy = lockf(fileno(f), F_LOCK, 0);
-	if (!(ctx = g_markup_parse_context_new(&parser, 0, &list, NULL))) {
+	if (!(ctx = g_markup_parse_context_new(&parser, 0, list, NULL))) {
 		EPRINTF("cannot create XML parser\n");
 		goto unlock_done;
 	}
@@ -653,9 +647,6 @@ get_recent_applications(char *filename)
       unlock_done:
 	dummy = lockf(fileno(f), F_ULOCK, 0);
 	fclose(f);
-	list = g_list_sort(list, xbel_sort);
-	g_list_foreach(list, xbel_copy, &history);
-	g_list_free_full(list, xbel_free);
       no_file:
 	(void) dummy;
 }
@@ -667,7 +658,7 @@ history_free(gpointer data)
 }
 
 void
-get_run_history()
+get_run_history(GList **hist)
 {
 	char *p, *file;
 	FILE *f;
@@ -698,9 +689,9 @@ get_run_history()
 			if (!*p)
 				continue;
 
-			if (g_list_find_custom(history, p, history_sort))
+			if (g_list_find_custom(*hist, p, history_sort))
 				continue;
-			history = g_list_append(history, strdup(p));
+			*hist = g_list_append(*hist, strdup(p));
 			if (++n >= options.recent)
 				break;
 		}
@@ -715,20 +706,21 @@ get_run_history()
 }
 
 void
-get_history()
+get_history(GList **hist)
 {
-	g_list_free_full(history, history_free);
-
 	if (options.xdg) {
-		get_recent_applications_xbel("recently-used.xbel");
-		get_recent_applications_xbel("recent-applications.xbel");
-		if (!history) {
-			get_recent_applications(".recently-used");
-			get_recent_applications(".recent-applications");
-		}
+		GList *recent = NULL;
+
+		get_recent_applications_xbel(&recent, "recently-used.xbel");
+		get_recent_applications_xbel(&recent, "recent-applications.xbel");
+		get_recent_applications(&recent, ".recently-used");
+		get_recent_applications(&recent, ".recent-applications");
+		recent = g_list_sort(recent, recent_sort);
+		g_list_foreach(recent, recent_copy, hist);
+		g_list_free_full(recent, recent_free);
 	}
-	if (!history)
-		get_run_history();
+	if (!*hist)
+		get_run_history(hist);
 }
 
 void
@@ -738,7 +730,7 @@ history_write(gpointer data, gpointer user)
 }
 
 void
-put_run_history()
+put_run_history(GList **hist)
 {
 	char *file;
 	FILE *f;
@@ -748,7 +740,7 @@ put_run_history()
 		int dummy;
 
 		dummy = lockf(fileno(f), F_LOCK, 0);
-		g_list_foreach(history, history_write, f);
+		g_list_foreach(*hist, history_write, f);
 		fflush(f);
 		dummy = lockf(fileno(f), F_ULOCK, 0);
 		fclose(f);
@@ -757,12 +749,12 @@ put_run_history()
 }
 
 void
-put_history()
+put_history(GList **hist)
 {
-	if (history)
-		put_run_history();
-	g_list_free_full(history, history_free);
-	history = NULL;
+	if (*hist)
+		put_run_history(hist);
+	g_list_free_full(*hist, history_free);
+	*hist = NULL;
 }
 
 void
@@ -980,6 +972,8 @@ on_file_clicked(GtkButton *button, gpointer data)
 void
 on_dialog_response(GtkDialog *dialog, gint response_id, gpointer data)
 {
+	GList **hist = data;
+
 	if (response_id == GTK_RESPONSE_OK || response_id == 0) {
 		char *command;
 		const char *text;
@@ -993,8 +987,8 @@ on_dialog_response(GtkDialog *dialog, gint response_id, gpointer data)
 			command = calloc(len, sizeof(*command));
 			strncpy(command, launch, len);
 			strncat(command, text, len);
-			if (!g_list_find_custom(history, text, history_sort))
-				history = g_list_prepend(history, strdup(text));
+			if (!g_list_find_custom(*hist, text, history_sort))
+				*hist = g_list_prepend(*hist, strdup(text));
 			else
 				DPRINTF("found %s in list!\n", text);
 		} else if (gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(term))) {
@@ -1004,20 +998,20 @@ on_dialog_response(GtkDialog *dialog, gint response_id, gpointer data)
 			command = calloc(len, sizeof(*command));
 			strcpy(command, xterm);
 			strcat(command, text);
-			if (!g_list_find_custom(history, command, history_sort))
-				history = g_list_prepend(history, strdup(command));
+			if (!g_list_find_custom(*hist, command, history_sort))
+				*hist = g_list_prepend(*hist, strdup(command));
 			else
 				DPRINTF("found %s in list!\n", command);
 		} else {
 			len = strlen(text) + 3;
 			command = calloc(len, sizeof(*command));
 			strcpy(command, text);
-			if (!g_list_find_custom(history, command, history_sort))
-				history = g_list_prepend(history, strdup(command));
+			if (!g_list_find_custom(*hist, command, history_sort))
+				*hist = g_list_prepend(*hist, strdup(command));
 			else
 				DPRINTF("found %s in list!\n", command);
 		}
-		put_history();
+		put_history(hist);
 
 		strncat(command, " &", len);
 		if ((status = system(command)) == 0)
@@ -1042,7 +1036,7 @@ on_entry_activate(GtkEntry *entry, gpointer data)
 }
 
 void
-run_command()
+run_command(GList **hist)
 {
 	icon = gtk_image_new_from_stock(GTK_STOCK_EXECUTE, GTK_ICON_SIZE_DIALOG);
 	GtkWidget *align = gtk_alignment_new(0.5, 0.5, 1.0, 1.0);
@@ -1054,7 +1048,7 @@ run_command()
 	GtkWidget *list = GTK_COMBO(combo)->list;
 
 	gtk_combo_disable_activate(GTK_COMBO(combo));
-	gtk_combo_set_popdown_strings(GTK_COMBO(combo), history);
+	gtk_combo_set_popdown_strings(GTK_COMBO(combo), *hist);
 	gtk_combo_set_use_arrows(GTK_COMBO(combo), TRUE);
 	gtk_list_select_item(GTK_LIST(list), 0);
 
@@ -1113,8 +1107,8 @@ run_command()
 	GtkWidget *content = gtk_dialog_get_content_area(GTK_DIALOG(dialog));
 
 	gtk_box_pack_start(GTK_BOX(content), GTK_WIDGET(mbox), TRUE, TRUE, 0);
-	g_signal_connect(G_OBJECT(dialog), "response", G_CALLBACK(on_dialog_response), NULL);
-	g_signal_connect(G_OBJECT(entry), "activate", G_CALLBACK(on_entry_activate), NULL);
+	g_signal_connect(G_OBJECT(dialog), "response", G_CALLBACK(on_dialog_response), hist);
+	g_signal_connect(G_OBJECT(entry), "activate", G_CALLBACK(on_entry_activate), hist);
 	gtk_widget_show_all(GTK_WIDGET(dialog));
 }
 
@@ -1496,14 +1490,18 @@ main(int argc, char *argv[])
 	switch (options.command) {
 	case COMMAND_DEFAULT:
 	default:
+	{
+		GList *history = NULL;
+
 		if (options.debug)
 			fprintf(stderr, "%s: running command\n", argv[0]);
 		startup(argc, argv);
 		create_store();
-		get_history();
-		run_command();
+		get_history(&history);
+		run_command(&history);
 		gtk_main();
 		break;
+	}
 	case COMMAND_HELP:
 		if (options.debug)
 			fprintf(stderr, "%s: printing help message\n", argv[0]);
