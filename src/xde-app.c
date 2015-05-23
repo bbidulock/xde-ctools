@@ -78,7 +78,6 @@ typedef struct {
 	int recent;
 	char *runhist;
 	char *recapps;
-	char *recently;
 	int xdg;
 } Options;
 
@@ -89,7 +88,6 @@ Options options = {
 	.recent = 10,
 	.runhist = NULL,
 	.recapps = NULL,
-	.recently = NULL,
 	.xdg = 1,
 };
 
@@ -100,7 +98,6 @@ Options defaults = {
 	.recent = 10,
 	.runhist = "~/.config/xde/run-history",
 	.recapps = "~/.config/xde/recent-applications",
-	.recently = "~/.local/share/recently-used",
 	.xdg = 1,
 };
 
@@ -972,7 +969,7 @@ on_file_clicked(GtkButton *button, gpointer data)
 void
 on_dialog_response(GtkDialog *dialog, gint response_id, gpointer data)
 {
-	GList **hist = data;
+	GList **hist = data, *item;
 
 	if (response_id == GTK_RESPONSE_OK || response_id == 0) {
 		char *command;
@@ -987,10 +984,11 @@ on_dialog_response(GtkDialog *dialog, gint response_id, gpointer data)
 			command = calloc(len, sizeof(*command));
 			strncpy(command, launch, len);
 			strncat(command, text, len);
-			if (!g_list_find_custom(*hist, text, history_sort))
+			if ((item = g_list_find_custom(*hist, text, history_sort))) {
+				*hist = g_list_remove_link(*hist, item);
+				*hist = g_list_concat(item, *hist);
+			} else
 				*hist = g_list_prepend(*hist, strdup(text));
-			else
-				DPRINTF("found %s in list!\n", text);
 		} else if (gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(term))) {
 			static const char *xterm = "xterm -e ";
 
@@ -998,18 +996,20 @@ on_dialog_response(GtkDialog *dialog, gint response_id, gpointer data)
 			command = calloc(len, sizeof(*command));
 			strcpy(command, xterm);
 			strcat(command, text);
-			if (!g_list_find_custom(*hist, command, history_sort))
+			if ((item = g_list_find_custom(*hist, command, history_sort))) {
+				*hist = g_list_remove_link(*hist, item);
+				*hist = g_list_concat(item, *hist);
+			} else
 				*hist = g_list_prepend(*hist, strdup(command));
-			else
-				DPRINTF("found %s in list!\n", command);
 		} else {
 			len = strlen(text) + 3;
 			command = calloc(len, sizeof(*command));
 			strcpy(command, text);
-			if (!g_list_find_custom(*hist, command, history_sort))
+			if ((item = g_list_find_custom(*hist, command, history_sort))) {
+				*hist = g_list_remove_link(*hist, item);
+				*hist = g_list_concat(item, *hist);
+			} else
 				*hist = g_list_prepend(*hist, strdup(command));
-			else
-				DPRINTF("found %s in list!\n", command);
 		}
 		put_history(hist);
 
@@ -1228,7 +1228,6 @@ void
 startup(int argc, char *argv[])
 {
 	static const char *suffix = "/.gtkrc-2.0.xde";
-	const char *home;
 	GdkAtom atom;
 	GdkEventMask mask;
 	GdkDisplay *disp;
@@ -1236,15 +1235,10 @@ startup(int argc, char *argv[])
 	GdkWindow *root;
 	Display *dpy;
 	char *file;
-	int len;
 
-	home = getenv("HOME") ? : ".";
-	len = strlen(home) + strlen(suffix) + 1;
-	file = calloc(len, sizeof(*file));
-	strncpy(file, home, len);
-	strncat(file, suffix, len);
+	file = g_build_filename(g_get_home_dir(), suffix, NULL);
 	gtk_rc_add_default_file(file);
-	free(file);
+	// free(file); /* just have to leak this? */
 
 	gtk_init(&argc, &argv);
 
@@ -1272,8 +1266,6 @@ set_defaults()
 {
 	static const char *rsuffix = "/xde/run-history";
 	static const char *asuffix = "/xde/recent-applications";
-	static const char *xsuffix = "/recently-used";
-	static const char *hsuffix = "/.recently-used";
 	int len;
 	char *env;
 
@@ -1289,15 +1281,8 @@ set_defaults()
 		options.recapps = calloc(len, sizeof(*options.recapps));
 		strcpy(options.recapps, env);
 		strcat(options.recapps, asuffix);
-
-		len = strlen(env) + strlen(xsuffix) + 1;
-		free(options.recently);
-		options.recently = calloc(len, sizeof(*options.recently));
-		strcpy(options.recently, env);
-		strcat(options.recently, xsuffix);
 	} else {
 		static const char *cfgdir = "/.config";
-		static const char *datdir = "/.local/share";
 
 		env = getenv("HOME") ? : ".";
 
@@ -1314,22 +1299,6 @@ set_defaults()
 		strcpy(options.recapps, env);
 		strcat(options.recapps, cfgdir);
 		strcat(options.recapps, asuffix);
-
-		len = strlen(env) + strlen(datdir) + strlen(xsuffix) + 1;
-		free(options.recently);
-		options.recently = calloc(len, sizeof(*options.recently));
-		strcpy(options.recently, env);
-		strcat(options.recently, datdir);
-		strcat(options.recently, xsuffix);
-	}
-	if (access(options.recently, R_OK | W_OK)) {
-		env = getenv("HOME") ? : ".";
-
-		len = strlen(env) + strlen(hsuffix) + 1;
-		free(options.recently);
-		options.recently = calloc(len, sizeof(*options.recently));
-		strcpy(options.recently, env);
-		strcat(options.recently, hsuffix);
 	}
 	return;
 }
