@@ -94,6 +94,7 @@
 #include <libsn/sn.h>
 #endif
 #include <X11/SM/SMlib.h>
+#include <glib.h>
 #include <gdk/gdkx.h>
 #include <gdk-pixbuf/gdk-pixbuf.h>
 #include <gtk/gtk.h>
@@ -177,9 +178,16 @@ typedef struct {
 	Bool launch;
 	char *clientId;
 	char *saveFile;
+	char *runhist;
+	char *recapps;
+	char *recently;
+	char *recent;
+	char *keep;
 } Options;
 
-Options options = {
+Options options = { 0, 1, };
+
+Options defaults = {
 	.debug = 0,
 	.output = 1,
 	.command = CommandDefault,
@@ -197,6 +205,11 @@ Options options = {
 	.launch = True,
 	.clientId = NULL,
 	.saveFile = NULL,
+	.runhist = "~/.config/xde/run-history",
+	.recapps = "~/.config/xde/recent-applications",
+	.recently = "~/.local/share/recently-used",
+	.recent = NULL,
+	.keep = "10",
 };
 
 typedef struct {
@@ -214,6 +227,288 @@ typedef struct {
 } XdeScreen;
 
 static XdeScreen *screens;
+
+void
+xdg_menu_start_element(GMarkupParseContext *context, const gchar *element_name,
+		       const gchar **attribute_names, const gchar **attribute_values,
+		       gpointer user_data, GError **error)
+{
+}
+
+static void
+xdg_menu_end_element(GMarkupParseContext *context,
+		     const gchar *elemen_name, gpointer user_data, GError **error)
+{
+}
+
+static void
+xdg_menu_character_data(GMarkupParseContext *context,
+			const gchar *text, gsize text_len, gpointer user_data, GError **error)
+{
+}
+
+static void
+xdg_menu_passthrough(GMarkupParseContext *context,
+		     const gchar *passthrough_text,
+		     gsize text_len, gpointer user_data, GError **error)
+{
+}
+
+static void
+xdg_menu_error(GMarkupParseContext *context, GError *error, gpointer user_data)
+{
+}
+
+GMarkupParser xdg_menu_parser = {
+	.start_element = xdg_menu_start_element,
+	.end_element = xdg_menu_end_element,
+	.text = xdg_menu_character_data,
+	.passthrough = xdg_menu_passthrough,
+	.error = xdg_menu_error,
+};
+
+GMarkupParser xdg_appdir_parser = {
+};
+
+GMarkupParser xdg_appdirs_parser = {
+};
+
+GMarkupParser xdg_dirdir_parser = {
+};
+
+GMarkupParser xdg_dirdirs_parser = {
+};
+
+GMarkupParser xdg_name_parser = {
+};
+
+GMarkupParser xdg_dir_parser = {
+};
+
+GMarkupParser xdg_only_u_parser = {
+};
+
+GMarkupParser xdg_not_u_parser = {
+};
+
+GMarkupParser xdg_deleted_parser = {
+};
+
+GMarkupParser xdg_not_deleted_parser = {
+};
+
+GMarkupParser xdg_include_parser = {
+};
+
+GMarkupParser xdg_exclude_parser = {
+};
+
+GMarkupParser xdg_filename_parser = {
+};
+
+GMarkupParser xdg_category_parser = {
+};
+
+GMarkupParser xdg_all_parser = {
+};
+
+GMarkupParser xdg_and_parser = {
+};
+
+GMarkupParser xdg_or_parser = {
+};
+
+GMarkupParser xdg_not_parser = {
+};
+
+GMarkupParser xdg_mergefile_parser = {
+};
+
+GMarkupParser xdg_mergedir_parser = {
+};
+
+GMarkupParser xdg_mergedirs_parser = {
+};
+
+GMarkupParser xdg_legacydir_parser = {
+};
+
+GMarkupParser xdg_kdedirs_parser = {
+};
+
+GMarkupParser xdg_move_parser = {
+};
+
+GMarkupParser xdg_old_parser = {
+};
+
+GMarkupParser xdg_new_parser = {
+};
+
+GMarkupParser xdg_layout_parser = {
+};
+
+GMarkupParser xdg_defaultlayout_parser = {
+};
+
+GMarkupParser xdg_menuname_parser = {
+};
+
+GMarkupParser xdg_separator_parser = {
+};
+
+GMarkupParser xdg_merge_parser = {
+};
+
+struct parser_mapping {
+	char *label;
+	GMarkupParser *parser;
+};
+
+struct parser_mapping mapping[] = {
+	/* *INDENT-OFF* */
+	{ "Menu",			&xdg_menu_parser		},
+	{ "AppDir",			&xdg_appdir_parser		},
+	{ "DefaultAppDirs",		&xdg_appdirs_parser		},
+	{ "DirectoryDir",		&xdg_dirdir_parser		},
+	{ "DefaultDirectoryDirs",	&xdg_dirdirs_parser		},
+	{ "Name",			&xdg_name_parser		},
+	{ "Directory",			&xdg_dir_parser			},
+	{ "OnlyUnallocated",		&xdg_only_u_parser		},
+	{ "NotOnlyUnallocated",		&xdg_not_u_parser		},
+	{ "Deleted",			&xdg_deleted_parser		},
+	{ "NotDeleted",			&xdg_not_deleted_parser		},
+	{ "Include",			&xdg_include_parser		},
+	{ "Exclude",			&xdg_exclude_parser		},
+	{ "Filename",			&xdg_filename_parser		},
+	{ "Category",			&xdg_category_parser		},
+	{ "All",			&xdg_all_parser			},
+	{ "And",			&xdg_and_parser			},
+	{ "Or",				&xdg_or_parser			},
+	{ "Not",			&xdg_not_parser			},
+	{ "MergeFile",			&xdg_mergefile_parser		},
+	{ "MergeDir",			&xdg_mergedir_parser		},
+	{ "DefaultMergeDirs",		&xdg_mergedirs_parser		},
+	{ "LegacyDir",			&xdg_legacydir_parser		},
+	{ "KDELegacyDirs",		&xdg_kdedirs_parser		},
+	{ "Move",			&xdg_move_parser		},
+	{ "Old",			&xdg_old_parser			},
+	{ "New",			&xdg_new_parser			},
+	{ "Layout",			&xdg_layout_parser		},
+	{ "DefaultLayout",		&xdg_defaultlayout_parser	},
+	{ "Menuname",			&xdg_menuname_parser		},
+	{ "Separator",			&xdg_separator_parser		},
+	{ "Merge",			&xdg_merge_parser		},
+	{ NULL,				NULL				}
+	/* *INDENT-ON* */
+};
+
+static void
+xdg_start_element(GMarkupParseContext *context,
+		  const gchar *element_name,
+		  const gchar **attribute_names,
+		  const gchar **attribute_values, gpointer user_data, GError **error)
+{
+	if (!strcmp(element_name, "Menu")) {
+		/* The root element is <Menu>.  Each <Menu> element may contain any
+		   number of nested <Menu> elements, indicating submenus. */
+	} else if (!strcmp(element_name, "AppDir")) {
+		/* This element may only appear below <Menu>.  The content of this
+		   element is a directory name.  Desktop entries in this directory are
+		   scanned and added to the pool of entries that can be included in this
+		   <Menu> and its submenus.  Only files ending in ".desktop" should be
+		   used, other files are ignored. Desktop entries in the pool of
+		   available entries are identified by their desktop-file id.  The
+		   desktop file id of a desktop entry is equal to its filename, with any
+		   path components removed.  So given an <AppDir> /foo/bar and desktop
+		   entry /foo/bar/Hello.desktop the desktop entry would get a desktop
+		   file ide of Hello.desktop. If the directory contains sub-directories,
+		   then these sub-directories should be (recursively) scanned as well.
+		   The name of the subdirectory should be added as prefix to the
+		   desktop-file id together with a dash character ("-").  So, given an
+		   <AppDir> /foo/bar and desktop entry /foo/bar/booz/Hello.desktop the
+		   desktop entry would get a desktop file id of booz-Hello.desktop.  A
+		   desktop entry /foo/bar/bo/oz/Hello.desktop would result in a
+		   desktop-file id of bo-oz-Hello.desktop. <AppDir> elements appearing
+		   later in the menu file have priority in case of collisions between
+		   desktop-file ids. If the filename given as an <AppDir> is not an
+		   absolute path, it should be located relative to the location of the
+		   menu file being parsed. Duplicate <AppDir> elements (that specify the
+		   same directory) should be ignored, but the last duplicate in the file
+		   should be used when establishing the order in which to scan the
+		   directories.  This is important when merging.  The order of <AppDir>
+		   elements with respect to <Include> and <Exclude> elements is not
+		   relevant, also to facilitate merging. */
+	} else if (!strcmp(element_name, "DefaultAppDirs")) {
+	} else if (!strcmp(element_name, "DirectoryDir")) {
+	} else if (!strcmp(element_name, "DefaultDirectoryDirs")) {
+	} else if (!strcmp(element_name, "Name")) {
+	} else if (!strcmp(element_name, "Directory")) {
+		/* cdata contains the name of the directory file w/ or w/o .directory
+		   suffix */
+		/* The file is found using basic search techniques in
+		   XDG_DATA_HOME:XDG_DATA_DIRS under the desktop-directories
+		   subdirectory.  The file is a normal Desktop Entry keyfile of type
+		   Directory that has the Name Comment and Icon associated with the
+		   directory. */
+	} else if (!strcmp(element_name, "OnlyUnallocated")) {
+	} else if (!strcmp(element_name, "NotOnlyUnallocated")) {
+	} else if (!strcmp(element_name, "Deleted")) {
+	} else if (!strcmp(element_name, "NotDeleted")) {
+	} else if (!strcmp(element_name, "Include")) {
+	} else if (!strcmp(element_name, "Exclude")) {
+	} else if (!strcmp(element_name, "Filename")) {
+	} else if (!strcmp(element_name, "Category")) {
+	} else if (!strcmp(element_name, "All")) {
+	} else if (!strcmp(element_name, "And")) {
+	} else if (!strcmp(element_name, "Or")) {
+	} else if (!strcmp(element_name, "Not")) {
+	} else if (!strcmp(element_name, "MergeFile")) {
+	} else if (!strcmp(element_name, "MergeDir")) {
+	} else if (!strcmp(element_name, "DefaultMergeDirs")) {
+	} else if (!strcmp(element_name, "LegacyDir")) {
+	} else if (!strcmp(element_name, "KDELegacyDirs")) {
+	} else if (!strcmp(element_name, "Move")) {
+	} else if (!strcmp(element_name, "Old")) {
+	} else if (!strcmp(element_name, "New")) {
+	} else if (!strcmp(element_name, "Layout")) {
+	} else if (!strcmp(element_name, "DefaultLayout")) {
+	} else if (!strcmp(element_name, "Menuname")) {
+	} else if (!strcmp(element_name, "Separator")) {
+	} else if (!strcmp(element_name, "Merge")) {
+	}
+}
+
+static void
+xdg_end_element(GMarkupParseContext *context,
+		const gchar *element_name, gpointer user_data, GError **error)
+{
+}
+
+static void
+xdg_character_data(GMarkupParseContext *context,
+		   const gchar *text, gsize text_len, gpointer user_data, GError **error)
+{
+}
+
+static void
+xdg_passthrough(GMarkupParseContext *context,
+		const gchar *passthrough_text, gsize text_len, gpointer user_data, GError **error)
+{
+}
+
+static void
+xdg_error(GMarkupParseContext *context, GError *error, gpointer user_data)
+{
+}
+
+GMarkupParser xdg_parser = {
+	.start_element = xdg_start_element,
+	.end_element = xdg_end_element,
+	.text = xdg_character_data,
+	.passthrough = xdg_passthrough,
+	.error = xdg_error,
+};
 
 static void
 make_menu(int argc, char *argv[])
@@ -343,7 +638,7 @@ window_manager_changed(WnckScreen *wnck, gpointer user)
 		xscr->wmname = strdup(name);
 		*strchrnul(xscr->wmname, ' ') = '\0';
 		/* Some versions of wmx have an error in that they only set the
-		 * _NET_WM_NAME to the first letter of wmx. */
+		   _NET_WM_NAME to the first letter of wmx. */
 		if (!strcmp(xscr->wmname, "w")) {
 			free(xscr->wmname);
 			xscr->wmname = strdup("wmx");
@@ -366,7 +661,7 @@ init_wnck(XdeScreen *xscr)
 	WnckScreen *wnck = xscr->wnck = wnck_screen_get(xscr->index);
 
 	g_signal_connect(G_OBJECT(wnck), "window_manager_changed",
-			G_CALLBACK(window_manager_changed), xscr);
+			 G_CALLBACK(window_manager_changed), xscr);
 
 	window_manager_changed(wnck, xscr);
 }
@@ -399,7 +694,6 @@ do_run(int argc, char *argv[], Bool replace)
 	Window selwin, owner;
 	XdeScreen *xscr;
 	int s, nscr;
-
 
 	selwin = XCreateSimpleWindow(dpy, GDK_WINDOW_XID(root), 0, 0, 1, 1, 0, 0, 0);
 
@@ -601,10 +895,11 @@ event_handler_ClientMessage(Display *dpy, XEvent *xev)
 		fprintf(stderr, "==> ClientMessage: %p\n", xscr);
 		fprintf(stderr, "    --> window = 0x%08lx\n", xev->xclient.window);
 		fprintf(stderr, "    --> message_type = %s\n",
-				XGetAtomName(dpy, xev->xclient.message_type));
+			XGetAtomName(dpy, xev->xclient.message_type));
 		fprintf(stderr, "    --> format = %d\n", xev->xclient.format);
 		switch (xev->xclient.format) {
 			int i;
+
 		case 8:
 			fprintf(stderr, "    --> data =");
 			for (i = 0; i < 20; i++)
@@ -1331,27 +1626,95 @@ Options:\n\
         increment or set output verbosity LEVEL [default: %15$d]\n\
         this option may be repeated.\n\
 ", argv[0] 
-	, options.format
-	, show_style(options.style)
-	, options.desktop
-	, options.charset
-	, options.language
-	, options.rootmenu
-	, show_bool(options.dieonerr)
-	, options.filename
-	, show_bool(options.noicons)
-	, options.theme
-	, show_bool(options.launch)
-	, show_style(options.style)
-	, options.debug
-	, options.output
+	, defaults.format
+	, show_style(defaults.style)
+	, defaults.desktop
+	, defaults.charset
+	, defaults.language
+	, defaults.rootmenu
+	, show_bool(defaults.dieonerr)
+	, defaults.filename
+	, show_bool(defaults.noicons)
+	, defaults.theme
+	, show_bool(defaults.launch)
+	, show_style(defaults.style)
+	, defaults.debug
+	, defaults.output
 );
 	/* *INDENT-ON* */
 }
 
 static void
+set_default_files()
+{
+	static const char *rsuffix = "/xde/run-history";
+	static const char *asuffix = "/xde/recent-applications";
+	static const char *xsuffix = "/recently-used";
+	static const char *hsuffix = "/.recently-used";
+	int len;
+	char *env;
+
+	if ((env = getenv("XDG_CONFIG_HOME"))) {
+		len = strlen(env) + strlen(rsuffix) + 1;
+		free(options.runhist);
+		defaults.runhist = options.runhist = calloc(len, sizeof(*options.runhist));
+		strcpy(options.runhist, env);
+		strcat(options.runhist, rsuffix);
+
+		len = strlen(env) + strlen(asuffix) + 1;
+		free(options.recapps);
+		defaults.recapps = options.recapps = calloc(len, sizeof(*options.recapps));
+		strcpy(options.recapps, env);
+		strcat(options.recapps, asuffix);
+
+		len = strlen(env) + strlen(xsuffix) + 1;
+		free(options.recently);
+		defaults.recently = options.recently = calloc(len, sizeof(*options.recently));
+		strcpy(options.recently, env);
+		strcat(options.recently, xsuffix);
+	} else {
+		static const char *cfgdir = "/.config";
+		static const char *datdir = "/.local/share";
+
+		env = getenv("HOME") ? : ".";
+
+		len = strlen(env) + strlen(cfgdir) + strlen(rsuffix) + 1;
+		free(options.runhist);
+		defaults.runhist = options.runhist = calloc(len, sizeof(*options.runhist));
+		strcpy(options.runhist, env);
+		strcat(options.runhist, cfgdir);
+		strcat(options.runhist, rsuffix);
+
+		len = strlen(env) + strlen(cfgdir) + strlen(asuffix) + 1;
+		free(options.recapps);
+		defaults.recapps = options.recapps = calloc(len, sizeof(*options.recapps));
+		strcpy(options.recapps, env);
+		strcat(options.recapps, cfgdir);
+		strcat(options.recapps, asuffix);
+
+		len = strlen(env) + strlen(datdir) + strlen(xsuffix) + 1;
+		free(options.recently);
+		defaults.recently = options.recently = calloc(len, sizeof(*options.recently));
+		strcpy(options.recently, env);
+		strcat(options.recently, datdir);
+		strcat(options.recently, xsuffix);
+	}
+	if (access(options.recently, R_OK | W_OK)) {
+		env = getenv("HOME") ? : ".";
+
+		len = strlen(env) + strlen(hsuffix) + 1;
+		free(options.recently);
+		defaults.recently = options.recently = calloc(len, sizeof(*options.recently));
+		strcpy(options.recently, env);
+		strcat(options.recently, hsuffix);
+	}
+	return;
+}
+
+static void
 set_defaults(void)
 {
+	set_default_files();
 }
 
 static void
@@ -1423,71 +1786,71 @@ main(int argc, char *argv[])
 
 		case 'f':	/* --format, -f FORMAT */
 			free(options.format);
-			options.format = strdup(optarg);
+			defaults.format = options.format = strdup(optarg);
 			break;
 		case 'F':	/* -F, --fullmenu */
-			options.style = StyleFullmenu;
+			defaults.style = options.style = StyleFullmenu;
 			break;
 		case 'N':	/* -N, --nofullmenu */
-			options.style = StyleAppmenu;
+			defaults.style = options.style = StyleAppmenu;
 			break;
 		case 'd':	/* -d, --desktop DESKTOP */
 			free(options.desktop);
-			options.desktop = strdup(optarg);
+			defaults.desktop = options.desktop = strdup(optarg);
 			break;
 		case 'c':	/* -c, --charset CHARSET */
 			free(options.charset);
-			options.charset = strdup(optarg);
+			defaults.charset = options.charset = strdup(optarg);
 			break;
 		case 'l':	/* -l, --language LANGUAGE */
 			free(options.language);
-			options.language = strdup(optarg);
+			defaults.language = options.language = strdup(optarg);
 			break;
 		case 'r':	/* -r, --root-menu MENU */
 			free(options.rootmenu);
-			options.rootmenu = strdup(optarg);
+			defaults.rootmenu = options.rootmenu = strdup(optarg);
 			break;
 		case 'e':	/* -e, --die-on-error */
-			options.dieonerr = True;
+			defaults.dieonerr = options.dieonerr = True;
 			break;
 		case 'o':	/* -o, --output [OUTPUT] */
-			options.fileout = True;
+			defaults.fileout = options.fileout = True;
 			if (optarg != NULL) {
 				free(options.rootmenu);
-				options.rootmenu = strdup(optarg);
+				defaults.rootmenu = options.rootmenu = strdup(optarg);
 			}
 			break;
 		case 'n':	/* -n, --noicons */
-			options.noicons = True;
+			defaults.noicons = options.noicons = True;
 			break;
 		case 't':	/* -t, --theme THEME */
 			free(options.theme);
-			options.theme = strdup(optarg);
+			defaults.theme = options.theme = strdup(optarg);
 			break;
 		case 'm':	/* -m, --monitor */
 			if (options.command != CommandDefault)
 				goto bad_option;
 			if (command == CommandDefault)
 				command = CommandRun;
-			options.command = CommandRun;
+			defaults.command = options.command = CommandRun;
 			break;
 		case 'L':	/* -L, --launch */
-			options.launch = True;
+			defaults.launch = options.launch = True;
 			break;
 		case '0':	/* -0, --nolaunch */
-			options.launch = False;
+			defaults.launch = options.launch = False;
 			break;
 		case 's':	/* -s, --style STYLE */
 			if (!strncmp("fullmenu", optarg, strlen(optarg))) {
-				options.style = StyleFullmenu;
+				defaults.style = options.style = StyleFullmenu;
 				break;
 			}
 			if (!strncmp("appmenu", optarg, strlen(optarg))) {
-				options.style = StyleAppmenu;
+				defaults.style = options.style = StyleAppmenu;
 				break;
 			}
 			if (!strncmp("entries", optarg, strlen(optarg))) {
-				options.style = StyleEntries;
+				defaults.style = options.style = StyleEntries;
 				break;
 			}
 			goto bad_option;
@@ -1497,36 +1860,36 @@ main(int argc, char *argv[])
 				goto bad_option;
 			if (command == CommandDefault)
 				command = CommandQuit;
-			options.command = CommandQuit;
+			defaults.command = options.command = CommandQuit;
 			break;
 		case 'R':	/* -R, --replace */
 			if (options.command != CommandDefault)
 				goto bad_option;
 			if (command == CommandDefault)
 				command = CommandReplace;
-			options.command = CommandReplace;
+			defaults.command = options.command = CommandReplace;
 			break;
 
 		case 'D':	/* -D, --debug [LEVEL] */
 			if (options.debug)
 				fprintf(stderr, "%s: increasing debug verbosity\n", argv[0]);
 			if (optarg == NULL)
-				options.debug++;
+				defaults.debug = options.debug = options.debug + 1;
 			else {
 				if ((val = strtol(optarg, NULL, 0)) < 0)
 					goto bad_option;
-				options.debug = val;
+				defaults.debug = options.debug = val;
 			}
 			break;
 		case 'v':	/* -v, --verbose [LEVEL] */
 			if (options.debug)
 				fprintf(stderr, "%s: increasing output verbosity\n", argv[0]);
 			if (optarg == NULL)
-				options.output++;
+				defaults.output = options.output = options.output + 1;
 			else {
 				if ((val = strtol(optarg, NULL, 0)) < 0)
 					goto bad_option;
-				options.output = val;
+				defaults.output = options.output = val;
 			}
 			break;
 		case 'h':	/* -h, --help */
@@ -1538,14 +1901,14 @@ main(int argc, char *argv[])
 				goto bad_option;
 			if (command == CommandDefault)
 				command = CommandVersion;
-			options.command = CommandVersion;
+			defaults.command = options.command = CommandVersion;
 			break;
 		case 'C':	/* -C, --copying */
 			if (options.command != CommandDefault)
 				goto bad_option;
 			if (command == CommandDefault)
 				command = CommandCopying;
-			options.command = CommandCopying;
+			defaults.command = options.command = CommandCopying;
 			break;
 		case '?':
 		default:
