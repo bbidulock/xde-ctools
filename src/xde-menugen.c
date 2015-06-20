@@ -73,6 +73,7 @@
 
 #include <assert.h>
 #include <locale.h>
+#include <langinfo.h>
 #include <stdarg.h>
 #include <strings.h>
 #include <regex.h>
@@ -139,6 +140,10 @@
 static int saveArgc;
 static char **saveArgv;
 
+static Atom _XA_XDE_WM_NAME;
+static Atom _XA_XDE_WM_MENU;
+static Atom _XA_XDE_WM_THEME;
+static Atom _XA_XDE_WM_ICONTHEME;
 static Atom _XA_XDE_THEME_NAME;
 static Atom _XA_XDE_ICON_THEME_NAME;
 static Atom _XA_GTK_READ_RCFILES;
@@ -169,6 +174,7 @@ typedef struct {
 	char *desktop;
 	char *charset;
 	char *language;
+	char *locale;
 	char *rootmenu;
 	Bool dieonerr;
 	Bool fileout;
@@ -195,8 +201,9 @@ Options defaults = {
 	.format = NULL,
 	.style = StyleFullmenu,
 	.desktop = "XDE",
-	.charset = NULL,
+	.charset = "UTF-8",
 	.language = NULL,
+	.locale = "en_US.UTF-8",
 	.rootmenu = NULL,
 	.dieonerr = False,
 	.fileout = False,
@@ -744,13 +751,16 @@ update_theme(XdeScreen *xscr, Atom prop)
 	Display *dpy = GDK_DISPLAY_XDISPLAY(xscr->disp);
 	Window root = RootWindow(dpy, xscr->index);
 	XTextProperty xtp = { NULL, };
-	char **list = NULL;
-	int strings = 0;
 	Bool changed = False;
 	GtkSettings *set;
 
 	gtk_rc_reparse_all();
-	if (XGetTextProperty(dpy, root, &xtp, _XA_XDE_THEME_NAME)) {
+	if (!prop || prop == _XA_GTK_READ_RCFILES)
+		prop = _XA_XDE_THEME_NAME;
+	if (XGetTextProperty(dpy, root, &xtp, prop)) {
+		char **list = NULL;
+		int strings = 0;
+
 		if (Xutf8TextPropertyToTextList(dpy, &xtp, &list, &strings) == Success) {
 			if (strings >= 1) {
 				static const char *prefix = "gtk-theme-name=\"";
@@ -778,7 +788,7 @@ update_theme(XdeScreen *xscr, Atom prop)
 		if (xtp.value)
 			XFree(xtp.value);
 	} else
-		DPRINTF("could not get _XDE_THEME_NAME for root 0x%lx\n", root);
+		DPRINTF("could not get %s for root 0x%lx\n", XGetAtomName(dpy, prop), root);
 	if ((set = gtk_settings_get_for_screen(xscr->scrn))) {
 		GValue theme_v = G_VALUE_INIT;
 		const char *theme;
@@ -788,7 +798,7 @@ update_theme(XdeScreen *xscr, Atom prop)
 		theme = g_value_get_string(&theme_v);
 		if (theme && (!xscr->theme || strcmp(xscr->theme, theme))) {
 			free(xscr->theme);
-			xscr->theme = strdup(list[0]);
+			xscr->theme = strdup(theme);
 			changed = True;
 		}
 		g_value_unset(&theme_v);
@@ -805,16 +815,19 @@ update_icon_theme(XdeScreen *xscr, Atom prop)
 	Display *dpy = GDK_DISPLAY_XDISPLAY(xscr->disp);
 	Window root = RootWindow(dpy, xscr->index);
 	XTextProperty xtp = { NULL, };
-	char **list = NULL;
-	int strings = 0;
 	Bool changed = False;
 	GtkSettings *set;
 
 	gtk_rc_reparse_all();
-	if (XGetTextProperty(dpy, root, &xtp, _XA_XDE_ICON_THEME_NAME)) {
+	if (!prop || prop == _XA_GTK_READ_RCFILES)
+		prop = _XA_XDE_ICON_THEME_NAME;
+	if (XGetTextProperty(dpy, root, &xtp, prop)) {
+		char **list = NULL;
+		int strings = 0;
+
 		if (Xutf8TextPropertyToTextList(dpy, &xtp, &list, &strings) == Success) {
 			if (strings >= 1) {
-				static const char *prefix = "gtk-icon-theme-name\"";
+				static const char *prefix = "gtk-icon-theme-name=\"";
 				static const char *suffix = "\"";
 				char *rc_string;
 				int len;
@@ -826,7 +839,7 @@ update_icon_theme(XdeScreen *xscr, Atom prop)
 				strncat(rc_string, suffix, len);
 				gtk_rc_parse_string(rc_string);
 				free(rc_string);
-				if (!xscr->itheme || strcmp(xscr->itheme, list[9])) {
+				if (!xscr->itheme || strcmp(xscr->itheme, list[0])) {
 					free(xscr->itheme);
 					xscr->itheme = strdup(list[0]);
 					changed = True;
@@ -839,7 +852,7 @@ update_icon_theme(XdeScreen *xscr, Atom prop)
 		if (xtp.value)
 			XFree(xtp.value);
 	} else
-		DPRINTF("could not get _XDE_ICON_THEME_NAME for root 0x%lx\n", root);
+		DPRINTF("could not get %s for root 0x%lx\n", XGetAtomName(dpy, prop), root);
 	if ((set = gtk_settings_get_for_screen(xscr->scrn))) {
 		GValue theme_v = G_VALUE_INIT;
 		const char *itheme;
@@ -849,7 +862,7 @@ update_icon_theme(XdeScreen *xscr, Atom prop)
 		itheme = g_value_get_string(&theme_v);
 		if (itheme && (!xscr->itheme || strcmp(xscr->itheme, itheme))) {
 			free(xscr->itheme);
-			xscr->itheme = strdup(list[0]);
+			xscr->itheme = strdup(itheme);
 			changed = True;
 		}
 		g_value_unset(&theme_v);
@@ -863,6 +876,8 @@ update_icon_theme(XdeScreen *xscr, Atom prop)
 static GdkFilterReturn
 event_handler_PropertyNotify(Display *dpy, XEvent *xev, XdeScreen *xscr)
 {
+	Atom atom;
+
 	if (options.debug > 2) {
 		fprintf(stderr, "==> PropertyNotify:\n");
 		fprintf(stderr, "    --> window = 0x%08lx\n", xev->xproperty.window);
@@ -872,14 +887,16 @@ event_handler_PropertyNotify(Display *dpy, XEvent *xev, XdeScreen *xscr)
 			(xev->xproperty.state == PropertyNewValue) ? "NewValue" : "Delete");
 		fprintf(stderr, "<== PropertyNotify:\n");
 	}
-	if (xev->xproperty.atom == _XA_XDE_THEME_NAME && xev->xproperty.state == PropertyNewValue) {
-		update_theme(xscr, xev->xproperty.atom);
-		return GDK_FILTER_REMOVE;
-	} else
-	    if (xev->xproperty.atom == _XA_XDE_ICON_THEME_NAME
-		&& xev->xproperty.state == PropertyNewValue) {
-		update_icon_theme(xscr, xev->xproperty.atom);
-		return GDK_FILTER_REMOVE;
+	atom = xev->xproperty.atom;
+
+	if (xev->xproperty.state == PropertyNewValue) {
+		if (atom == _XA_XDE_THEME_NAME || atom == _XA_XDE_WM_THEME) {
+			update_theme(xscr, xev->xproperty.atom);
+			return GDK_FILTER_REMOVE;
+		} else if (atom == _XA_XDE_ICON_THEME_NAME || atom == _XA_XDE_WM_ICONTHEME) {
+			update_icon_theme(xscr, xev->xproperty.atom);
+			return GDK_FILTER_REMOVE;
+		}
 	}
 	return GDK_FILTER_CONTINUE;
 }
@@ -1442,6 +1459,18 @@ startup(int argc, char *argv[])
 	disp = gdk_display_get_default();
 	dpy = GDK_DISPLAY_XDISPLAY(disp);
 
+	atom = gdk_atom_intern_static_string("_XDE_WM_NAME");
+	_XA_XDE_WM_NAME = gdk_x11_atom_to_xatom_for_display(disp, atom);
+
+	atom = gdk_atom_intern_static_string("_XDE_WM_MENU");
+	_XA_XDE_WM_MENU = gdk_x11_atom_to_xatom_for_display(disp, atom);
+
+	atom = gdk_atom_intern_static_string("_XDE_WM_THEME");
+	_XA_XDE_WM_THEME = gdk_x11_atom_to_xatom_for_display(disp, atom);
+
+	atom = gdk_atom_intern_static_string("_XDE_WM_ICONTHEME");
+	_XA_XDE_WM_ICONTHEME = gdk_x11_atom_to_xatom_for_display(disp, atom);
+
 	atom = gdk_atom_intern_static_string("_XDE_THEME_NAME");
 	_XA_XDE_THEME_NAME = gdk_x11_atom_to_xatom_for_display(disp, atom);
 
@@ -1730,6 +1759,223 @@ set_defaults(void)
 }
 
 static void
+get_default_locale()
+{
+	char *val;
+	int len, set;
+
+	set = (options.charset || options.language);
+
+	if (!options.charset && (val = nl_langinfo(CODESET)))
+		defaults.charset = options.charset = strdup(val);
+	if (!options.language && options.locale) {
+		defaults.language = options.language = strdup(options.locale);
+		*strchrnul(options.language, '.') = '\0';
+	}
+	if (set && options.language && options.charset) {
+		len = strlen(options.language) + 1 + strlen(options.charset);
+		val = calloc(len, sizeof(*val));
+		strcpy(val, options.language);
+		strcat(val, ".");
+		strcat(val, options.charset);
+		DPRINTF("setting locale to: '%s'\n", val);
+		if (!setlocale(LC_ALL, val))
+			EPRINTF("cannot set locale to '%s'\n", val);
+		free(val);
+	}
+	DPRINTF("locale is '%s'\n", options.locale);
+	DPRINTF("charset is '%s'\n", options.charset);
+	DPRINTF("language is '%s'\n", options.language);
+}
+
+static void
+get_default_format()
+{
+	GdkDisplay *disp = gdk_display_get_default();
+	Display *dpy = GDK_DISPLAY_XDISPLAY(disp);
+	GdkScreen *scrn = gdk_display_get_default_screen(disp);
+	GdkWindow *wind = gdk_screen_get_root_window(scrn);
+	Window root = GDK_WINDOW_XID(wind);
+	XTextProperty xtp = { NULL, };
+	Atom prop = _XA_XDE_WM_NAME;
+
+	if (XGetTextProperty(dpy, root, &xtp, prop)) {
+		char **list = NULL;
+		int strings = 0;
+
+		if (Xutf8TextPropertyToTextList(dpy, &xtp, &list, &strings) == Success) {
+			if (strings >= 1) {
+				if (!options.format || strcmp(options.format, list[0])) {
+					free(options.format);
+					defaults.format = options.format = strdup(list[0]);
+				}
+			}
+			if (list)
+				XFreeStringList(list);
+		} else
+			EPRINTF("could not get text list for %s property\n",
+				XGetAtomName(dpy, prop));
+	} else
+		DPRINTF("could not get %s for root 0x%lx\n", XGetAtomName(dpy, prop), root);
+}
+
+static void
+get_default_output()
+{
+	GdkDisplay *disp = gdk_display_get_default();
+	Display *dpy = GDK_DISPLAY_XDISPLAY(disp);
+	GdkScreen *scrn = gdk_display_get_default_screen(disp);
+	GdkWindow *wind = gdk_screen_get_root_window(scrn);
+	Window root = GDK_WINDOW_XID(wind);
+	XTextProperty xtp = { NULL, };
+	Atom prop = _XA_XDE_WM_MENU;
+
+	if (XGetTextProperty(dpy, root, &xtp, prop)) {
+		char **list = NULL;
+		int strings = 0;
+
+		if (Xutf8TextPropertyToTextList(dpy, &xtp, &list, &strings) == Success) {
+			if (strings >= 1) {
+				if (!options.filename || strcmp(options.filename, list[0])) {
+					free(options.filename);
+					defaults.filename = options.filename = strdup(list[0]);
+				}
+			}
+			if (list)
+				XFreeStringList(list);
+		} else
+			EPRINTF("could not get text list for %s property\n",
+				XGetAtomName(dpy, prop));
+	} else
+		DPRINTF("could not get %s for root 0x%lx\n", XGetAtomName(dpy, prop), root);
+}
+
+static void
+get_default_theme()
+{
+#if 1
+	GdkDisplay *disp = gdk_display_get_default();
+	Display *dpy = GDK_DISPLAY_XDISPLAY(disp);
+	GdkScreen *scrn = gdk_display_get_default_screen(disp);
+	GdkWindow *wind = gdk_screen_get_root_window(scrn);
+	Window root = GDK_WINDOW_XID(wind);
+	XTextProperty xtp = { NULL, };
+	Atom prop = _XA_XDE_ICON_THEME_NAME;
+	GtkSettings *set;
+
+	gtk_rc_reparse_all();
+
+	if (XGetTextProperty(dpy, root, &xtp, prop)) {
+		char **list = NULL;
+		int strings = 0;
+
+		if (Xutf8TextPropertyToTextList(dpy, &xtp, &list, &strings) == Success) {
+			if (strings >= 1) {
+				static const char *prefix = "gtk-icon-theme-name=\"";
+				static const char *suffix = "\"";
+				char *rc_string;
+				int len;
+
+				len = strlen(prefix) + strlen(list[0]) + strlen(suffix);
+				rc_string = calloc(len + 1, sizeof(*rc_string));
+				strncpy(rc_string, prefix, len);
+				strncat(rc_string, list[0], len);
+				strncat(rc_string, suffix, len);
+				gtk_rc_parse_string(rc_string);
+				free(rc_string);
+				if (!options.theme || strcmp(options.theme, list[0])) {
+					free(options.theme);
+					defaults.theme = options.theme = strdup(list[0]);
+				}
+			}
+			if (list)
+				XFreeStringList(list);
+		} else
+			EPRINTF("could not get text list for %s property\n",
+				XGetAtomName(dpy, prop));
+		if (xtp.value)
+			XFree(xtp.value);
+	} else
+		DPRINTF("could not get %s for root 0x%lx\n", XGetAtomName(dpy, prop), root);
+	if ((set = gtk_settings_get_for_screen(scrn))) {
+		GValue theme_v = G_VALUE_INIT;
+		const char *itheme;
+
+		g_value_init(&theme_v, G_TYPE_STRING);
+		g_object_get_property(G_OBJECT(set), "gtk-icon-theme-name", &theme_v);
+		itheme = g_value_get_string(&theme_v);
+		if (itheme && (!options.theme || strcmp(options.theme, itheme))) {
+			free(options.theme);
+			defaults.theme = options.theme = strdup(itheme);
+		}
+		g_value_unset(&theme_v);
+	}
+#else
+
+	static const char *suffix1 = "/etc/gtk-2.0/gtkrc";
+	static const char *suffix2 = "/.gtkrc-2.0";
+	static const char *suffix3 = "/.gtkrc-2.0.xde";
+	static const char *prefix = "gtk-icon-theme-name=\"";
+	char *env;
+	int len;
+
+	if (options.theme)
+		return;
+	if ((env = getenv("XDG_ICON_THEME"))) {
+		free(options.theme);
+		defaults.theme = options.theme = strdup(env);
+		return;
+	} else {
+		char *path, *d, *e, *buf;
+
+		/* need to go looking for the theme name */
+
+		if ((env = getenv("GTK_RC_FILES"))) {
+			path = strdup(env);
+		} else {
+			env = getenv("HOME") ? : "~";
+			len = 1 + strlen(suffix1) + 1 + strlen(env) + strlen(suffix2) +
+			    1 + strlen(env) + strlen(suffix3);
+			path = calloc(len, sizeof(*path));
+			strcpy(path, suffix1);
+			strcat(path, ":");
+			strcat(path, env);
+			strcat(path, suffix2);
+			strcat(path, ":");
+			strcat(path, env);
+			strcat(path, suffix3);
+		}
+		buf = calloc(BUFSIZ, sizeof(*buf));
+		d = path;
+		e = d + strlen(d);
+		while ((d = strchrnul(d, ':')) < e)
+			*d++ = '\0';
+		for (d = path; d < e; d += strlen(d) + 1) {
+			FILE *f;
+
+			if (!(f = fopen(d, "r")))
+				continue;
+			while (fgets(buf, BUFSIZ, f)) {
+				if (!strncmp(buf, prefix, strlen(prefix))) {
+					char *p;
+
+					p = buf + strlen(prefix);
+					*strchrnul(p, '"') = '\0';
+					free(options.theme);
+					defaults.theme = options.theme = strdup(p);
+				}
+				/* FIXME: this does not traverse "include" statements */
+			}
+			fclose(f);
+		}
+		free(buf);
+	}
+	if (!options.theme)
+		defaults.theme = options.theme = strdup("hicolor");
+#endif
+}
+
+static void
 get_default_root()
 {
 	char *env, *dirs, *pfx, *p, *q, *d, *e;
@@ -1794,7 +2040,7 @@ get_default_root()
 			char *path;
 
 			len = strlen(d) + strlen("/menus/") + strlen(p) + strlen(options.menu)
-				+ strlen(".menu") + 1;
+			    + strlen(".menu") + 1;
 			path = calloc(len, sizeof(*path));
 			strcpy(path, d);
 			strcat(path, "/menus/");
@@ -1820,6 +2066,7 @@ get_default_root()
 static void
 get_defaults(void)
 {
+	get_default_locale();
 	get_default_root();
 }
 
@@ -1827,9 +2074,12 @@ int
 main(int argc, char *argv[])
 {
 	Command command = CommandDefault;
+	char *loc;
 
-	setlocale(LC_ALL, "");
-
+	if ((loc = setlocale(LC_ALL, ""))) {
+		free(options.locale);
+		defaults.locale = options.locale = strdup(loc);
+	}
 	set_defaults();
 
 	saveArgc = argc;
@@ -2056,7 +2306,16 @@ main(int argc, char *argv[])
 		exit(EXIT_SYNTAXERR);
 	}
 	get_defaults();
+
 	startup(argc, argv);
+
+	if (!options.format)
+		get_default_format();
+	if (!options.filename)
+		get_default_output();
+	if (!options.theme)
+		get_default_theme();
+
 	switch (command) {
 	case CommandDefault:
 		if (options.debug)
