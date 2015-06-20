@@ -183,6 +183,7 @@ typedef struct {
 	char *recently;
 	char *recent;
 	char *keep;
+	char *menu;
 } Options;
 
 Options options = { 0, 1, };
@@ -193,7 +194,7 @@ Options defaults = {
 	.command = CommandDefault,
 	.format = NULL,
 	.style = StyleFullmenu,
-	.desktop = NULL,
+	.desktop = "XDE",
 	.charset = NULL,
 	.language = NULL,
 	.rootmenu = NULL,
@@ -210,6 +211,7 @@ Options defaults = {
 	.recently = "~/.local/share/recently-used",
 	.recent = NULL,
 	.keep = "10",
+	.menu = "applications",
 };
 
 typedef struct {
@@ -1599,27 +1601,29 @@ Options:\n\
     -f, --format FORMAT\n\
         specify the menu format [default: %2$s]\n\
     -F, --fullmenu, -N, --nofullmenu\n\
-	full menu or applications menu [default: %3$s]\n\
+        full menu or applications menu [default: %3$s]\n\
     -d, --desktop DESKTOP\n\
-	desktop environment [default: %4$s]\n\
+        desktop environment [default: %4$s]\n\
     -c, --charset CHARSET\n\
-	character set for menu [default: %5$s]\n\
+        character set for menu [default: %5$s]\n\
     -l, --language LANGUAGE\n\
-	language for menu [default: %6$s]\n\
+        language for menu [default: %6$s]\n\
     -r, --root-menu MENU\n\
-	root menu file [default: %7$s]\n\
+        root menu file [default: %7$s]\n\
     -e, --die-on-error\n\
-	abort on error [default: %8$s]\n\
+        abort on error [default: %8$s]\n\
     -o, --output [OUTPUT]\n\
-	output file [default: %9$s]\n\
+        output file [default: %9$s]\n\
     -n, --noicons\n\
-	do not place icons in menu [default: %10$s]\n\
+        do not place icons in menu [default: %10$s]\n\
     -t, --theme THEME\n\
-	icon theme name to use [default: %11$s]\n\
+        icon theme name to use [default: %11$s]\n\
     -L, --launch, --nolaunch\n\
-	use xde-launch to launch programs [default: %12$s]\n\
+        use xde-launch to launch programs [default: %12$s]\n\
     -s, --style STYLE\n\
-	fullmenu, appmenu or entries [default: %13$s]\n\
+        fullmenu, appmenu or entries [default: %13$s]\n\
+    -M, --menu MENU\n\
+        filename stem of root menu filename [default: %16$s]\n\
     -D, --debug [LEVEL]\n\
         increment or set debug LEVEL [default: %14$d]\n\
     -v, --verbose [LEVEL]\n\
@@ -1640,6 +1644,7 @@ Options:\n\
 	, show_style(defaults.style)
 	, defaults.debug
 	, defaults.output
+	, defaults.menu
 );
 	/* *INDENT-ON* */
 }
@@ -1714,12 +1719,108 @@ set_default_files()
 static void
 set_defaults(void)
 {
+	char *env;
+
+	if ((env = getenv("XDG_CURRENT_DESKTOP"))) {
+		free(options.desktop);
+		defaults.desktop = options.desktop = strdup(env);
+	}
+
 	set_default_files();
+}
+
+static void
+get_default_root()
+{
+	char *env, *dirs, *pfx, *p, *q, *d, *e;
+
+	if (!options.menu) {
+		free(options.menu);
+		defaults.menu = options.menu = strdup("applications");
+	}
+
+	if (options.rootmenu)
+		return;
+
+	dirs = calloc(PATH_MAX, sizeof(*dirs));
+
+	if ((env = getenv("XDG_CONFIG_HOME"))) {
+		strcpy(dirs, env);
+	} else if ((env = getenv("HOME"))) {
+		strcpy(dirs, env);
+		strcat(dirs, "/.config");
+	} else {
+		strcpy(dirs, "~/.config");
+	}
+	if ((env = getenv("XDG_CONFIG_DIRS"))) {
+		strcat(dirs, ":");
+		strcat(dirs, env);
+	} else {
+		strcat(dirs, ":");
+		strcat(dirs, "/etc/xdg");
+	}
+	DPRINTF("$XDG_CONFIG_HOME:$XDG_CONFIG_DIRS is '%s'\n", dirs);
+	e = dirs + strlen(dirs);
+	d = dirs;
+	while ((d = strchrnul(d, ':')) < e)
+		*d++ = '\0';
+
+	pfx = calloc(PATH_MAX, sizeof(*dirs));
+
+	if ((env = getenv("XDG_VENDOR_ID"))) {
+		if (pfx[0])
+			strcat(pfx, ":");
+		strcat(pfx, env);
+		strcat(pfx, "-");
+	}
+	if ((env = getenv("XDG_MENU_PREFIX"))) {
+		strcat(pfx, env);
+	}
+	if (pfx[0])
+		strcat(pfx, ":");
+	strcat(pfx, "xde-");
+	if (pfx[0])
+		strcat(pfx, ":");
+	strcat(pfx, "arch-");
+	DPRINTF("$XDG_MENU_PREFIX:$XDG_VENDOR_ID- is '%s'\n", pfx);
+	q = pfx + strlen(pfx);
+	p = pfx;
+	while ((p = strchrnul(p, ':')) < q)
+		*p++ = '\0';
+
+	for (p = pfx; p < q; p += strlen(p) + 1) {
+		for (d = dirs; d < e; d += strlen(d) + 1) {
+			int len;
+			char *path;
+
+			len = strlen(d) + strlen("/menus/") + strlen(p) + strlen(options.menu)
+				+ strlen(".menu") + 1;
+			path = calloc(len, sizeof(*path));
+			strcpy(path, d);
+			strcat(path, "/menus/");
+			strcat(path, p);
+			strcat(path, options.menu);
+			strcat(path, ".menu");
+			DPRINTF("Testing path: '%s'\n", path);
+			if (access(path, R_OK) == 0) {
+				free(options.rootmenu);
+				defaults.rootmenu = options.rootmenu = path;
+				break;
+			}
+			free(path);
+		}
+		if (options.rootmenu)
+			break;
+	}
+	DPRINTF("Default root menu is: '%s'\n", options.rootmenu);
+	free(dirs);
+	free(pfx);
 }
 
 static void
 get_defaults(void)
 {
+	get_default_root();
 }
 
 int
@@ -1756,6 +1857,7 @@ main(int argc, char *argv[])
 			{"launch",	no_argument,		NULL,	'L'},
 			{"nolaunch",	no_argument,		NULL,	'0'},
 			{"style",	required_argument,	NULL,	's'},
+			{"menu",	required_argument,	NULL,	'M'},
 
 			{"quit",	no_argument,		NULL,	'q'},
 			{"replace",	no_argument,		NULL,	'R'},
@@ -1770,10 +1872,10 @@ main(int argc, char *argv[])
 		};
 		/* *INDENT-ON* */
 
-		c = getopt_long_only(argc, argv, "f:FNd:c:l:r:eo::nt:mL0s:D::v::hVCH?",
+		c = getopt_long_only(argc, argv, "f:FNd:c:l:r:eo::nt:mL0s:M:qRD::v::hVCH?",
 				     long_options, &option_index);
 #else
-		c = getopt(argc, argv, "f:FNd:c:l:r:eo:nt:mL0s:D:vhVC?");
+		c = getopt(argc, argv, "f:FNd:c:l:r:eo:nt:mL0s:M:qRD:vhVC?");
 #endif
 		if (c == -1) {
 			if (options.debug)
@@ -1854,6 +1956,10 @@ main(int argc, char *argv[])
 				break;
 			}
 			goto bad_option;
+		case 'M':	/* -M, --menu MENUS */
+			free(options.menu);
+			defaults.menu = options.menu = strdup(optarg);
+			break;
 
 		case 'q':	/* -q, --quit */
 			if (options.command != CommandDefault)
