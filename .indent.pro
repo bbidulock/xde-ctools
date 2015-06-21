@@ -300,5 +300,7 @@
 -TXSession
 -TXWMIconGeometry
 -TXWMState
--TMyParseContext
--TMyMenuItem
+-TXdgParseContext
+-TXdgMenuItem
+-TXdgDirectory
+-TXdgFileEntry

@@ -254,24 +254,52 @@ enum itemType {
 };
 
 typedef struct {
-	enum itemType type;
-	char *name;
-} MyMenuItem;
-
-typedef struct {
 	GQueue *elements;		/* element stack */
 	GQueue *stack;			/* menu stack */
 	GNode *tree;			/* menu tree */
-} MyParseContext;
+} XdgParseContext;
+
+typedef struct {
+	enum itemType type;
+	char *name;
+} XdgMenuItem;
 
 typedef struct {
 	char *path;
-} MyDirectory;
+} XdgDirectory;
+
+GHashTable *xdg_directory_cache = NULL;	/* directory cache */
+
+static void
+xdg_directory_destroy(gpointer data)
+{
+	XdgDirectory *p = data;
+
+	free(p->path);
+	p->path = NULL;
+	free(p);
+}
+
+typedef struct {
+	char *path;
+} XdgFileEntry;
+
+GHashTable *xdg_fileentry_cache = NULL;	/* fileentry cache */
+
+static void
+xdg_fileentry_destroy(gpointer data)
+{
+	XdgFileEntry *p = data;
+
+	free(p->path);
+	p->path = NULL;
+	free(p);
+}
 
 typedef struct {
 	char *name;
 	GSList *appdirs;
-} MyMenu;
+} XdgMenu;
 
 /*
  * <Menu>
@@ -283,8 +311,8 @@ xdg_menu_start_element(GMarkupParseContext *context, const gchar *element_name,
 		       const gchar **attribute_names, const gchar **attribute_values,
 		       gpointer user_data, GError **error)
 {
-	MyParseContext *base = user_data;
-	MyMenu *menu;
+	XdgParseContext *base = user_data;
+	XdgMenu *menu;
 	GNode *node, *parent;
 
 	if (attribute_names && *attribute_names)
@@ -302,9 +330,9 @@ static void
 xdg_menu_end_element(GMarkupParseContext *context,
 		     const gchar *element_name, gpointer user_data, GError **error)
 {
-	MyParseContext *base = user_data;
+	XdgParseContext *base = user_data;
 	GNode *node = g_queue_pop_tail(base->stack);
-	MyMenu *menu = node->data;
+	XdgMenu *menu = node->data;
 
 	(void) menu;
 	/* FIXME: finalize the sub-menu */
@@ -357,9 +385,9 @@ xdg_appdir_start_element(GMarkupParseContext *context, const gchar *element_name
 			 const gchar **attribute_names, const gchar **attribute_values,
 			 gpointer user_data, GError **error)
 {
-	MyParseContext *base = user_data;
+	XdgParseContext *base = user_data;
 	GNode *node = g_queue_peek_tail(base->stack);
-	MyMenu *menu;
+	XdgMenu *menu;
 
 	if (!node) {
 		EPRINTF("Element <AppDir> can only occur within <Menu>!\n");
@@ -373,10 +401,10 @@ static void
 xdg_appdir_character_data(GMarkupParseContext *context,
 			  const gchar *text, gsize text_len, gpointer user_data, GError **error)
 {
-	MyParseContext *base = user_data;
+	XdgParseContext *base = user_data;
 	GNode *node = g_queue_peek_tail(base->stack);
-	MyMenu *menu;
-	MyDirectory *appdir;
+	XdgMenu *menu;
+	XdgDirectory *appdir;
 	const gchar *tend = text + text_len;
 	char *path;
 
@@ -399,9 +427,9 @@ static void
 xdg_appdir_end_element(GMarkupParseContext *context,
 		       const gchar *element_name, gpointer user_data, GError **error)
 {
-	MyParseContext *base = user_data;
+	XdgParseContext *base = user_data;
 	GNode *node = g_queue_peek_tail(base->stack);
-	MyMenu *menu;
+	XdgMenu *menu;
 
 	if (!node) {
 		EPRINTF("Element <AppDir> can only occur within <Menu>!\n");
@@ -449,10 +477,10 @@ static void
 xdg_appdirs_end_element(GMarkupParseContext *context,
 			const gchar *element_name, gpointer user_data, GError **error)
 {
-	MyParseContext *base = user_data;
+	XdgParseContext *base = user_data;
 	GNode *node = g_queue_peek_tail(base->stack);
-	MyMenu *menu;
-	MyDirectory *appdir;
+	XdgMenu *menu;
+	XdgDirectory *appdir;
 	char *path, *p, *e;
 	GSList *list = NULL;
 
@@ -463,10 +491,11 @@ xdg_appdirs_end_element(GMarkupParseContext *context,
 	menu = node->data;
 	p = xdg_data_path;
 	e = xdg_data_last;
-	for (;p < e; p += strlen(p) + 1) {
+	for (; p < e; p += strlen(p) + 1) {
 		static const char *suffix = "/applications";
 
 		int len = strlen(p) + strlen(suffix) + 1;
+
 		appdir = calloc(1, sizeof(*appdir));
 		path = calloc(len, sizeof(*path));
 		strcpy(path, p);
@@ -598,9 +627,9 @@ static void
 xdg_name_character_data(GMarkupParseContext *context,
 			const gchar *text, gsize text_len, gpointer user_data, GError **error)
 {
-	MyParseContext *base = user_data;
+	XdgParseContext *base = user_data;
 	GNode *node = g_queue_peek_tail(base->stack);
-	MyMenu *menu;
+	XdgMenu *menu;
 	const gchar *tend = text + text_len;
 	char *name;
 
@@ -1742,7 +1771,7 @@ xdg_start_element(GMarkupParseContext *context,
 		  const gchar **attribute_values, gpointer user_data, GError **error)
 {
 	struct parser_mapping *m;
-	MyParseContext *base = user_data;
+	XdgParseContext *base = user_data;
 
 	DPRINTF("START-ELEMENT: %s\n", element_name);
 
@@ -1761,7 +1790,7 @@ static void
 xdg_end_element(GMarkupParseContext *context,
 		const gchar *element_name, gpointer user_data, GError **error)
 {
-	MyParseContext *base = user_data;
+	XdgParseContext *base = user_data;
 	struct parser_mapping *m;
 
 	DPRINTF("END-ELEMENT: %s\n", element_name);
@@ -1775,7 +1804,7 @@ static void
 xdg_character_data(GMarkupParseContext *context,
 		   const gchar *text, gsize text_len, gpointer user_data, GError **error)
 {
-	MyParseContext *base = user_data;
+	XdgParseContext *base = user_data;
 	struct parser_mapping *m;
 
 	m = g_queue_peek_tail(base->elements);
@@ -1786,7 +1815,7 @@ xdg_character_data(GMarkupParseContext *context,
 static void
 xdg_error(GMarkupParseContext *context, GError *error, gpointer user_data)
 {
-	MyParseContext *base = user_data;
+	XdgParseContext *base = user_data;
 	struct parser_mapping *m;
 
 	m = g_queue_peek_tail(base->elements);
@@ -1802,7 +1831,7 @@ GMarkupParser xdg_parser = {
 };
 
 static void
-parse_menu(MyParseContext *base)
+parse_menu(XdgParseContext *base)
 {
 	FILE *f;
 	int dummy;
@@ -1858,9 +1887,15 @@ parse_menu(MyParseContext *base)
 static void
 make_menu(int argc, char *argv[])
 {
-	MyMenuItem *item;
-	MyParseContext base = { NULL, };
+	XdgMenuItem *item;
+	XdgParseContext base = { NULL, };
 
+	if (!xdg_directory_cache)
+		xdg_directory_cache =
+		    g_hash_table_new_full(g_str_hash, g_str_equal, g_free, xdg_directory_destroy);
+	if (!xdg_fileentry_cache)
+		xdg_fileentry_cache =
+		    g_hash_table_new_full(g_str_hash, g_str_equal, g_free, xdg_fileentry_destroy);
 	item = calloc(1, sizeof(*item));
 
 	base.elements = g_queue_new();
