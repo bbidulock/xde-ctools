@@ -237,30 +237,77 @@ typedef struct {
 
 static XdeScreen *screens;
 
+char *xdg_data_home = NULL;
+char *xdg_data_dirs = NULL;
+char *xdg_data_path = NULL;
+char *xdg_data_last = NULL;
+
+char *xdg_config_home = NULL;
+char *xdg_config_dirs = NULL;
+char *xdg_config_path = NULL;
+char *xdg_config_last = NULL;
+
+enum itemType {
+	MenuItem = 0,
+	MenuClosure = 1,
+	MenuEntry = 2,
+};
+
+typedef struct {
+	enum itemType type;
+	char *name;
+} MyMenuItem;
+
+typedef struct {
+	GQueue *elements;		/* element stack */
+	GQueue *stack;			/* menu stack */
+	GNode *tree;			/* menu tree */
+} MyParseContext;
+
+typedef struct {
+	char *path;
+} MyDirectory;
+
+typedef struct {
+	char *name;
+	GSList *appdirs;
+} MyMenu;
+
+/*
+ * <Menu>
+ *	The root element is <Menu>.  Each <Menu> element may contain any numer of nested <Menu>
+ *	elements, indicating submenus.
+ */
 void
 xdg_menu_start_element(GMarkupParseContext *context, const gchar *element_name,
 		       const gchar **attribute_names, const gchar **attribute_values,
 		       gpointer user_data, GError **error)
 {
+	MyParseContext *base = user_data;
+	MyMenu *menu;
+	GNode *node, *parent;
+
+	if (attribute_names && *attribute_names)
+		EPRINTF("Ignoring attributes in <Menu> element!\n");
+	menu = calloc(1, sizeof(*menu));
+	node = g_node_new(menu);
+	if ((parent = g_queue_peek_tail(base->stack)))
+		g_node_append(parent, node);
+	else
+		base->tree = node;
+	g_queue_push_tail(base->stack, node);
 }
 
 static void
 xdg_menu_end_element(GMarkupParseContext *context,
-		     const gchar *elemen_name, gpointer user_data, GError **error)
+		     const gchar *element_name, gpointer user_data, GError **error)
 {
-}
+	MyParseContext *base = user_data;
+	GNode *node = g_queue_pop_tail(base->stack);
+	MyMenu *menu = node->data;
 
-static void
-xdg_menu_character_data(GMarkupParseContext *context,
-			const gchar *text, gsize text_len, gpointer user_data, GError **error)
-{
-}
-
-static void
-xdg_menu_passthrough(GMarkupParseContext *context,
-		     const gchar *passthrough_text,
-		     gsize text_len, gpointer user_data, GError **error)
-{
+	(void) menu;
+	/* FIXME: finalize the sub-menu */
 }
 
 static void
@@ -271,102 +318,1376 @@ xdg_menu_error(GMarkupParseContext *context, GError *error, gpointer user_data)
 GMarkupParser xdg_menu_parser = {
 	.start_element = xdg_menu_start_element,
 	.end_element = xdg_menu_end_element,
-	.text = xdg_menu_character_data,
-	.passthrough = xdg_menu_passthrough,
 	.error = xdg_menu_error,
 };
 
+/*
+ * <AppDir>
+ *	This element may only appear below <Menu>.  The content of this element is a directory name,
+ *	desktop entries in this directory are scanned and added to the pool of entries that can be
+ *	included in this <Menu> and its submenus.  Only files ending in ".desktop" should be used,
+ *	other files are ignored.
+ *
+ *	Desktop entries in the pool of available entries are identified by their desktop-file id
+ *	(see Desktop-File Id).  The desktop-file id of a desktop entry is equal to its filename,
+ *	with any path components removed.  SO given a <AppDir> /foo/bar and desktop entry
+ *	/foo/bar/Hello.desktop, the desktop entry would ge a Desktop-file id of Hello.desktop.
+ *
+ *	If the directory contains sub-directories then these sub-directories should be (recursively)
+ *	scanned as well.  The name of the subdirectory should be added as prefix to the desktop-file
+ *	id together with a dash character ("-").  So, givcen a <AppDir> /foo/bar and desktop entry
+ *	/foo/bar/booz/Hello.desktop, the desktop entry would ge a desktop-file id of
+ *	booz-Hello.desktop.  A desktop entry /foo/bar/bo/oz/Hello.desktop would result in a
+ *	desktop-file id of bo-oz-Hello.desktop.
+ *
+ *	<AppDir> elements appearing later in the menu file have priority in cases of collisions
+ *	between desktop-file ids.
+ *
+ *	If the filename given as an <AppDir> is not an absolute path, it should be located relative
+ *	to the location of the menu file being parsed.
+ *
+ *	Duplicate <AppDir> elements (that specify the same directory) should be ignored, ut the last
+ *	duplicate in the file should be used when establishing the order in which to scan the
+ *	directories.  This is important when merging (see the section called "Merging").  The order
+ *	of <AppDir> elements with respect to <Include> and <Exclude> elements is not relevant, also
+ *	to facility merging.
+ */
+void
+xdg_appdir_start_element(GMarkupParseContext *context, const gchar *element_name,
+			 const gchar **attribute_names, const gchar **attribute_values,
+			 gpointer user_data, GError **error)
+{
+	MyParseContext *base = user_data;
+	GNode *node = g_queue_peek_tail(base->stack);
+	MyMenu *menu;
+
+	if (!node) {
+		EPRINTF("Element <AppDir> can only occur within <Menu>!\n");
+		return;
+	}
+	menu = node->data;
+	(void) menu;
+}
+
+static void
+xdg_appdir_character_data(GMarkupParseContext *context,
+			  const gchar *text, gsize text_len, gpointer user_data, GError **error)
+{
+	MyParseContext *base = user_data;
+	GNode *node = g_queue_peek_tail(base->stack);
+	MyMenu *menu;
+	MyDirectory *appdir;
+	const gchar *tend = text + text_len;
+	char *path;
+
+	if (!node) {
+		EPRINTF("Element <AppDir> can only occur within <Menu>!\n");
+		return;
+	}
+	menu = node->data;
+	appdir = calloc(1, sizeof(*appdir));
+	for (; text < tend && isspace(*text); text++, text_len--) ;
+	for (; tend > text && isspace(*tend); tend--, text_len--) ;
+	path = strndup(text, text_len);
+	DPRINTF("Menu has new directory named '%s'\n", path);
+	appdir->path = path;
+	menu->appdirs = g_slist_append(menu->appdirs, appdir);
+
+}
+
+static void
+xdg_appdir_end_element(GMarkupParseContext *context,
+		       const gchar *element_name, gpointer user_data, GError **error)
+{
+	MyParseContext *base = user_data;
+	GNode *node = g_queue_peek_tail(base->stack);
+	MyMenu *menu;
+
+	if (!node) {
+		EPRINTF("Element <AppDir> can only occur within <Menu>!\n");
+		return;
+	}
+	menu = node->data;
+	(void) menu;
+
+}
+
+static void
+xdg_appdir_error(GMarkupParseContext *context, GError *error, gpointer user_data)
+{
+}
+
 GMarkupParser xdg_appdir_parser = {
+	.start_element = xdg_appdir_start_element,
+	.end_element = xdg_appdir_end_element,
+	.text = xdg_appdir_character_data,
+	.error = xdg_appdir_error,
 };
+
+/*
+ * <DefaultAppDirs>
+ *	This element may only appear below <Menu>.  The element has no content.  The element should
+ *	be treated as if it were a list of <AppDir> elements contianing the default app dir
+ *	lcoations (datadir/applications/ etc.). When expanding <DefaultAppDir> to a list of
+ *	<AppDir>, the default locations that are earlier in the search path go later in the <Menu>
+ *	so that they have priority.
+ */
+void
+xdg_appdirs_start_element(GMarkupParseContext *context, const gchar *element_name,
+			  const gchar **attribute_names, const gchar **attribute_values,
+			  gpointer user_data, GError **error)
+{
+}
+
+static void
+xdg_appdirs_character_data(GMarkupParseContext *context,
+			   const gchar *text, gsize text_len, gpointer user_data, GError **error)
+{
+}
+
+static void
+xdg_appdirs_end_element(GMarkupParseContext *context,
+			const gchar *element_name, gpointer user_data, GError **error)
+{
+	MyParseContext *base = user_data;
+	GNode *node = g_queue_peek_tail(base->stack);
+	MyMenu *menu;
+	MyDirectory *appdir;
+	char *path, *p, *e;
+	GSList *list = NULL;
+
+	if (!node) {
+		EPRINTF("Element <AppDir> can only occur within <Menu>!\n");
+		return;
+	}
+	menu = node->data;
+	p = xdg_data_path;
+	e = xdg_data_last;
+	for (;p < e; p += strlen(p) + 1) {
+		static const char *suffix = "/applications";
+
+		int len = strlen(p) + strlen(suffix) + 1;
+		appdir = calloc(1, sizeof(*appdir));
+		path = calloc(len, sizeof(*path));
+		strcpy(path, p);
+		strcat(path, suffix);
+		DPRINTF("Menu has new directory named '%s'\n", path);
+		appdir->path = path;
+		list = g_slist_prepend(list, appdir);
+
+	}
+	menu->appdirs = g_slist_concat(menu->appdirs, list);
+}
+
+static void
+xdg_appdirs_error(GMarkupParseContext *context, GError *error, gpointer user_data)
+{
+}
 
 GMarkupParser xdg_appdirs_parser = {
+	.start_element = xdg_appdirs_start_element,
+	.end_element = xdg_appdirs_end_element,
+	.text = xdg_appdirs_character_data,
+	.error = xdg_appdirs_error,
 };
 
+/*
+ * <DirectoryDir>
+ *	This element amy only appear below <Menu>.  The content of this element is a directory name.
+ *	Each directory listed in a <DirectoryDir> element will be searched for directory entries to
+ *	be used when resolving the <Directory> element for this menu and its submenus.  If the
+ *	filename given as a <DirectoryDir> is not an absolute path, it should be located relative to
+ *	the location of the menu file being parsed.
+ *
+ *	Directory entries in the pool of available entries are identified by thier relative path
+ *	(see Relative Path).
+ *
+ *	If thwo directory entires khave duplicate relative paths, the one from the last (furthest
+ *	down) element in the menu file must be used.  Only files ending in the extension
+ *	".directory" should be laoded, other files should be ignored.
+ *
+ *	Duplicate <DirectoryDir> elements (that specify the same directory) are handled as with
+ *	duplicalte <AppDir> elements (the last duplicate is used).
+ *
+ */
+void
+xdg_dirdir_start_element(GMarkupParseContext *context, const gchar *element_name,
+			 const gchar **attribute_names, const gchar **attribute_values,
+			 gpointer user_data, GError **error)
+{
+}
+
+static void
+xdg_dirdir_end_element(GMarkupParseContext *context,
+		       const gchar *element_name, gpointer user_data, GError **error)
+{
+}
+
+static void
+xdg_dirdir_character_data(GMarkupParseContext *context,
+			  const gchar *text, gsize text_len, gpointer user_data, GError **error)
+{
+}
+
+static void
+xdg_dirdir_error(GMarkupParseContext *context, GError *error, gpointer user_data)
+{
+}
+
+/*
+ * <DefaultDirectoryDirs>
+ *	This element may only appear  below <Menu>.  The element has no content.  The element should
+ *	be treated as if it were a list of <DirectoryDir> elements containing the default desktop
+ *	directory locations (datadir/desktop-directories/ etc.).  THe default locates that are
+ *	earlier in the search path go later in the <Menu> so that they have priority.
+ */
 GMarkupParser xdg_dirdir_parser = {
+	.start_element = xdg_dirdir_start_element,
+	.end_element = xdg_dirdir_end_element,
+	.text = xdg_dirdir_character_data,
+	.error = xdg_dirdir_error,
 };
+
+void
+xdg_dirdirs_start_element(GMarkupParseContext *context, const gchar *element_name,
+			  const gchar **attribute_names, const gchar **attribute_values,
+			  gpointer user_data, GError **error)
+{
+}
+
+static void
+xdg_dirdirs_end_element(GMarkupParseContext *context,
+			const gchar *element_name, gpointer user_data, GError **error)
+{
+}
+
+static void
+xdg_dirdirs_character_data(GMarkupParseContext *context,
+			   const gchar *text, gsize text_len, gpointer user_data, GError **error)
+{
+}
+
+static void
+xdg_dirdirs_error(GMarkupParseContext *context, GError *error, gpointer user_data)
+{
+}
 
 GMarkupParser xdg_dirdirs_parser = {
+	.start_element = xdg_dirdirs_start_element,
+	.end_element = xdg_dirdirs_end_element,
+	.text = xdg_dirdirs_character_data,
+	.error = xdg_dirdirs_error,
 };
+
+/*
+ * <Name>
+ *	Each <Menu> element must have a single <Name> element.  The content of the <Name> element
+ *	is a name to be used when referring to the given menu.  Each submenu of a given <Menu> must
+ *	have a unique name.  <Menu> elements can thus be references by a menu path, for example
+ *	"Applications/Graphics."  THe <Name> field must not contain the slash character ("/");
+ *	implementations should discard any name containing a slas.  See also Menu path.
+ */
+void
+xdg_name_start_element(GMarkupParseContext *context, const gchar *element_name,
+		       const gchar **attribute_names, const gchar **attribute_values,
+		       gpointer user_data, GError **error)
+{
+}
+
+static void
+xdg_name_character_data(GMarkupParseContext *context,
+			const gchar *text, gsize text_len, gpointer user_data, GError **error)
+{
+	MyParseContext *base = user_data;
+	GNode *node = g_queue_peek_tail(base->stack);
+	MyMenu *menu;
+	const gchar *tend = text + text_len;
+	char *name;
+
+	if (!node) {
+		EPRINTF("Element <Name> can only occur within <Menu>!\n");
+		return;
+	}
+	menu = node->data;
+	for (; text < tend && isspace(*text); text++, text_len--) ;
+	for (; tend > text && isspace(*tend); tend--, text_len--) ;
+	name = strndup(text, text_len);
+	free(menu->name);
+	menu->name = name;
+	DPRINTF("Menu is named: '%s'\n", name);
+}
+
+static void
+xdg_name_end_element(GMarkupParseContext *context,
+		     const gchar *element_name, gpointer user_data, GError **error)
+{
+}
+
+static void
+xdg_name_error(GMarkupParseContext *context, GError *error, gpointer user_data)
+{
+}
 
 GMarkupParser xdg_name_parser = {
+	.start_element = xdg_name_start_element,
+	.end_element = xdg_name_end_element,
+	.text = xdg_name_character_data,
+	.error = xdg_name_error,
 };
+
+/*
+ * <Directory>
+ *	Each <Menu> element has any number of <Directory> elements.  The content of the <Directory>
+ *	lement is the relative path of a directory entry containing meta information about the
+ *	<Menu>, such as its icon and localized name.  If no <Directory> is psecified for a <Menu>,
+ *	its <Name> field should be used as the user-visible name of the menu.
+ *
+ *	Duplicate <Directory> elements are allowed to simplify menu merging, and allow user menus to
+ *	override system menus.  The last <Directory> element to appear in the menu file "wins" and
+ *	other elements are ignored, unless the last element points to a nonexistent directory entry,
+ *	in which case the previous element should eb tried instead, and so on.
+ */
+void
+xdg_dir_start_element(GMarkupParseContext *context, const gchar *element_name,
+		      const gchar **attribute_names, const gchar **attribute_values,
+		      gpointer user_data, GError **error)
+{
+}
+
+static void
+xdg_dir_end_element(GMarkupParseContext *context,
+		    const gchar *element_name, gpointer user_data, GError **error)
+{
+}
+
+static void
+xdg_dir_character_data(GMarkupParseContext *context,
+		       const gchar *text, gsize text_len, gpointer user_data, GError **error)
+{
+}
+
+static void
+xdg_dir_error(GMarkupParseContext *context, GError *error, gpointer user_data)
+{
+}
 
 GMarkupParser xdg_dir_parser = {
+	.start_element = xdg_dir_start_element,
+	.end_element = xdg_dir_end_element,
+	.text = xdg_dir_character_data,
+	.error = xdg_dir_error,
 };
+
+/*
+ * <OnlyUnallocated> and <NotOnlyUnallocated>
+ *	Each <Menu> may contain any number of <OnlyUnallocated> and <NotOnlyUnallocated> elements.
+ *	Only the last such element to appear is relevant, as it determines whether the <Menu> can
+ *	contain any desktop entries, or only those desktop entries that do not match other menus.
+ *	If neither <OnlyUnallocated> nor <NotOnlyUnallocated> elements are present, the default is
+ *	<NotOnlyUnallocated>.
+ *
+ *	To handle <OnlyUnallocated>, the menu file must be analyzed in two conceptual passes.  The
+ *	first pass processes <Menu> elements that cna match any desktop entry.  During this pass,
+ *	each desktop entry is marked as allocated according to whether it was matched by an
+ *	<Include> rule in some <Menu>.  The second pass processes only <Menu> elements that are
+ *	restircted to unallocated desktpo entires.  During the second pass, queries may only match
+ *	desktop entries that were not marked as allocated during the first pass.  See the section
+ *	called "Generating the menus".
+ */
+void
+xdg_only_u_start_element(GMarkupParseContext *context, const gchar *element_name,
+			 const gchar **attribute_names, const gchar **attribute_values,
+			 gpointer user_data, GError **error)
+{
+}
+
+static void
+xdg_only_u_end_element(GMarkupParseContext *context,
+		       const gchar *element_name, gpointer user_data, GError **error)
+{
+}
+
+static void
+xdg_only_u_character_data(GMarkupParseContext *context,
+			  const gchar *text, gsize text_len, gpointer user_data, GError **error)
+{
+}
+
+static void
+xdg_only_u_error(GMarkupParseContext *context, GError *error, gpointer user_data)
+{
+}
 
 GMarkupParser xdg_only_u_parser = {
+	.start_element = xdg_only_u_start_element,
+	.end_element = xdg_only_u_end_element,
+	.text = xdg_only_u_character_data,
+	.error = xdg_only_u_error,
 };
+
+void
+xdg_not_u_start_element(GMarkupParseContext *context, const gchar *element_name,
+			const gchar **attribute_names, const gchar **attribute_values,
+			gpointer user_data, GError **error)
+{
+}
+
+static void
+xdg_not_u_end_element(GMarkupParseContext *context,
+		      const gchar *element_name, gpointer user_data, GError **error)
+{
+}
+
+static void
+xdg_not_u_character_data(GMarkupParseContext *context,
+			 const gchar *text, gsize text_len, gpointer user_data, GError **error)
+{
+}
+
+static void
+xdg_not_u_error(GMarkupParseContext *context, GError *error, gpointer user_data)
+{
+}
 
 GMarkupParser xdg_not_u_parser = {
+	.start_element = xdg_not_u_start_element,
+	.end_element = xdg_not_u_end_element,
+	.text = xdg_not_u_character_data,
+	.error = xdg_not_u_error,
 };
+
+/*
+ * <Deleted> and <NotDeleted>
+ *	Each <Menu> may contain any number of <Deleted> and <NotDeleted> elements.  Only the last
+ *	such element to appear is relevant, as it determines whether the <Menu> has been deleted.
+ *	If neither <Deleted> no <NotDeleted> elemetns are present, the default is <NotDeleted>.  The
+ *	purpose of this element is to support menuy editing.  If a menu contains a <Deleted> element
+ *	not followed by a <NotDeleted> element, that menu should be ignored.
+ */
+void
+xdg_deleted_start_element(GMarkupParseContext *context, const gchar *element_name,
+			  const gchar **attribute_names, const gchar **attribute_values,
+			  gpointer user_data, GError **error)
+{
+}
+
+static void
+xdg_deleted_end_element(GMarkupParseContext *context,
+			const gchar *element_name, gpointer user_data, GError **error)
+{
+}
+
+static void
+xdg_deleted_character_data(GMarkupParseContext *context,
+			   const gchar *text, gsize text_len, gpointer user_data, GError **error)
+{
+}
+
+static void
+xdg_deleted_error(GMarkupParseContext *context, GError *error, gpointer user_data)
+{
+}
 
 GMarkupParser xdg_deleted_parser = {
+	.start_element = xdg_deleted_start_element,
+	.end_element = xdg_deleted_end_element,
+	.text = xdg_deleted_character_data,
+	.error = xdg_deleted_error,
 };
+
+void
+xdg_not_deleted_start_element(GMarkupParseContext *context, const gchar *element_name,
+			      const gchar **attribute_names, const gchar **attribute_values,
+			      gpointer user_data, GError **error)
+{
+}
+
+static void
+xdg_not_deleted_end_element(GMarkupParseContext *context,
+			    const gchar *element_name, gpointer user_data, GError **error)
+{
+}
+
+static void
+xdg_not_deleted_character_data(GMarkupParseContext *context,
+			       const gchar *text, gsize text_len, gpointer user_data,
+			       GError **error)
+{
+}
+
+static void
+xdg_not_deleted_error(GMarkupParseContext *context, GError *error, gpointer user_data)
+{
+}
 
 GMarkupParser xdg_not_deleted_parser = {
+	.start_element = xdg_not_deleted_start_element,
+	.end_element = xdg_not_deleted_end_element,
+	.text = xdg_not_deleted_character_data,
+	.error = xdg_not_deleted_error,
 };
+
+/*
+ * <Include>
+ *	An <Include> element is a set of rules attempting to match some of the known dsektop
+ *	entries.  The <Include> element contains a list of any number of matching rules.  Matching
+ *	rules are specified using the elements <And>, <Or>, <Not>, <All>, <Filename?>, and
+ *	<Category>.  Each ruls in a list of rules has a logical OR felationship, that is, desktop
+ *	entires that match any rule are included in the menu.
+ *
+ *	<Include> elements must appear immediately under <Menu> elements.  The desktop entires they
+ *	match are included in the menu.  <Include> and <Exclude> elements for a given <Menu> are
+ *	processed in order, with queries earlier in the file handled first.  This has implications
+ *	for merging, see the section called "Merging".  Se the section called "Generating the menus"
+ *	for full deatils on how to process <Include> and <Exclude> elements.
+ */
+void
+xdg_include_start_element(GMarkupParseContext *context, const gchar *element_name,
+			  const gchar **attribute_names, const gchar **attribute_values,
+			  gpointer user_data, GError **error)
+{
+}
+
+static void
+xdg_include_end_element(GMarkupParseContext *context,
+			const gchar *element_name, gpointer user_data, GError **error)
+{
+}
+
+static void
+xdg_include_character_data(GMarkupParseContext *context,
+			   const gchar *text, gsize text_len, gpointer user_data, GError **error)
+{
+}
+
+static void
+xdg_include_error(GMarkupParseContext *context, GError *error, gpointer user_data)
+{
+}
 
 GMarkupParser xdg_include_parser = {
+	.start_element = xdg_include_start_element,
+	.end_element = xdg_include_end_element,
+	.text = xdg_include_character_data,
+	.error = xdg_include_error,
 };
+
+/*
+ * <Exclude>
+ *	Any number of <Exlucde> lements may appear below a <Menu> element.  The content of an
+ *	<Exclude> element is a list of matching rules, just as with an <Include>.  However, the
+ *	desktpo entries matches are removed from the list of desktop entires included so far.  (Thus
+ *	an <Exclude> element that appears before any <Include> elements will have no affect, for
+ *	example, as no desktop entries have been incldued yet.)
+ */
+void
+xdg_exclude_start_element(GMarkupParseContext *context, const gchar *element_name,
+			  const gchar **attribute_names, const gchar **attribute_values,
+			  gpointer user_data, GError **error)
+{
+}
+
+static void
+xdg_exclude_end_element(GMarkupParseContext *context,
+			const gchar *element_name, gpointer user_data, GError **error)
+{
+}
+
+static void
+xdg_exclude_character_data(GMarkupParseContext *context,
+			   const gchar *text, gsize text_len, gpointer user_data, GError **error)
+{
+}
+
+static void
+xdg_exclude_error(GMarkupParseContext *context, GError *error, gpointer user_data)
+{
+}
 
 GMarkupParser xdg_exclude_parser = {
+	.start_element = xdg_exclude_start_element,
+	.end_element = xdg_exclude_end_element,
+	.text = xdg_exclude_character_data,
+	.error = xdg_exclude_error,
 };
+
+/*
+ * <Filename>
+ *	The <Filename> element is the most basic matching rule.  It matches a desktop entry if the
+ *	desktop entry ahs the given desktop-file id.  See Desktop-File Id.
+ */
+void
+xdg_filename_start_element(GMarkupParseContext *context, const gchar *element_name,
+			   const gchar **attribute_names, const gchar **attribute_values,
+			   gpointer user_data, GError **error)
+{
+}
+
+static void
+xdg_filename_end_element(GMarkupParseContext *context,
+			 const gchar *element_name, gpointer user_data, GError **error)
+{
+}
+
+static void
+xdg_filename_character_data(GMarkupParseContext *context,
+			    const gchar *text, gsize text_len, gpointer user_data, GError **error)
+{
+}
+
+static void
+xdg_filename_error(GMarkupParseContext *context, GError *error, gpointer user_data)
+{
+}
 
 GMarkupParser xdg_filename_parser = {
+	.start_element = xdg_filename_start_element,
+	.end_element = xdg_filename_end_element,
+	.text = xdg_filename_character_data,
+	.error = xdg_filename_error,
 };
+
+/*
+ * <Category>
+ *	The <Category> element is another basic matching predicate.  It matches a desktop entry if
+ *	the desktop entry has the given category in its Cateogries field.
+ */
+void
+xdg_category_start_element(GMarkupParseContext *context, const gchar *element_name,
+			   const gchar **attribute_names, const gchar **attribute_values,
+			   gpointer user_data, GError **error)
+{
+}
+
+static void
+xdg_category_end_element(GMarkupParseContext *context,
+			 const gchar *element_name, gpointer user_data, GError **error)
+{
+}
+
+static void
+xdg_category_character_data(GMarkupParseContext *context,
+			    const gchar *text, gsize text_len, gpointer user_data, GError **error)
+{
+}
+
+static void
+xdg_category_error(GMarkupParseContext *context, GError *error, gpointer user_data)
+{
+}
 
 GMarkupParser xdg_category_parser = {
+	.start_element = xdg_category_start_element,
+	.end_element = xdg_category_end_element,
+	.text = xdg_category_character_data,
+	.error = xdg_category_error,
 };
+
+/*
+ * <All>
+ *	The <All> element is a matching rule that matches all desktop entries.
+ */
+void
+xdg_all_start_element(GMarkupParseContext *context, const gchar *element_name,
+		      const gchar **attribute_names, const gchar **attribute_values,
+		      gpointer user_data, GError **error)
+{
+}
+
+static void
+xdg_all_end_element(GMarkupParseContext *context,
+		    const gchar *element_name, gpointer user_data, GError **error)
+{
+}
+
+static void
+xdg_all_character_data(GMarkupParseContext *context,
+		       const gchar *text, gsize text_len, gpointer user_data, GError **error)
+{
+}
+
+static void
+xdg_all_error(GMarkupParseContext *context, GError *error, gpointer user_data)
+{
+}
 
 GMarkupParser xdg_all_parser = {
+	.start_element = xdg_all_start_element,
+	.end_element = xdg_all_end_element,
+	.text = xdg_all_character_data,
+	.error = xdg_all_error,
 };
+
+/*
+ * <And>
+ *	The <And> element contains a list of matching fules.  If each o fthe matching rule inside
+ *	the <And> element match a desktop entry, then the entire <And> rule matches the desktop
+ *	entry.
+ */
+void
+xdg_and_start_element(GMarkupParseContext *context, const gchar *element_name,
+		      const gchar **attribute_names, const gchar **attribute_values,
+		      gpointer user_data, GError **error)
+{
+}
+
+static void
+xdg_and_end_element(GMarkupParseContext *context,
+		    const gchar *element_name, gpointer user_data, GError **error)
+{
+}
+
+static void
+xdg_and_character_data(GMarkupParseContext *context,
+		       const gchar *text, gsize text_len, gpointer user_data, GError **error)
+{
+}
+
+static void
+xdg_and_error(GMarkupParseContext *context, GError *error, gpointer user_data)
+{
+}
 
 GMarkupParser xdg_and_parser = {
+	.start_element = xdg_and_start_element,
+	.end_element = xdg_and_end_element,
+	.text = xdg_and_character_data,
+	.error = xdg_and_error,
 };
+
+/*
+ * <Or>
+ *	The <Or> element contains a list of matching rules.  If any of the matching rules inside the
+ *	<Or> element match a desktop entry, then the entire <Or> rule matches the desktop entry.
+ */
+void
+xdg_or_start_element(GMarkupParseContext *context, const gchar *element_name,
+		     const gchar **attribute_names, const gchar **attribute_values,
+		     gpointer user_data, GError **error)
+{
+}
+
+static void
+xdg_or_end_element(GMarkupParseContext *context,
+		   const gchar *element_name, gpointer user_data, GError **error)
+{
+}
+
+static void
+xdg_or_character_data(GMarkupParseContext *context,
+		      const gchar *text, gsize text_len, gpointer user_data, GError **error)
+{
+}
+
+static void
+xdg_or_error(GMarkupParseContext *context, GError *error, gpointer user_data)
+{
+}
 
 GMarkupParser xdg_or_parser = {
+	.start_element = xdg_or_start_element,
+	.end_element = xdg_or_end_element,
+	.text = xdg_or_character_data,
+	.error = xdg_or_error,
 };
+
+/*
+ * <Not>
+ *	The <Not> element contains a list of matching rules.  If any of the matching rules inside
+ *	the <Not> element matches a desktop entry ,then the entire <Not> rules does not match the
+ *	desktop entry.  That is, matching rules below <Not> have a logical OR rleationship.
+ */
+void
+xdg_not_start_element(GMarkupParseContext *context, const gchar *element_name,
+		      const gchar **attribute_names, const gchar **attribute_values,
+		      gpointer user_data, GError **error)
+{
+}
+
+static void
+xdg_not_end_element(GMarkupParseContext *context,
+		    const gchar *element_name, gpointer user_data, GError **error)
+{
+}
+
+static void
+xdg_not_character_data(GMarkupParseContext *context,
+		       const gchar *text, gsize text_len, gpointer user_data, GError **error)
+{
+}
+
+static void
+xdg_not_error(GMarkupParseContext *context, GError *error, gpointer user_data)
+{
+}
 
 GMarkupParser xdg_not_parser = {
+	.start_element = xdg_not_start_element,
+	.end_element = xdg_not_end_element,
+	.text = xdg_not_character_data,
+	.error = xdg_not_error,
 };
+
+/*
+ * <MergeFile [type="path"|"parent"]>
+ *	Any number of <MergeFile> elements may be listed below a <Menu> element, giving the name of
+ *	another menu file to be merged into this one.  The section called "Merging" specifies how
+ *	merging is done.  The root <Menu> of the merged file will be merged into the immediate
+ *	parent of the <MergeFile> element.  The <Name> element of the root <Menu> of the merged
+ *	file are ignored.
+ *
+ *	If the type attribute is missing or set to "path" then the contents of the <MergeFile.
+ *	element indicates the file to be merged.  If this is not an absolute path then the file to
+ *	be merged should be located relative to the location of the menu file that contains this
+ *	<MergeFile> element.
+ */
+void
+xdg_mergefile_start_element(GMarkupParseContext *context, const gchar *element_name,
+			    const gchar **attribute_names, const gchar **attribute_values,
+			    gpointer user_data, GError **error)
+{
+}
+
+static void
+xdg_mergefile_end_element(GMarkupParseContext *context,
+			  const gchar *element_name, gpointer user_data, GError **error)
+{
+}
+
+static void
+xdg_mergefile_character_data(GMarkupParseContext *context,
+			     const gchar *text, gsize text_len, gpointer user_data, GError **error)
+{
+}
+
+static void
+xdg_mergefile_error(GMarkupParseContext *context, GError *error, gpointer user_data)
+{
+}
 
 GMarkupParser xdg_mergefile_parser = {
+	.start_element = xdg_mergefile_start_element,
+	.end_element = xdg_mergefile_end_element,
+	.text = xdg_mergefile_character_data,
+	.error = xdg_mergefile_error,
 };
+
+/*
+ * <MergeDir>
+ *	ANy numebr of <MergeDir> elements may be listed below <Menu> element.  A <MergeDir> contains
+ *	the name of a directory.  Each file in the given directoy which ends in the ".menu"
+ *	extension should be merged in the same way that a <MergeFile> would be.  If the filename
+ *	given as a <MergeDir> is not an absolute path, it should eb located relative to the locatino
+ *	of the menu file being parsed.  The files insdie the merged directory are not merged in any
+ *	specified order.
+ *
+ *	Duplicate <MergeDir> elements (that specify the same directory) are handled as with
+ *	duplicate <AppDir> element (the last duplicate is used).
+ */
+void
+xdg_mergedir_start_element(GMarkupParseContext *context, const gchar *element_name,
+			   const gchar **attribute_names, const gchar **attribute_values,
+			   gpointer user_data, GError **error)
+{
+}
+
+static void
+xdg_mergedir_end_element(GMarkupParseContext *context,
+			 const gchar *element_name, gpointer user_data, GError **error)
+{
+}
+
+static void
+xdg_mergedir_character_data(GMarkupParseContext *context,
+			    const gchar *text, gsize text_len, gpointer user_data, GError **error)
+{
+}
+
+static void
+xdg_mergedir_error(GMarkupParseContext *context, GError *error, gpointer user_data)
+{
+}
 
 GMarkupParser xdg_mergedir_parser = {
+	.start_element = xdg_mergedir_start_element,
+	.end_element = xdg_mergedir_end_element,
+	.text = xdg_mergedir_character_data,
+	.error = xdg_mergedir_error,
 };
+
+/*
+ * <DefaultMergeDirs>
+ *	This element may only appear below <Menu>.  The element has not content.  The element should
+ *	eb treated as if it were a list of <MergeDir> elements containing the defulat merge
+ *	directory locations.  When expanding <DefaultMergeDires> to a list of <MergeDir>, the
+ *	default locations that are earlier in the serach path go later in the <Menu> so that they
+ *	have priority.
+ */
+void
+xdg_mergedirs_start_element(GMarkupParseContext *context, const gchar *element_name,
+			    const gchar **attribute_names, const gchar **attribute_values,
+			    gpointer user_data, GError **error)
+{
+}
+
+static void
+xdg_mergedirs_end_element(GMarkupParseContext *context,
+			  const gchar *element_name, gpointer user_data, GError **error)
+{
+}
+
+static void
+xdg_mergedirs_character_data(GMarkupParseContext *context,
+			     const gchar *text, gsize text_len, gpointer user_data, GError **error)
+{
+}
+
+static void
+xdg_mergedirs_error(GMarkupParseContext *context, GError *error, gpointer user_data)
+{
+}
 
 GMarkupParser xdg_mergedirs_parser = {
+	.start_element = xdg_mergedirs_start_element,
+	.end_element = xdg_mergedirs_end_element,
+	.text = xdg_mergedirs_character_data,
+	.error = xdg_mergedirs_error,
 };
+
+/*
+ * <LegacyDir [prefx="PREFIX-"]>
+ *	This element may only appear below <Menu>.  The text content of this element is a directory
+ *	name.  Each directory listed in a <LegacyDir> element will be an old-style legacy hierarchy
+ *	of desktop entires, see the section called "Legacy Menu Hierarchies" for how to load such a
+ *	hierarchy.  Implemetations must not load legacy hierarchies that are nto explicitly
+ *	specified in the menu file (because for example the menu file may not be the main menu).  If
+ *	the filename given as a <LegacyDir> is not an absolute path, it should be located relative
+ *	to the location of the menu field being parsed.
+ *
+ *	Duplicate <LegacyDir> elemetns (that specify the same directory) are handled as with
+ *	duplicate <AppDir> elements (the last duplicate si used).
+ *
+ *	The <LegacyDir> element may have one attribute, prefix.  Normally, given a <LegacyDir>
+ *	/foo/bar and desktop entry /foo/bar/baz/Hello.desktop the desktop entry would get a
+ *	desktop-file id of Hello.desktop.  Given a prefix of boo-, it would instead by assigned the
+ *	desktop-file id boo-Hello.desktop.  The prefix should not contain patch separator ('/')
+ *	characters.
+ */
+void
+xdg_legacydir_start_element(GMarkupParseContext *context, const gchar *element_name,
+			    const gchar **attribute_names, const gchar **attribute_values,
+			    gpointer user_data, GError **error)
+{
+}
+
+static void
+xdg_legacydir_end_element(GMarkupParseContext *context,
+			  const gchar *element_name, gpointer user_data, GError **error)
+{
+}
+
+static void
+xdg_legacydir_character_data(GMarkupParseContext *context,
+			     const gchar *text, gsize text_len, gpointer user_data, GError **error)
+{
+}
+
+static void
+xdg_legacydir_error(GMarkupParseContext *context, GError *error, gpointer user_data)
+{
+}
 
 GMarkupParser xdg_legacydir_parser = {
+	.start_element = xdg_legacydir_start_element,
+	.end_element = xdg_legacydir_end_element,
+	.text = xdg_legacydir_character_data,
+	.error = xdg_legacydir_error,
 };
+
+/*
+ * <KDELegacyDirs>
+ *	This element man only appear below <Menu>.  The element has not content.  The element should
+ *	be treated as it if were a list of <LegacyDir> elements containing the traditional desktop
+ *	file locations supported by KDE with a hard coded prefix of "kde-".  When expanding
+ *	<KDELegacyDirs> to a list of <LegacyDir>, the locations that are earlier in the earch path
+ *	go later in the <Menu> so that they have priority.  The search path can be obtained by
+ *	running kde-config --path apps.
+ */
+void
+xdg_kdedirs_start_element(GMarkupParseContext *context, const gchar *element_name,
+			  const gchar **attribute_names, const gchar **attribute_values,
+			  gpointer user_data, GError **error)
+{
+}
+
+static void
+xdg_kdedirs_end_element(GMarkupParseContext *context,
+			const gchar *element_name, gpointer user_data, GError **error)
+{
+}
+
+static void
+xdg_kdedirs_character_data(GMarkupParseContext *context,
+			   const gchar *text, gsize text_len, gpointer user_data, GError **error)
+{
+}
+
+static void
+xdg_kdedirs_error(GMarkupParseContext *context, GError *error, gpointer user_data)
+{
+}
 
 GMarkupParser xdg_kdedirs_parser = {
+	.start_element = xdg_kdedirs_start_element,
+	.end_element = xdg_kdedirs_end_element,
+	.text = xdg_kdedirs_character_data,
+	.error = xdg_kdedirs_error,
 };
+
+/*
+ * <Move>
+ *	This element may only appear below <Menu>.  The <Move> elemtn contains pairs of <Old>/<New>
+ *	elements indicating how to rename a descendant of the current <Menu>.  If the destination
+ *	path already exists, the moved menu is merged with the destination menu (see the section
+ *	called "Merging" for details).
+ *
+ *	<Move> is used primarily to fix up legacy directories.  For example, say you are merging a
+ *	<LegacyDir> with folder names that don't match the current hierarchy; the legacy folder
+ *	names can be moved to the new names, where they will be merged wit hthe new folders.
+ *
+ *	<Move> is also useful fo implementing menu editing, see the section called "Menu editing".
+ */
+void
+xdg_move_start_element(GMarkupParseContext *context, const gchar *element_name,
+		       const gchar **attribute_names, const gchar **attribute_values,
+		       gpointer user_data, GError **error)
+{
+}
+
+static void
+xdg_move_end_element(GMarkupParseContext *context,
+		     const gchar *element_name, gpointer user_data, GError **error)
+{
+}
+
+static void
+xdg_move_character_data(GMarkupParseContext *context,
+			const gchar *text, gsize text_len, gpointer user_data, GError **error)
+{
+}
+
+static void
+xdg_move_error(GMarkupParseContext *context, GError *error, gpointer user_data)
+{
+}
 
 GMarkupParser xdg_move_parser = {
+	.start_element = xdg_move_start_element,
+	.end_element = xdg_move_end_element,
+	.text = xdg_move_character_data,
+	.error = xdg_move_error,
 };
+
+/*
+ * <Old>
+ *	This element may only appear below <Move>, and must be followed by a <New> element.  The
+ *	content of both <Old> and <New> should eb a menu path (slash-separated concatenation of
+ *	<Name> fields, see Menu path).  Paths are interpreted relative to the menu containing the
+ *	<Move> element.
+ */
+void
+xdg_old_start_element(GMarkupParseContext *context, const gchar *element_name,
+		      const gchar **attribute_names, const gchar **attribute_values,
+		      gpointer user_data, GError **error)
+{
+}
+
+static void
+xdg_old_end_element(GMarkupParseContext *context,
+		    const gchar *element_name, gpointer user_data, GError **error)
+{
+}
+
+static void
+xdg_old_character_data(GMarkupParseContext *context,
+		       const gchar *text, gsize text_len, gpointer user_data, GError **error)
+{
+}
+
+static void
+xdg_old_error(GMarkupParseContext *context, GError *error, gpointer user_data)
+{
+}
 
 GMarkupParser xdg_old_parser = {
+	.start_element = xdg_old_start_element,
+	.end_element = xdg_old_end_element,
+	.text = xdg_old_character_data,
+	.error = xdg_old_error,
 };
+
+/*
+ * <New>
+ *	This element may only appear below <Move>, and must be preceded by an <Old> element.  The
+ *	<New> elemetn specifies the new path for the prceding <Old> element.
+ */
+void
+xdg_new_start_element(GMarkupParseContext *context, const gchar *element_name,
+		      const gchar **attribute_names, const gchar **attribute_values,
+		      gpointer user_data, GError **error)
+{
+}
+
+static void
+xdg_new_end_element(GMarkupParseContext *context,
+		    const gchar *element_name, gpointer user_data, GError **error)
+{
+}
+
+static void
+xdg_new_character_data(GMarkupParseContext *context,
+		       const gchar *text, gsize text_len, gpointer user_data, GError **error)
+{
+}
+
+static void
+xdg_new_error(GMarkupParseContext *context, GError *error, gpointer user_data)
+{
+}
 
 GMarkupParser xdg_new_parser = {
+	.start_element = xdg_new_start_element,
+	.end_element = xdg_new_end_element,
+	.text = xdg_new_character_data,
+	.error = xdg_new_error,
 };
+
+/*
+ * <Layout>
+ *	The <Layout lement is an optional part of this specification.  Implementations that do not
+ *	support the <Layout> lement should preserve any <Layout> elements and thier contents as far
+ *	as possible. Each <Menu> may optionally contain a <Layout> element.  If multiple elements
+ *	appear then only the last such element is relevant.  The purpose of this element is to offer
+ *	suggestions for the presentation of the menu.  If a menu does not contain a <Layout> element
+ *	or if it contains an empty <Layout> element, the the default layout should be used.  The
+ *	<Layout> element may contain <Filename>, <Menuname>, <Separator> and <Merge> elements.  The
+ *	<Layout> element defines a suggested layout for the menu starting from the top to bottom.
+ *	References to desktop entries that are not contained in this menu as defined by the
+ *	<Include> and <Exclude> elements houdl eb ignored.  References to sub-menus that are not
+ *	directly contained in this menu as defined by the <Menu> elements should be ignored.
+ */
+void
+xdg_layout_start_element(GMarkupParseContext *context, const gchar *element_name,
+			 const gchar **attribute_names, const gchar **attribute_values,
+			 gpointer user_data, GError **error)
+{
+}
+
+static void
+xdg_layout_end_element(GMarkupParseContext *context,
+		       const gchar *element_name, gpointer user_data, GError **error)
+{
+}
+
+static void
+xdg_layout_character_data(GMarkupParseContext *context,
+			  const gchar *text, gsize text_len, gpointer user_data, GError **error)
+{
+}
+
+static void
+xdg_layout_error(GMarkupParseContext *context, GError *error, gpointer user_data)
+{
+}
 
 GMarkupParser xdg_layout_parser = {
+	.start_element = xdg_layout_start_element,
+	.end_element = xdg_layout_end_element,
+	.text = xdg_layout_character_data,
+	.error = xdg_layout_error,
 };
+
+/*
+ * <DefaultLayout [show_empty="false"] [inline="false"] [inline_limit="4"] [inline_header="true"]
+ * [inline_alias="false"]>
+ *	The <DefaultLayout> element is an optional part of this specfication.  Implementations that
+ *	do not support the <DefaultLayout> element should preserve any <DefaultLayout> elements and
+ *	their contents as far as possible.  Each <Menu> may optionally contain a <DefaultLayout>
+ *	element that defines the default-layout for the current menu and all its sub-menus.  If a
+ *	menu has a <DefaultLayout> element then this will override any default-layout specified by a
+ *	parent menu.  The default-layout defines the suggested layout if a <Menu> element does
+ *	either not have <Layout> element or if its has an empty <Layout> element.  For explanations
+ *	of the various attributes, see the <Menuname> element.  If no default-layout has been
+ *	specifeid, then the layou as specified by the following elements should be assumed:
+ *	<DefaultLayout show_empty="false" inline="false" inline_limit="4" inline-header="true"
+ *	inline_alias="false"><Merge type="menus"/><Merge type="files"/></DefaultLayout>
+ */
+void
+xdg_defaultlayout_start_element(GMarkupParseContext *context, const gchar *element_name,
+				const gchar **attribute_names, const gchar **attribute_values,
+				gpointer user_data, GError **error)
+{
+}
+
+static void
+xdg_defaultlayout_end_element(GMarkupParseContext *context,
+			      const gchar *element_name, gpointer user_data, GError **error)
+{
+}
+
+static void
+xdg_defaultlayout_character_data(GMarkupParseContext *context,
+				 const gchar *text, gsize text_len, gpointer user_data,
+				 GError **error)
+{
+}
+
+static void
+xdg_defaultlayout_error(GMarkupParseContext *context, GError *error, gpointer user_data)
+{
+}
 
 GMarkupParser xdg_defaultlayout_parser = {
+	.start_element = xdg_defaultlayout_start_element,
+	.end_element = xdg_defaultlayout_end_element,
+	.text = xdg_defaultlayout_character_data,
+	.error = xdg_defaultlayout_error,
 };
+
+/*
+ * <Menuname [show_empty="..."] [inline="..."] [inline_limit="..."] [inline_header=",.."]
+ * [inline_alias="..."]>
+ *	This element may only appear as a chiled of a <Layout> or <DefaultLayout> menu.  Its
+ *	contents references an immediate sub-menu of the curren menu as dfeined with the <Menu>
+ *	lement, as such it should enver contain a slash.  If no such sub-menu exists the element
+ *	should be ignored.  This element may have various attributes, the default values are taken
+ *	from the DefaultLayout keyu.  The show_empty attribute defines whether a menu that contains
+ *	no desktop entries and not sub-menus should eb shown at all.  THe show_empty attribute can
+ *	be "true" or "false".  If the inline attribute is "true" the menu that is reference may be
+ *	copied into the current menu at the current point instead of being instreted as a sub-menu
+ *	of the current menu.  The optional inline_limit attribute defines the maximum number of
+ *	entries that can be inlined.  If the inline_limit is 0 (zero) there is not limit.  The
+ *	optional inline_header attribute defines whether an inlined menu should be preceded with a
+ *	header entry listing the caption of the sub-menu.  The inline_header attribute can be either
+ *	"true" or "false".  The optional inline_alias attribute defines whether a single inlined
+ *	entry should adopt the capion of the inlined menu.  In such case no additional header entry
+ *	will be added regardless of the value fo the inline_header attribute.  The inline_alias
+ *	attribute can be either "true" or "false".  Example: if a menu has a sub-menu title
+ *	"WordProcessor" with a single entry "OpenOffice 4.2", and both inline="true" and
+ *	inline_alias="true" are specified then this sould result in teh "OpenOffice 4.2" entry being
+ *	inlined in the current menu but the "OpenOffice 4.2" caption of the entry would be repalced
+ *	with "WordProcessor".
+ */
+void
+xdg_menuname_start_element(GMarkupParseContext *context, const gchar *element_name,
+			   const gchar **attribute_names, const gchar **attribute_values,
+			   gpointer user_data, GError **error)
+{
+}
+
+static void
+xdg_menuname_end_element(GMarkupParseContext *context,
+			 const gchar *element_name, gpointer user_data, GError **error)
+{
+}
+
+static void
+xdg_menuname_character_data(GMarkupParseContext *context,
+			    const gchar *text, gsize text_len, gpointer user_data, GError **error)
+{
+}
+
+static void
+xdg_menuname_error(GMarkupParseContext *context, GError *error, gpointer user_data)
+{
+}
 
 GMarkupParser xdg_menuname_parser = {
+	.start_element = xdg_menuname_start_element,
+	.end_element = xdg_menuname_end_element,
+	.text = xdg_menuname_character_data,
+	.error = xdg_menuname_error,
 };
+
+/*
+ * <Separator>
+ *	This element may only appear as a childe of a <Layout> or <DefaultLayout> menu.  It
+ *	indicates a suggestion to draw a visual sewparator at this point in the menu.  <Separator>
+ *	elements may be ignored.
+ */
+void
+xdg_separator_start_element(GMarkupParseContext *context, const gchar *element_name,
+			    const gchar **attribute_names, const gchar **attribute_values,
+			    gpointer user_data, GError **error)
+{
+}
+
+static void
+xdg_separator_end_element(GMarkupParseContext *context,
+			  const gchar *element_name, gpointer user_data, GError **error)
+{
+}
+
+static void
+xdg_separator_character_data(GMarkupParseContext *context,
+			     const gchar *text, gsize text_len, gpointer user_data, GError **error)
+{
+}
+
+static void
+xdg_separator_error(GMarkupParseContext *context, GError *error, gpointer user_data)
+{
+}
 
 GMarkupParser xdg_separator_parser = {
+	.start_element = xdg_separator_start_element,
+	.end_element = xdg_separator_end_element,
+	.text = xdg_separator_character_data,
+	.error = xdg_separator_error,
 };
 
+/*
+ * <Merge type="menus"|"files"|"all"/>
+ *	This element may only appear as a child of a <Layout> or <DefaultLayout> menu.  It indicates
+ *	the point where desktop entries and sub-menus that are not explicitly mentioned within the
+ *	<Layout> or <DefaultLayout> element are to be inserted.  It has a type attribute that
+ *	indicates which elements should be inserted in alphabetical order of their visual caption at
+ *	this point.  type="files" means that all desktop entries contained in this menu that are not
+ *	explicitly mentioned shoudl ne inserted in alphabetical order or their visual caption at
+ *	this point.  Each <Layout> or <DefaultLayout> element shall have exactly one <Merge
+ *	type="kall"> element or it shall have exactly one <Merge type="files"> and exactly one
+ *	<Merge type="menus"> element.  An exception is made for a completely empty <Layout> element
+ *	which may be used to indicate that the default-layout should eb used instead.
+ */
+void
+xdg_merge_start_element(GMarkupParseContext *context, const gchar *element_name,
+			const gchar **attribute_names, const gchar **attribute_values,
+			gpointer user_data, GError **error)
+{
+}
+
+static void
+xdg_merge_end_element(GMarkupParseContext *context,
+		      const gchar *element_name, gpointer user_data, GError **error)
+{
+}
+
+static void
+xdg_merge_character_data(GMarkupParseContext *context,
+			 const gchar *text, gsize text_len, gpointer user_data, GError **error)
+{
+}
+
+static void
+xdg_merge_error(GMarkupParseContext *context, GError *error, gpointer user_data)
+{
+}
+
 GMarkupParser xdg_merge_parser = {
+	.start_element = xdg_merge_start_element,
+	.end_element = xdg_merge_end_element,
+	.text = xdg_merge_character_data,
+	.error = xdg_merge_error,
 };
 
 struct parser_mapping {
@@ -412,116 +1733,141 @@ struct parser_mapping mapping[] = {
 	/* *INDENT-ON* */
 };
 
+struct parser_mapping *state;
+
 static void
 xdg_start_element(GMarkupParseContext *context,
 		  const gchar *element_name,
 		  const gchar **attribute_names,
 		  const gchar **attribute_values, gpointer user_data, GError **error)
 {
-	if (!strcmp(element_name, "Menu")) {
-		/* The root element is <Menu>.  Each <Menu> element may contain any
-		   number of nested <Menu> elements, indicating submenus. */
-	} else if (!strcmp(element_name, "AppDir")) {
-		/* This element may only appear below <Menu>.  The content of this
-		   element is a directory name.  Desktop entries in this directory are
-		   scanned and added to the pool of entries that can be included in this
-		   <Menu> and its submenus.  Only files ending in ".desktop" should be
-		   used, other files are ignored. Desktop entries in the pool of
-		   available entries are identified by their desktop-file id.  The
-		   desktop file id of a desktop entry is equal to its filename, with any
-		   path components removed.  So given an <AppDir> /foo/bar and desktop
-		   entry /foo/bar/Hello.desktop the desktop entry would get a desktop
-		   file ide of Hello.desktop. If the directory contains sub-directories,
-		   then these sub-directories should be (recursively) scanned as well.
-		   The name of the subdirectory should be added as prefix to the
-		   desktop-file id together with a dash character ("-").  So, given an
-		   <AppDir> /foo/bar and desktop entry /foo/bar/booz/Hello.desktop the
-		   desktop entry would get a desktop file id of booz-Hello.desktop.  A
-		   desktop entry /foo/bar/bo/oz/Hello.desktop would result in a
-		   desktop-file id of bo-oz-Hello.desktop. <AppDir> elements appearing
-		   later in the menu file have priority in case of collisions between
-		   desktop-file ids. If the filename given as an <AppDir> is not an
-		   absolute path, it should be located relative to the location of the
-		   menu file being parsed. Duplicate <AppDir> elements (that specify the
-		   same directory) should be ignored, but the last duplicate in the file
-		   should be used when establishing the order in which to scan the
-		   directories.  This is important when merging.  The order of <AppDir>
-		   elements with respect to <Include> and <Exclude> elements is not
-		   relevant, also to facilitate merging. */
-	} else if (!strcmp(element_name, "DefaultAppDirs")) {
-	} else if (!strcmp(element_name, "DirectoryDir")) {
-	} else if (!strcmp(element_name, "DefaultDirectoryDirs")) {
-	} else if (!strcmp(element_name, "Name")) {
-	} else if (!strcmp(element_name, "Directory")) {
-		/* cdata contains the name of the directory file w/ or w/o .directory
-		   suffix */
-		/* The file is found using basic search techniques in
-		   XDG_DATA_HOME:XDG_DATA_DIRS under the desktop-directories
-		   subdirectory.  The file is a normal Desktop Entry keyfile of type
-		   Directory that has the Name Comment and Icon associated with the
-		   directory. */
-	} else if (!strcmp(element_name, "OnlyUnallocated")) {
-	} else if (!strcmp(element_name, "NotOnlyUnallocated")) {
-	} else if (!strcmp(element_name, "Deleted")) {
-	} else if (!strcmp(element_name, "NotDeleted")) {
-	} else if (!strcmp(element_name, "Include")) {
-	} else if (!strcmp(element_name, "Exclude")) {
-	} else if (!strcmp(element_name, "Filename")) {
-	} else if (!strcmp(element_name, "Category")) {
-	} else if (!strcmp(element_name, "All")) {
-	} else if (!strcmp(element_name, "And")) {
-	} else if (!strcmp(element_name, "Or")) {
-	} else if (!strcmp(element_name, "Not")) {
-	} else if (!strcmp(element_name, "MergeFile")) {
-	} else if (!strcmp(element_name, "MergeDir")) {
-	} else if (!strcmp(element_name, "DefaultMergeDirs")) {
-	} else if (!strcmp(element_name, "LegacyDir")) {
-	} else if (!strcmp(element_name, "KDELegacyDirs")) {
-	} else if (!strcmp(element_name, "Move")) {
-	} else if (!strcmp(element_name, "Old")) {
-	} else if (!strcmp(element_name, "New")) {
-	} else if (!strcmp(element_name, "Layout")) {
-	} else if (!strcmp(element_name, "DefaultLayout")) {
-	} else if (!strcmp(element_name, "Menuname")) {
-	} else if (!strcmp(element_name, "Separator")) {
-	} else if (!strcmp(element_name, "Merge")) {
+	struct parser_mapping *m;
+	MyParseContext *base = user_data;
+
+	DPRINTF("START-ELEMENT: %s\n", element_name);
+
+	for (m = &mapping[0]; m->label; m++) {
+		if (!strcmp(element_name, m->label)) {
+			g_queue_push_tail(base->elements, m);
+			break;
+		}
 	}
+	if (m->label && m->parser->start_element)
+		m->parser->start_element(context, element_name, attribute_names,
+					 attribute_values, user_data, error);
 }
 
 static void
 xdg_end_element(GMarkupParseContext *context,
 		const gchar *element_name, gpointer user_data, GError **error)
 {
+	MyParseContext *base = user_data;
+	struct parser_mapping *m;
+
+	DPRINTF("END-ELEMENT: %s\n", element_name);
+
+	m = g_queue_pop_tail(base->elements);
+	if (m->parser->end_element)
+		m->parser->end_element(context, element_name, user_data, error);
 }
 
 static void
 xdg_character_data(GMarkupParseContext *context,
 		   const gchar *text, gsize text_len, gpointer user_data, GError **error)
 {
-}
+	MyParseContext *base = user_data;
+	struct parser_mapping *m;
 
-static void
-xdg_passthrough(GMarkupParseContext *context,
-		const gchar *passthrough_text, gsize text_len, gpointer user_data, GError **error)
-{
+	m = g_queue_peek_tail(base->elements);
+	if (m->parser->text)
+		m->parser->text(context, text, text_len, user_data, error);
 }
 
 static void
 xdg_error(GMarkupParseContext *context, GError *error, gpointer user_data)
 {
+	MyParseContext *base = user_data;
+	struct parser_mapping *m;
+
+	m = g_queue_peek_tail(base->elements);
+	if (m->parser->error)
+		m->parser->error(context, error, user_data);
 }
 
 GMarkupParser xdg_parser = {
 	.start_element = xdg_start_element,
 	.end_element = xdg_end_element,
 	.text = xdg_character_data,
-	.passthrough = xdg_passthrough,
 	.error = xdg_error,
 };
 
 static void
+parse_menu(MyParseContext *base)
+{
+	FILE *f;
+	int dummy;
+	struct stat st;
+
+	if (!(f = fopen(options.rootmenu, "r"))) {
+		EPRINTF("cannot open file: '%s'\n", options.rootmenu);
+		return;
+	}
+	DPRINTF("locking file '%s'\n", options.rootmenu);
+	dummy = lockf(fileno(f), F_LOCK, 0);
+	if (fstat(fileno(f), &st)) {
+		EPRINTF("cannot stat open file: '%s'\n", options.rootmenu);
+		fclose(f);
+		return;
+	}
+	if (st.st_size > 0) {
+		GMarkupParseContext *ctx;
+		gchar buf[BUFSIZ];
+		gsize got;
+
+		if (!(ctx = g_markup_parse_context_new(&xdg_parser,
+						       G_MARKUP_TREAT_CDATA_AS_TEXT |
+						       G_MARKUP_PREFIX_ERROR_POSITION, base,
+						       NULL))) {
+			EPRINTF("cannot create XML parser\n");
+			fclose(f);
+			return;
+		}
+		while ((got = fread(buf, 1, BUFSIZ, f)) > 0) {
+			DPRINTF("got %d more bytes\n", got);
+			if (!g_markup_parse_context_parse(ctx, buf, got, NULL)) {
+				EPRINTF("coult not parse buffer contents\n");
+				g_markup_parse_context_unref(ctx);
+				fclose(f);
+				return;
+			}
+		}
+		if (!g_markup_parse_context_end_parse(ctx, NULL)) {
+			EPRINTF("could not end parsing\n");
+			g_markup_parse_context_unref(ctx);
+			fclose(f);
+			return;
+		}
+		g_markup_parse_context_unref(ctx);
+	}
+	DPRINTF("unlocking file '%s'\n", options.rootmenu);
+	dummy = lockf(fileno(f), F_ULOCK, 0);
+	fclose(f);
+	(void) dummy;
+}
+
+static void
 make_menu(int argc, char *argv[])
 {
+	MyMenuItem *item;
+	MyParseContext base = { NULL, };
+
+	item = calloc(1, sizeof(*item));
+
+	base.elements = g_queue_new();
+	base.stack = g_queue_new();
+	base.tree = NULL;
+
+	parse_menu(&base);
 }
 
 static Window
@@ -1679,6 +3025,63 @@ Options:\n\
 }
 
 static void
+set_default_paths()
+{
+	char *env, *p, *e;
+	int len;
+
+	if ((env = getenv("XDG_DATA_HOME")))
+		xdg_data_home = strdup(env);
+	else {
+		static const char *suffix = "/.local/share";
+
+		env = getenv("HOME") ? : "~";
+		len = strlen(env) + strlen(suffix) + 1;
+		xdg_data_home = calloc(len, sizeof(*xdg_data_home));
+		strcpy(xdg_data_home, env);
+		strcat(xdg_data_home, suffix);
+	}
+	env = getenv("XDG_DATA_DIRS") ? : "/usr/local/share:/usr/share";
+	xdg_data_dirs = strdup(env);
+	len = strlen(xdg_data_home) + 1 + strlen(xdg_data_dirs) + 1;
+	xdg_data_path = calloc(len, sizeof(*xdg_data_path));
+	strcpy(xdg_data_path, xdg_data_home);
+	strcat(xdg_data_path, ":");
+	strcat(xdg_data_path, xdg_data_dirs);
+	xdg_data_last = xdg_data_path + strlen(xdg_data_path);
+	DPRINTF("Full data path is: '%s'\n", xdg_config_path);
+	p = xdg_data_path;
+	e = xdg_data_last;
+	while ((p = strchrnul(p, ':')) < e)
+		*p++ = '\0';
+
+	if ((env = getenv("XDG_CONFIG_HOME")))
+		xdg_config_home = strdup(env);
+	else {
+		static const char *suffix = "/.config";
+
+		env = getenv("HOME") ? : "~";
+		len = strlen(env) + strlen(suffix) + 1;
+		xdg_config_home = calloc(len, sizeof(*xdg_config_home));
+		strcpy(xdg_config_home, env);
+		strcat(xdg_config_home, suffix);
+	}
+	env = getenv("XDG_CONFIG_DIRS") ? : "/etc/xdg";
+	xdg_config_dirs = strdup(env);
+	len = strlen(xdg_config_home) + 1 + strlen(xdg_config_dirs) + 1;
+	xdg_config_path = calloc(len, sizeof(*xdg_config_path));
+	strcpy(xdg_config_path, xdg_config_home);
+	strcat(xdg_config_path, ":");
+	strcat(xdg_config_path, xdg_config_dirs);
+	xdg_config_last = xdg_config_path + strlen(xdg_config_path);
+	DPRINTF("Full config path is; '%s'\n", xdg_config_path);
+	p = xdg_config_path;
+	e = xdg_config_last;
+	while ((p = strchrnul(p, ':')) < e)
+		*p++ = '\0';
+}
+
+static void
 set_default_files()
 {
 	static const char *rsuffix = "/xde/run-history";
@@ -1755,6 +3158,7 @@ set_defaults(void)
 		defaults.desktop = options.desktop = strdup(env);
 	}
 
+	set_default_paths();
 	set_default_files();
 }
 

@@ -300,3 +300,5 @@
 -TXSession
 -TXWMIconGeometry
 -TXWMState
+-TMyParseContext
+-TMyMenuItem
