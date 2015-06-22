@@ -308,3 +308,4 @@
 -TXdgParserMapping
 -TXdgMenu
 -TXdgMove
+-TXdgLayout

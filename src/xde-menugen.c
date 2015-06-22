@@ -370,6 +370,26 @@ typedef struct {
 	char *new;
 } XdgMove;
 
+enum layoutType {
+	LayoutTypeDefault = 0,
+	LayoutTypeFilename = 1,
+	LayoutTypeMenuname = 2,
+	LayoutTypeSeparator = 3,
+	LayoutTypeMergeAll = 4,
+	LayoutTypeMergeFiles = 5,
+	LayoutTypeMergeMenus = 6,
+};
+
+typedef struct {
+	enum layoutType type;
+	char *string;
+	gboolean show_empty;
+	gboolean menu_inline;
+	guint inline_limit;
+	gboolean inline_header;
+	gboolean inline_alias;
+} XdgLayout;
+
 typedef struct {
 	char *name;
 	GList *appdirs;			/* applications directories (need these?) */
@@ -382,6 +402,8 @@ typedef struct {
 	gboolean deleted;		/* is menu manually deleted? */
 	GNode *root;			/* rules tree */
 	GList *moves;			/* moves for this menu */
+	GList *layout;			/* layout for the menu */
+	GList *deflay;			/* default layout for the menu and sub-menus */
 } XdgMenu;
 
 /*
@@ -1256,29 +1278,53 @@ xdg_filename_character_data(GMarkupParseContext *context,
 {
 	const gchar *element_name = "Filename";
 	XdgParseContext *base = user_data;
-	XdgRule *rule;
-	GNode *node, *parent;
+	XdgParserMapping *m;
 	const gchar *tend = text + text_len;
 
-	if (!(parent = base->rule)) {
-		EPRINTF("Element <%s>, but no parent root node!\n", element_name);
-		return;
-	}
-	if (!(rule = parent->data)) {
-		EPRINTF("Element <%s> has parent, but rule missing!\n", element_name);
-		return;
-	}
-	if (rule->type == LogicTypeRoot) {
-		EPRINTF("Element <%s> must be within <Include> or <Exclude>!\n", element_name);
-		return;
-	}
 	for (; text < tend && isspace(*text); text++, text_len--) ;
 	for (; tend > text && isspace(*tend); tend--, text_len--) ;
-	rule = calloc(1, sizeof(*rule));
-	rule->type = LogicTypeFilename;
-	rule->string = strndup(text, text_len);
-	node = g_node_new(rule);
-	g_node_append(parent, node);
+
+	m = g_queue_peek_tail(base->elements);
+	if (!strcmp(m->label, "Layout") || !strcmp(m->label, "DefaultLayout")) {
+		XdgMenu *menu;
+		XdgLayout *layout;
+		GList **list;
+
+		if (!base->node || !(menu = base->node->data)) {
+			EPRINTF("Element <%s> must be within <Menu>!\n", element_name);
+			return;
+		}
+		if (!strcmp(m->label, "Layout"))
+			list = &menu->layout;
+		else
+			list = &menu->deflay;
+		layout = calloc(1, sizeof(*layout));
+		layout->type = LayoutTypeFilename;
+		layout->string = strndup(text, text_len);
+		*list = g_list_append(*list, layout);
+	} else {
+		XdgRule *rule;
+		GNode *node, *parent;
+
+		if (!(parent = base->rule)) {
+			EPRINTF("Element <%s>, but no parent root node!\n", element_name);
+			return;
+		}
+		if (!(rule = parent->data)) {
+			EPRINTF("Element <%s> has parent, but rule missing!\n", element_name);
+			return;
+		}
+		if (rule->type == LogicTypeRoot) {
+			EPRINTF("Element <%s> must be within <Include> or <Exclude>!\n",
+				element_name);
+			return;
+		}
+		rule = calloc(1, sizeof(*rule));
+		rule->type = LogicTypeFilename;
+		rule->string = strndup(text, text_len);
+		node = g_node_new(rule);
+		g_node_append(parent, node);
+	}
 }
 
 static void
@@ -1812,7 +1858,7 @@ xdg_old_character_data(GMarkupParseContext *context,
 	XdgMove *move;
 	GList *item;
 	const gchar *tend = text + text_len;
-	
+
 	if (!(menu = xdg_get_menu(user_data, element_name)))
 		return;
 	m = g_queue_peek_tail(base->elements);
@@ -1857,7 +1903,7 @@ xdg_new_character_data(GMarkupParseContext *context,
 	XdgMove *move;
 	GList *item;
 	const gchar *tend = text + text_len;
-	
+
 	if (!(menu = xdg_get_menu(user_data, element_name)))
 		return;
 	m = g_queue_peek_tail(base->elements);
@@ -1888,8 +1934,8 @@ GMarkupParser xdg_new_parser = {
 
 /*
  * <Layout>
- *	The <Layout lement is an optional part of this specification.  Implementations that do not
- *	support the <Layout> lement should preserve any <Layout> elements and thier contents as far
+ *	The <Layout element is an optional part of this specification.  Implementations that do not
+ *	support the <Layout> element should preserve any <Layout> elements and their contents as far
  *	as possible. Each <Menu> may optionally contain a <Layout> element.  If multiple elements
  *	appear then only the last such element is relevant.  The purpose of this element is to offer
  *	suggestions for the presentation of the menu.  If a menu does not contain a <Layout> element
@@ -1897,26 +1943,32 @@ GMarkupParser xdg_new_parser = {
  *	<Layout> element may contain <Filename>, <Menuname>, <Separator> and <Merge> elements.  The
  *	<Layout> element defines a suggested layout for the menu starting from the top to bottom.
  *	References to desktop entries that are not contained in this menu as defined by the
- *	<Include> and <Exclude> elements houdl eb ignored.  References to sub-menus that are not
+ *	<Include> and <Exclude> elements should be ignored.  References to sub-menus that are not
  *	directly contained in this menu as defined by the <Menu> elements should be ignored.
  */
+void
+xdg_layout_free(gpointer data)
+{
+	XdgLayout *layout = data;
+
+	free(layout->string);
+	layout->string = NULL;
+	free(layout);
+}
+
 void
 xdg_layout_start_element(GMarkupParseContext *context, const gchar *element_name,
 			 const gchar **attribute_names, const gchar **attribute_values,
 			 gpointer user_data, GError **error)
 {
-}
+	XdgMenu *menu;
 
-static void
-xdg_layout_end_element(GMarkupParseContext *context,
-		       const gchar *element_name, gpointer user_data, GError **error)
-{
-}
-
-static void
-xdg_layout_character_data(GMarkupParseContext *context,
-			  const gchar *text, gsize text_len, gpointer user_data, GError **error)
-{
+	if (!(menu = xdg_get_menu(user_data, element_name)))
+		return;
+	if (menu->layout) {
+		g_list_free_full(menu->layout, xdg_layout_free);
+		menu->layout = NULL;
+	}
 }
 
 static void
@@ -1926,8 +1978,6 @@ xdg_layout_error(GMarkupParseContext *context, GError *error, gpointer user_data
 
 GMarkupParser xdg_layout_parser = {
 	.start_element = xdg_layout_start_element,
-	.end_element = xdg_layout_end_element,
-	.text = xdg_layout_character_data,
 	.error = xdg_layout_error,
 };
 
@@ -1951,19 +2001,43 @@ xdg_defaultlayout_start_element(GMarkupParseContext *context, const gchar *eleme
 				const gchar **attribute_names, const gchar **attribute_values,
 				gpointer user_data, GError **error)
 {
-}
+	XdgMenu *menu;
+	XdgLayout *layout;
+	const gchar **name, **valu;
 
-static void
-xdg_defaultlayout_end_element(GMarkupParseContext *context,
-			      const gchar *element_name, gpointer user_data, GError **error)
-{
-}
-
-static void
-xdg_defaultlayout_character_data(GMarkupParseContext *context,
-				 const gchar *text, gsize text_len, gpointer user_data,
-				 GError **error)
-{
+	if (!(menu = xdg_get_menu(user_data, element_name)))
+		return;
+	if (menu->deflay) {
+		g_list_free_full(menu->deflay, xdg_layout_free);
+		menu->deflay = NULL;
+	}
+	layout = calloc(1, sizeof(*layout));
+	layout->type = LayoutTypeDefault;
+	layout->show_empty = FALSE;
+	layout->menu_inline = FALSE;
+	layout->inline_limit = 4;
+	layout->inline_header = TRUE;
+	layout->inline_alias = FALSE;
+	for (name = attribute_names, valu = attribute_values; name && *name; name++, valu++) {
+		if (!strcmp(*name, "show_empty")) {
+			if (!strcasecmp(*valu, "true"))
+				layout->show_empty = TRUE;
+		} else if (!strcmp(*name, "inline")) {
+			if (!strcasecmp(*valu, "true"))
+				layout->menu_inline = TRUE;
+		} else if (!strcmp(*name, "inline_limit")) {
+			layout->inline_limit = strtoul(*valu, NULL, 0);
+		} else if (!strcmp(*name, "inline_header")) {
+			if (!strcasecmp(*valu, "false"))
+				layout->inline_header = FALSE;
+		} else if (!strcmp(*name, "inline_alias")) {
+			if (!strcasecmp(*valu, "true"))
+				layout->menu_inline = TRUE;
+		} else {
+			WPRINTF("Unrecognized <%s> attribute '%s'\n", element_name, *name);
+		}
+	}
+	menu->deflay = g_list_append(menu->deflay, layout);
 }
 
 static void
@@ -1973,8 +2047,6 @@ xdg_defaultlayout_error(GMarkupParseContext *context, GError *error, gpointer us
 
 GMarkupParser xdg_defaultlayout_parser = {
 	.start_element = xdg_defaultlayout_start_element,
-	.end_element = xdg_defaultlayout_end_element,
-	.text = xdg_defaultlayout_character_data,
 	.error = xdg_defaultlayout_error,
 };
 
@@ -2007,18 +2079,89 @@ xdg_menuname_start_element(GMarkupParseContext *context, const gchar *element_na
 			   const gchar **attribute_names, const gchar **attribute_values,
 			   gpointer user_data, GError **error)
 {
-}
+	XdgParseContext *base = user_data;
+	XdgParserMapping *m;
+	XdgMenu *menu;
+	XdgLayout *layout;
+	GList **list;
+	const gchar **name, **valu;
 
-static void
-xdg_menuname_end_element(GMarkupParseContext *context,
-			 const gchar *element_name, gpointer user_data, GError **error)
-{
+	if (!base->node || !(menu = base->node->data)) {
+		EPRINTF("Element <%s> must be within <Menu>!\n", element_name);
+		return;
+	}
+	m = g_queue_peek_tail(base->elements);
+	if (!strcmp(m->label, "Layout")) {
+		list = &menu->layout;
+	} else if (!strcmp(m->label, "DefaultLayout")) {
+		list = &menu->deflay;
+	} else {
+		EPRINTF
+		    ("Element <%s> can only occur directly beneath <Layout> or <DefaultLayout>!\n",
+		     element_name);
+		return;
+	}
+	layout = calloc(1, sizeof(*layout));
+	layout->type = LayoutTypeMenuname;
+	layout->show_empty = FALSE;
+	layout->menu_inline = FALSE;
+	layout->inline_limit = 4;
+	layout->inline_header = TRUE;
+	layout->inline_alias = FALSE;
+	for (name = attribute_names, valu = attribute_values; name && *name; name++, valu++) {
+		if (!strcmp(*name, "show_empty")) {
+			if (!strcasecmp(*valu, "true"))
+				layout->show_empty = TRUE;
+		} else if (!strcmp(*name, "inline")) {
+			if (!strcasecmp(*valu, "true"))
+				layout->menu_inline = TRUE;
+		} else if (!strcmp(*name, "inline_limit")) {
+			layout->inline_limit = strtoul(*valu, NULL, 0);
+		} else if (!strcmp(*name, "inline_header")) {
+			if (!strcasecmp(*valu, "false"))
+				layout->inline_header = FALSE;
+		} else if (!strcmp(*name, "inline_alias")) {
+			if (!strcasecmp(*valu, "true"))
+				layout->menu_inline = TRUE;
+		} else {
+			WPRINTF("Unrecognized <%s> attribute '%s'\n", element_name, *name);
+		}
+	}
+	*list = g_list_append(*list, layout);
 }
 
 static void
 xdg_menuname_character_data(GMarkupParseContext *context,
 			    const gchar *text, gsize text_len, gpointer user_data, GError **error)
 {
+	const char *element_name = "Menuname";
+	XdgParseContext *base = user_data;
+	XdgParserMapping *m;
+	XdgMenu *menu;
+	XdgLayout *layout;
+	GList *item;
+	const gchar *tend = text + text_len;
+
+	if (!base->node || !(menu = base->node->data)) {
+		EPRINTF("Element <%s> must be within <Menu>!\n", element_name);
+		return;
+	}
+	m = g_queue_peek_tail(base->elements);
+	if (!strcmp(m->label, "Layout")) {
+		item = g_list_last(menu->layout);
+	} else if (!strcmp(m->label, "DefaultLayout")) {
+		item = g_list_last(menu->deflay);
+	} else {
+		EPRINTF
+		    ("Element <%s> can only occur directly beneath <Layout> or <DefaultLayout>!\n",
+		     element_name);
+		return;
+	}
+	for (; text < tend && isspace(*text); text++, text_len--) ;
+	for (; tend > text && isspace(*tend); tend--, text_len--) ;
+	layout = item->data;
+	free(layout->string);
+	layout->string = strndup(text, text_len);
 }
 
 static void
@@ -2028,7 +2171,6 @@ xdg_menuname_error(GMarkupParseContext *context, GError *error, gpointer user_da
 
 GMarkupParser xdg_menuname_parser = {
 	.start_element = xdg_menuname_start_element,
-	.end_element = xdg_menuname_end_element,
 	.text = xdg_menuname_character_data,
 	.error = xdg_menuname_error,
 };
@@ -2039,23 +2181,34 @@ GMarkupParser xdg_menuname_parser = {
  *	indicates a suggestion to draw a visual sewparator at this point in the menu.  <Separator>
  *	elements may be ignored.
  */
-void
-xdg_separator_start_element(GMarkupParseContext *context, const gchar *element_name,
-			    const gchar **attribute_names, const gchar **attribute_values,
-			    gpointer user_data, GError **error)
-{
-}
-
 static void
 xdg_separator_end_element(GMarkupParseContext *context,
 			  const gchar *element_name, gpointer user_data, GError **error)
 {
-}
+	XdgParseContext *base = user_data;
+	XdgParserMapping *m;
+	XdgMenu *menu;
+	XdgLayout *layout;
+	GList **list;
 
-static void
-xdg_separator_character_data(GMarkupParseContext *context,
-			     const gchar *text, gsize text_len, gpointer user_data, GError **error)
-{
+	if (!base->node || !(menu = base->node->data)) {
+		EPRINTF("Element <%s> must be within <Menu>!\n", element_name);
+		return;
+	}
+	m = g_queue_peek_tail(base->elements);
+	if (!strcmp(m->label, "Layout")) {
+		list = &menu->layout;
+	} else if (!strcmp(m->label, "DefaultLayout")) {
+		list = &menu->deflay;
+	} else {
+		EPRINTF
+		    ("Element <%s> can only occur directly beneath <Layout> or <DefaultLayout>!\n",
+		     element_name);
+		return;
+	}
+	layout = calloc(1, sizeof(*layout));
+	layout->type = LayoutTypeSeparator;
+	*list = g_list_append(*list, layout);
 }
 
 static void
@@ -2064,9 +2217,7 @@ xdg_separator_error(GMarkupParseContext *context, GError *error, gpointer user_d
 }
 
 GMarkupParser xdg_separator_parser = {
-	.start_element = xdg_separator_start_element,
 	.end_element = xdg_separator_end_element,
-	.text = xdg_separator_character_data,
 	.error = xdg_separator_error,
 };
 
@@ -2088,18 +2239,44 @@ xdg_merge_start_element(GMarkupParseContext *context, const gchar *element_name,
 			const gchar **attribute_names, const gchar **attribute_values,
 			gpointer user_data, GError **error)
 {
-}
+	XdgParseContext *base = user_data;
+	XdgParserMapping *m;
+	XdgMenu *menu;
+	XdgLayout *layout;
+	GList **list;
+	const gchar **name, **valu;
 
-static void
-xdg_merge_end_element(GMarkupParseContext *context,
-		      const gchar *element_name, gpointer user_data, GError **error)
-{
-}
-
-static void
-xdg_merge_character_data(GMarkupParseContext *context,
-			 const gchar *text, gsize text_len, gpointer user_data, GError **error)
-{
+	if (!base->node || !(menu = base->node->data)) {
+		EPRINTF("Element <%s> must be within <Menu>!\n", element_name);
+		return;
+	}
+	m = g_queue_peek_tail(base->elements);
+	if (!strcmp(m->label, "Layout")) {
+		list = &menu->layout;
+	} else if (!strcmp(m->label, "DefaultLayout")) {
+		list = &menu->deflay;
+	} else {
+		EPRINTF
+		    ("Element <%s> can only occur directly beneath <Layout> or <DefaultLayout>!\n",
+		     element_name);
+		return;
+	}
+	layout = calloc(1, sizeof(*layout));
+	layout->type = LayoutTypeMergeAll;
+	for (name = attribute_names, valu = attribute_values; name && *name; name++, valu++) {
+		if (!strcmp(*name, "type")) {
+			if (!strcasecmp(*valu, "all"))
+				layout->type = LayoutTypeMergeAll;
+			else if (!strcasecmp(*valu, "files"))
+				layout->type = LayoutTypeMergeFiles;
+			else if (!strcasecmp(*valu, "menus"))
+				layout->type = LayoutTypeMergeMenus;
+			else
+				WPRINTF("Unrecognized attribute value '%s'\n", *valu);
+		} else
+			WPRINTF("Unrecognized <%s> attribute '%s'\n", element_name, *name);
+	}
+	*list = g_list_append(*list, layout);
 }
 
 static void
@@ -2109,8 +2286,6 @@ xdg_merge_error(GMarkupParseContext *context, GError *error, gpointer user_data)
 
 GMarkupParser xdg_merge_parser = {
 	.start_element = xdg_merge_start_element,
-	.end_element = xdg_merge_end_element,
-	.text = xdg_merge_character_data,
 	.error = xdg_merge_error,
 };
 
