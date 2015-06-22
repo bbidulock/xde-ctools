@@ -260,17 +260,26 @@ char *xdg_config_dirs = NULL;
 char *xdg_config_path = NULL;
 char *xdg_config_last = NULL;
 
+typedef struct {
+	char *label;
+	GMarkupParser *parser;
+} XdgParserMapping;
+
+typedef struct {
+	XdgParserMapping *current;	/* current element */
+	GQueue *elements;		/* element stack */
+	GNode *node;			/* current menu */
+	GQueue *stack;			/* menu stack */
+	GNode *tree;			/* menu tree */
+	GNode *rule;			/* curent rule */
+	GQueue *rules;			/* rule stack */
+} XdgParseContext;
+
 enum itemType {
 	MenuItem = 0,
 	MenuClosure = 1,
 	MenuEntry = 2,
 };
-
-typedef struct {
-	GQueue *elements;		/* element stack */
-	GQueue *stack;			/* menu stack */
-	GNode *tree;			/* menu tree */
-} XdgParseContext;
 
 typedef struct {
 	enum itemType type;
@@ -312,15 +321,61 @@ xdg_fileentry_destroy(gpointer data)
 	free(p);
 }
 
+enum logicType {
+	LogicTypeRoot = 0,
+	LogicTypeInclude = 1,
+	LogicTypeExclude = 2,
+	LogicTypeAnd = 3,
+	LogicTypeOr = 4,
+	LogicTypeNot = 5,
+	LogicTypeFilename = 6,
+	LogicTypeCategory = 7,
+	LogicTypeAll = 8,
+};
+
+char *
+xdg_logic_type(enum logicType type)
+{
+	switch (type) {
+	case LogicTypeRoot:
+		return ("LogicTypeRoot");
+	case LogicTypeInclude:
+		return ("LogicTypeInclude");
+	case LogicTypeExclude:
+		return ("LogicTypeExclude");
+	case LogicTypeAnd:
+		return ("LogicTypeAnd");
+	case LogicTypeOr:
+		return ("LogicTypeOr");
+	case LogicTypeNot:
+		return ("LogicTypeNot");
+	case LogicTypeFilename:
+		return ("LogicTypeFilename");
+	case LogicTypeCategory:
+		return ("LogicTypeCategory");
+	case LogicTypeAll:
+		return ("LogicTypeAll");
+	}
+	return ("(unknown)");
+}
+
+typedef struct {
+	enum logicType type;		/* type of rule */
+	char *string;			/* string value associated with the rule
+					   (Filename and Category only) */
+} XdgRule;
+
 typedef struct {
 	char *name;
-	GSList *appdirs;    /* applications directories (need these?) */
-	GHashTable *apps;   /* applications by id */
-	GSList *dirdirs;    /* directories directories (need these?) */
-	GHashTable *dirs;   /* directories by id */
-	char *directory;    /* directory for this menu item */
-	XdgFileEntry *dentry;  /* .directory file for this menu */
-	gboolean only_u;    /* only unallocated? */
+	GSList *appdirs;		/* applications directories (need these?) */
+	GHashTable *apps;		/* applications by id */
+	GSList *dirdirs;		/* directories directories (need these?) */
+	GHashTable *dirs;		/* directories by id */
+	char *directory;		/* directory for this menu item */
+	XdgFileEntry *dentry;		/* .directory file for this menu */
+	gboolean only_u;		/* only unallocated? */
+	gboolean deleted;		/* is menu manually deleted? */
+	GNode *root;			/* rules tree */
 } XdgMenu;
 
 /*
@@ -335,17 +390,24 @@ xdg_menu_start_element(GMarkupParseContext *context, const gchar *element_name,
 {
 	XdgParseContext *base = user_data;
 	XdgMenu *menu;
+	XdgRule *rule;
 	GNode *node, *parent;
 
 	if (attribute_names && *attribute_names)
 		EPRINTF("Ignoring attributes in <Menu> element!\n");
 	menu = calloc(1, sizeof(*menu));
 	node = g_node_new(menu);
-	if ((parent = g_queue_peek_tail(base->stack)))
+	if ((parent = base->node)) {
 		g_node_append(parent, node);
-	else
+		g_queue_push_tail(base->stack, parent);
+	} else
 		base->tree = node;
-	g_queue_push_tail(base->stack, node);
+	base->node = node;
+	rule = calloc(1, sizeof(*rule));
+	rule->type = LogicTypeRoot;
+	if (base->rule)
+		g_queue_push_tail(base->rules, base->rule);
+	base->rule = menu->root = g_node_new(rule);
 }
 
 static void
@@ -353,11 +415,15 @@ xdg_menu_end_element(GMarkupParseContext *context,
 		     const gchar *element_name, gpointer user_data, GError **error)
 {
 	XdgParseContext *base = user_data;
-	GNode *node = g_queue_pop_tail(base->stack);
-	XdgMenu *menu = node->data;
+	XdgMenu *menu;
+	GNode *node;
 
-	(void) menu;
+	node = base->node;
+	menu = node->data;
 	/* FIXME: finalize the sub-menu */
+	base->node = g_queue_pop_tail(base->stack);
+	base->rule = g_queue_pop_tail(base->rules);
+	(void) menu;
 }
 
 static void
@@ -370,6 +436,24 @@ GMarkupParser xdg_menu_parser = {
 	.end_element = xdg_menu_end_element,
 	.error = xdg_menu_error,
 };
+
+XdgMenu *
+xdg_get_menu(XdgParseContext *base, const gchar *element_name)
+{
+	XdgParserMapping *m;
+	GNode *node;
+
+	if (!(node = base->node)) {
+		EPRINTF("Element <%s> can only occur within <Menu>!\n", element_name);
+		return (NULL);
+	}
+	m = g_queue_peek_tail(base->elements);
+	if (!m || !m->label || strcmp(m->label, "Menu")) {
+		EPRINTF("Element <%s> can only occur directly beneath <Menu>!\n", element_name);
+		return (NULL);
+	}
+	return (node->data);
+}
 
 /*
  * <AppDir>
@@ -403,7 +487,7 @@ GMarkupParser xdg_menu_parser = {
  *	to facility merging.
  */
 XdgFileEntry *
-xdg_add_appid(XdgMenu *menu, const char *path, const char *id, struct stat *st)
+xdg_add_appid(XdgMenu * menu, const char *path, const char *id, struct stat *st)
 {
 	XdgFileEntry *fentry;
 	char *key;
@@ -428,7 +512,7 @@ xdg_add_appid(XdgMenu *menu, const char *path, const char *id, struct stat *st)
 }
 
 static void
-xdg_scan_appdir(XdgMenu *menu, const char *base, const char *stem)
+xdg_scan_appdir(XdgMenu * menu, const char *base, const char *stem)
 {
 	char *dirname, *file, *appid, *p, *e;
 	int dlen, len;
@@ -511,7 +595,7 @@ xdg_scan_appdir(XdgMenu *menu, const char *base, const char *stem)
 }
 
 static XdgDirectory *
-xdg_add_appdir(XdgMenu *menu, const gchar *path, gsize len)
+xdg_add_appdir(XdgMenu * menu, const gchar *path, gsize len)
 {
 	XdgDirectory *appdir;
 	char *key;
@@ -536,19 +620,14 @@ static void
 xdg_appdir_character_data(GMarkupParseContext *context,
 			  const gchar *text, gsize text_len, gpointer user_data, GError **error)
 {
-	XdgParseContext *base = user_data;
-	GNode *node = g_queue_peek_tail(base->stack);
 	XdgMenu *menu;
 	XdgDirectory *appdir;
 	const gchar *tend = text + text_len;
 
-	if (!node) {
-		EPRINTF("Element <AppDir> can only occur within <Menu>!\n");
+	if (!(menu = xdg_get_menu(user_data, "AppDir")))
 		return;
-	}
 	for (; text < tend && isspace(*text); text++, text_len--) ;
 	for (; tend > text && isspace(*tend); tend--, text_len--) ;
-	menu = node->data;
 	appdir = xdg_add_appdir(menu, text, text_len);
 	menu->appdirs = g_slist_prepend(menu->appdirs, appdir);
 
@@ -577,17 +656,12 @@ xdg_appdirs_end_element(GMarkupParseContext *context,
 			const gchar *element_name, gpointer user_data, GError **error)
 {
 	static const char *suffix = "/applications";
-	XdgParseContext *base = user_data;
-	GNode *node = g_queue_peek_tail(base->stack);
 	XdgMenu *menu;
 	XdgDirectory *appdir;
 	char *p, path[PATH_MAX];
 
-	if (!node) {
-		EPRINTF("Element <AppDir> can only occur within <Menu>!\n");
+	if (!(menu = xdg_get_menu(user_data, element_name)))
 		return;
-	}
-	menu = node->data;
 	/* must process in reverse order */
 	for (p = xdg_find_str(xdg_data_last, xdg_data_path);
 	     p >= xdg_data_path; p = xdg_find_str(p - 1, xdg_data_path)) {
@@ -629,7 +703,7 @@ GMarkupParser xdg_appdirs_parser = {
  *
  */
 XdgFileEntry *
-xdg_add_dirid(XdgMenu *menu, const char *path, const char *id, struct stat *st)
+xdg_add_dirid(XdgMenu * menu, const char *path, const char *id, struct stat *st)
 {
 	XdgFileEntry *fentry;
 	char *key;
@@ -654,7 +728,7 @@ xdg_add_dirid(XdgMenu *menu, const char *path, const char *id, struct stat *st)
 }
 
 static void
-xdg_scan_dirdir(XdgMenu *menu, const char *base, const char *stem)
+xdg_scan_dirdir(XdgMenu * menu, const char *base, const char *stem)
 {
 	char *dirname, *file, *dirid;
 	int dlen, len;
@@ -734,7 +808,7 @@ xdg_scan_dirdir(XdgMenu *menu, const char *base, const char *stem)
 }
 
 static XdgDirectory *
-xdg_add_dirdir(XdgMenu *menu, const gchar *path, gsize len)
+xdg_add_dirdir(XdgMenu * menu, const gchar *path, gsize len)
 {
 	XdgDirectory *dirdir;
 	char *key;
@@ -759,19 +833,14 @@ static void
 xdg_dirdir_character_data(GMarkupParseContext *context,
 			  const gchar *text, gsize text_len, gpointer user_data, GError **error)
 {
-	XdgParseContext *base = user_data;
-	GNode *node = g_queue_peek_tail(base->stack);
 	XdgMenu *menu;
 	XdgDirectory *dirdir;
 	const gchar *tend = text + text_len;
 
-	if (!node) {
-		EPRINTF("Element <DirectoryDir> can only occur within <Menu>!\n");
+	if (!(menu = xdg_get_menu(user_data, "DirectoryDir")))
 		return;
-	}
 	for (; text < tend && isspace(*text); text++, text_len--) ;
 	for (; tend > text && isspace(*tend); tend--, text_len--) ;
-	menu = node->data;
 	dirdir = xdg_add_dirdir(menu, text, text_len);
 	menu->dirdirs = g_slist_prepend(menu->dirdirs, dirdir);
 }
@@ -798,17 +867,12 @@ xdg_dirdirs_end_element(GMarkupParseContext *context,
 			const gchar *element_name, gpointer user_data, GError **error)
 {
 	static const char *suffix = "/desktop-directories";
-	XdgParseContext *base = user_data;
-	GNode *node = g_queue_peek_tail(base->stack);
 	XdgMenu *menu;
 	XdgDirectory *dirdir;
 	char *p, path[PATH_MAX];
 
-	if (!node) {
-		EPRINTF("Element <AppDir> can only occur within <Menu>!\n");
+	if (!(menu = xdg_get_menu(user_data, element_name)))
 		return;
-	}
-	menu = node->data;
 	/* must process in reverse order */
 	for (p = xdg_find_str(xdg_data_last, xdg_data_path);
 	     p >= xdg_data_path; p = xdg_find_str(p - 1, xdg_data_path)) {
@@ -842,17 +906,12 @@ static void
 xdg_name_character_data(GMarkupParseContext *context,
 			const gchar *text, gsize text_len, gpointer user_data, GError **error)
 {
-	XdgParseContext *base = user_data;
-	GNode *node = g_queue_peek_tail(base->stack);
 	XdgMenu *menu;
 	const gchar *tend = text + text_len;
 	char *name;
 
-	if (!node) {
-		EPRINTF("Element <Name> can only occur within <Menu>!\n");
+	if (!(menu = xdg_get_menu(user_data, "Name")))
 		return;
-	}
-	menu = node->data;
 	for (; text < tend && isspace(*text); text++, text_len--) ;
 	for (; tend > text && isspace(*tend); tend--, text_len--) ;
 	name = strndup(text, text_len);
@@ -887,19 +946,14 @@ static void
 xdg_dir_character_data(GMarkupParseContext *context,
 		       const gchar *text, gsize text_len, gpointer user_data, GError **error)
 {
-	XdgParseContext *base = user_data;
-	GNode *node = g_queue_peek_tail(base->stack);
 	XdgMenu *menu;
 	const gchar *tend = text + text_len;
 	char *key;
 
-	if (!node) {
-		EPRINTF("Element <Directory> can only occur within <Menu>!\n");
+	if (!(menu = xdg_get_menu(user_data, "Directory")))
 		return;
-	}
 	for (; text < tend && isspace(*text); text++, text_len--) ;
 	for (; tend > text && isspace(*tend); tend--, text_len--) ;
-	menu = node->data;
 	key = strndup(text, text_len);
 	if (menu->directory)
 		DPRINTF("Replacing menu directory with '%s'", key);
@@ -939,15 +993,10 @@ static void
 xdg_only_u_end_element(GMarkupParseContext *context,
 		       const gchar *element_name, gpointer user_data, GError **error)
 {
-	XdgParseContext *base = user_data;
-	GNode *node = g_queue_peek_tail(base->stack);
 	XdgMenu *menu;
 
-	if (!node) {
-		EPRINTF("Element <OnlyUnallocated> can only occur within <Menu>!\n");
+	if (!(menu = xdg_get_menu(user_data, element_name)))
 		return;
-	}
-	menu = node->data;
 	menu->only_u = TRUE;
 }
 
@@ -965,15 +1014,10 @@ static void
 xdg_not_u_end_element(GMarkupParseContext *context,
 		      const gchar *element_name, gpointer user_data, GError **error)
 {
-	XdgParseContext *base = user_data;
-	GNode *node = g_queue_peek_tail(base->stack);
 	XdgMenu *menu;
 
-	if (!node) {
-		EPRINTF("Element <NotOnlyUnallocated> can only occur within <Menu>!\n");
+	if (!(menu = xdg_get_menu(user_data, element_name)))
 		return;
-	}
-	menu = node->data;
 	menu->only_u = FALSE;
 }
 
@@ -995,23 +1039,15 @@ GMarkupParser xdg_not_u_parser = {
  *	purpose of this element is to support menuy editing.  If a menu contains a <Deleted> element
  *	not followed by a <NotDeleted> element, that menu should be ignored.
  */
-void
-xdg_deleted_start_element(GMarkupParseContext *context, const gchar *element_name,
-			  const gchar **attribute_names, const gchar **attribute_values,
-			  gpointer user_data, GError **error)
-{
-}
-
 static void
 xdg_deleted_end_element(GMarkupParseContext *context,
 			const gchar *element_name, gpointer user_data, GError **error)
 {
-}
+	XdgMenu *menu;
 
-static void
-xdg_deleted_character_data(GMarkupParseContext *context,
-			   const gchar *text, gsize text_len, gpointer user_data, GError **error)
-{
+	if (!(menu = xdg_get_menu(user_data, element_name)))
+		return;
+	menu->deleted = TRUE;
 }
 
 static void
@@ -1020,30 +1056,19 @@ xdg_deleted_error(GMarkupParseContext *context, GError *error, gpointer user_dat
 }
 
 GMarkupParser xdg_deleted_parser = {
-	.start_element = xdg_deleted_start_element,
 	.end_element = xdg_deleted_end_element,
-	.text = xdg_deleted_character_data,
 	.error = xdg_deleted_error,
 };
-
-void
-xdg_not_deleted_start_element(GMarkupParseContext *context, const gchar *element_name,
-			      const gchar **attribute_names, const gchar **attribute_values,
-			      gpointer user_data, GError **error)
-{
-}
 
 static void
 xdg_not_deleted_end_element(GMarkupParseContext *context,
 			    const gchar *element_name, gpointer user_data, GError **error)
 {
-}
+	XdgMenu *menu;
 
-static void
-xdg_not_deleted_character_data(GMarkupParseContext *context,
-			       const gchar *text, gsize text_len, gpointer user_data,
-			       GError **error)
-{
+	if (!(menu = xdg_get_menu(user_data, element_name)))
+		return;
+	menu->deleted = FALSE;
 }
 
 static void
@@ -1052,9 +1077,7 @@ xdg_not_deleted_error(GMarkupParseContext *context, GError *error, gpointer user
 }
 
 GMarkupParser xdg_not_deleted_parser = {
-	.start_element = xdg_not_deleted_start_element,
 	.end_element = xdg_not_deleted_end_element,
-	.text = xdg_not_deleted_character_data,
 	.error = xdg_not_deleted_error,
 };
 
@@ -1077,18 +1100,41 @@ xdg_include_start_element(GMarkupParseContext *context, const gchar *element_nam
 			  const gchar **attribute_names, const gchar **attribute_values,
 			  gpointer user_data, GError **error)
 {
+	XdgParseContext *base = user_data;
+	XdgMenu *menu;
+	XdgRule *rule;
+	GNode *node, *parent;
+
+	if (!(menu = xdg_get_menu(user_data, element_name)))
+		return;
+	if (!(parent = base->rule)) {
+		EPRINTF("Element <%s>, but no parent root node!\n", element_name);
+		return;
+	}
+	if (!(rule = parent->data)) {
+		EPRINTF("Element <%s> has parent, but rule missing!\n", element_name);
+		return;
+	}
+	if (rule->type != LogicTypeRoot) {
+		EPRINTF("Element <%s> must be immediately within <Menu>!\n", element_name);
+		return;
+	}
+	rule = calloc(1, sizeof(*rule));
+	rule->type = LogicTypeInclude;
+	node = g_node_new(rule);
+	g_node_append(menu->root, node);
+	if (base->rule)
+		g_queue_push_tail(base->rules, base->rule);
+	base->rule = node;
 }
 
 static void
 xdg_include_end_element(GMarkupParseContext *context,
 			const gchar *element_name, gpointer user_data, GError **error)
 {
-}
+	XdgParseContext *base = user_data;
 
-static void
-xdg_include_character_data(GMarkupParseContext *context,
-			   const gchar *text, gsize text_len, gpointer user_data, GError **error)
-{
+	base->rule = g_queue_pop_tail(base->rules);
 }
 
 static void
@@ -1099,13 +1145,12 @@ xdg_include_error(GMarkupParseContext *context, GError *error, gpointer user_dat
 GMarkupParser xdg_include_parser = {
 	.start_element = xdg_include_start_element,
 	.end_element = xdg_include_end_element,
-	.text = xdg_include_character_data,
 	.error = xdg_include_error,
 };
 
 /*
  * <Exclude>
- *	Any number of <Exlucde> lements may appear below a <Menu> element.  The content of an
+ *	Any number of <Exclude> elementes may appear below a <Menu> element.  The content of an
  *	<Exclude> element is a list of matching rules, just as with an <Include>.  However, the
  *	desktpo entries matches are removed from the list of desktop entires included so far.  (Thus
  *	an <Exclude> element that appears before any <Include> elements will have no affect, for
@@ -1116,18 +1161,41 @@ xdg_exclude_start_element(GMarkupParseContext *context, const gchar *element_nam
 			  const gchar **attribute_names, const gchar **attribute_values,
 			  gpointer user_data, GError **error)
 {
+	XdgParseContext *base = user_data;
+	XdgMenu *menu;
+	XdgRule *rule;
+	GNode *node, *parent;
+
+	if (!(menu = xdg_get_menu(user_data, element_name)))
+		return;
+	if (!(parent = base->rule)) {
+		EPRINTF("Element <%s>, but no parent root node!\n", element_name);
+		return;
+	}
+	if (!(rule = parent->data)) {
+		EPRINTF("Element <%s> has parent, but rule missing!\n", element_name);
+		return;
+	}
+	if (rule->type != LogicTypeRoot) {
+		EPRINTF("Element <%s> must be immediately within <Menu>!\n", element_name);
+		return;
+	}
+	rule = calloc(1, sizeof(*rule));
+	rule->type = LogicTypeExclude;
+	node = g_node_new(rule);
+	g_node_append(menu->root, node);
+	if (base->rule)
+		g_queue_push_tail(base->rules, base->rule);
+	base->rule = node;
 }
 
 static void
 xdg_exclude_end_element(GMarkupParseContext *context,
 			const gchar *element_name, gpointer user_data, GError **error)
 {
-}
+	XdgParseContext *base = user_data;
 
-static void
-xdg_exclude_character_data(GMarkupParseContext *context,
-			   const gchar *text, gsize text_len, gpointer user_data, GError **error)
-{
+	base->rule = g_queue_pop_tail(base->rules);
 }
 
 static void
@@ -1138,7 +1206,6 @@ xdg_exclude_error(GMarkupParseContext *context, GError *error, gpointer user_dat
 GMarkupParser xdg_exclude_parser = {
 	.start_element = xdg_exclude_start_element,
 	.end_element = xdg_exclude_end_element,
-	.text = xdg_exclude_character_data,
 	.error = xdg_exclude_error,
 };
 
@@ -1147,23 +1214,35 @@ GMarkupParser xdg_exclude_parser = {
  *	The <Filename> element is the most basic matching rule.  It matches a desktop entry if the
  *	desktop entry ahs the given desktop-file id.  See Desktop-File Id.
  */
-void
-xdg_filename_start_element(GMarkupParseContext *context, const gchar *element_name,
-			   const gchar **attribute_names, const gchar **attribute_values,
-			   gpointer user_data, GError **error)
-{
-}
-
-static void
-xdg_filename_end_element(GMarkupParseContext *context,
-			 const gchar *element_name, gpointer user_data, GError **error)
-{
-}
-
 static void
 xdg_filename_character_data(GMarkupParseContext *context,
 			    const gchar *text, gsize text_len, gpointer user_data, GError **error)
 {
+	const gchar *element_name = "Filename";
+	XdgParseContext *base = user_data;
+	XdgRule *rule;
+	GNode *node, *parent;
+	const gchar *tend = text + text_len;
+
+	if (!(parent = base->rule)) {
+		EPRINTF("Element <%s>, but no parent root node!\n", element_name);
+		return;
+	}
+	if (!(rule = parent->data)) {
+		EPRINTF("Element <%s> has parent, but rule missing!\n", element_name);
+		return;
+	}
+	if (rule->type == LogicTypeRoot) {
+		EPRINTF("Element <%s> must be within <Include> or <Exclude>!\n", element_name);
+		return;
+	}
+	for (; text < tend && isspace(*text); text++, text_len--) ;
+	for (; tend > text && isspace(*tend); tend--, text_len--) ;
+	rule = calloc(1, sizeof(*rule));
+	rule->type = LogicTypeFilename;
+	rule->string = strndup(text, text_len);
+	node = g_node_new(rule);
+	g_node_append(parent, node);
 }
 
 static void
@@ -1172,8 +1251,6 @@ xdg_filename_error(GMarkupParseContext *context, GError *error, gpointer user_da
 }
 
 GMarkupParser xdg_filename_parser = {
-	.start_element = xdg_filename_start_element,
-	.end_element = xdg_filename_end_element,
 	.text = xdg_filename_character_data,
 	.error = xdg_filename_error,
 };
@@ -1183,23 +1260,35 @@ GMarkupParser xdg_filename_parser = {
  *	The <Category> element is another basic matching predicate.  It matches a desktop entry if
  *	the desktop entry has the given category in its Cateogries field.
  */
-void
-xdg_category_start_element(GMarkupParseContext *context, const gchar *element_name,
-			   const gchar **attribute_names, const gchar **attribute_values,
-			   gpointer user_data, GError **error)
-{
-}
-
-static void
-xdg_category_end_element(GMarkupParseContext *context,
-			 const gchar *element_name, gpointer user_data, GError **error)
-{
-}
-
 static void
 xdg_category_character_data(GMarkupParseContext *context,
 			    const gchar *text, gsize text_len, gpointer user_data, GError **error)
 {
+	const gchar *element_name = "Category";
+	XdgParseContext *base = user_data;
+	XdgRule *rule;
+	GNode *node, *parent;
+	const gchar *tend = text + text_len;
+
+	if (!(parent = base->rule)) {
+		EPRINTF("Element <%s>, but no parent root node!\n", element_name);
+		return;
+	}
+	if (!(rule = parent->data)) {
+		EPRINTF("Element <%s> has parent, but rule missing!\n", element_name);
+		return;
+	}
+	if (rule->type == LogicTypeRoot) {
+		EPRINTF("Element <%s> must be within <Include> or <Exclude>!\n", element_name);
+		return;
+	}
+	for (; text < tend && isspace(*text); text++, text_len--) ;
+	for (; tend > text && isspace(*tend); tend--, text_len--) ;
+	rule = calloc(1, sizeof(*rule));
+	rule->type = LogicTypeCategory;
+	rule->string = strndup(text, text_len);
+	node = g_node_new(rule);
+	g_node_append(parent, node);
 }
 
 static void
@@ -1208,8 +1297,6 @@ xdg_category_error(GMarkupParseContext *context, GError *error, gpointer user_da
 }
 
 GMarkupParser xdg_category_parser = {
-	.start_element = xdg_category_start_element,
-	.end_element = xdg_category_end_element,
 	.text = xdg_category_character_data,
 	.error = xdg_category_error,
 };
@@ -1218,23 +1305,30 @@ GMarkupParser xdg_category_parser = {
  * <All>
  *	The <All> element is a matching rule that matches all desktop entries.
  */
-void
-xdg_all_start_element(GMarkupParseContext *context, const gchar *element_name,
-		      const gchar **attribute_names, const gchar **attribute_values,
-		      gpointer user_data, GError **error)
-{
-}
-
 static void
 xdg_all_end_element(GMarkupParseContext *context,
 		    const gchar *element_name, gpointer user_data, GError **error)
 {
-}
+	XdgParseContext *base = user_data;
+	XdgRule *rule;
+	GNode *node, *parent;
 
-static void
-xdg_all_character_data(GMarkupParseContext *context,
-		       const gchar *text, gsize text_len, gpointer user_data, GError **error)
-{
+	if (!(parent = base->rule)) {
+		EPRINTF("Element <%s>, but no parent root node!\n", element_name);
+		return;
+	}
+	if (!(rule = parent->data)) {
+		EPRINTF("Element <%s> has parent, but rule missing!\n", element_name);
+		return;
+	}
+	if (rule->type == LogicTypeRoot) {
+		EPRINTF("Element <%s> must be within <Include> or <Exclude>!\n", element_name);
+		return;
+	}
+	rule = calloc(1, sizeof(*rule));
+	rule->type = LogicTypeAll;
+	node = g_node_new(rule);
+	g_node_append(parent, node);
 }
 
 static void
@@ -1243,15 +1337,13 @@ xdg_all_error(GMarkupParseContext *context, GError *error, gpointer user_data)
 }
 
 GMarkupParser xdg_all_parser = {
-	.start_element = xdg_all_start_element,
 	.end_element = xdg_all_end_element,
-	.text = xdg_all_character_data,
 	.error = xdg_all_error,
 };
 
 /*
  * <And>
- *	The <And> element contains a list of matching fules.  If each o fthe matching rule inside
+ *	The <And> element contains a list of matching fules.  If each of the matching rule inside
  *	the <And> element match a desktop entry, then the entire <And> rule matches the desktop
  *	entry.
  */
@@ -1260,18 +1352,37 @@ xdg_and_start_element(GMarkupParseContext *context, const gchar *element_name,
 		      const gchar **attribute_names, const gchar **attribute_values,
 		      gpointer user_data, GError **error)
 {
+	XdgParseContext *base = user_data;
+	XdgRule *rule;
+	GNode *node, *parent;
+
+	if (!(parent = base->rule)) {
+		EPRINTF("Element <%s>, but no parent root node!\n", element_name);
+		return;
+	}
+	if (!(rule = parent->data)) {
+		EPRINTF("Element <%s> has parent, but rule missing!\n", element_name);
+		return;
+	}
+	if (rule->type == LogicTypeRoot) {
+		EPRINTF("Element <%s> must be within <Include> or <Exclude>!\n", element_name);
+		return;
+	}
+	rule = calloc(1, sizeof(*rule));
+	rule->type = LogicTypeAnd;
+	node = g_node_new(rule);
+	g_node_append(parent, node);
+	g_queue_push_tail(base->rules, base->rule);
+	base->rule = node;
 }
 
 static void
 xdg_and_end_element(GMarkupParseContext *context,
 		    const gchar *element_name, gpointer user_data, GError **error)
 {
-}
+	XdgParseContext *base = user_data;
 
-static void
-xdg_and_character_data(GMarkupParseContext *context,
-		       const gchar *text, gsize text_len, gpointer user_data, GError **error)
-{
+	base->rule = g_queue_pop_tail(base->rules);
 }
 
 static void
@@ -1282,7 +1393,6 @@ xdg_and_error(GMarkupParseContext *context, GError *error, gpointer user_data)
 GMarkupParser xdg_and_parser = {
 	.start_element = xdg_and_start_element,
 	.end_element = xdg_and_end_element,
-	.text = xdg_and_character_data,
 	.error = xdg_and_error,
 };
 
@@ -1296,18 +1406,37 @@ xdg_or_start_element(GMarkupParseContext *context, const gchar *element_name,
 		     const gchar **attribute_names, const gchar **attribute_values,
 		     gpointer user_data, GError **error)
 {
+	XdgParseContext *base = user_data;
+	XdgRule *rule;
+	GNode *node, *parent;
+
+	if (!(parent = base->rule)) {
+		EPRINTF("Element <%s>, but no parent root node!\n", element_name);
+		return;
+	}
+	if (!(rule = parent->data)) {
+		EPRINTF("Element <%s> has parent, but rule missing!\n", element_name);
+		return;
+	}
+	if (rule->type == LogicTypeRoot) {
+		EPRINTF("Element <%s> must be within <Include> or <Exclude>!\n", element_name);
+		return;
+	}
+	rule = calloc(1, sizeof(*rule));
+	rule->type = LogicTypeOr;
+	node = g_node_new(rule);
+	g_node_append(parent, node);
+	g_queue_push_tail(base->rules, base->rule);
+	base->rule = node;
 }
 
 static void
 xdg_or_end_element(GMarkupParseContext *context,
 		   const gchar *element_name, gpointer user_data, GError **error)
 {
-}
+	XdgParseContext *base = user_data;
 
-static void
-xdg_or_character_data(GMarkupParseContext *context,
-		      const gchar *text, gsize text_len, gpointer user_data, GError **error)
-{
+	base->rule = g_queue_pop_tail(base->rules);
 }
 
 static void
@@ -1318,7 +1447,6 @@ xdg_or_error(GMarkupParseContext *context, GError *error, gpointer user_data)
 GMarkupParser xdg_or_parser = {
 	.start_element = xdg_or_start_element,
 	.end_element = xdg_or_end_element,
-	.text = xdg_or_character_data,
 	.error = xdg_or_error,
 };
 
@@ -1333,18 +1461,37 @@ xdg_not_start_element(GMarkupParseContext *context, const gchar *element_name,
 		      const gchar **attribute_names, const gchar **attribute_values,
 		      gpointer user_data, GError **error)
 {
+	XdgParseContext *base = user_data;
+	XdgRule *rule;
+	GNode *node, *parent;
+
+	if (!(parent = base->rule)) {
+		EPRINTF("Element <%s>, but no parent root node!\n", element_name);
+		return;
+	}
+	if (!(rule = parent->data)) {
+		EPRINTF("Element <%s> has parent, but rule missing!\n", element_name);
+		return;
+	}
+	if (rule->type == LogicTypeRoot) {
+		EPRINTF("Element <%s> must be within <Include> or <Exclude>!\n", element_name);
+		return;
+	}
+	rule = calloc(1, sizeof(*rule));
+	rule->type = LogicTypeNot;
+	node = g_node_new(rule);
+	g_node_append(parent, node);
+	g_queue_push_tail(base->rules, base->rule);
+	base->rule = node;
 }
 
 static void
 xdg_not_end_element(GMarkupParseContext *context,
 		    const gchar *element_name, gpointer user_data, GError **error)
 {
-}
+	XdgParseContext *base = user_data;
 
-static void
-xdg_not_character_data(GMarkupParseContext *context,
-		       const gchar *text, gsize text_len, gpointer user_data, GError **error)
-{
+	base->rule = g_queue_pop_tail(base->rules);
 }
 
 static void
@@ -1355,7 +1502,6 @@ xdg_not_error(GMarkupParseContext *context, GError *error, gpointer user_data)
 GMarkupParser xdg_not_parser = {
 	.start_element = xdg_not_start_element,
 	.end_element = xdg_not_end_element,
-	.text = xdg_not_character_data,
 	.error = xdg_not_error,
 };
 
@@ -1921,12 +2067,7 @@ GMarkupParser xdg_merge_parser = {
 	.error = xdg_merge_error,
 };
 
-struct parser_mapping {
-	char *label;
-	GMarkupParser *parser;
-};
-
-struct parser_mapping mapping[] = {
+XdgParserMapping mapping[] = {
 	/* *INDENT-OFF* */
 	{ "Menu",			&xdg_menu_parser		},
 	{ "AppDir",			&xdg_appdir_parser		},
@@ -1964,22 +2105,22 @@ struct parser_mapping mapping[] = {
 	/* *INDENT-ON* */
 };
 
-struct parser_mapping *state;
-
 static void
 xdg_start_element(GMarkupParseContext *context,
 		  const gchar *element_name,
 		  const gchar **attribute_names,
 		  const gchar **attribute_values, gpointer user_data, GError **error)
 {
-	struct parser_mapping *m;
+	XdgParserMapping *m;
 	XdgParseContext *base = user_data;
 
 	DPRINTF("START-ELEMENT: %s\n", element_name);
 
 	for (m = &mapping[0]; m->label; m++) {
 		if (!strcmp(element_name, m->label)) {
-			g_queue_push_tail(base->elements, m);
+			if (base->current)
+				g_queue_push_tail(base->elements, base->current);
+			base->current = m;
 			break;
 		}
 	}
@@ -1989,38 +2130,39 @@ xdg_start_element(GMarkupParseContext *context,
 }
 
 static void
-xdg_end_element(GMarkupParseContext *context,
-		const gchar *element_name, gpointer user_data, GError **error)
-{
-	XdgParseContext *base = user_data;
-	struct parser_mapping *m;
-
-	DPRINTF("END-ELEMENT: %s\n", element_name);
-
-	m = g_queue_pop_tail(base->elements);
-	if (m->parser->end_element)
-		m->parser->end_element(context, element_name, user_data, error);
-}
-
-static void
 xdg_character_data(GMarkupParseContext *context,
 		   const gchar *text, gsize text_len, gpointer user_data, GError **error)
 {
 	XdgParseContext *base = user_data;
-	struct parser_mapping *m;
+	XdgParserMapping *m;
 
-	m = g_queue_peek_tail(base->elements);
+	m = base->current;
 	if (m->parser->text)
 		m->parser->text(context, text, text_len, user_data, error);
+}
+
+static void
+xdg_end_element(GMarkupParseContext *context,
+		const gchar *element_name, gpointer user_data, GError **error)
+{
+	XdgParseContext *base = user_data;
+	XdgParserMapping *m;
+
+	DPRINTF("END-ELEMENT: %s\n", element_name);
+
+	m = base->current;
+	if (m->parser->end_element)
+		m->parser->end_element(context, element_name, user_data, error);
+	base->current = g_queue_pop_tail(base->elements);
 }
 
 static void
 xdg_error(GMarkupParseContext *context, GError *error, gpointer user_data)
 {
 	XdgParseContext *base = user_data;
-	struct parser_mapping *m;
+	XdgParserMapping *m;
 
-	m = g_queue_peek_tail(base->elements);
+	m = base->current;
 	if (m->parser->error)
 		m->parser->error(context, error, user_data);
 }
@@ -2102,6 +2244,7 @@ make_menu(int argc, char *argv[])
 
 	base.elements = g_queue_new();
 	base.stack = g_queue_new();
+	base.rules = g_queue_new();
 	base.tree = NULL;
 
 	parse_menu(&base);

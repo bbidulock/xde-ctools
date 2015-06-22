@@ -304,3 +304,5 @@
 -TXdgMenuItem
 -TXdgDirectory
 -TXdgFileEntry
+-TXdgRule
+-TXdgParserMapping
