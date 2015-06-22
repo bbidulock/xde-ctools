@@ -123,6 +123,10 @@
 	fprintf(stderr, "E: %s +%d %s(): ", __FILE__, __LINE__, __func__); \
 	fprintf(stderr, args); \
 	fflush(stderr);   } while (0)
+#define WPRINTF(args...) do { \
+	fprintf(stderr, "W: %s +%d %s(): ", __FILE__, __LINE__, __func__); \
+	fprintf(stderr, args); \
+	fflush(stderr);   } while (0)
 #define DPRINT() do { if (options.debug) { \
 	fprintf(stderr, "D: %s +%d %s()\n", __FILE__, __LINE__, __func__); \
 	fflush(stderr); } } while (0)
@@ -314,6 +318,9 @@ typedef struct {
 	GHashTable *apps;   /* applications by id */
 	GSList *dirdirs;    /* directories directories (need these?) */
 	GHashTable *dirs;   /* directories by id */
+	char *directory;    /* directory for this menu item */
+	XdgFileEntry *dentry;  /* .directory file for this menu */
+	gboolean only_u;    /* only unallocated? */
 } XdgMenu;
 
 /*
@@ -494,7 +501,6 @@ xdg_scan_appdir(XdgMenu *menu, const char *base, const char *stem)
 					*p = '-';
 		}
 		strcat(appid, d->d_name);
-		*strstr(appid, ".desktop") = '\0';
 		xdg_add_appid(menu, file, appid, &st);
 		free(file);
 		free(appid);
@@ -650,7 +656,7 @@ xdg_add_dirid(XdgMenu *menu, const char *path, const char *id, struct stat *st)
 static void
 xdg_scan_dirdir(XdgMenu *menu, const char *base, const char *stem)
 {
-	char *dirname, *file, *dirid, *p, *e;
+	char *dirname, *file, *dirid;
 	int dlen, len;
 	DIR *dir;
 	struct dirent *d;
@@ -716,12 +722,8 @@ xdg_scan_dirdir(XdgMenu *menu, const char *base, const char *stem)
 		if (stem[0] != '\0') {
 			strcpy(dirid, stem);
 			strcat(dirid, "/");
-			for (p = dirid, e = p + strlen(p); p < e; p++)
-				if (*p == '/')
-					*p = '-';
 		}
 		strcat(dirid, d->d_name);
-		*strstr(dirid, ".directory") = '\0';
 		xdg_add_dirid(menu, file, dirid, &st);
 		free(file);
 		free(dirid);
@@ -836,13 +838,6 @@ GMarkupParser xdg_dirdirs_parser = {
  *	"Applications/Graphics."  THe <Name> field must not contain the slash character ("/");
  *	implementations should discard any name containing a slas.  See also Menu path.
  */
-void
-xdg_name_start_element(GMarkupParseContext *context, const gchar *element_name,
-		       const gchar **attribute_names, const gchar **attribute_values,
-		       gpointer user_data, GError **error)
-{
-}
-
 static void
 xdg_name_character_data(GMarkupParseContext *context,
 			const gchar *text, gsize text_len, gpointer user_data, GError **error)
@@ -867,19 +862,11 @@ xdg_name_character_data(GMarkupParseContext *context,
 }
 
 static void
-xdg_name_end_element(GMarkupParseContext *context,
-		     const gchar *element_name, gpointer user_data, GError **error)
-{
-}
-
-static void
 xdg_name_error(GMarkupParseContext *context, GError *error, gpointer user_data)
 {
 }
 
 GMarkupParser xdg_name_parser = {
-	.start_element = xdg_name_start_element,
-	.end_element = xdg_name_end_element,
 	.text = xdg_name_character_data,
 	.error = xdg_name_error,
 };
@@ -888,7 +875,7 @@ GMarkupParser xdg_name_parser = {
  * <Directory>
  *	Each <Menu> element has any number of <Directory> elements.  The content of the <Directory>
  *	lement is the relative path of a directory entry containing meta information about the
- *	<Menu>, such as its icon and localized name.  If no <Directory> is psecified for a <Menu>,
+ *	<Menu>, such as its icon and localized name.  If no <Directory> is specified for a <Menu>,
  *	its <Name> field should be used as the user-visible name of the menu.
  *
  *	Duplicate <Directory> elements are allowed to simplify menu merging, and allow user menus to
@@ -896,23 +883,30 @@ GMarkupParser xdg_name_parser = {
  *	other elements are ignored, unless the last element points to a nonexistent directory entry,
  *	in which case the previous element should eb tried instead, and so on.
  */
-void
-xdg_dir_start_element(GMarkupParseContext *context, const gchar *element_name,
-		      const gchar **attribute_names, const gchar **attribute_values,
-		      gpointer user_data, GError **error)
-{
-}
-
-static void
-xdg_dir_end_element(GMarkupParseContext *context,
-		    const gchar *element_name, gpointer user_data, GError **error)
-{
-}
-
 static void
 xdg_dir_character_data(GMarkupParseContext *context,
 		       const gchar *text, gsize text_len, gpointer user_data, GError **error)
 {
+	XdgParseContext *base = user_data;
+	GNode *node = g_queue_peek_tail(base->stack);
+	XdgMenu *menu;
+	const gchar *tend = text + text_len;
+	char *key;
+
+	if (!node) {
+		EPRINTF("Element <Directory> can only occur within <Menu>!\n");
+		return;
+	}
+	for (; text < tend && isspace(*text); text++, text_len--) ;
+	for (; tend > text && isspace(*tend); tend--, text_len--) ;
+	menu = node->data;
+	key = strndup(text, text_len);
+	if (menu->directory)
+		DPRINTF("Replacing menu directory with '%s'", key);
+	else
+		DPRINTF("Adding menu directory '%s'\n", key);
+	free(menu->directory);
+	menu->directory = key;
 }
 
 static void
@@ -921,8 +915,6 @@ xdg_dir_error(GMarkupParseContext *context, GError *error, gpointer user_data)
 }
 
 GMarkupParser xdg_dir_parser = {
-	.start_element = xdg_dir_start_element,
-	.end_element = xdg_dir_end_element,
 	.text = xdg_dir_character_data,
 	.error = xdg_dir_error,
 };
@@ -943,23 +935,20 @@ GMarkupParser xdg_dir_parser = {
  *	desktop entries that were not marked as allocated during the first pass.  See the section
  *	called "Generating the menus".
  */
-void
-xdg_only_u_start_element(GMarkupParseContext *context, const gchar *element_name,
-			 const gchar **attribute_names, const gchar **attribute_values,
-			 gpointer user_data, GError **error)
-{
-}
-
 static void
 xdg_only_u_end_element(GMarkupParseContext *context,
 		       const gchar *element_name, gpointer user_data, GError **error)
 {
-}
+	XdgParseContext *base = user_data;
+	GNode *node = g_queue_peek_tail(base->stack);
+	XdgMenu *menu;
 
-static void
-xdg_only_u_character_data(GMarkupParseContext *context,
-			  const gchar *text, gsize text_len, gpointer user_data, GError **error)
-{
+	if (!node) {
+		EPRINTF("Element <OnlyUnallocated> can only occur within <Menu>!\n");
+		return;
+	}
+	menu = node->data;
+	menu->only_u = TRUE;
 }
 
 static void
@@ -968,29 +957,24 @@ xdg_only_u_error(GMarkupParseContext *context, GError *error, gpointer user_data
 }
 
 GMarkupParser xdg_only_u_parser = {
-	.start_element = xdg_only_u_start_element,
 	.end_element = xdg_only_u_end_element,
-	.text = xdg_only_u_character_data,
 	.error = xdg_only_u_error,
 };
-
-void
-xdg_not_u_start_element(GMarkupParseContext *context, const gchar *element_name,
-			const gchar **attribute_names, const gchar **attribute_values,
-			gpointer user_data, GError **error)
-{
-}
 
 static void
 xdg_not_u_end_element(GMarkupParseContext *context,
 		      const gchar *element_name, gpointer user_data, GError **error)
 {
-}
+	XdgParseContext *base = user_data;
+	GNode *node = g_queue_peek_tail(base->stack);
+	XdgMenu *menu;
 
-static void
-xdg_not_u_character_data(GMarkupParseContext *context,
-			 const gchar *text, gsize text_len, gpointer user_data, GError **error)
-{
+	if (!node) {
+		EPRINTF("Element <NotOnlyUnallocated> can only occur within <Menu>!\n");
+		return;
+	}
+	menu = node->data;
+	menu->only_u = FALSE;
 }
 
 static void
@@ -999,9 +983,7 @@ xdg_not_u_error(GMarkupParseContext *context, GError *error, gpointer user_data)
 }
 
 GMarkupParser xdg_not_u_parser = {
-	.start_element = xdg_not_u_start_element,
 	.end_element = xdg_not_u_end_element,
-	.text = xdg_not_u_character_data,
 	.error = xdg_not_u_error,
 };
 
