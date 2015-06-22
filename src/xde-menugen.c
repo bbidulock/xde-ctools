@@ -242,6 +242,15 @@ char *xdg_data_dirs = NULL;
 char *xdg_data_path = NULL;
 char *xdg_data_last = NULL;
 
+static inline char *
+xdg_find_str(char *s, char *b)
+{
+	for (s--; s > b && *s != '\0'; s--) ;
+	if (s > b)
+		s++;
+	return (s);
+}
+
 char *xdg_config_home = NULL;
 char *xdg_config_dirs = NULL;
 char *xdg_config_path = NULL;
@@ -283,7 +292,7 @@ xdg_directory_destroy(gpointer data)
 
 typedef struct {
 	char *path;
-	char *appid;
+	char *id;
 	struct stat st;
 } XdgFileEntry;
 
@@ -301,137 +310,11 @@ xdg_fileentry_destroy(gpointer data)
 
 typedef struct {
 	char *name;
-	GSList *appdirs;
-	GHashTable *apps;   /* applications by appid */
+	GSList *appdirs;    /* applications directories (need these?) */
+	GHashTable *apps;   /* applications by id */
+	GSList *dirdirs;    /* directories directories (need these?) */
+	GHashTable *dirs;   /* directories by id */
 } XdgMenu;
-
-XdgFileEntry *
-xdg_add_dentry(XdgMenu *menu, const char *path, const char *appid, struct stat *st)
-{
-	XdgFileEntry *fentry;
-	char *key;
-
-	key = strdup(path);
-	if ((fentry = g_hash_table_lookup(xdg_fileentry_cache, key))) {
-		DPRINTF("Desktop entry file '%s' already used\n", key);
-		free(key);
-		return fentry;
-	}
-	DPRINTF("Adding new desktop entry file '%s'\n", key);
-	fentry = calloc(1, sizeof(*fentry));
-	fentry->path = key;
-	fentry->appid = strdup(appid);
-	fentry->st = *st;
-	g_hash_table_replace(xdg_fileentry_cache, key, fentry);
-	g_hash_table_replace(menu->apps, fentry->appid, fentry);
-	return fentry;
-}
-
-static void
-xdg_add_directory(XdgMenu *menu, const char *base, const char *stem)
-{
-	char *dirname, *file, *appid, *p, *e;
-	int dlen, len;
-	DIR *dir;
-	struct dirent *d;
-	struct stat st;
-
-	dlen = strlen(base) + 1;
-	if (stem[0] != '\0')
-		dlen += strlen(stem) + 1;
-	dirname = calloc(dlen + 1, sizeof(*dirname));
-	strcpy(dirname, base);
-	strcat(dirname, "/");
-	if (stem[0] != '\0') {
-		strcat(dirname, stem);
-		strcat(dirname, "/");
-	}
-	if (!(dir = opendir(dirname))) {
-		EPRINTF("%s: %s\n", dirname, strerror(errno));
-		free(dirname);
-		return;
-	}
-	while ((d = readdir(dir))) {
-		if (d->d_name[0] == '.')
-			continue;
-		len = dlen + strlen(d->d_name);
-		file = calloc(len + 1, sizeof(*file));
-		strcpy(file, dirname);
-		strcat(file, d->d_name);
-		if (stat(file, &st)) {
-			EPRINTF("%s: %s\n", file, strerror(errno));
-			free(file);
-			continue;
-		}
-		if (S_ISDIR(st.st_mode)) {
-			char *stem2;
-
-			len = strlen(d->d_name);
-			if (stem[0] != '\0')
-				len += strlen(stem) + 1;
-			stem2 = calloc(len + 1, sizeof(*stem2));
-			if (stem[0] != '\0') {
-				strcpy(stem2, stem);
-				strcat(stem2, "/");
-			}
-			strcat(stem2, d->d_name);
-			/* recurse */
-			xdg_add_directory(menu, base, stem2);
-			free(stem2);
-			continue;
-		} else if (!S_ISREG(st.st_mode)) {
-			DPRINTF("%s: not a file\n", file);
-			free(file);
-			continue;
-		}
-		if (!strstr(d->d_name, ".desktop")) {
-			DPRINTF("%s: does not end in .desktop\n", d->d_name);
-			free(file);
-			continue;
-		}
-		len = strlen(d->d_name);
-		if (stem[0] != '\0')
-			len += strlen(stem) + 1;
-		appid = calloc(len + 1, sizeof(*appid));
-		if (stem[0] != '\0') {
-			strcpy(appid, stem);
-			strcat(appid, "/");
-			for (p = appid, e = p + strlen(p); p < e; p++)
-				if (*p == '/')
-					*p = '-';
-		}
-		strcat(appid, d->d_name);
-		*strstr(appid, ".desktop") = '\0';
-		xdg_add_dentry(menu, file, appid, &st);
-		free(file);
-		free(appid);
-		continue;
-	}
-	closedir(dir);
-	free(dirname);
-}
-
-static XdgDirectory *
-xdg_add_appdir(XdgMenu *menu, const gchar *path, gsize len)
-{
-	XdgDirectory *appdir;
-	char *key;
-
-	key = strndup(path, len);
-	if ((appdir = g_hash_table_lookup(xdg_directory_cache, key))) {
-		DPRINTF("Application directory '%s' already used\n", key);
-		free(key);
-		return appdir;
-	}
-	DPRINTF("Adding new application directory '%s'\n", key);
-	appdir = calloc(1, sizeof(*appdir));
-	appdir->path = key;
-	g_hash_table_replace(xdg_directory_cache, key, appdir);
-	if (!menu->apps)
-		menu->apps = g_hash_table_new(g_str_hash, g_str_equal);
-	xdg_add_directory(menu, key, "");
-	return appdir;
-}
 
 /*
  * <Menu>
@@ -512,21 +395,135 @@ GMarkupParser xdg_menu_parser = {
  *	of <AppDir> elements with respect to <Include> and <Exclude> elements is not relevant, also
  *	to facility merging.
  */
-void
-xdg_appdir_start_element(GMarkupParseContext *context, const gchar *element_name,
-			 const gchar **attribute_names, const gchar **attribute_values,
-			 gpointer user_data, GError **error)
+XdgFileEntry *
+xdg_add_appid(XdgMenu *menu, const char *path, const char *id, struct stat *st)
 {
-	XdgParseContext *base = user_data;
-	GNode *node = g_queue_peek_tail(base->stack);
-	XdgMenu *menu;
+	XdgFileEntry *fentry;
+	char *key;
 
-	if (!node) {
-		EPRINTF("Element <AppDir> can only occur within <Menu>!\n");
+	key = strdup(path);
+	if ((fentry = g_hash_table_lookup(xdg_fileentry_cache, key))) {
+		DPRINTF("Desktop entry file '%s' already used\n", key);
+		free(key);
+		return fentry;
+	}
+	DPRINTF("Adding new desktop entry file '%s'\n", key);
+	fentry = calloc(1, sizeof(*fentry));
+	fentry->path = key;
+	fentry->id = strdup(id);
+	fentry->st = *st;
+	g_hash_table_replace(xdg_fileentry_cache, key, fentry);
+	if (g_hash_table_replace(menu->apps, fentry->id, fentry))
+		DPRINTF("Registered new appid '%s'\n", id);
+	else
+		DPRINTF("Replaced appid '%s'\n", id);
+	return fentry;
+}
+
+static void
+xdg_scan_appdir(XdgMenu *menu, const char *base, const char *stem)
+{
+	char *dirname, *file, *appid, *p, *e;
+	int dlen, len;
+	DIR *dir;
+	struct dirent *d;
+	struct stat st;
+
+	dlen = strlen(base) + 1;
+	if (stem[0] != '\0')
+		dlen += strlen(stem) + 1;
+	dirname = calloc(dlen + 1, sizeof(*dirname));
+	strcpy(dirname, base);
+	strcat(dirname, "/");
+	if (stem[0] != '\0') {
+		strcat(dirname, stem);
+		strcat(dirname, "/");
+	}
+	if (!(dir = opendir(dirname))) {
+		EPRINTF("%s: %s\n", dirname, strerror(errno));
+		free(dirname);
 		return;
 	}
-	menu = node->data;
-	(void) menu;
+	while ((d = readdir(dir))) {
+		if (d->d_name[0] == '.')
+			continue;
+		len = dlen + strlen(d->d_name);
+		file = calloc(len + 1, sizeof(*file));
+		strcpy(file, dirname);
+		strcat(file, d->d_name);
+		if (stat(file, &st)) {
+			EPRINTF("%s: %s\n", file, strerror(errno));
+			free(file);
+			continue;
+		}
+		if (S_ISDIR(st.st_mode)) {
+			char *stem2;
+
+			len = strlen(d->d_name);
+			if (stem[0] != '\0')
+				len += strlen(stem) + 1;
+			stem2 = calloc(len + 1, sizeof(*stem2));
+			if (stem[0] != '\0') {
+				strcpy(stem2, stem);
+				strcat(stem2, "/");
+			}
+			strcat(stem2, d->d_name);
+			/* recurse */
+			xdg_scan_appdir(menu, base, stem2);
+			free(stem2);
+			continue;
+		} else if (!S_ISREG(st.st_mode)) {
+			DPRINTF("%s: not a file\n", file);
+			free(file);
+			continue;
+		}
+		if (!strstr(d->d_name, ".desktop")) {
+			DPRINTF("%s: does not end in .desktop\n", d->d_name);
+			free(file);
+			continue;
+		}
+		len = strlen(d->d_name);
+		if (stem[0] != '\0')
+			len += strlen(stem) + 1;
+		appid = calloc(len + 1, sizeof(*appid));
+		if (stem[0] != '\0') {
+			strcpy(appid, stem);
+			strcat(appid, "/");
+			for (p = appid, e = p + strlen(p); p < e; p++)
+				if (*p == '/')
+					*p = '-';
+		}
+		strcat(appid, d->d_name);
+		*strstr(appid, ".desktop") = '\0';
+		xdg_add_appid(menu, file, appid, &st);
+		free(file);
+		free(appid);
+		continue;
+	}
+	closedir(dir);
+	free(dirname);
+}
+
+static XdgDirectory *
+xdg_add_appdir(XdgMenu *menu, const gchar *path, gsize len)
+{
+	XdgDirectory *appdir;
+	char *key;
+
+	key = strndup(path, len);
+	if ((appdir = g_hash_table_lookup(xdg_directory_cache, key))) {
+		DPRINTF("Application directory '%s' already used\n", key);
+		free(key);
+		return appdir;
+	}
+	DPRINTF("Adding new application directory '%s'\n", key);
+	appdir = calloc(1, sizeof(*appdir));
+	appdir->path = key;
+	g_hash_table_replace(xdg_directory_cache, key, appdir);
+	if (!menu->apps)
+		menu->apps = g_hash_table_new(g_str_hash, g_str_equal);
+	xdg_scan_appdir(menu, key, "");
+	return appdir;
 }
 
 static void
@@ -552,30 +549,11 @@ xdg_appdir_character_data(GMarkupParseContext *context,
 }
 
 static void
-xdg_appdir_end_element(GMarkupParseContext *context,
-		       const gchar *element_name, gpointer user_data, GError **error)
-{
-	XdgParseContext *base = user_data;
-	GNode *node = g_queue_peek_tail(base->stack);
-	XdgMenu *menu;
-
-	if (!node) {
-		EPRINTF("Element <AppDir> can only occur within <Menu>!\n");
-		return;
-	}
-	menu = node->data;
-	(void) menu;
-
-}
-
-static void
 xdg_appdir_error(GMarkupParseContext *context, GError *error, gpointer user_data)
 {
 }
 
 GMarkupParser xdg_appdir_parser = {
-	.start_element = xdg_appdir_start_element,
-	.end_element = xdg_appdir_end_element,
 	.text = xdg_appdir_character_data,
 	.error = xdg_appdir_error,
 };
@@ -588,19 +566,6 @@ GMarkupParser xdg_appdir_parser = {
  *	<AppDir>, the default locations that are earlier in the search path go later in the <Menu>
  *	so that they have priority.
  */
-void
-xdg_appdirs_start_element(GMarkupParseContext *context, const gchar *element_name,
-			  const gchar **attribute_names, const gchar **attribute_values,
-			  gpointer user_data, GError **error)
-{
-}
-
-static void
-xdg_appdirs_character_data(GMarkupParseContext *context,
-			   const gchar *text, gsize text_len, gpointer user_data, GError **error)
-{
-}
-
 static void
 xdg_appdirs_end_element(GMarkupParseContext *context,
 			const gchar *element_name, gpointer user_data, GError **error)
@@ -610,7 +575,6 @@ xdg_appdirs_end_element(GMarkupParseContext *context,
 	GNode *node = g_queue_peek_tail(base->stack);
 	XdgMenu *menu;
 	XdgDirectory *appdir;
-	GSList *list = NULL;
 	char *p, path[PATH_MAX];
 
 	if (!node) {
@@ -618,13 +582,15 @@ xdg_appdirs_end_element(GMarkupParseContext *context,
 		return;
 	}
 	menu = node->data;
-	for (p = xdg_data_path; p < xdg_data_last; p += strlen(p) + 1) {
+	/* must process in reverse order */
+	for (p = xdg_find_str(xdg_data_last, xdg_data_path);
+	     p >= xdg_data_path; p = xdg_find_str(p - 1, xdg_data_path)) {
 		strncpy(path, p, PATH_MAX - 1);
 		strncat(path, suffix, PATH_MAX - 1);
+		DPRINTF("Adding application directory '%s'\n", path);
 		appdir = xdg_add_appdir(menu, path, strlen(path));
-		list = g_slist_append(list, appdir);
+		menu->appdirs = g_slist_prepend(menu->appdirs, appdir);
 	}
-	menu->appdirs = g_slist_concat(list, menu->appdirs);
 }
 
 static void
@@ -633,15 +599,13 @@ xdg_appdirs_error(GMarkupParseContext *context, GError *error, gpointer user_dat
 }
 
 GMarkupParser xdg_appdirs_parser = {
-	.start_element = xdg_appdirs_start_element,
 	.end_element = xdg_appdirs_end_element,
-	.text = xdg_appdirs_character_data,
 	.error = xdg_appdirs_error,
 };
 
 /*
  * <DirectoryDir>
- *	This element amy only appear below <Menu>.  The content of this element is a directory name.
+ *	This element may only appear below <Menu>.  The content of this element is a directory name.
  *	Each directory listed in a <DirectoryDir> element will be searched for directory entries to
  *	be used when resolving the <Directory> element for this menu and its submenus.  If the
  *	filename given as a <DirectoryDir> is not an absolute path, it should be located relative to
@@ -658,29 +622,167 @@ GMarkupParser xdg_appdirs_parser = {
  *	duplicalte <AppDir> elements (the last duplicate is used).
  *
  */
-void
-xdg_dirdir_start_element(GMarkupParseContext *context, const gchar *element_name,
-			 const gchar **attribute_names, const gchar **attribute_values,
-			 gpointer user_data, GError **error)
+XdgFileEntry *
+xdg_add_dirid(XdgMenu *menu, const char *path, const char *id, struct stat *st)
 {
+	XdgFileEntry *fentry;
+	char *key;
+
+	key = strdup(path);
+	if ((fentry = g_hash_table_lookup(xdg_fileentry_cache, key))) {
+		DPRINTF("Desktop entry file '%s' already used\n", key);
+		free(key);
+		return fentry;
+	}
+	DPRINTF("Adding new desktop entry file '%s'\n", key);
+	fentry = calloc(1, sizeof(*fentry));
+	fentry->path = key;
+	fentry->id = strdup(id);
+	fentry->st = *st;
+	g_hash_table_replace(xdg_fileentry_cache, key, fentry);
+	if (g_hash_table_replace(menu->apps, fentry->id, fentry))
+		DPRINTF("Registered new dirid '%s'\n", id);
+	else
+		DPRINTF("Replaced dirid '%s'\n", id);
+	return fentry;
 }
 
 static void
-xdg_dirdir_end_element(GMarkupParseContext *context,
-		       const gchar *element_name, gpointer user_data, GError **error)
+xdg_scan_dirdir(XdgMenu *menu, const char *base, const char *stem)
 {
+	char *dirname, *file, *dirid, *p, *e;
+	int dlen, len;
+	DIR *dir;
+	struct dirent *d;
+	struct stat st;
+
+	dlen = strlen(base) + 1;
+	if (stem[0] != '\0')
+		dlen += strlen(stem) + 1;
+	dirname = calloc(dlen + 1, sizeof(*dirname));
+	strcpy(dirname, base);
+	strcat(dirname, "/");
+	if (stem[0] != '\0') {
+		strcat(dirname, stem);
+		strcat(dirname, "/");
+	}
+	if (!(dir = opendir(dirname))) {
+		EPRINTF("%s: %s\n", dirname, strerror(errno));
+		free(dirname);
+		return;
+	}
+	while ((d = readdir(dir))) {
+		if (d->d_name[0] == '.')
+			continue;
+		len = dlen + strlen(d->d_name);
+		file = calloc(len + 1, sizeof(*file));
+		strcpy(file, dirname);
+		strcat(file, d->d_name);
+		if (stat(file, &st)) {
+			EPRINTF("%s: %s\n", file, strerror(errno));
+			free(file);
+			continue;
+		}
+		if (S_ISDIR(st.st_mode)) {
+			char *stem2;
+
+			len = strlen(d->d_name);
+			if (stem[0] != '\0')
+				len += strlen(stem) + 1;
+			stem2 = calloc(len + 1, sizeof(*stem2));
+			if (stem[0] != '\0') {
+				strcpy(stem2, stem);
+				strcat(stem2, "/");
+			}
+			strcat(stem2, d->d_name);
+			/* recurse */
+			xdg_scan_dirdir(menu, base, stem2);
+			free(stem2);
+			continue;
+		} else if (!S_ISREG(st.st_mode)) {
+			DPRINTF("%s: not a file\n", file);
+			free(file);
+			continue;
+		}
+		if (!strstr(d->d_name, ".directory")) {
+			DPRINTF("%s: does not end in .directory\n", d->d_name);
+			free(file);
+			continue;
+		}
+		len = strlen(d->d_name);
+		if (stem[0] != '\0')
+			len += strlen(stem) + 1;
+		dirid = calloc(len + 1, sizeof(*dirid));
+		if (stem[0] != '\0') {
+			strcpy(dirid, stem);
+			strcat(dirid, "/");
+			for (p = dirid, e = p + strlen(p); p < e; p++)
+				if (*p == '/')
+					*p = '-';
+		}
+		strcat(dirid, d->d_name);
+		*strstr(dirid, ".directory") = '\0';
+		xdg_add_dirid(menu, file, dirid, &st);
+		free(file);
+		free(dirid);
+		continue;
+	}
+	closedir(dir);
+	free(dirname);
+}
+
+static XdgDirectory *
+xdg_add_dirdir(XdgMenu *menu, const gchar *path, gsize len)
+{
+	XdgDirectory *dirdir;
+	char *key;
+
+	key = strndup(path, len);
+	if ((dirdir = g_hash_table_lookup(xdg_directory_cache, key))) {
+		DPRINTF("Directory directory '%s' already used\n", key);
+		free(key);
+		return dirdir;
+	}
+	DPRINTF("Adding new directory directory '%s'\n", key);
+	dirdir = calloc(1, sizeof(*dirdir));
+	dirdir->path = key;
+	g_hash_table_replace(xdg_directory_cache, key, dirdir);
+	if (!menu->dirs)
+		menu->dirs = g_hash_table_new(g_str_hash, g_str_equal);
+	xdg_scan_dirdir(menu, key, "");
+	return dirdir;
 }
 
 static void
 xdg_dirdir_character_data(GMarkupParseContext *context,
 			  const gchar *text, gsize text_len, gpointer user_data, GError **error)
 {
+	XdgParseContext *base = user_data;
+	GNode *node = g_queue_peek_tail(base->stack);
+	XdgMenu *menu;
+	XdgDirectory *dirdir;
+	const gchar *tend = text + text_len;
+
+	if (!node) {
+		EPRINTF("Element <DirectoryDir> can only occur within <Menu>!\n");
+		return;
+	}
+	for (; text < tend && isspace(*text); text++, text_len--) ;
+	for (; tend > text && isspace(*tend); tend--, text_len--) ;
+	menu = node->data;
+	dirdir = xdg_add_dirdir(menu, text, text_len);
+	menu->dirdirs = g_slist_prepend(menu->dirdirs, dirdir);
 }
 
 static void
 xdg_dirdir_error(GMarkupParseContext *context, GError *error, gpointer user_data)
 {
 }
+
+GMarkupParser xdg_dirdir_parser = {
+	.text = xdg_dirdir_character_data,
+	.error = xdg_dirdir_error,
+};
 
 /*
  * <DefaultDirectoryDirs>
@@ -689,30 +791,31 @@ xdg_dirdir_error(GMarkupParseContext *context, GError *error, gpointer user_data
  *	directory locations (datadir/desktop-directories/ etc.).  THe default locates that are
  *	earlier in the search path go later in the <Menu> so that they have priority.
  */
-GMarkupParser xdg_dirdir_parser = {
-	.start_element = xdg_dirdir_start_element,
-	.end_element = xdg_dirdir_end_element,
-	.text = xdg_dirdir_character_data,
-	.error = xdg_dirdir_error,
-};
-
-void
-xdg_dirdirs_start_element(GMarkupParseContext *context, const gchar *element_name,
-			  const gchar **attribute_names, const gchar **attribute_values,
-			  gpointer user_data, GError **error)
-{
-}
-
 static void
 xdg_dirdirs_end_element(GMarkupParseContext *context,
 			const gchar *element_name, gpointer user_data, GError **error)
 {
-}
+	static const char *suffix = "/desktop-directories";
+	XdgParseContext *base = user_data;
+	GNode *node = g_queue_peek_tail(base->stack);
+	XdgMenu *menu;
+	XdgDirectory *dirdir;
+	char *p, path[PATH_MAX];
 
-static void
-xdg_dirdirs_character_data(GMarkupParseContext *context,
-			   const gchar *text, gsize text_len, gpointer user_data, GError **error)
-{
+	if (!node) {
+		EPRINTF("Element <AppDir> can only occur within <Menu>!\n");
+		return;
+	}
+	menu = node->data;
+	/* must process in reverse order */
+	for (p = xdg_find_str(xdg_data_last, xdg_data_path);
+	     p >= xdg_data_path; p = xdg_find_str(p - 1, xdg_data_path)) {
+		strncpy(path, p, PATH_MAX - 1);
+		strncat(path, suffix, PATH_MAX - 1);
+		DPRINTF("Adding application directory '%s'\n", path);
+		dirdir = xdg_add_dirdir(menu, path, strlen(path));
+		menu->dirdirs = g_slist_prepend(menu->dirdirs, dirdir);
+	}
 }
 
 static void
@@ -721,9 +824,7 @@ xdg_dirdirs_error(GMarkupParseContext *context, GError *error, gpointer user_dat
 }
 
 GMarkupParser xdg_dirdirs_parser = {
-	.start_element = xdg_dirdirs_start_element,
 	.end_element = xdg_dirdirs_end_element,
-	.text = xdg_dirdirs_character_data,
 	.error = xdg_dirdirs_error,
 };
 
@@ -3203,11 +3304,20 @@ set_default_paths()
 	strcat(xdg_data_path, ":");
 	strcat(xdg_data_path, xdg_data_dirs);
 	xdg_data_last = xdg_data_path + strlen(xdg_data_path);
-	DPRINTF("Full data path is: '%s'\n", xdg_config_path);
+	DPRINTF("Full data path is: '%s'\n", xdg_data_path);
 	p = xdg_data_path;
 	e = xdg_data_last;
 	while ((p = strchrnul(p, ':')) < e)
 		*p++ = '\0';
+	DPRINTF("Directories in forward order:\n");
+	for (p = xdg_data_path; p < xdg_data_last; p += strlen(p) + 1) {
+		DPRINTF("\t%s\n", p);
+	}
+	DPRINTF("Directories in reverse order:\n");
+	for (p = xdg_find_str(xdg_data_last, xdg_data_path);
+	     p >= xdg_data_path; p = xdg_find_str(p - 1, xdg_data_path)) {
+		DPRINTF("\t%s\n", p);
+	}
 
 	if ((env = getenv("XDG_CONFIG_HOME")))
 		xdg_config_home = strdup(env);
@@ -3233,6 +3343,15 @@ set_default_paths()
 	e = xdg_config_last;
 	while ((p = strchrnul(p, ':')) < e)
 		*p++ = '\0';
+	DPRINTF("Directories in forward order:\n");
+	for (p = xdg_config_path; p < xdg_config_last; p += strlen(p) + 1) {
+		DPRINTF("\t%s\n", p);
+	}
+	DPRINTF("Directories in reverse order:\n");
+	for (p = xdg_find_str(xdg_config_last, xdg_config_path);
+	     p >= xdg_config_path; p = xdg_find_str(p - 1, xdg_config_path)) {
+		DPRINTF("\t%s\n", p);
+	}
 }
 
 static void
