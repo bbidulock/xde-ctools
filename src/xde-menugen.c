@@ -366,16 +366,22 @@ typedef struct {
 } XdgRule;
 
 typedef struct {
+	char *old;
+	char *new;
+} XdgMove;
+
+typedef struct {
 	char *name;
-	GSList *appdirs;		/* applications directories (need these?) */
+	GList *appdirs;			/* applications directories (need these?) */
 	GHashTable *apps;		/* applications by id */
-	GSList *dirdirs;		/* directories directories (need these?) */
+	GList *dirdirs;			/* directories directories (need these?) */
 	GHashTable *dirs;		/* directories by id */
 	char *directory;		/* directory for this menu item */
 	XdgFileEntry *dentry;		/* .directory file for this menu */
 	gboolean only_u;		/* only unallocated? */
 	gboolean deleted;		/* is menu manually deleted? */
 	GNode *root;			/* rules tree */
+	GList *moves;			/* moves for this menu */
 } XdgMenu;
 
 /*
@@ -644,7 +650,7 @@ xdg_appdir_character_data(GMarkupParseContext *context,
 	for (; text < tend && isspace(*text); text++, text_len--) ;
 	for (; tend > text && isspace(*tend); tend--, text_len--) ;
 	appdir = xdg_add_appdir(menu, text, text_len);
-	menu->appdirs = g_slist_prepend(menu->appdirs, appdir);
+	menu->appdirs = g_list_append(menu->appdirs, appdir);
 
 }
 
@@ -684,7 +690,7 @@ xdg_appdirs_end_element(GMarkupParseContext *context,
 		strncat(path, suffix, PATH_MAX - 1);
 		DPRINTF("Adding application directory '%s'\n", path);
 		appdir = xdg_add_appdir(menu, path, strlen(path));
-		menu->appdirs = g_slist_prepend(menu->appdirs, appdir);
+		menu->appdirs = g_list_append(menu->appdirs, appdir);
 	}
 }
 
@@ -872,7 +878,7 @@ xdg_dirdir_character_data(GMarkupParseContext *context,
 	for (; text < tend && isspace(*text); text++, text_len--) ;
 	for (; tend > text && isspace(*tend); tend--, text_len--) ;
 	dirdir = xdg_add_dirdir(menu, text, text_len);
-	menu->dirdirs = g_slist_prepend(menu->dirdirs, dirdir);
+	menu->dirdirs = g_list_append(menu->dirdirs, dirdir);
 }
 
 static void
@@ -910,7 +916,7 @@ xdg_dirdirs_end_element(GMarkupParseContext *context,
 		strncat(path, suffix, PATH_MAX - 1);
 		DPRINTF("Adding application directory '%s'\n", path);
 		dirdir = xdg_add_dirdir(menu, path, strlen(path));
-		menu->dirdirs = g_slist_prepend(menu->dirdirs, dirdir);
+		menu->dirdirs = g_list_append(menu->dirdirs, dirdir);
 	}
 }
 
@@ -1769,18 +1775,13 @@ xdg_move_start_element(GMarkupParseContext *context, const gchar *element_name,
 		       const gchar **attribute_names, const gchar **attribute_values,
 		       gpointer user_data, GError **error)
 {
-}
+	XdgMenu *menu;
+	XdgMove *move;
 
-static void
-xdg_move_end_element(GMarkupParseContext *context,
-		     const gchar *element_name, gpointer user_data, GError **error)
-{
-}
-
-static void
-xdg_move_character_data(GMarkupParseContext *context,
-			const gchar *text, gsize text_len, gpointer user_data, GError **error)
-{
+	if (!(menu = xdg_get_menu(user_data, element_name)))
+		return;
+	move = calloc(1, sizeof(*move));
+	menu->moves = g_list_append(menu->moves, move);
 }
 
 static void
@@ -1790,8 +1791,6 @@ xdg_move_error(GMarkupParseContext *context, GError *error, gpointer user_data)
 
 GMarkupParser xdg_move_parser = {
 	.start_element = xdg_move_start_element,
-	.end_element = xdg_move_end_element,
-	.text = xdg_move_character_data,
 	.error = xdg_move_error,
 };
 
@@ -1802,23 +1801,34 @@ GMarkupParser xdg_move_parser = {
  *	<Name> fields, see Menu path).  Paths are interpreted relative to the menu containing the
  *	<Move> element.
  */
-void
-xdg_old_start_element(GMarkupParseContext *context, const gchar *element_name,
-		      const gchar **attribute_names, const gchar **attribute_values,
-		      gpointer user_data, GError **error)
-{
-}
-
-static void
-xdg_old_end_element(GMarkupParseContext *context,
-		    const gchar *element_name, gpointer user_data, GError **error)
-{
-}
-
 static void
 xdg_old_character_data(GMarkupParseContext *context,
 		       const gchar *text, gsize text_len, gpointer user_data, GError **error)
 {
+	const char *element_name = "Old";
+	XdgParseContext *base = user_data;
+	XdgParserMapping *m;
+	XdgMenu *menu;
+	XdgMove *move;
+	GList *item;
+	const gchar *tend = text + text_len;
+	
+	if (!(menu = xdg_get_menu(user_data, element_name)))
+		return;
+	m = g_queue_peek_tail(base->elements);
+	if (!m || !m->label || strcmp(m->label, "Move")) {
+		EPRINTF("Element <%s> can only occur directly beneath <Move>!\n", element_name);
+		return;
+	}
+	if (!(item = g_list_last(menu->moves)))
+		return;
+	move = item->data;
+	if (move->old)
+		WPRINTF("Multiple element <%s> for a given <Move>!\n", element_name);
+	free(move->old);
+	for (; text < tend && isspace(*text); text++, text_len--) ;
+	for (; tend > text && isspace(*tend); tend--, text_len--) ;
+	move->old = strndup(text, text_len);
 }
 
 static void
@@ -1827,8 +1837,6 @@ xdg_old_error(GMarkupParseContext *context, GError *error, gpointer user_data)
 }
 
 GMarkupParser xdg_old_parser = {
-	.start_element = xdg_old_start_element,
-	.end_element = xdg_old_end_element,
 	.text = xdg_old_character_data,
 	.error = xdg_old_error,
 };
@@ -1838,23 +1846,34 @@ GMarkupParser xdg_old_parser = {
  *	This element may only appear below <Move>, and must be preceded by an <Old> element.  The
  *	<New> elemetn specifies the new path for the prceding <Old> element.
  */
-void
-xdg_new_start_element(GMarkupParseContext *context, const gchar *element_name,
-		      const gchar **attribute_names, const gchar **attribute_values,
-		      gpointer user_data, GError **error)
-{
-}
-
-static void
-xdg_new_end_element(GMarkupParseContext *context,
-		    const gchar *element_name, gpointer user_data, GError **error)
-{
-}
-
 static void
 xdg_new_character_data(GMarkupParseContext *context,
 		       const gchar *text, gsize text_len, gpointer user_data, GError **error)
 {
+	const char *element_name = "New";
+	XdgParseContext *base = user_data;
+	XdgParserMapping *m;
+	XdgMenu *menu;
+	XdgMove *move;
+	GList *item;
+	const gchar *tend = text + text_len;
+	
+	if (!(menu = xdg_get_menu(user_data, element_name)))
+		return;
+	m = g_queue_peek_tail(base->elements);
+	if (!m || !m->label || strcmp(m->label, "Move")) {
+		EPRINTF("Element <%s> can only occur directly beneath <Move>!\n", element_name);
+		return;
+	}
+	if (!(item = g_list_last(menu->moves)))
+		return;
+	move = item->data;
+	if (move->new)
+		WPRINTF("Multiple element <%s> for a given <Move>!\n", element_name);
+	free(move->new);
+	for (; text < tend && isspace(*text); text++, text_len--) ;
+	for (; tend > text && isspace(*tend); tend--, text_len--) ;
+	move->new = strndup(text, text_len);
 }
 
 static void
@@ -1863,8 +1882,6 @@ xdg_new_error(GMarkupParseContext *context, GError *error, gpointer user_data)
 }
 
 GMarkupParser xdg_new_parser = {
-	.start_element = xdg_new_start_element,
-	.end_element = xdg_new_end_element,
 	.text = xdg_new_character_data,
 	.error = xdg_new_error,
 };

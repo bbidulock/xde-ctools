@@ -307,3 +307,4 @@
 -TXdgRule
 -TXdgParserMapping
 -TXdgMenu
+-TXdgMove
