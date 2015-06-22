@@ -306,3 +306,4 @@
 -TXdgFileEntry
 -TXdgRule
 -TXdgParserMapping
+-TXdgMenu

@@ -486,8 +486,9 @@ xdg_get_menu(XdgParseContext *base, const gchar *element_name)
  *	of <AppDir> elements with respect to <Include> and <Exclude> elements is not relevant, also
  *	to facility merging.
  */
+#if 0
 XdgFileEntry *
-xdg_add_appid(XdgMenu * menu, const char *path, const char *id, struct stat *st)
+xdg_add_appid(XdgMenu *menu, const char *path, const char *id, struct stat *st)
 {
 	XdgFileEntry *fentry;
 	char *key;
@@ -512,7 +513,7 @@ xdg_add_appid(XdgMenu * menu, const char *path, const char *id, struct stat *st)
 }
 
 static void
-xdg_scan_appdir(XdgMenu * menu, const char *base, const char *stem)
+xdg_scan_appdir(XdgMenu *menu, const char *base, const char *stem)
 {
 	char *dirname, *file, *appid, *p, *e;
 	int dlen, len;
@@ -595,7 +596,7 @@ xdg_scan_appdir(XdgMenu * menu, const char *base, const char *stem)
 }
 
 static XdgDirectory *
-xdg_add_appdir(XdgMenu * menu, const gchar *path, gsize len)
+xdg_add_appdir(XdgMenu *menu, const gchar *path, gsize len)
 {
 	XdgDirectory *appdir;
 	char *key;
@@ -615,6 +616,20 @@ xdg_add_appdir(XdgMenu * menu, const gchar *path, gsize len)
 	xdg_scan_appdir(menu, key, "");
 	return appdir;
 }
+#else
+static XdgDirectory *
+xdg_add_appdir(XdgMenu *menu, const gchar *path, gsize len)
+{
+	XdgDirectory *appdir;
+	char *key;
+
+	key = strndup(path, len);
+	DPRINTF("Adding application directory '%s'\n", key);
+	appdir = calloc(1, sizeof(*appdir));
+	appdir->path = key;
+	return appdir;
+}
+#endif
 
 static void
 xdg_appdir_character_data(GMarkupParseContext *context,
@@ -702,8 +717,9 @@ GMarkupParser xdg_appdirs_parser = {
  *	duplicalte <AppDir> elements (the last duplicate is used).
  *
  */
+#if 0
 XdgFileEntry *
-xdg_add_dirid(XdgMenu * menu, const char *path, const char *id, struct stat *st)
+xdg_add_dirid(XdgMenu *menu, const char *path, const char *id, struct stat *st)
 {
 	XdgFileEntry *fentry;
 	char *key;
@@ -728,7 +744,7 @@ xdg_add_dirid(XdgMenu * menu, const char *path, const char *id, struct stat *st)
 }
 
 static void
-xdg_scan_dirdir(XdgMenu * menu, const char *base, const char *stem)
+xdg_scan_dirdir(XdgMenu *menu, const char *base, const char *stem)
 {
 	char *dirname, *file, *dirid;
 	int dlen, len;
@@ -808,7 +824,7 @@ xdg_scan_dirdir(XdgMenu * menu, const char *base, const char *stem)
 }
 
 static XdgDirectory *
-xdg_add_dirdir(XdgMenu * menu, const gchar *path, gsize len)
+xdg_add_dirdir(XdgMenu *menu, const gchar *path, gsize len)
 {
 	XdgDirectory *dirdir;
 	char *key;
@@ -828,6 +844,20 @@ xdg_add_dirdir(XdgMenu * menu, const gchar *path, gsize len)
 	xdg_scan_dirdir(menu, key, "");
 	return dirdir;
 }
+#else
+static XdgDirectory *
+xdg_add_dirdir(XdgMenu *menu, const gchar *path, gsize len)
+{
+	XdgDirectory *dirdir;
+	char *key;
+
+	key = strndup(path, len);
+	DPRINTF("Adding directory directory '%s'\n", key);
+	dirdir = calloc(1, sizeof(*dirdir));
+	dirdir->path = key;
+	return dirdir;
+}
+#endif
 
 static void
 xdg_dirdir_character_data(GMarkupParseContext *context,
