@@ -303,6 +303,28 @@ xdg_directory_destroy(gpointer data)
 	free(p);
 }
 
+enum mergeType {
+	MergeTypeFilePath = 0,
+	MergeTypeFileParent = 1,
+	MergeTypeDirectory = 2,
+};
+
+typedef struct {
+	enum mergeType type;
+	char *path;
+	struct stat st;
+} XdgMerge;
+
+void
+xdg_merge_destroy(gpointer data)
+{
+	XdgMerge *p = data;
+
+	free(p->path);
+	p->path = NULL;
+	free(p);
+}
+
 typedef struct {
 	char *path;
 	char *id;
@@ -392,11 +414,13 @@ typedef struct {
 
 typedef struct {
 	char *name;
-	GList *appdirs;			/* applications directories (need these?) */
+	GList *appdirs;			/* applications directories */
 	GHashTable *apps;		/* applications by id */
-	GList *dirdirs;			/* directories directories (need these?) */
+	GList *dirdirs;			/* directories directories */
 	GHashTable *dirs;		/* directories by id */
+	GList *merge;			/* merge directories */
 	char *directory;		/* directory for this menu item */
+	GList *legdirs;			/* legacy directories */
 	XdgFileEntry *dentry;		/* .directory file for this menu */
 	gboolean only_u;		/* only unallocated? */
 	gboolean deleted;		/* is menu manually deleted? */
@@ -1599,24 +1623,87 @@ GMarkupParser xdg_not_parser = {
  *	element indicates the file to be merged.  If this is not an absolute path then the file to
  *	be merged should be located relative to the location of the menu file that contains this
  *	<MergeFile> element.
+ *
+ *	Duplicate <MergeFile> elements (that specify the same file) are handled as with duplicate
+ *	<AppDir> elements (the last duplicate is used).
+ *
+ *	If the type attribute is set to "parent" and the file that contains this <MergeFile> element
+ *	is located under one of the paths specified by $XDG_CONFIG_DIRS, the contents of the
+ *	element should be ignored and the remaining paths specified by $XDG_CONFIG_DIRS are search
+ *	for a file with the same relative filename.  The first file encountered should be merged.
+ *	There should be no merging at all if no matching file is found.
+ *
+ *	Compatibility note:  The filename specified inside the <MergeFile> element should be ignored
+ *	if the type attribute is set to "parent", it should however be expected that
+ *	imiplemeNtations based on previous versions of this specification will ingore the type
+ *	attribute and that such implementations will sue the filename inside the <MergeFile> element
+ *	instead.
+ *
+ *	Example 1: If $XDG_CONFIG_HOME is "~/.config/" and $XDG_CONFIG_DIRS is
+ *	"/opt/gnome/:/etc/xdg/" and the file ~/.config/menus/applications.menu contains <MergeFile
+ *	type="parent">/opt/kde3/etc/xdg/menus/applications.menu</MergeFile> then the file
+ *	/opt/gnome/menus/applications.menu should be merged if it exists.  If that file does not
+ *	exist then the file /etc/xdg/menus/applications.menu should be merged instead.
+ *
+ *	Example 2: If $XDG_CONFIG_HOME is "~/.config/" and $XDG_CONFIG_DIRS is
+ *	"/opt/gnome/:/etc/xdg/" and the file /opt/gnome/menus/applications.menu contains <MergeFile
+ *	type="parent">/opt/kde3/etc/xdg/menus/applications.menu</MergeFile> then the file
+ *	/etc/xdg/menus/applications.menu should be merged if it exists.
  */
 void
 xdg_mergefile_start_element(GMarkupParseContext *context, const gchar *element_name,
 			    const gchar **attribute_names, const gchar **attribute_values,
 			    gpointer user_data, GError **error)
 {
-}
+	XdgMenu *menu;
+	XdgMerge *mfile;
+	const gchar **name, **valu;
 
-static void
-xdg_mergefile_end_element(GMarkupParseContext *context,
-			  const gchar *element_name, gpointer user_data, GError **error)
-{
+	if (!(menu = xdg_get_menu(user_data, element_name)))
+		return;
+
+	mfile = calloc(1, sizeof(*mfile));
+	mfile->type = MergeTypeFilePath;
+
+	for (name = attribute_names, valu = attribute_values; name && *name; name++, valu++) {
+		if (!strcmp(*name, "type")) {
+			if (!strcasecmp(*valu, "path"))
+				mfile->type = MergeTypeFilePath;
+			else if (!strcasecmp(*valu, "parent"))
+				mfile->type = MergeTypeFileParent;
+			else
+				WPRINTF
+				    ("Unrecognized value '%s' of attribute '%s' of element <%s>!\n",
+				     *valu, *name, element_name);
+		} else
+			WPRINTF("Unrecognized attribute '%s' of element <%s>!\n",
+				*name, element_name);
+	}
+
+	menu->merge = g_list_append(menu->merge, mfile);
+
 }
 
 static void
 xdg_mergefile_character_data(GMarkupParseContext *context,
 			     const gchar *text, gsize text_len, gpointer user_data, GError **error)
 {
+	static const char *element_name = "MergeFile";
+	XdgMenu *menu;
+	XdgMerge *mfile;
+	GList *item;
+	const gchar *tend = text + text_len;
+
+	if (!(menu = xdg_get_menu(user_data, element_name)))
+		return;
+	if (!(item = g_list_last(menu->merge)))
+		return;
+	mfile = item->data;
+
+	for (; text < text && isspace(*text); text++, text_len--) ;
+	for (; tend > text && isspace(*tend); tend--, text_len--) ;
+
+	mfile->path = strndup(text, text_len);
 }
 
 static void
@@ -1626,7 +1713,6 @@ xdg_mergefile_error(GMarkupParseContext *context, GError *error, gpointer user_d
 
 GMarkupParser xdg_mergefile_parser = {
 	.start_element = xdg_mergefile_start_element,
-	.end_element = xdg_mergefile_end_element,
 	.text = xdg_mergefile_character_data,
 	.error = xdg_mergefile_error,
 };
@@ -1643,23 +1729,26 @@ GMarkupParser xdg_mergefile_parser = {
  *	Duplicate <MergeDir> elements (that specify the same directory) are handled as with
  *	duplicate <AppDir> element (the last duplicate is used).
  */
-void
-xdg_mergedir_start_element(GMarkupParseContext *context, const gchar *element_name,
-			   const gchar **attribute_names, const gchar **attribute_values,
-			   gpointer user_data, GError **error)
-{
-}
-
-static void
-xdg_mergedir_end_element(GMarkupParseContext *context,
-			 const gchar *element_name, gpointer user_data, GError **error)
-{
-}
-
 static void
 xdg_mergedir_character_data(GMarkupParseContext *context,
 			    const gchar *text, gsize text_len, gpointer user_data, GError **error)
 {
+	static const char *element_name = "MergeDir";
+	XdgMenu *menu;
+	XdgMerge *mdir;
+	const gchar *tend = text + text_len;
+
+	if (!(menu = xdg_get_menu(user_data, element_name)))
+		return;
+
+	for (; text < text && isspace(*text); text++, text_len--) ;
+	for (; tend > text && isspace(*tend); tend--, text_len--) ;
+
+	mdir = calloc(1, sizeof(*mdir));
+	mdir->type = MergeTypeDirectory;
+	mdir->path = strndup(text, text_len);
+
+	menu->merge = g_list_append(menu->merge, mdir);
 }
 
 static void
@@ -1668,37 +1757,40 @@ xdg_mergedir_error(GMarkupParseContext *context, GError *error, gpointer user_da
 }
 
 GMarkupParser xdg_mergedir_parser = {
-	.start_element = xdg_mergedir_start_element,
-	.end_element = xdg_mergedir_end_element,
 	.text = xdg_mergedir_character_data,
 	.error = xdg_mergedir_error,
 };
 
 /*
  * <DefaultMergeDirs>
- *	This element may only appear below <Menu>.  The element has not content.  The element should
- *	eb treated as if it were a list of <MergeDir> elements containing the defulat merge
- *	directory locations.  When expanding <DefaultMergeDires> to a list of <MergeDir>, the
+ *	This element may only appear below <Menu>.  The element has no content.  The element should
+ *	eb treated as if it were a list of <MergeDir> elements containing the default merge
+ *	directory locations.  When expanding <DefaultMergeDirs> to a list of <MergeDir>, the
  *	default locations that are earlier in the serach path go later in the <Menu> so that they
  *	have priority.
  */
-void
-xdg_mergedirs_start_element(GMarkupParseContext *context, const gchar *element_name,
-			    const gchar **attribute_names, const gchar **attribute_values,
-			    gpointer user_data, GError **error)
-{
-}
-
 static void
 xdg_mergedirs_end_element(GMarkupParseContext *context,
 			  const gchar *element_name, gpointer user_data, GError **error)
 {
-}
+	static const char *suffix = "/menus/applications-merged";
+	XdgMenu *menu;
+	XdgMerge *mrgdir;
+	char *p, path[PATH_MAX];
 
-static void
-xdg_mergedirs_character_data(GMarkupParseContext *context,
-			     const gchar *text, gsize text_len, gpointer user_data, GError **error)
-{
+	if (!(menu = xdg_get_menu(user_data, element_name)))
+		return;
+	/* must process in reverse order */
+	for (p = xdg_find_str(xdg_config_last, xdg_config_path);
+	     p >= xdg_config_path; p = xdg_find_str(p - 1, xdg_config_path)) {
+		strncpy(path, p, PATH_MAX - 1);
+		strncat(path, suffix, PATH_MAX - 1);
+		DPRINTF("Adding merge directory '%s'\n", path);
+		mrgdir = calloc(1, sizeof(*mrgdir));
+		mrgdir->type = MergeTypeDirectory;
+		mrgdir->path = strdup(path);
+		menu->merge = g_list_append(menu->merge, mrgdir);
+	}
 }
 
 static void
@@ -1707,9 +1799,7 @@ xdg_mergedirs_error(GMarkupParseContext *context, GError *error, gpointer user_d
 }
 
 GMarkupParser xdg_mergedirs_parser = {
-	.start_element = xdg_mergedirs_start_element,
 	.end_element = xdg_mergedirs_end_element,
-	.text = xdg_mergedirs_character_data,
 	.error = xdg_mergedirs_error,
 };
 
@@ -1718,7 +1808,7 @@ GMarkupParser xdg_mergedirs_parser = {
  *	This element may only appear below <Menu>.  The text content of this element is a directory
  *	name.  Each directory listed in a <LegacyDir> element will be an old-style legacy hierarchy
  *	of desktop entires, see the section called "Legacy Menu Hierarchies" for how to load such a
- *	hierarchy.  Implemetations must not load legacy hierarchies that are nto explicitly
+ *	hierarchy.  Implemetations must not load legacy hierarchies that are not explicitly
  *	specified in the menu file (because for example the menu file may not be the main menu).  If
  *	the filename given as a <LegacyDir> is not an absolute path, it should be located relative
  *	to the location of the menu field being parsed.
@@ -1732,23 +1822,22 @@ GMarkupParser xdg_mergedirs_parser = {
  *	desktop-file id boo-Hello.desktop.  The prefix should not contain patch separator ('/')
  *	characters.
  */
-void
-xdg_legacydir_start_element(GMarkupParseContext *context, const gchar *element_name,
-			    const gchar **attribute_names, const gchar **attribute_values,
-			    gpointer user_data, GError **error)
-{
-}
-
-static void
-xdg_legacydir_end_element(GMarkupParseContext *context,
-			  const gchar *element_name, gpointer user_data, GError **error)
-{
-}
-
 static void
 xdg_legacydir_character_data(GMarkupParseContext *context,
 			     const gchar *text, gsize text_len, gpointer user_data, GError **error)
 {
+	static const char *element_name = "LegacyDir";
+	XdgMenu *menu;
+	XdgDirectory *legdir;
+	const gchar *tend = text + text_len;
+
+	if (!(menu = xdg_get_menu(user_data, element_name)))
+		return;
+	for (; text < tend && isspace(*text); text++, text_len--) ;
+	for (; tend > text && isspace(*tend); tend--, text_len--) ;
+	legdir = calloc(1, sizeof(*legdir));
+	legdir->path = strndup(text, text_len);
+	menu->legdirs = g_list_append(menu->legdirs, legdir);
 }
 
 static void
@@ -1757,38 +1846,24 @@ xdg_legacydir_error(GMarkupParseContext *context, GError *error, gpointer user_d
 }
 
 GMarkupParser xdg_legacydir_parser = {
-	.start_element = xdg_legacydir_start_element,
-	.end_element = xdg_legacydir_end_element,
 	.text = xdg_legacydir_character_data,
 	.error = xdg_legacydir_error,
 };
 
 /*
  * <KDELegacyDirs>
- *	This element man only appear below <Menu>.  The element has not content.  The element should
+ *	This element man only appear below <Menu>.  The element has no content.  The element should
  *	be treated as it if were a list of <LegacyDir> elements containing the traditional desktop
  *	file locations supported by KDE with a hard coded prefix of "kde-".  When expanding
  *	<KDELegacyDirs> to a list of <LegacyDir>, the locations that are earlier in the earch path
  *	go later in the <Menu> so that they have priority.  The search path can be obtained by
  *	running kde-config --path apps.
  */
-void
-xdg_kdedirs_start_element(GMarkupParseContext *context, const gchar *element_name,
-			  const gchar **attribute_names, const gchar **attribute_values,
-			  gpointer user_data, GError **error)
-{
-}
-
 static void
 xdg_kdedirs_end_element(GMarkupParseContext *context,
 			const gchar *element_name, gpointer user_data, GError **error)
 {
-}
-
-static void
-xdg_kdedirs_character_data(GMarkupParseContext *context,
-			   const gchar *text, gsize text_len, gpointer user_data, GError **error)
-{
+	DPRINTF("The <%s> element is obsolete and deprecated.\n", element_name);
 }
 
 static void
@@ -1797,9 +1872,7 @@ xdg_kdedirs_error(GMarkupParseContext *context, GError *error, gpointer user_dat
 }
 
 GMarkupParser xdg_kdedirs_parser = {
-	.start_element = xdg_kdedirs_start_element,
 	.end_element = xdg_kdedirs_end_element,
-	.text = xdg_kdedirs_character_data,
 	.error = xdg_kdedirs_error,
 };
 

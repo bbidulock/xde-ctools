@@ -309,3 +309,4 @@
 -TXdgMenu
 -TXdgMove
 -TXdgLayout
+-TXdgMerge
