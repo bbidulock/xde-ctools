@@ -307,10 +307,12 @@ enum mergeType {
 	MergeTypeFilePath = 0,
 	MergeTypeFileParent = 1,
 	MergeTypeDirectory = 2,
+	MergeTypeLegacy = 3,
 };
 
 typedef struct {
 	enum mergeType type;
+	char *prefix;
 	char *path;
 	struct stat st;
 } XdgMerge;
@@ -420,7 +422,6 @@ typedef struct {
 	GHashTable *dirs;		/* directories by id */
 	GList *merge;			/* merge directories */
 	char *directory;		/* directory for this menu item */
-	GList *legdirs;			/* legacy directories */
 	XdgFileEntry *dentry;		/* .directory file for this menu */
 	gboolean only_u;		/* only unallocated? */
 	gboolean deleted;		/* is menu manually deleted? */
@@ -1822,22 +1823,45 @@ GMarkupParser xdg_mergedirs_parser = {
  *	desktop-file id boo-Hello.desktop.  The prefix should not contain patch separator ('/')
  *	characters.
  */
+void
+xdg_legacydir_start_element(GMarkupParseContext *context, const gchar *element_name,
+		       const gchar **attribute_names, const gchar **attribute_values,
+		       gpointer user_data, GError **error)
+{
+	XdgMenu *menu;
+	XdgMerge *legdir;
+	const gchar **name, **valu;
+
+	if (!(menu = xdg_get_menu(user_data, element_name)))
+		return;
+	legdir = calloc(1, sizeof(*legdir));
+	legdir->type = MergeTypeLegacy;
+	for (name = attribute_names, valu = attribute_values; name && *name; name++, valu++) {
+		if (!strcmp(*name, "prefix"))
+			legdir->prefix = strdup(*valu);
+	}
+	menu->merge = g_list_append(menu->merge, legdir);
+}
+
 static void
 xdg_legacydir_character_data(GMarkupParseContext *context,
 			     const gchar *text, gsize text_len, gpointer user_data, GError **error)
 {
 	static const char *element_name = "LegacyDir";
 	XdgMenu *menu;
-	XdgDirectory *legdir;
+	XdgMerge *legdir;
+	GList *item;
 	const gchar *tend = text + text_len;
 
 	if (!(menu = xdg_get_menu(user_data, element_name)))
 		return;
+	if (!(item = g_list_last(menu->merge)))
+		return;
 	for (; text < tend && isspace(*text); text++, text_len--) ;
 	for (; tend > text && isspace(*tend); tend--, text_len--) ;
-	legdir = calloc(1, sizeof(*legdir));
+	legdir = item->data;
+	free(legdir->path);
 	legdir->path = strndup(text, text_len);
-	menu->legdirs = g_list_append(menu->legdirs, legdir);
 }
 
 static void
@@ -1846,6 +1870,7 @@ xdg_legacydir_error(GMarkupParseContext *context, GError *error, gpointer user_d
 }
 
 GMarkupParser xdg_legacydir_parser = {
+	.start_element = xdg_legacydir_start_element,
 	.text = xdg_legacydir_character_data,
 	.error = xdg_legacydir_error,
 };
