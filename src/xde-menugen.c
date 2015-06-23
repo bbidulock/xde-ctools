@@ -294,13 +294,13 @@ typedef struct {
 GHashTable *xdg_directory_cache = NULL;	/* directory cache */
 
 static void
-xdg_directory_destroy(gpointer data)
+xdg_directory_free(gpointer data)
 {
-	XdgDirectory *p = data;
+	XdgDirectory *dir = data;
 
-	free(p->path);
-	p->path = NULL;
-	free(p);
+	free(dir->path);
+	dir->path = NULL;
+	free(dir);
 }
 
 enum mergeType {
@@ -317,14 +317,16 @@ typedef struct {
 	struct stat st;
 } XdgMerge;
 
-void
-xdg_merge_destroy(gpointer data)
+static void
+xdg_merge_free(gpointer data)
 {
-	XdgMerge *p = data;
+	XdgMerge *merge = data;
 
-	free(p->path);
-	p->path = NULL;
-	free(p);
+	free(merge->prefix);
+	merge->prefix = NULL;
+	free(merge->path);
+	merge->path = NULL;
+	free(merge);
 }
 
 typedef struct {
@@ -336,13 +338,13 @@ typedef struct {
 GHashTable *xdg_fileentry_cache = NULL;	/* fileentry cache */
 
 static void
-xdg_fileentry_destroy(gpointer data)
+xdg_fileentry_free(gpointer data)
 {
-	XdgFileEntry *p = data;
+	XdgFileEntry *file = data;
 
-	free(p->path);
-	p->path = NULL;
-	free(p);
+	free(file->path);
+	file->path = NULL;
+	free(file);
 }
 
 enum logicType {
@@ -389,10 +391,32 @@ typedef struct {
 					   (Filename and Category only) */
 } XdgRule;
 
+static void
+xdg_rule_free(gpointer data)
+{
+	XdgRule *rule = data;
+
+	free(rule->string);
+	rule->string = NULL;
+	free(rule);
+}
+
 typedef struct {
 	char *old;
 	char *new;
 } XdgMove;
+
+static void
+xdg_move_free(gpointer data)
+{
+	XdgMove *move = data;
+
+	free(move->old);
+	move->old = NULL;
+	free(move->new);
+	move->new = NULL;
+	free(move);
+}
 
 enum layoutType {
 	LayoutTypeDefault = 0,
@@ -414,28 +438,100 @@ typedef struct {
 	gboolean inline_alias;
 } XdgLayout;
 
+static void
+xdg_layout_free(gpointer data)
+{
+	XdgLayout *layout = data;
+
+	free(layout->string);
+	layout->string = NULL;
+	free(layout);
+}
+
 typedef struct {
 	char *name;
 	GList *appdirs;			/* applications directories */
-	GHashTable *apps;		/* applications by id */
+//      GHashTable *apps;               /* applications by id */
 	GList *dirdirs;			/* directories directories */
-	GHashTable *dirs;		/* directories by id */
+//      GHashTable *dirs;               /* directories by id */
 	GList *merge;			/* merge directories */
 	char *directory;		/* directory for this menu item */
-	XdgFileEntry *dentry;		/* .directory file for this menu */
+//      XdgFileEntry *dentry;           /* .directory file for this menu */
 	gboolean only_u;		/* only unallocated? */
 	gboolean deleted;		/* is menu manually deleted? */
-	GNode *root;			/* rules tree */
+	GList *rules;			/* rules (include/exclude) for this menu */
 	GList *moves;			/* moves for this menu */
 	GList *layout;			/* layout for the menu */
 	GList *deflay;			/* default layout for the menu and sub-menus */
 } XdgMenu;
+
+static void
+xdg_menu_free(gpointer data)
+{
+	XdgMenu *menu = data;
+
+	free(menu->name);
+	menu->name = NULL;
+	g_list_free_full(menu->appdirs, xdg_directory_free);
+	menu->appdirs = NULL;
+	g_list_free_full(menu->dirdirs, xdg_directory_free);
+	menu->dirdirs = NULL;
+	g_list_free_full(menu->merge, xdg_merge_free);
+	menu->merge = NULL;
+	free(menu->directory);
+	menu->directory = NULL;
+	g_list_free_full(menu->rules, xdg_rule_free);
+	menu->rules = NULL;
+	g_list_free_full(menu->moves, xdg_move_free);
+	menu->moves = NULL;
+	g_list_free_full(menu->layout, xdg_layout_free);
+	menu->layout = NULL;
+	g_list_free_full(menu->deflay, xdg_layout_free);
+	menu->deflay = NULL;
+	free(menu);
+}
+
+void
+xdg_menu_merge(XdgMenu *target, XdgMenu *menu)
+{
+	target->appdirs = g_list_concat(target->appdirs, menu->appdirs);
+	menu->appdirs = NULL;
+	target->dirdirs = g_list_concat(target->dirdirs, menu->dirdirs);
+	menu->dirdirs = NULL;
+	target->merge = g_list_concat(target->merge, menu->merge);
+	menu->merge = NULL;
+	if (menu->directory) {
+		free(target->directory);
+		target->directory = menu->directory;
+		menu->directory = NULL;
+	}
+	target->only_u = menu->only_u;
+	target->deleted = menu->deleted;
+	target->rules = g_list_concat(target->rules, menu->rules);
+	menu->rules = NULL;
+	target->moves = g_list_concat(target->moves, menu->moves);
+	menu->moves = NULL;
+	if (menu->layout) {
+		g_list_free_full(target->layout, xdg_layout_free);
+		target->layout = menu->layout;
+		menu->layout = NULL;
+	}
+	if (menu->deflay) {
+		g_list_free_full(target->deflay, xdg_layout_free);
+		target->deflay = menu->deflay;
+		menu->deflay = NULL;
+	}
+	xdg_menu_free(menu);
+}
 
 /*
  * <Menu>
  *	The root element is <Menu>.  Each <Menu> element may contain any numer of nested <Menu>
  *	elements, indicating submenus.
  */
+/*  NOTE: because of the way things are (a menu is not named until the <Name> element has been
+ *  encountered), we cannot just start merging against an existing menu of the same name at the
+ *  onset.  It may still be possible to handle merging on the end tag. */
 void
 xdg_menu_start_element(GMarkupParseContext *context, const gchar *element_name,
 		       const gchar **attribute_names, const gchar **attribute_values,
@@ -443,7 +539,6 @@ xdg_menu_start_element(GMarkupParseContext *context, const gchar *element_name,
 {
 	XdgParseContext *base = user_data;
 	XdgMenu *menu;
-	XdgRule *rule;
 	GNode *node, *parent;
 
 	if (attribute_names && *attribute_names)
@@ -456,11 +551,6 @@ xdg_menu_start_element(GMarkupParseContext *context, const gchar *element_name,
 	} else
 		base->tree = node;
 	base->node = node;
-	rule = calloc(1, sizeof(*rule));
-	rule->type = LogicTypeRoot;
-	if (base->rule)
-		g_queue_push_tail(base->rules, base->rule);
-	base->rule = menu->root = g_node_new(rule);
 }
 
 static void
@@ -468,15 +558,8 @@ xdg_menu_end_element(GMarkupParseContext *context,
 		     const gchar *element_name, gpointer user_data, GError **error)
 {
 	XdgParseContext *base = user_data;
-	XdgMenu *menu;
-	GNode *node;
 
-	node = base->node;
-	menu = node->data;
-	/* FIXME: finalize the sub-menu */
 	base->node = g_queue_pop_tail(base->stack);
-	base->rule = g_queue_pop_tail(base->rules);
-	(void) menu;
 }
 
 static void
@@ -1186,26 +1269,14 @@ xdg_include_start_element(GMarkupParseContext *context, const gchar *element_nam
 	XdgParseContext *base = user_data;
 	XdgMenu *menu;
 	XdgRule *rule;
-	GNode *node, *parent;
+	GNode *node;
 
 	if (!(menu = xdg_get_menu(user_data, element_name)))
 		return;
-	if (!(parent = base->rule)) {
-		EPRINTF("Element <%s>, but no parent root node!\n", element_name);
-		return;
-	}
-	if (!(rule = parent->data)) {
-		EPRINTF("Element <%s> has parent, but rule missing!\n", element_name);
-		return;
-	}
-	if (rule->type != LogicTypeRoot) {
-		EPRINTF("Element <%s> must be immediately within <Menu>!\n", element_name);
-		return;
-	}
 	rule = calloc(1, sizeof(*rule));
 	rule->type = LogicTypeInclude;
 	node = g_node_new(rule);
-	g_node_append(menu->root, node);
+	menu->rules = g_list_append(menu->rules, node);
 	if (base->rule)
 		g_queue_push_tail(base->rules, base->rule);
 	base->rule = node;
@@ -1247,26 +1318,14 @@ xdg_exclude_start_element(GMarkupParseContext *context, const gchar *element_nam
 	XdgParseContext *base = user_data;
 	XdgMenu *menu;
 	XdgRule *rule;
-	GNode *node, *parent;
+	GNode *node;
 
 	if (!(menu = xdg_get_menu(user_data, element_name)))
 		return;
-	if (!(parent = base->rule)) {
-		EPRINTF("Element <%s>, but no parent root node!\n", element_name);
-		return;
-	}
-	if (!(rule = parent->data)) {
-		EPRINTF("Element <%s> has parent, but rule missing!\n", element_name);
-		return;
-	}
-	if (rule->type != LogicTypeRoot) {
-		EPRINTF("Element <%s> must be immediately within <Menu>!\n", element_name);
-		return;
-	}
 	rule = calloc(1, sizeof(*rule));
 	rule->type = LogicTypeExclude;
 	node = g_node_new(rule);
-	g_node_append(menu->root, node);
+	menu->rules = g_list_append(menu->rules, node);
 	if (base->rule)
 		g_queue_push_tail(base->rules, base->rule);
 	base->rule = node;
@@ -1825,8 +1884,8 @@ GMarkupParser xdg_mergedirs_parser = {
  */
 void
 xdg_legacydir_start_element(GMarkupParseContext *context, const gchar *element_name,
-		       const gchar **attribute_names, const gchar **attribute_values,
-		       gpointer user_data, GError **error)
+			    const gchar **attribute_names, const gchar **attribute_values,
+			    gpointer user_data, GError **error)
 {
 	XdgMenu *menu;
 	XdgMerge *legdir;
@@ -2044,16 +2103,6 @@ GMarkupParser xdg_new_parser = {
  *	<Include> and <Exclude> elements should be ignored.  References to sub-menus that are not
  *	directly contained in this menu as defined by the <Menu> elements should be ignored.
  */
-void
-xdg_layout_free(gpointer data)
-{
-	XdgLayout *layout = data;
-
-	free(layout->string);
-	layout->string = NULL;
-	free(layout);
-}
-
 void
 xdg_layout_start_element(GMarkupParseContext *context, const gchar *element_name,
 			 const gchar **attribute_names, const gchar **attribute_values,
@@ -2556,10 +2605,10 @@ make_menu(int argc, char *argv[])
 
 	if (!xdg_directory_cache)
 		xdg_directory_cache =
-		    g_hash_table_new_full(g_str_hash, g_str_equal, NULL, xdg_directory_destroy);
+		    g_hash_table_new_full(g_str_hash, g_str_equal, NULL, xdg_directory_free);
 	if (!xdg_fileentry_cache)
 		xdg_fileentry_cache =
-		    g_hash_table_new_full(g_str_hash, g_str_equal, NULL, xdg_fileentry_destroy);
+		    g_hash_table_new_full(g_str_hash, g_str_equal, NULL, xdg_fileentry_free);
 	item = calloc(1, sizeof(*item));
 
 	base.elements = g_queue_new();
