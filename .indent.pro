@@ -310,3 +310,4 @@
 -TXdgMove
 -TXdgLayout
 -TXdgMerge
+-TXdgContext

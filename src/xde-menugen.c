@@ -266,6 +266,9 @@ typedef struct {
 } XdgParserMapping;
 
 typedef struct {
+	char *directory;		/* directory of menu file. */
+	char *filename;			/* filename portion only. */
+	GMarkupParseContext *ctx;	/* glib parser context */
 	XdgParserMapping *current;	/* current element */
 	GQueue *elements;		/* element stack */
 	GNode *node;			/* current menu */
@@ -274,6 +277,35 @@ typedef struct {
 	GNode *rule;			/* curent rule */
 	GQueue *rules;			/* rule stack */
 } XdgParseContext;
+
+static void
+xdg_context_free(gpointer data)
+{
+	if (data == NULL)
+		return;
+	XdgParseContext *base = data;
+
+	free(base->directory);
+	free(base->filename);
+	g_queue_free(base->elements);
+	base->elements = NULL;
+	base->current = NULL;
+	g_queue_free(base->stack);
+	base->tree = base->node = NULL;
+	g_queue_free(base->rules);
+	base->rule = NULL;
+	if (base->ctx) {
+		g_markup_parse_context_unref(base->ctx);
+		base->ctx = NULL;
+	}
+	free(base);
+}
+
+typedef struct {
+	GNode *tree;			/* final parse tree */
+	XdgParseContext *parser;	/* current parser */
+	GQueue *parsers;		/* nested parsers */
+} XdgContext;
 
 enum itemType {
 	MenuItem = 0,
@@ -524,6 +556,8 @@ xdg_menu_merge(XdgMenu *target, XdgMenu *menu)
 	xdg_menu_free(menu);
 }
 
+static GNode *parse_menu(XdgContext *context, const char *path, GError **error);
+
 /*
  * <Menu>
  *	The root element is <Menu>.  Each <Menu> element may contain any numer of nested <Menu>
@@ -537,7 +571,8 @@ xdg_menu_start_element(GMarkupParseContext *context, const gchar *element_name,
 		       const gchar **attribute_names, const gchar **attribute_values,
 		       gpointer user_data, GError **error)
 {
-	XdgParseContext *base = user_data;
+	XdgContext *ctx = user_data;
+	XdgParseContext *base = ctx->parser;
 	XdgMenu *menu;
 	GNode *node, *parent;
 
@@ -557,7 +592,8 @@ static void
 xdg_menu_end_element(GMarkupParseContext *context,
 		     const gchar *element_name, gpointer user_data, GError **error)
 {
-	XdgParseContext *base = user_data;
+	XdgContext *ctx = user_data;
+	XdgParseContext *base = ctx->parser;
 
 	base->node = g_queue_pop_tail(base->stack);
 }
@@ -574,8 +610,9 @@ GMarkupParser xdg_menu_parser = {
 };
 
 XdgMenu *
-xdg_get_menu(XdgParseContext *base, const gchar *element_name)
+xdg_get_menu(XdgContext *ctx, const gchar *element_name)
 {
+	XdgParseContext *base = ctx->parser;
 	XdgParserMapping *m;
 	GNode *node;
 
@@ -752,34 +789,37 @@ xdg_add_appdir(XdgMenu *menu, const gchar *path, gsize len)
 	xdg_scan_appdir(menu, key, "");
 	return appdir;
 }
-#else
-static XdgDirectory *
-xdg_add_appdir(XdgMenu *menu, const gchar *path, gsize len)
-{
-	XdgDirectory *appdir;
-	char *key;
-
-	key = strndup(path, len);
-	DPRINTF("Adding application directory '%s'\n", key);
-	appdir = calloc(1, sizeof(*appdir));
-	appdir->path = key;
-	return appdir;
-}
 #endif
 
 static void
 xdg_appdir_character_data(GMarkupParseContext *context,
 			  const gchar *text, gsize text_len, gpointer user_data, GError **error)
 {
+	XdgContext *ctx = user_data;
+	XdgParseContext *base = ctx->parser;
 	XdgMenu *menu;
 	XdgDirectory *appdir;
 	const gchar *tend = text + text_len;
+	char *path;
 
 	if (!(menu = xdg_get_menu(user_data, "AppDir")))
 		return;
 	for (; text < tend && isspace(*text); text++, text_len--) ;
 	for (; tend > text && isspace(*tend); tend--, text_len--) ;
-	appdir = xdg_add_appdir(menu, text, text_len);
+	appdir = calloc(1, sizeof(*appdir));
+	if (text[0] != '/') {
+		int len = strlen(base->directory) + 1 + text_len + 1;
+
+		/* path relative to directory of menu file */
+		path = calloc(len, sizeof(*path));
+		strcpy(path, base->directory);
+		strcat(path, "/");
+		strncat(path, text, text_len);
+	} else {
+		path = strndup(text, text_len);
+	}
+	appdir->path = path;
+	DPRINTF("Adding application directory '%s'\n", appdir->path);
 	menu->appdirs = g_list_append(menu->appdirs, appdir);
 
 }
@@ -818,8 +858,9 @@ xdg_appdirs_end_element(GMarkupParseContext *context,
 	     p >= xdg_data_path; p = xdg_find_str(p - 1, xdg_data_path)) {
 		strncpy(path, p, PATH_MAX - 1);
 		strncat(path, suffix, PATH_MAX - 1);
-		DPRINTF("Adding application directory '%s'\n", path);
-		appdir = xdg_add_appdir(menu, path, strlen(path));
+		appdir = calloc(1, sizeof(*appdir));
+		appdir->path = strdup(path);
+		DPRINTF("Adding application directory '%s'\n", appdir->path);
 		menu->appdirs = g_list_append(menu->appdirs, appdir);
 	}
 }
@@ -842,12 +883,12 @@ GMarkupParser xdg_appdirs_parser = {
  *	filename given as a <DirectoryDir> is not an absolute path, it should be located relative to
  *	the location of the menu file being parsed.
  *
- *	Directory entries in the pool of available entries are identified by thier relative path
+ *	Directory entries in the pool of available entries are identified by their relative path
  *	(see Relative Path).
  *
- *	If thwo directory entires khave duplicate relative paths, the one from the last (furthest
+ *	If two directory entires have duplicate relative paths, the one from the last (furthest
  *	down) element in the menu file must be used.  Only files ending in the extension
- *	".directory" should be laoded, other files should be ignored.
+ *	".directory" should be loaded, other files should be ignored.
  *
  *	Duplicate <DirectoryDir> elements (that specify the same directory) are handled as with
  *	duplicalte <AppDir> elements (the last duplicate is used).
@@ -980,34 +1021,36 @@ xdg_add_dirdir(XdgMenu *menu, const gchar *path, gsize len)
 	xdg_scan_dirdir(menu, key, "");
 	return dirdir;
 }
-#else
-static XdgDirectory *
-xdg_add_dirdir(XdgMenu *menu, const gchar *path, gsize len)
-{
-	XdgDirectory *dirdir;
-	char *key;
-
-	key = strndup(path, len);
-	DPRINTF("Adding directory directory '%s'\n", key);
-	dirdir = calloc(1, sizeof(*dirdir));
-	dirdir->path = key;
-	return dirdir;
-}
 #endif
 
 static void
 xdg_dirdir_character_data(GMarkupParseContext *context,
 			  const gchar *text, gsize text_len, gpointer user_data, GError **error)
 {
+	XdgContext *ctx = user_data;
+	XdgParseContext *base = ctx->parser;
 	XdgMenu *menu;
 	XdgDirectory *dirdir;
 	const gchar *tend = text + text_len;
+	char *path;
 
 	if (!(menu = xdg_get_menu(user_data, "DirectoryDir")))
 		return;
 	for (; text < tend && isspace(*text); text++, text_len--) ;
 	for (; tend > text && isspace(*tend); tend--, text_len--) ;
-	dirdir = xdg_add_dirdir(menu, text, text_len);
+	dirdir = calloc(1, sizeof(*dirdir));
+	if (text[0] != '/') {
+		int len = strlen(base->directory) + 1 + text_len + 1;
+
+		/* path relative to directory of menu file */
+		path = calloc(len, sizeof(*path));
+		strcpy(path, base->directory);
+		strcat(path, "/");
+		strncat(path, text, text_len);
+	} else
+		path = strndup(text, text_len);
+	dirdir->path = path;
+	DPRINTF("Adding directory directory '%s'\n", dirdir->path);
 	menu->dirdirs = g_list_append(menu->dirdirs, dirdir);
 }
 
@@ -1044,8 +1087,9 @@ xdg_dirdirs_end_element(GMarkupParseContext *context,
 	     p >= xdg_data_path; p = xdg_find_str(p - 1, xdg_data_path)) {
 		strncpy(path, p, PATH_MAX - 1);
 		strncat(path, suffix, PATH_MAX - 1);
-		DPRINTF("Adding application directory '%s'\n", path);
-		dirdir = xdg_add_dirdir(menu, path, strlen(path));
+		dirdir = calloc(1, sizeof(*dirdir));
+		dirdir->path = strdup(path);
+		DPRINTF("Adding directory directory '%s'\n", dirdir->path);
 		menu->dirdirs = g_list_append(menu->dirdirs, dirdir);
 	}
 }
@@ -1266,7 +1310,8 @@ xdg_include_start_element(GMarkupParseContext *context, const gchar *element_nam
 			  const gchar **attribute_names, const gchar **attribute_values,
 			  gpointer user_data, GError **error)
 {
-	XdgParseContext *base = user_data;
+	XdgContext *ctx = user_data;
+	XdgParseContext *base = ctx->parser;
 	XdgMenu *menu;
 	XdgRule *rule;
 	GNode *node;
@@ -1286,7 +1331,8 @@ static void
 xdg_include_end_element(GMarkupParseContext *context,
 			const gchar *element_name, gpointer user_data, GError **error)
 {
-	XdgParseContext *base = user_data;
+	XdgContext *ctx = user_data;
+	XdgParseContext *base = ctx->parser;
 
 	base->rule = g_queue_pop_tail(base->rules);
 }
@@ -1315,7 +1361,8 @@ xdg_exclude_start_element(GMarkupParseContext *context, const gchar *element_nam
 			  const gchar **attribute_names, const gchar **attribute_values,
 			  gpointer user_data, GError **error)
 {
-	XdgParseContext *base = user_data;
+	XdgContext *ctx = user_data;
+	XdgParseContext *base = ctx->parser;
 	XdgMenu *menu;
 	XdgRule *rule;
 	GNode *node;
@@ -1335,7 +1382,8 @@ static void
 xdg_exclude_end_element(GMarkupParseContext *context,
 			const gchar *element_name, gpointer user_data, GError **error)
 {
-	XdgParseContext *base = user_data;
+	XdgContext *ctx = user_data;
+	XdgParseContext *base = ctx->parser;
 
 	base->rule = g_queue_pop_tail(base->rules);
 }
@@ -1361,7 +1409,8 @@ xdg_filename_character_data(GMarkupParseContext *context,
 			    const gchar *text, gsize text_len, gpointer user_data, GError **error)
 {
 	const gchar *element_name = "Filename";
-	XdgParseContext *base = user_data;
+	XdgContext *ctx = user_data;
+	XdgParseContext *base = ctx->parser;
 	XdgParserMapping *m;
 	const gchar *tend = text + text_len;
 
@@ -1431,7 +1480,8 @@ xdg_category_character_data(GMarkupParseContext *context,
 			    const gchar *text, gsize text_len, gpointer user_data, GError **error)
 {
 	const gchar *element_name = "Category";
-	XdgParseContext *base = user_data;
+	XdgContext *ctx = user_data;
+	XdgParseContext *base = ctx->parser;
 	XdgRule *rule;
 	GNode *node, *parent;
 	const gchar *tend = text + text_len;
@@ -1475,7 +1525,8 @@ static void
 xdg_all_end_element(GMarkupParseContext *context,
 		    const gchar *element_name, gpointer user_data, GError **error)
 {
-	XdgParseContext *base = user_data;
+	XdgContext *ctx = user_data;
+	XdgParseContext *base = ctx->parser;
 	XdgRule *rule;
 	GNode *node, *parent;
 
@@ -1518,7 +1569,8 @@ xdg_and_start_element(GMarkupParseContext *context, const gchar *element_name,
 		      const gchar **attribute_names, const gchar **attribute_values,
 		      gpointer user_data, GError **error)
 {
-	XdgParseContext *base = user_data;
+	XdgContext *ctx = user_data;
+	XdgParseContext *base = ctx->parser;
 	XdgRule *rule;
 	GNode *node, *parent;
 
@@ -1546,7 +1598,8 @@ static void
 xdg_and_end_element(GMarkupParseContext *context,
 		    const gchar *element_name, gpointer user_data, GError **error)
 {
-	XdgParseContext *base = user_data;
+	XdgContext *ctx = user_data;
+	XdgParseContext *base = ctx->parser;
 
 	base->rule = g_queue_pop_tail(base->rules);
 }
@@ -1572,7 +1625,8 @@ xdg_or_start_element(GMarkupParseContext *context, const gchar *element_name,
 		     const gchar **attribute_names, const gchar **attribute_values,
 		     gpointer user_data, GError **error)
 {
-	XdgParseContext *base = user_data;
+	XdgContext *ctx = user_data;
+	XdgParseContext *base = ctx->parser;
 	XdgRule *rule;
 	GNode *node, *parent;
 
@@ -1600,7 +1654,8 @@ static void
 xdg_or_end_element(GMarkupParseContext *context,
 		   const gchar *element_name, gpointer user_data, GError **error)
 {
-	XdgParseContext *base = user_data;
+	XdgContext *ctx = user_data;
+	XdgParseContext *base = ctx->parser;
 
 	base->rule = g_queue_pop_tail(base->rules);
 }
@@ -1627,7 +1682,8 @@ xdg_not_start_element(GMarkupParseContext *context, const gchar *element_name,
 		      const gchar **attribute_names, const gchar **attribute_values,
 		      gpointer user_data, GError **error)
 {
-	XdgParseContext *base = user_data;
+	XdgContext *ctx = user_data;
+	XdgParseContext *base = ctx->parser;
 	XdgRule *rule;
 	GNode *node, *parent;
 
@@ -1655,7 +1711,8 @@ static void
 xdg_not_end_element(GMarkupParseContext *context,
 		    const gchar *element_name, gpointer user_data, GError **error)
 {
-	XdgParseContext *base = user_data;
+	XdgContext *ctx = user_data;
+	XdgParseContext *base = ctx->parser;
 
 	base->rule = g_queue_pop_tail(base->rules);
 }
@@ -1749,20 +1806,33 @@ xdg_mergefile_character_data(GMarkupParseContext *context,
 			     const gchar *text, gsize text_len, gpointer user_data, GError **error)
 {
 	static const char *element_name = "MergeFile";
+	XdgContext *ctx = user_data;
+	XdgParseContext *base = ctx->parser;
 	XdgMenu *menu;
 	XdgMerge *mfile;
 	GList *item;
 	const gchar *tend = text + text_len;
+	char *path;
 
 	if (!(menu = xdg_get_menu(user_data, element_name)))
 		return;
 	if (!(item = g_list_last(menu->merge)))
 		return;
-	mfile = item->data;
 
 	for (; text < text && isspace(*text); text++, text_len--) ;
 	for (; tend > text && isspace(*tend); tend--, text_len--) ;
 
+	mfile = item->data;
+	if (mfile->type == MergeTypeFilePath && text[0] != '/') {
+		int len = strlen(base->directory) + 1 + text_len + 1;
+
+		/* path relative to directory of menu file */
+		path = calloc(len, sizeof(*path));
+		strcpy(path, base->directory);
+		strcat(path, "/");
+		strncat(path, text, text_len);
+	} else
+		path = strndup(text, text_len);
 	mfile->path = strndup(text, text_len);
 }
 
@@ -1782,8 +1852,8 @@ GMarkupParser xdg_mergefile_parser = {
  *	ANy numebr of <MergeDir> elements may be listed below <Menu> element.  A <MergeDir> contains
  *	the name of a directory.  Each file in the given directoy which ends in the ".menu"
  *	extension should be merged in the same way that a <MergeFile> would be.  If the filename
- *	given as a <MergeDir> is not an absolute path, it should eb located relative to the locatino
- *	of the menu file being parsed.  The files insdie the merged directory are not merged in any
+ *	given as a <MergeDir> is not an absolute path, it should be located relative to the location
+ *	of the menu file being parsed.  The files inside the merged directory are not merged in any
  *	specified order.
  *
  *	Duplicate <MergeDir> elements (that specify the same directory) are handled as with
@@ -1794,9 +1864,12 @@ xdg_mergedir_character_data(GMarkupParseContext *context,
 			    const gchar *text, gsize text_len, gpointer user_data, GError **error)
 {
 	static const char *element_name = "MergeDir";
+	XdgContext *ctx = user_data;
+	XdgParseContext *base = ctx->parser;
 	XdgMenu *menu;
 	XdgMerge *mdir;
 	const gchar *tend = text + text_len;
+	char *path;
 
 	if (!(menu = xdg_get_menu(user_data, element_name)))
 		return;
@@ -1806,8 +1879,19 @@ xdg_mergedir_character_data(GMarkupParseContext *context,
 
 	mdir = calloc(1, sizeof(*mdir));
 	mdir->type = MergeTypeDirectory;
-	mdir->path = strndup(text, text_len);
 
+	if (text[0] != '/') {
+		int len = strlen(base->directory) + 1 + text_len + 1;
+
+		/* relative to directory of menu file */
+		path = calloc(len, sizeof(*path));
+		strcpy(path, base->directory);
+		strcat(path, "/");
+		strncat(path, text, text_len);
+	} else
+		path = strndup(text, text_len);
+	mdir->path = path;
+	DPRINTF("Adding merge directory '%s'\n", mdir->path);
 	menu->merge = g_list_append(menu->merge, mdir);
 }
 
@@ -1907,10 +1991,13 @@ xdg_legacydir_character_data(GMarkupParseContext *context,
 			     const gchar *text, gsize text_len, gpointer user_data, GError **error)
 {
 	static const char *element_name = "LegacyDir";
+	XdgContext *ctx = user_data;
+	XdgParseContext *base = ctx->parser;
 	XdgMenu *menu;
 	XdgMerge *legdir;
 	GList *item;
 	const gchar *tend = text + text_len;
+	char *path;
 
 	if (!(menu = xdg_get_menu(user_data, element_name)))
 		return;
@@ -1919,8 +2006,19 @@ xdg_legacydir_character_data(GMarkupParseContext *context,
 	for (; text < tend && isspace(*text); text++, text_len--) ;
 	for (; tend > text && isspace(*tend); tend--, text_len--) ;
 	legdir = item->data;
+	if (text[0] != '/') {
+		int len = strlen(base->directory) + 1 + text_len + 1;
+
+		/* path is realtive to the directory of the menu file */
+		path = calloc(len, sizeof(*path));
+		strcpy(path, base->directory);
+		strcat(path, "/");
+		strncat(path, text, text_len);
+	} else
+		path = strndup(text, text_len);
 	free(legdir->path);
-	legdir->path = strndup(text, text_len);
+	DPRINTF("Adding legacy directory '%s'\n", legdir->path);
+	legdir->path = path;
 }
 
 static void
@@ -2000,7 +2098,7 @@ GMarkupParser xdg_move_parser = {
 /*
  * <Old>
  *	This element may only appear below <Move>, and must be followed by a <New> element.  The
- *	content of both <Old> and <New> should eb a menu path (slash-separated concatenation of
+ *	content of both <Old> and <New> should be a menu path (slash-separated concatenation of
  *	<Name> fields, see Menu path).  Paths are interpreted relative to the menu containing the
  *	<Move> element.
  */
@@ -2009,7 +2107,8 @@ xdg_old_character_data(GMarkupParseContext *context,
 		       const gchar *text, gsize text_len, gpointer user_data, GError **error)
 {
 	const char *element_name = "Old";
-	XdgParseContext *base = user_data;
+	XdgContext *ctx = user_data;
+	XdgParseContext *base = ctx->parser;
 	XdgParserMapping *m;
 	XdgMenu *menu;
 	XdgMove *move;
@@ -2026,12 +2125,14 @@ xdg_old_character_data(GMarkupParseContext *context,
 	if (!(item = g_list_last(menu->moves)))
 		return;
 	move = item->data;
-	if (move->old)
+	if (move->old) {
 		WPRINTF("Multiple element <%s> for a given <Move>!\n", element_name);
-	free(move->old);
+		free(move->old);
+	}
 	for (; text < tend && isspace(*text); text++, text_len--) ;
 	for (; tend > text && isspace(*tend); tend--, text_len--) ;
 	move->old = strndup(text, text_len);
+	DPRINTF("Old menu path is '%s'\n", move->old);
 }
 
 static void
@@ -2047,14 +2148,15 @@ GMarkupParser xdg_old_parser = {
 /*
  * <New>
  *	This element may only appear below <Move>, and must be preceded by an <Old> element.  The
- *	<New> elemetn specifies the new path for the prceding <Old> element.
+ *	<New> element specifies the new path for the preceding <Old> element.
  */
 static void
 xdg_new_character_data(GMarkupParseContext *context,
 		       const gchar *text, gsize text_len, gpointer user_data, GError **error)
 {
 	const char *element_name = "New";
-	XdgParseContext *base = user_data;
+	XdgContext *ctx = user_data;
+	XdgParseContext *base = ctx->parser;
 	XdgParserMapping *m;
 	XdgMenu *menu;
 	XdgMove *move;
@@ -2071,12 +2173,14 @@ xdg_new_character_data(GMarkupParseContext *context,
 	if (!(item = g_list_last(menu->moves)))
 		return;
 	move = item->data;
-	if (move->new)
+	if (move->new) {
 		WPRINTF("Multiple element <%s> for a given <Move>!\n", element_name);
-	free(move->new);
+		free(move->new);
+	}
 	for (; text < tend && isspace(*text); text++, text_len--) ;
 	for (; tend > text && isspace(*tend); tend--, text_len--) ;
 	move->new = strndup(text, text_len);
+	DPRINTF("New menu path is '%s'\n", move->new);
 }
 
 static void
@@ -2226,7 +2330,8 @@ xdg_menuname_start_element(GMarkupParseContext *context, const gchar *element_na
 			   const gchar **attribute_names, const gchar **attribute_values,
 			   gpointer user_data, GError **error)
 {
-	XdgParseContext *base = user_data;
+	XdgContext *ctx = user_data;
+	XdgParseContext *base = ctx->parser;
 	XdgParserMapping *m;
 	XdgMenu *menu;
 	XdgLayout *layout;
@@ -2282,7 +2387,8 @@ xdg_menuname_character_data(GMarkupParseContext *context,
 			    const gchar *text, gsize text_len, gpointer user_data, GError **error)
 {
 	const char *element_name = "Menuname";
-	XdgParseContext *base = user_data;
+	XdgContext *ctx = user_data;
+	XdgParseContext *base = ctx->parser;
 	XdgParserMapping *m;
 	XdgMenu *menu;
 	XdgLayout *layout;
@@ -2332,7 +2438,8 @@ static void
 xdg_separator_end_element(GMarkupParseContext *context,
 			  const gchar *element_name, gpointer user_data, GError **error)
 {
-	XdgParseContext *base = user_data;
+	XdgContext *ctx = user_data;
+	XdgParseContext *base = ctx->parser;
 	XdgParserMapping *m;
 	XdgMenu *menu;
 	XdgLayout *layout;
@@ -2386,7 +2493,8 @@ xdg_merge_start_element(GMarkupParseContext *context, const gchar *element_name,
 			const gchar **attribute_names, const gchar **attribute_values,
 			gpointer user_data, GError **error)
 {
-	XdgParseContext *base = user_data;
+	XdgContext *ctx = user_data;
+	XdgParseContext *base = ctx->parser;
 	XdgParserMapping *m;
 	XdgMenu *menu;
 	XdgLayout *layout;
@@ -2481,7 +2589,8 @@ xdg_start_element(GMarkupParseContext *context,
 		  const gchar **attribute_values, gpointer user_data, GError **error)
 {
 	XdgParserMapping *m;
-	XdgParseContext *base = user_data;
+	XdgContext *ctx = user_data;
+	XdgParseContext *base = ctx->parser;
 
 	DPRINTF("START-ELEMENT: %s\n", element_name);
 
@@ -2502,10 +2611,12 @@ static void
 xdg_character_data(GMarkupParseContext *context,
 		   const gchar *text, gsize text_len, gpointer user_data, GError **error)
 {
-	XdgParseContext *base = user_data;
+	XdgContext *ctx = user_data;
+	XdgParseContext *base = ctx->parser;
 	XdgParserMapping *m;
 
 	m = base->current;
+	DPRINTF("CHARACTER-DATA: %s\n", m->label);
 	if (m->parser->text)
 		m->parser->text(context, text, text_len, user_data, error);
 }
@@ -2514,7 +2625,8 @@ static void
 xdg_end_element(GMarkupParseContext *context,
 		const gchar *element_name, gpointer user_data, GError **error)
 {
-	XdgParseContext *base = user_data;
+	XdgContext *ctx = user_data;
+	XdgParseContext *base = ctx->parser;
 	XdgParserMapping *m;
 
 	DPRINTF("END-ELEMENT: %s\n", element_name);
@@ -2528,10 +2640,12 @@ xdg_end_element(GMarkupParseContext *context,
 static void
 xdg_error(GMarkupParseContext *context, GError *error, gpointer user_data)
 {
-	XdgParseContext *base = user_data;
+	XdgContext *ctx = user_data;
+	XdgParseContext *base = ctx->parser;
 	XdgParserMapping *m;
 
 	m = base->current;
+	DPRINTF("PARSE-ERROR: %s\n", m->label);
 	if (m->parser->error)
 		m->parser->error(context, error, user_data);
 }
@@ -2543,65 +2657,106 @@ GMarkupParser xdg_parser = {
 	.error = xdg_error,
 };
 
-static void
-parse_menu(XdgParseContext *base)
+static GNode *
+parse_menu(XdgContext *context, const char *path, GError **error)
 {
+	XdgParseContext *base = NULL;
+	GNode *tree = NULL;
 	FILE *f;
 	int dummy;
 	struct stat st;
+	char *s, *p;
+	GError *tmperr = NULL;
 
-	if (!(f = fopen(options.rootmenu, "r"))) {
-		EPRINTF("cannot open file: '%s'\n", options.rootmenu);
-		return;
+	if (!(f = fopen(path, "r"))) {
+		EPRINTF("cannot open file: '%s'\n", path);
+		return (tree);
 	}
-	DPRINTF("locking file '%s'\n", options.rootmenu);
+	DPRINTF("locking file '%s'\n", path);
+
 	dummy = lockf(fileno(f), F_LOCK, 0);
 	if (fstat(fileno(f), &st)) {
-		EPRINTF("cannot stat open file: '%s'\n", options.rootmenu);
-		fclose(f);
-		return;
+		EPRINTF("cannot stat open file: '%s'\n", path);
+		goto no_stat;
 	}
 	if (st.st_size > 0) {
-		GMarkupParseContext *ctx;
 		gchar buf[BUFSIZ];
 		gsize got;
 
-		if (!(ctx = g_markup_parse_context_new(&xdg_parser,
-						       G_MARKUP_TREAT_CDATA_AS_TEXT |
-						       G_MARKUP_PREFIX_ERROR_POSITION, base,
-						       NULL))) {
+		if (!(base = calloc(1, sizeof(*base)))) {
+			EPRINTF("%s\n", strerror(errno));
+			goto no_ctx;
+		}
+		base->directory = s = strdup(path);
+		if ((p = strrchr(s, '/')))
+			*p = '\0';
+		base->filename = strdup((p = strrchr(path, '/')) ? p + 1 : path);
+		base->elements = g_queue_new();
+		base->stack = g_queue_new();
+		base->rules = g_queue_new();
+		if (context->parser)
+			g_queue_push_tail(context->parsers, context->parser);
+		context->parser = base;
+		if (!(base->ctx = g_markup_parse_context_new(&xdg_parser,
+							     G_MARKUP_TREAT_CDATA_AS_TEXT |
+							     G_MARKUP_PREFIX_ERROR_POSITION,
+							     context, NULL))) {
 			EPRINTF("cannot create XML parser\n");
-			fclose(f);
-			return;
+			goto no_tree;
 		}
 		while ((got = fread(buf, 1, BUFSIZ, f)) > 0) {
 			DPRINTF("got %d more bytes\n", got);
-			if (!g_markup_parse_context_parse(ctx, buf, got, NULL)) {
-				EPRINTF("coult not parse buffer contents\n");
-				g_markup_parse_context_unref(ctx);
-				fclose(f);
-				return;
+			if (!g_markup_parse_context_parse(base->ctx, buf, got, &tmperr)) {
+				EPRINTF("could not parse buffer contents\n");
+				goto parse_error;
 			}
 		}
-		if (!g_markup_parse_context_end_parse(ctx, NULL)) {
+		if (!g_markup_parse_context_end_parse(base->ctx, &tmperr)) {
 			EPRINTF("could not end parsing\n");
-			g_markup_parse_context_unref(ctx);
-			fclose(f);
-			return;
+			goto parse_error;
 		}
-		g_markup_parse_context_unref(ctx);
-	}
-	DPRINTF("unlocking file '%s'\n", options.rootmenu);
+		g_markup_parse_context_unref(base->ctx);
+		base->ctx = NULL;
+	} else
+		EPRINTF("file is empty: '%s'\n", path);
+
+	(void) dummy;
+      parse_error:
+	if (tmperr)
+		g_propagate_error(error, tmperr);
+	tree = base->tree;
+	base->tree = NULL;
+      no_tree:
+	context->parser = g_queue_pop_tail(context->parsers);
+	DPRINTF("Freeing parse context.\n");
+	xdg_context_free(base);
+      no_ctx:
+      no_stat:
+	DPRINTF("unlocking file '%s'\n", path);
 	dummy = lockf(fileno(f), F_ULOCK, 0);
 	fclose(f);
-	(void) dummy;
+	return (tree);
+
+}
+
+static GNode *
+root_menu(XdgContext *context, GError **error)
+{
+	GError *tmperr = NULL;
+	GNode *tree;
+
+	tree = parse_menu(context, options.rootmenu, &tmperr);
+	if (tmperr)
+		g_propagate_error(error, tmperr);
+	return (tree);
 }
 
 static void
 make_menu(int argc, char *argv[])
 {
-	XdgMenuItem *item;
-	XdgParseContext base = { NULL, };
+	XdgContext context = { NULL, };
+	GNode *tree;
+	GError *error = NULL;
 
 	if (!xdg_directory_cache)
 		xdg_directory_cache =
@@ -2609,14 +2764,11 @@ make_menu(int argc, char *argv[])
 	if (!xdg_fileentry_cache)
 		xdg_fileentry_cache =
 		    g_hash_table_new_full(g_str_hash, g_str_equal, NULL, xdg_fileentry_free);
-	item = calloc(1, sizeof(*item));
 
-	base.elements = g_queue_new();
-	base.stack = g_queue_new();
-	base.rules = g_queue_new();
-	base.tree = NULL;
-
-	parse_menu(&base);
+	context.parsers = g_queue_new();
+	tree = root_menu(&context, &error);
+	(void) tree;
+	/* FIXME: now do something with root */
 }
 
 static Window
