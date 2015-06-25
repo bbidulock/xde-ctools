@@ -557,6 +557,7 @@ xdg_menu_merge(XdgMenu *target, XdgMenu *menu)
 }
 
 static GNode *parse_menu(XdgContext *context, const char *path, GError **error);
+// static GNode *merge_menu(XdgContext *context, const char *path, GError **error);
 
 /*
  * <Menu>
@@ -574,16 +575,16 @@ xdg_menu_start_element(GMarkupParseContext *context, const gchar *element_name,
 	XdgContext *ctx = user_data;
 	XdgParseContext *base = ctx->parser;
 	XdgMenu *menu;
-	GNode *node, *parent;
+	GNode *node;
 
 	if (attribute_names && *attribute_names)
 		EPRINTF("Ignoring attributes in <Menu> element!\n");
 	menu = calloc(1, sizeof(*menu));
 	node = g_node_new(menu);
-	if ((parent = base->node)) {
-		g_node_append(parent, node);
-		g_queue_push_tail(base->stack, parent);
-	} else
+	g_queue_push_tail(base->stack, base->node);
+	if (base->node)
+		g_node_append(base->node, node);
+	else
 		base->tree = node;
 	base->node = node;
 }
@@ -1322,8 +1323,7 @@ xdg_include_start_element(GMarkupParseContext *context, const gchar *element_nam
 	rule->type = LogicTypeInclude;
 	node = g_node_new(rule);
 	menu->rules = g_list_append(menu->rules, node);
-	if (base->rule)
-		g_queue_push_tail(base->rules, base->rule);
+	g_queue_push_tail(base->rules, base->rule);
 	base->rule = node;
 }
 
@@ -1373,8 +1373,7 @@ xdg_exclude_start_element(GMarkupParseContext *context, const gchar *element_nam
 	rule->type = LogicTypeExclude;
 	node = g_node_new(rule);
 	menu->rules = g_list_append(menu->rules, node);
-	if (base->rule)
-		g_queue_push_tail(base->rules, base->rule);
+	g_queue_push_tail(base->rules, base->rule);
 	base->rule = node;
 }
 
@@ -2017,8 +2016,8 @@ xdg_legacydir_character_data(GMarkupParseContext *context,
 	} else
 		path = strndup(text, text_len);
 	free(legdir->path);
-	DPRINTF("Adding legacy directory '%s'\n", legdir->path);
 	legdir->path = path;
+	DPRINTF("Adding legacy directory '%s'\n", legdir->path);
 }
 
 static void
@@ -2596,8 +2595,7 @@ xdg_start_element(GMarkupParseContext *context,
 
 	for (m = &mapping[0]; m->label; m++) {
 		if (!strcmp(element_name, m->label)) {
-			if (base->current)
-				g_queue_push_tail(base->elements, base->current);
+			g_queue_push_tail(base->elements, base->current);
 			base->current = m;
 			break;
 		}
@@ -2694,8 +2692,7 @@ parse_menu(XdgContext *context, const char *path, GError **error)
 		base->elements = g_queue_new();
 		base->stack = g_queue_new();
 		base->rules = g_queue_new();
-		if (context->parser)
-			g_queue_push_tail(context->parsers, context->parser);
+		g_queue_push_tail(context->parsers, context->parser);
 		context->parser = base;
 		if (!(base->ctx = g_markup_parse_context_new(&xdg_parser,
 							     G_MARKUP_TREAT_CDATA_AS_TEXT |
@@ -2739,6 +2736,14 @@ parse_menu(XdgContext *context, const char *path, GError **error)
 
 }
 
+#if 0
+static GNode *
+merge_menu(XdgContext *context, const char *path, GError **error)
+{
+	return NULL;
+}
+#endif
+
 static GNode *
 root_menu(XdgContext *context, GError **error)
 {
@@ -2749,6 +2754,136 @@ root_menu(XdgContext *context, GError **error)
 	if (tmperr)
 		g_propagate_error(error, tmperr);
 	return (tree);
+}
+
+/*
+ *  Merging
+ *	Sometime two menu layouts need to be merged.  This is done when folding in
+ *	legacy menu hierarchies (see the section called "Legacy Menu Hierarchies") and
+ *	also for files specified in <MergeFile> elements.  A common case is that
+ *	per-user menu files might merge the system menu file.  Merging is also used to
+ *	avoid cut-and-paste, for example to include a common submenu in multiple menu
+ *	files.
+ *
+ *	Merging involves a base <Menu> and a merged <Menu>.  The base is the "target"
+ *	menu and the merged <Menu> is being added to it.  The result of the merge is
+ *	termed the "combined menu".
+ *
+ *	As a prepatory step, the goal is to resolve all files into XML elements.  To
+ *	do so, travers the entire menu tree.  For each <MergeFile>, <MergeDir>, or
+ *	<LegacyDir> element, replace the <MergeFile>, <MergeDir>, or <LegacyDir>
+ *	element with the child elements of the root <Menu> of the file(s) being
+ *	merged.  As a special exception, remove the <Name> element from the root
+ *	element of each file being merged.  To generate a <Menu> based on a
+ *	<LegacyDir>, see the section called "Legacy Menu Hierarchies".
+ *
+ *	Continue processing util to <MergeFile>, <MergeDir>, or <LegacyDir> elements
+ *	reamin, taking care to avoid infinite loops caused by files that reference one
+ *	another.
+ *
+ *	Once all files have been loaded into a single tree, scan the tree recursively
+ *	performing these steps to remove duplicates:
+ *
+ *	1.  Consolidate child menus.  Each group of child <Menu>s with the same name
+ *	    must be consolidated into a single child menu with that name.  Concatenate
+ *	    the child elements of all menus with the same name, in the order that they
+ *	    appear, and insert those elements as the children of the last menu with
+ *	    that name.  Delete all the newly empty <Menu> elements, keeping the last
+ *	    one.
+ *
+ *	2.  Expand <DefaultAppDirs> and <DefaultDirectoryDirs> elements to <AppDir>
+ *	    and <DirectoryDir> elements.  Consolidate duplicate <AppDir>,
+ *	    <DirectoryDir> and <Directory> elements by keeping the last one.  For
+ *	    <Directory> elements that refer to distinct directory entries, all of them
+ *	    should be kept - if the last one points to a non-existent file, the one
+ *	    before that can be used instead, and so forth.
+ *
+ *	3.  Recurse into each child <Menu>, performing this list of steps for each
+ *	    child in order.
+ *
+ *	After recursing once to remove duplicates, recurse a second time to resolve
+ *	<Move> elements for each menu starting with any child menu before handling the
+ *	more top level menus.  So the deepest menus whave their <Move> operations
+ *	performed first.  Within each <Menu>, execute <Move> operations in the order
+ *	that they appear.  If the destination path does not exist, simply relocate the
+ *	origin <Menu> element, and change its <Name> field to matchthe destination
+ *	path.  If the origin path does not exist, do nothing.  If both paths exist,
+ *	take the origin <Menu> element, delete its <Name> element, and prepend its
+ *	remaining child elements to the destination <Menu> element.
+ *
+ *	If any <Move> operations affect a menu, then re-run the steps to resolve
+ *	duplicates in case any duplicates have been created.
+ *
+ *	Finally, for each <Menu> containing a <Deleted> element which is not followed
+ *	by a <NotDeleted> element, remove that menu and all its child menus.
+ *
+ *	Merged menu elements are kept in order because <Include> and <Exclude>
+ *	elements later in the file override <Include> and <Exclude> elements earlier
+ *	in the file.  This means that if the user's menu file merges the system menu
+ *	file, the user can always override what the system menu file specifies by
+ *	placing elemetns after the <MergeFile> that incorporates the system file.
+ *
+ *	To prevent that a desktop entry from one party inadvertently cancels out the
+ *	desktop entry from another party because both happen to get the same
+ *	desktop-file id, it is recommended that providers of desktop-files ensure that
+ *	all desktop-file ids start with a vendor prefix.  A vendor prefix consists of
+ *	[a-zA-Z] and is terminated with a dash ("-").  Open Source projects and
+ *	commerical parties are encouraged to use a word or phrase, preferably their
+ *	name, as a prefix for which they hold a trademark.  Open Source applications
+ *	can also ask to make use of the vendor prefix of another open source project
+ *	(such as GNOME or KDE) they consider themselves affiliated with, a the
+ *	discretion of those projects.
+ *
+ *	For example, to ensure that GNOME applications start with a vendor prefix or
+ *	"gnome-", it could either add "gnome-" to all the desktop files it installs in
+ *	datadir/applications/ or it could install desktop files in a
+ *	datadir/applications/gnome subdirectory.  When including legacy menu
+ *	hierarchies the prefix argument of the <LegacyDir> element can be used to
+ *	specify a prefix.
+ */
+static gboolean
+merge_menus(XdgContext *ctx, GNode *tree, GError **error)
+{
+	return TRUE;
+}
+
+
+/*
+ *  Generating the menus
+ *
+ *	After merging the menus, the result should be a single menu layout
+ *	description.  For each <Menu>, we have a list of directories where desktop
+ *	entries can be found, a list of directories where directory entries can be
+ *	found, and a serices of <Include> and <Exclude> directives.
+ *
+ *	For each <Menu> element, build a pool of desktop entries by collecting entries
+ *	found in each <AppDir> for the menu element.  If two entries have the same
+ *	desktop-file id, the entry for the earlier (closer to the top of the file)
+ *	<AppDir> must be discarded.  Next, add to the pool the entries for any
+ *	<AppDir>s specified by ancestor <Menu> elements.  If a parent menu has a
+ *	duplicate entry (same desktop-file id), the entry for the child menu has
+ *	priority.
+ *
+ *	Next, walk through all <Include> and <Exclude> statements.  For each
+ *	<Include>, match the rules against the pool of all desktop entries.  For each
+ *	desktop entry that matches one of the rules, add it to the menu to be
+ *	displayed and mark it as having been allocated.  For each <Exclude>, match the
+ *	rules against the currently-included desktop entries.  For each desktop entry
+ *	that matches, remove it again from the menu.  Note that the entry that is
+ *	included in a menu but excluded again by a later <Exclude> is still considered
+ *	allocated (for the purposes of <OnlyUnallocated>) even though that entry no
+ *	longer appears in the menu.
+ *
+ *	Two passes are necessary, once for regular menus where any entry may be
+ *	matched, and once for <OnlyUnallocated> menus where only entries which have
+ *	not been marked as allocated may be matched.
+ *
+ *	The result is a tree of desktop entries, of course.
+ */
+static gboolean
+build_menus(XdgContext *ctx, GNode *tree, GError **error)
+{
+	return TRUE;
 }
 
 static void
@@ -2766,9 +2901,21 @@ make_menu(int argc, char *argv[])
 		    g_hash_table_new_full(g_str_hash, g_str_equal, NULL, xdg_fileentry_free);
 
 	context.parsers = g_queue_new();
-	tree = root_menu(&context, &error);
-	(void) tree;
-	/* FIXME: now do something with root */
+	if (!(tree = root_menu(&context, &error)) || error) {
+		EPRINTF("Failed to generate menu.\n");
+		/* maybe we should wait for a file change or fallback */
+		exit(EXIT_FAILURE);
+	}
+	if (!merge_menus(&context, tree, &error) || error) {
+		WPRINTF("Failed to merge menus.\n");
+		g_clear_error(&error);
+	}
+	if (!build_menus(&context, tree, &error) || error) {
+		EPRINTF("Failed to build menus.\n");
+		/* maybe we should wait for a file change or fallback */
+		exit(EXIT_FAILURE);
+	}
+	/* FIXME: now do something with useful with tree */
 }
 
 static Window
