@@ -1849,7 +1849,7 @@ GMarkupParser xdg_mergefile_parser = {
 
 /*
  * <MergeDir>
- *	ANy numebr of <MergeDir> elements may be listed below <Menu> element.  A <MergeDir> contains
+ *	Any number of <MergeDir> elements may be listed below <Menu> element.  A <MergeDir> contains
  *	the name of a directory.  Each file in the given directoy which ends in the ".menu"
  *	extension should be merged in the same way that a <MergeFile> would be.  If the filename
  *	given as a <MergeDir> is not an absolute path, it should be located relative to the location
