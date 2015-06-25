@@ -557,7 +557,7 @@ xdg_menu_merge(XdgMenu *target, XdgMenu *menu)
 }
 
 static GNode *parse_menu(XdgContext *context, const char *path, GError **error);
-// static GNode *merge_menu(XdgContext *context, const char *path, GError **error);
+static gboolean merge_menu(XdgContext *context, const char *path, GError **error);
 
 /*
  * <Menu>
@@ -595,7 +595,29 @@ xdg_menu_end_element(GMarkupParseContext *context,
 {
 	XdgContext *ctx = user_data;
 	XdgParseContext *base = ctx->parser;
+	XdgMenu *menu;
+	GList *item;
 
+	menu = base->node->data;
+	for (item = g_list_first(menu->merge); item; item = item->next) {
+		XdgMerge *mrg = item->data;
+
+		switch (mrg->type) {
+		case MergeTypeFilePath:
+			DPRINTF("Merging menu '%s'\n", mrg->path);
+			merge_menu(ctx, mrg->path, NULL);
+			break;
+		case MergeTypeFileParent:
+			/* FIXME: write this */
+			break;
+		case MergeTypeDirectory:
+			/* FIXME: write this */
+			break;
+		case MergeTypeLegacy:
+			/* FIXME: write this */
+			break;
+		}
+	}
 	base->node = g_queue_pop_tail(base->stack);
 }
 
@@ -802,6 +824,7 @@ xdg_appdir_character_data(GMarkupParseContext *context,
 	XdgDirectory *appdir;
 	const gchar *tend = text + text_len;
 	char *path;
+	GList *item;
 
 	if (!(menu = xdg_get_menu(user_data, "AppDir")))
 		return;
@@ -822,6 +845,17 @@ xdg_appdir_character_data(GMarkupParseContext *context,
 	appdir->path = path;
 	DPRINTF("Adding application directory '%s'\n", appdir->path);
 	menu->appdirs = g_list_append(menu->appdirs, appdir);
+
+	for (item = g_list_first(menu->appdirs); item; item = item->next) {
+		XdgDirectory *olddir = item->data;
+
+		if (!strcmp(olddir->path, appdir->path)) {
+			DPRINTF("Removing duplicate application directory '%s'\n", olddir->path);
+			xdg_directory_free(olddir);
+			menu->appdirs = g_list_delete_link(menu->appdirs, item);
+			break;
+		}
+	}
 
 }
 
@@ -1034,6 +1068,7 @@ xdg_dirdir_character_data(GMarkupParseContext *context,
 	XdgDirectory *dirdir;
 	const gchar *tend = text + text_len;
 	char *path;
+	GList *item;
 
 	if (!(menu = xdg_get_menu(user_data, "DirectoryDir")))
 		return;
@@ -1050,9 +1085,20 @@ xdg_dirdir_character_data(GMarkupParseContext *context,
 		strncat(path, text, text_len);
 	} else
 		path = strndup(text, text_len);
+	free(dirdir->path);
 	dirdir->path = path;
 	DPRINTF("Adding directory directory '%s'\n", dirdir->path);
 	menu->dirdirs = g_list_append(menu->dirdirs, dirdir);
+	for (item = g_list_first(menu->dirdirs); item; item = item->next) {
+		XdgDirectory *olddir = item->data;
+
+		if (!strcmp(olddir->path, dirdir->path)) {
+			DPRINTF("Removing duplicate directory file '%s'\n", olddir->path);
+			xdg_directory_free(olddir);
+			menu->dirdirs = g_list_delete_link(menu->dirdirs, item);
+			break;
+		}
+	}
 }
 
 static void
@@ -1832,7 +1878,20 @@ xdg_mergefile_character_data(GMarkupParseContext *context,
 		strncat(path, text, text_len);
 	} else
 		path = strndup(text, text_len);
+
+	free(mfile->path);
 	mfile->path = strndup(text, text_len);
+
+	for (item = g_list_first(menu->merge); item; item = item->next) {
+		XdgMerge *ofile = item->data;
+
+		if (ofile->type == mfile->type && !strcmp(ofile->path, mfile->path)) {
+			DPRINTF("Removing duplicate merge file '%s'\n", ofile->path);
+			xdg_merge_free(ofile);
+			menu->merge = g_list_delete_link(menu->merge, item);
+			break;
+		}
+	}
 }
 
 static void
@@ -1869,15 +1928,13 @@ xdg_mergedir_character_data(GMarkupParseContext *context,
 	XdgMerge *mdir;
 	const gchar *tend = text + text_len;
 	char *path;
+	GList *item;
 
 	if (!(menu = xdg_get_menu(user_data, element_name)))
 		return;
 
 	for (; text < text && isspace(*text); text++, text_len--) ;
 	for (; tend > text && isspace(*tend); tend--, text_len--) ;
-
-	mdir = calloc(1, sizeof(*mdir));
-	mdir->type = MergeTypeDirectory;
 
 	if (text[0] != '/') {
 		int len = strlen(base->directory) + 1 + text_len + 1;
@@ -1889,9 +1946,23 @@ xdg_mergedir_character_data(GMarkupParseContext *context,
 		strncat(path, text, text_len);
 	} else
 		path = strndup(text, text_len);
+
+	mdir = calloc(1, sizeof(*mdir));
+	mdir->type = MergeTypeDirectory;
 	mdir->path = path;
 	DPRINTF("Adding merge directory '%s'\n", mdir->path);
 	menu->merge = g_list_append(menu->merge, mdir);
+
+	for (item = g_list_first(menu->merge); item; item = item->next) {
+		XdgMerge *odir = item->data;
+
+		if (odir->type == mdir->type && !strcmp(odir->path, mdir->path)) {
+			DPRINTF("Removing duplicate merge directory '%s'\n", odir->path);
+			xdg_merge_free(odir);
+			menu->merge = g_list_delete_link(menu->merge, item);
+			break;
+		}
+	}
 }
 
 static void
@@ -2685,10 +2756,15 @@ parse_menu(XdgContext *context, const char *path, GError **error)
 			EPRINTF("%s\n", strerror(errno));
 			goto no_ctx;
 		}
+
 		base->directory = s = strdup(path);
-		if ((p = strrchr(s, '/')))
+		if ((p = strrchr(s, '/'))) {
 			*p = '\0';
-		base->filename = strdup((p = strrchr(path, '/')) ? p + 1 : path);
+			base->filename = strdup(p + 1);
+		} else {
+			base->filename = s;
+			base->directory = strdup(".");
+		}
 		base->elements = g_queue_new();
 		base->stack = g_queue_new();
 		base->rules = g_queue_new();
@@ -2736,13 +2812,196 @@ parse_menu(XdgContext *context, const char *path, GError **error)
 
 }
 
-#if 0
-static GNode *
+static GList *
+xdg_directory_concat(GList *list1, GList *list2)
+{
+	GList *item1, *item2;
+
+	for (item2 = g_list_first(list2); item2; item2 = item2->next) {
+		XdgDirectory *dir2 = item2->data;
+
+		for (item1 = g_list_first(list1); item1; item1 = item1->next) {
+			XdgDirectory *dir1 = item1->data;
+
+			if (!strcmp(dir1->path, dir2->path)) {
+				xdg_directory_free(dir1);
+				list1 = g_list_delete_link(list1, item1);
+				item1 = g_list_first(list1);
+			}
+
+		}
+	}
+	list1 = g_list_concat(list1, list2);
+	return (list1);
+}
+
+static GList *
+xdg_merge_concat(GList *list1, GList *list2)
+{
+	GList *item1, *item2;
+
+	for (item2 = g_list_first(list2); item2; item2 = item2->next) {
+		XdgMerge *mrg2 = item2->data;
+
+		for (item1 = g_list_first(list1); item1; item1 = item1->next) {
+			XdgMerge *mrg1 = item1->data;
+
+			if (mrg1->type == mrg2->type &&
+			    mrg1->path && mrg2->path && !strcmp(mrg1->path, mrg2->path)) {
+				xdg_merge_free(mrg1);
+				list1 = g_list_delete_link(list1, item1);
+				item1 = g_list_first(list1);
+			}
+
+		}
+	}
+	list1 = g_list_concat(list1, list2);
+	return (list1);
+}
+
+static void
+merge_child(XdgContext *context, GNode *nold, GNode *nnew)
+{
+	XdgMenu *mold, *mnew;
+	GNode *cold, *cnew;
+
+	mold = nold->data;
+	mnew = nnew->data;
+
+	mnew->appdirs = xdg_directory_concat(mold->appdirs, mnew->appdirs);
+	mold->appdirs = NULL;
+	mnew->dirdirs = xdg_directory_concat(mold->dirdirs, mnew->dirdirs);
+	mold->dirdirs = NULL;
+	mnew->merge = xdg_merge_concat(mold->merge, mnew->merge);
+	mold->merge = NULL;
+	mnew->rules = g_list_concat(mold->rules, mnew->rules);
+	mold->rules = NULL;
+	mnew->moves = g_list_concat(mold->moves, mnew->moves);
+	mold->moves = NULL;
+	if (!mnew->layout) {
+		mnew->layout = mold->layout;
+		mold->layout = NULL;
+	}
+	if (!mnew->deflay) {
+		mnew->deflay = mold->deflay;
+		mold->deflay = NULL;
+	}
+
+	for (cnew = g_node_first_child(nnew); cnew; cnew = cnew->next) {
+		XdgMenu *cmnew = cnew->data;
+
+		for (cold = g_node_first_child(nold); cold; cold = cold->next) {
+			XdgMenu *cmold = cold->data;
+
+			if (cmold->name && cmnew->name && !strcmp(cmold->name, cmnew->name)) {
+				merge_child(context, cold, cnew);
+				cold = g_node_first_child(nold);
+			}
+		}
+	}
+
+	while ((cold = g_node_last_child(nold))) {
+		g_node_unlink(cold);
+		g_node_prepend(nnew, cold);
+	}
+	xdg_menu_free(mold);
+	g_node_destroy(nold);
+}
+
+static gboolean
 merge_menu(XdgContext *context, const char *path, GError **error)
 {
-	return NULL;
+	GNode *tree, *node, *child, *other;
+	XdgMenu *menu, *root;
+	GError *tmperr = NULL;
+	GList *parser;
+	char *directory, *filename;
+	gboolean beentheredonethat = FALSE;
+
+	directory = strdup(path);
+	if ((filename = strrchr(directory, '/'))) {
+		*filename = '\0';
+		filename = strdup(filename + 1);
+	} else {
+		filename = directory;
+		directory = strdup(".");
+	}
+
+	g_queue_push_tail(context->parsers, context->parser);
+	for (parser = g_queue_peek_head_link(context->parsers); parser; parser = parser->prev) {
+		XdgParseContext *base;
+
+		if (!(base = parser->data))
+			continue;
+		if (!strcmp(base->directory, directory) && !strcmp(base->filename, filename)) {
+			beentheredonethat = TRUE;
+			break;
+		}
+	}
+	g_queue_pop_tail(context->parsers);
+
+	free(directory);
+	free(filename);
+
+	if (beentheredonethat) {
+		WPRINTF("Recursive merging of menu '%s'\n", path);
+		return FALSE;
+	}
+
+	if (!(tree = parse_menu(context, path, &tmperr)) || tmperr) {
+		WPRINTF("Could not parse merged menu '%s'\n", path);
+		if (tmperr)
+			g_propagate_error(error, tmperr);
+		return FALSE;
+	}
+
+	node = context->parser->node;	/* current menu tree node */
+	menu = node->data;	/* the target menu itself */
+	root = tree->data;	/* the merged menu itself */
+
+	menu->appdirs = xdg_directory_concat(menu->appdirs, root->appdirs);
+	root->appdirs = NULL;
+	menu->dirdirs = xdg_directory_concat(menu->dirdirs, root->dirdirs);
+	root->dirdirs = NULL;
+	menu->merge = xdg_merge_concat(menu->merge, root->merge);	// XXX
+	root->merge = NULL;
+	menu->rules = g_list_concat(menu->rules, root->rules);
+	root->rules = NULL;
+	menu->moves = g_list_concat(menu->moves, root->moves);
+	root->moves = NULL;
+	if (!menu->layout) {
+		menu->layout = root->layout;
+		root->layout = NULL;
+	}
+	if (!menu->deflay) {
+		menu->deflay = root->deflay;
+		root->deflay = NULL;
+	}
+
+	for (child = g_node_first_child(tree); child; child = child->next) {
+		XdgMenu *cmenu = child->data;
+
+		for (other = g_node_first_child(node); other; other = other->next) {
+			XdgMenu *omenu = other->data;
+
+			if (omenu->name && cmenu->name && !strcmp(omenu->name, cmenu->name)) {
+				merge_child(context, other, child);
+				other = g_node_first_child(node);
+			}
+
+		}
+	}
+
+	while ((child = g_node_first_child(tree))) {
+		g_node_unlink(child);
+		g_node_append(node, child);
+	}
+
+	xdg_menu_free(root);
+	g_node_destroy(tree);
+
+	return TRUE;
 }
-#endif
 
 static GNode *
 root_menu(XdgContext *context, GError **error)
@@ -2846,7 +3105,6 @@ merge_menus(XdgContext *ctx, GNode *tree, GError **error)
 {
 	return TRUE;
 }
-
 
 /*
  *  Generating the menus
