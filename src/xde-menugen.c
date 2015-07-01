@@ -268,6 +268,7 @@ typedef struct {
 typedef struct {
 	char *directory;		/* directory of menu file. */
 	char *filename;			/* filename portion only. */
+	char *fullpath;			/* directory and filename */
 	GMarkupParseContext *ctx;	/* glib parser context */
 	XdgParserMapping *current;	/* current element */
 	GQueue *elements;		/* element stack */
@@ -287,6 +288,7 @@ xdg_context_free(gpointer data)
 
 	free(base->directory);
 	free(base->filename);
+	free(base->fullpath);
 	g_queue_free(base->elements);
 	base->elements = NULL;
 	base->current = NULL;
@@ -556,8 +558,9 @@ xdg_menu_merge(XdgMenu *target, XdgMenu *menu)
 	xdg_menu_free(menu);
 }
 
-static GNode *parse_menu(XdgContext *context, const char *path, GError **error);
-static gboolean merge_menu(XdgContext *context, const char *path, GError **error);
+static GNode *xdg_parse_menu(XdgContext *context, const char *path, GError **error);
+static gboolean xdg_merge_menu(XdgContext *context, const char *path, GError **error);
+static gboolean xdg_merge_dirs(XdgContext *context, const char *path, GError **error);
 
 /*
  * <Menu>
@@ -595,28 +598,30 @@ xdg_menu_end_element(GMarkupParseContext *context,
 {
 	XdgContext *ctx = user_data;
 	XdgParseContext *base = ctx->parser;
-	XdgMenu *menu;
+	XdgMenu *menu = base->node->data;
 	GList *item;
 
-	menu = base->node->data;
-	for (item = g_list_first(menu->merge); item; item = item->next) {
+	while ((item = g_list_first(menu->merge))) {
 		XdgMerge *mrg = item->data;
 
+		menu->merge = g_list_delete_link(menu->merge, item);
 		switch (mrg->type) {
 		case MergeTypeFilePath:
 			DPRINTF("Merging menu '%s'\n", mrg->path);
-			merge_menu(ctx, mrg->path, NULL);
+			xdg_merge_menu(ctx, mrg->path, NULL);
 			break;
 		case MergeTypeFileParent:
 			/* FIXME: write this */
 			break;
 		case MergeTypeDirectory:
-			/* FIXME: write this */
+			DPRINTF("Merging directory '%s'\n", mrg->path);
+			xdg_merge_dirs(ctx, mrg->path, NULL);
 			break;
 		case MergeTypeLegacy:
 			/* FIXME: write this */
 			break;
 		}
+		xdg_merge_free(mrg);
 	}
 	base->node = g_queue_pop_tail(base->stack);
 }
@@ -2727,7 +2732,7 @@ GMarkupParser xdg_parser = {
 };
 
 static GNode *
-parse_menu(XdgContext *context, const char *path, GError **error)
+xdg_parse_menu(XdgContext *context, const char *path, GError **error)
 {
 	XdgParseContext *base = NULL;
 	GNode *tree = NULL;
@@ -2757,6 +2762,7 @@ parse_menu(XdgContext *context, const char *path, GError **error)
 			goto no_ctx;
 		}
 
+		base->fullpath = strdup(path);
 		base->directory = s = strdup(path);
 		if ((p = strrchr(s, '/'))) {
 			*p = '\0';
@@ -2778,7 +2784,7 @@ parse_menu(XdgContext *context, const char *path, GError **error)
 			goto no_tree;
 		}
 		while ((got = fread(buf, 1, BUFSIZ, f)) > 0) {
-			DPRINTF("got %d more bytes\n", got);
+			DPRINTF("got %d more bytes\n", (int)got);
 			if (!g_markup_parse_context_parse(base->ctx, buf, got, &tmperr)) {
 				EPRINTF("could not parse buffer contents\n");
 				goto parse_error;
@@ -2860,7 +2866,7 @@ xdg_merge_concat(GList *list1, GList *list2)
 }
 
 static void
-merge_child(XdgContext *context, GNode *nold, GNode *nnew)
+xdg_merge_child(GNode *nold, GNode *nnew)
 {
 	XdgMenu *mold, *mnew;
 	GNode *cold, *cnew;
@@ -2894,7 +2900,7 @@ merge_child(XdgContext *context, GNode *nold, GNode *nnew)
 			XdgMenu *cmold = cold->data;
 
 			if (cmold->name && cmnew->name && !strcmp(cmold->name, cmnew->name)) {
-				merge_child(context, cold, cnew);
+				xdg_merge_child(cold, cnew);
 				cold = g_node_first_child(nold);
 			}
 		}
@@ -2908,56 +2914,12 @@ merge_child(XdgContext *context, GNode *nold, GNode *nnew)
 	g_node_destroy(nold);
 }
 
-static gboolean
-merge_menu(XdgContext *context, const char *path, GError **error)
+static void
+xdg_merge_root(GNode *node, GNode *tree)
 {
-	GNode *tree, *node, *child, *other;
-	XdgMenu *menu, *root;
-	GError *tmperr = NULL;
-	GList *parser;
-	char *directory, *filename;
-	gboolean beentheredonethat = FALSE;
-
-	directory = strdup(path);
-	if ((filename = strrchr(directory, '/'))) {
-		*filename = '\0';
-		filename = strdup(filename + 1);
-	} else {
-		filename = directory;
-		directory = strdup(".");
-	}
-
-	g_queue_push_tail(context->parsers, context->parser);
-	for (parser = g_queue_peek_head_link(context->parsers); parser; parser = parser->prev) {
-		XdgParseContext *base;
-
-		if (!(base = parser->data))
-			continue;
-		if (!strcmp(base->directory, directory) && !strcmp(base->filename, filename)) {
-			beentheredonethat = TRUE;
-			break;
-		}
-	}
-	g_queue_pop_tail(context->parsers);
-
-	free(directory);
-	free(filename);
-
-	if (beentheredonethat) {
-		WPRINTF("Recursive merging of menu '%s'\n", path);
-		return FALSE;
-	}
-
-	if (!(tree = parse_menu(context, path, &tmperr)) || tmperr) {
-		WPRINTF("Could not parse merged menu '%s'\n", path);
-		if (tmperr)
-			g_propagate_error(error, tmperr);
-		return FALSE;
-	}
-
-	node = context->parser->node;	/* current menu tree node */
-	menu = node->data;	/* the target menu itself */
-	root = tree->data;	/* the merged menu itself */
+	XdgMenu *menu = node->data;
+	XdgMenu *root = tree->data;
+	GNode *child, *other;
 
 	menu->appdirs = xdg_directory_concat(menu->appdirs, root->appdirs);
 	root->appdirs = NULL;
@@ -2985,7 +2947,7 @@ merge_menu(XdgContext *context, const char *path, GError **error)
 			XdgMenu *omenu = other->data;
 
 			if (omenu->name && cmenu->name && !strcmp(omenu->name, cmenu->name)) {
-				merge_child(context, other, child);
+				xdg_merge_child(other, child);
 				other = g_node_first_child(node);
 			}
 
@@ -2999,17 +2961,105 @@ merge_menu(XdgContext *context, const char *path, GError **error)
 
 	xdg_menu_free(root);
 	g_node_destroy(tree);
+}
+
+static gboolean
+xdg_merge_menu(XdgContext *context, const char *path, GError **error)
+{
+	GNode *tree, *node;
+	GError *tmperr = NULL;
+	GList *parser;
+	gboolean beentheredonethat = FALSE;
+
+	g_queue_push_tail(context->parsers, context->parser);
+	for (parser = g_queue_peek_head_link(context->parsers); parser; parser = parser->prev) {
+		XdgParseContext *base;
+
+		if (!(base = parser->data))
+			continue;
+		if (!strcmp(base->fullpath, path)) {
+			beentheredonethat = TRUE;
+			break;
+		}
+	}
+	g_queue_pop_tail(context->parsers);
+
+	if (beentheredonethat) {
+		WPRINTF("Recursive merging of menu '%s'\n", path);
+		return FALSE;
+	}
+
+	if (!(tree = xdg_parse_menu(context, path, &tmperr)) || tmperr) {
+		WPRINTF("Could not parse merged menu '%s'\n", path);
+		if (tmperr)
+			g_propagate_error(error, tmperr);
+		return FALSE;
+	}
+
+	node = context->parser->node;	/* current menu tree node */
+
+	xdg_merge_root(node, tree);
 
 	return TRUE;
 }
 
+static gboolean
+xdg_merge_dirs(XdgContext *context, const char *path, GError **error)
+{
+	DIR *dir;
+	struct dirent *d;
+	int len, dlen;
+	char *file;
+	struct stat st;
+
+	dlen = strlen(path) + 1;
+	if (!(dir = opendir(path))) {
+		DPRINTF("%s: %s\n", path, strerror(errno));
+		return FALSE;
+	}
+	while ((d = readdir(dir))) {
+		if (d->d_name[0] == '.')
+			continue;
+		len = dlen + strlen(d->d_name);
+		file = calloc(len + 1, sizeof(*file));
+		strcpy(file, path);
+		strcat(file, "/");
+		strcat(file, d->d_name);
+		if (stat(file, &st)) {
+			EPRINTF("%s: %s\n", file, strerror(errno));
+			free(file);
+			continue;
+		}
+		if (S_ISDIR(st.st_mode)) {
+			/* recurse */
+			xdg_merge_dirs(context, file, error);
+			free(file);
+			continue;
+		} else if (!S_ISREG(st.st_mode)) {
+			EPRINTF("%s: not a file\n", file);
+			free(file);
+			continue;
+		}
+		if (!(strstr(d->d_name, ".menu"))) {
+			DPRINTF("%s: does not end in .menu\n", d->d_name);
+			free(file);
+			continue;
+		}
+		xdg_merge_menu(context, file, NULL);
+		free(file);
+		continue;
+	}
+	closedir(dir);
+	return TRUE;
+}
+
 static GNode *
-root_menu(XdgContext *context, GError **error)
+xdg_root_menu(XdgContext *context, GError **error)
 {
 	GError *tmperr = NULL;
 	GNode *tree;
 
-	tree = parse_menu(context, options.rootmenu, &tmperr);
+	tree = xdg_parse_menu(context, options.rootmenu, &tmperr);
 	if (tmperr)
 		g_propagate_error(error, tmperr);
 	return (tree);
@@ -3159,7 +3209,7 @@ make_menu(int argc, char *argv[])
 		    g_hash_table_new_full(g_str_hash, g_str_equal, NULL, xdg_fileentry_free);
 
 	context.parsers = g_queue_new();
-	if (!(tree = root_menu(&context, &error)) || error) {
+	if (!(tree = xdg_root_menu(&context, &error)) || error) {
 		EPRINTF("Failed to generate menu.\n");
 		/* maybe we should wait for a file change or fallback */
 		exit(EXIT_FAILURE);
