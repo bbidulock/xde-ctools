@@ -13,7 +13,8 @@ B<xde-keys> [I<OPTIONS>]
 Provides generic key binding management for window managers that do not
 provide key bindings themselves or for those that provide a inferior or
 incomplete set of bindings.  Key bindings are hot keys bound to the root
-window that invoke actions on windows, workspaces or the window manager.
+window that invoke actions on windows, workspaces, the window manager,
+or other aspect of the system.
 
 =head1 OPTIONS
 
@@ -168,11 +169,16 @@ previous session.
 =head1 USAGE
 
 B<xde-keys> currently uses F<libwnck+> or F<libwnck> to detect window
-managers and window manager changes, so the window manager must support
-some modicum of EWMH/NetWM compliance for the key binder to work.
-Nevertheless, no standard other than bare ICCCM supports many key
+managers and window manager changes, so the window manager should
+support some modicum of EWMH/NetWM compliance for the key binder to
+work.  Nevertheless, no standard other than bare ICCCM supports many key
 actions, so the lack of an EWMH/NetWM compliant window manager severely
 reduces the ability of B<xde-keys> anyway.
+
+B<xde-keys> is intended to attempt its key bindings after the window
+manager and any autostart programs have already run.  This is so that
+the window manager or autostart programs will not fail if they are
+unable to obtain their key bindings.
 
 Run B<xde-keys> in the background or launch it using the supplied XDG
 autostart file.  The program takes the following steps:
@@ -183,7 +189,11 @@ autostart file.  The program takes the following steps:
 
 Waits for a window manager to appear unless the B<--nowait> option has
 been specified.  Waits the interval specified by the B<--delay> option
-before proceeding.
+before proceeding. Note that this delay is intended to allow
+autostarting applications to bind keys before B<xde-keys> attempts to
+bind those keys.  (Most applications complain or event fail when they
+cannot bind the proper keys; however, B<xde-keys> is more forgiving and)
+just complains to F<stderr>.)
 
 =item 2.
 
@@ -196,11 +206,11 @@ specified, write the resulting configuration to the F<gconf> database.
 =item 3.
 
 Proceeds to bind each key action that is defined by the profile and
-supported by the window manager.
+supported by the window manager, or supported by the system in general.
 
 =item 4.
 
-Waits in the background for keystrokes and performes the actions
+Waits in the background for keystrokes and performs the actions
 associated with the keystroke.  If the program detects that the window
 manager has changed, it will restart the process at step (1).
 
@@ -238,7 +248,7 @@ A key chain followed by an optional equal-sign and key arguments list.
 The I<E<lt>chainE<gt>> specifies the sequence of key presses necessary
 to invoke the I<E<lt>commandE<gt>>, and the I<E<lt>argsE<gt>> specify
 the arguments to command that are associated with this key binding,
-describe for each I<E<lt>commandE<gt>>, below, under L<COMMANDS>.
+described for each I<E<lt>commandE<gt>>, below, under L<COMMANDS>.
 
 =item I<E<lt>argsE<gt>> = I<E<lt>argE<gt>> [C< > I<...>]
 
@@ -551,7 +561,7 @@ sequence to the same action.
 
 =item 3.
 
-Many window managers are incapable of providing for key chaining.
+Many window managers are incapable of providing key chaining.
 
 =item 4.
 
@@ -565,6 +575,13 @@ window manager, has limited capabilities and extensibility.  All other
 external keybinders that were assocaiated with a window manager (such as
 the one for early versions of L<openbox(1)>) have stagnated and
 deteriorated.
+
+=item 6.
+
+There are about 170 special "XF86" keys defined that are to perform
+various functions, not many of which are associated with the window
+manager.  Therefore, replicating these 170 bindings for each window
+manager would be counter-productive.
 
 =back
 

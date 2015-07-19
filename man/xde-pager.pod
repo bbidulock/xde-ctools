@@ -14,7 +14,7 @@ Provides desktop cycling feedback for window managers
 that do not provide desktop cycling themselves or for those that provide
 an inferior feedback.  The desktop cycling feedback is a pager where
 each cell corresponds to a workspace on the current monitor (or multiple
-monitors).  The feedback popup can also have a desktop selected using
+monitors).  The feedback pop-up can also have a desktop selected using
 the mouse.
 
 =head1 OPTIONS
@@ -70,6 +70,13 @@ Specify the display to use (overriding the B<DISPLAY> environment
 variable).  The default is the value of the B<DISPLAY> environment
 variable.
 
+=item B<--screen>, B<-s> I<SCREEN>
+
+Specify the screen number to use when locating the current window and
+workspace.  The default is either specified by the B<DISPLAY>
+environment variable (which that variable specifies a screen);
+otherwise, all screens will be considered.
+
 =item B<--timeout>, B<-t> I<TIMEOUT>
 
 When cycling the desktops with the mouse or other than a modified
@@ -77,17 +84,30 @@ keystroke, or if a key is pressed that does not result in a desktop
 change, the feedback window will persist for I<TIMEOUT> milliseconds.
 The default is 1000 (or 1 second).
 
-=item B<--border>, B<-b> I<WIDTH>
+=item B<--border>, B<-B> I<WIDTH>
 
 Places a border around the pager of I<WIDTH> pixels.  The default is 5
 pixels.
 
-=item B<--noproxy>, B<-n>
+=item B<--proxy>, B<-p>
 
 Normally the pager will translate scroll wheel events received on a
 B<_WIN_DESKTOP_BUTTON_PROXY> window into desktop changes.  As other
 programs (such as a desktop) may also be doing so, this option causes
-the pager to ignore the desktop button proxy.
+the pager to consider the desktop button proxy.
+
+=item B<--button>, B<-b> I<BUTTON>
+
+Specifies the button that was used to invoke the pop-up.  Defaults to
+zero (0).  This should be the button that was used to pop the pager.  A
+window manager that invokes this command in response to a button press
+should release its passive grab on the button before invoking the pager
+so that the popped up menu can grab the button.  A I<BUTTON> of zero (0)
+means that the program was invoked with a key-press instead of a button.
+
+=item B<--timestamp>, B<-T> I<TIMESTAMP>
+
+Provides the X11 server time-stamp of the event that caused the pop-up.
 
 =item B<--verbose>, B<-v> [I<LEVEL>]
 
@@ -100,6 +120,26 @@ otherwise, the output verbosity is set to I<LEVEL>.
 Print debugging information on standard error while running.  When
 I<LEVEL> is not specified, simply increments the debug level; otherwise,
 the debug level is set to I<LEVEL>.
+
+=back
+
+=head2 SESSION MANAGEMENT OPTIONS
+
+X session management options are not used by another user other than the
+X11 Session Manager.  The following options are used X session
+management:
+
+=over
+
+=item B<-clientId> I<CLIENTID>
+
+Specifies the X Session Management client identifier of the previously
+running session of B<xde-winlist>.
+
+=item B<-restore> I<SAVEFILE>
+
+Specifies the X Session Management filename of a file to which to save
+session information.
 
 =back
 
@@ -131,9 +171,9 @@ When all modifiers are released or when a selection is made or its
 pointer grab is broken, it drops the feedback window and waits for
 another desktop change.
 
-While the feedback popup is display, the mouse can be used to select a
+While the feedback pop-up is display, the mouse can be used to select a
 desktop.  When selected the window will not drop until the mouse leaves
-the popup, a modifier is released, or a keypress is made that does not
+the pop-up, a modifier is released, or a keypress is made that does not
 result in a desktop change.
 
 =back
@@ -253,7 +293,7 @@ is supported and works well.
 =item L<metacity(1)>
 
 L<metacity(1)> provides its own compentent desktop switching feedback
-popup.
+pop-up.
 When B<xde-pager> detects that it is running under L<metacity(1)> it
 will simply do nothing.
 
@@ -264,7 +304,7 @@ desktops.  Is is not supported.
 
 =item L<openbox(1)>
 
-L<openbox(1)> provides its own meager desktop switching feedback popup.
+L<openbox(1)> provides its own meager desktop switching feedback pop-up.
 It does respect B<_NET_DESKTOP_LAYOUT> but does not provide any of the
 contents of the desktop.  When both are running it is a little
 confusing, so when B<xde-pager> detects that it is running under
@@ -272,7 +312,7 @@ L<openbox(1)> it will simply do nothing.
 
 =item L<pekwm(1)>
 
-L<pekwm(1)> provides its own broken desktop switching feedback popup;
+L<pekwm(1)> provides its own broken desktop switching feedback pop-up;
 however, it does not respect B<_NET_DESKTOP_LAYOUT> and key bindings are
 confused.
 When B<xde-pager> detects that it is running under L<pekwm(1)> it will
@@ -324,7 +364,7 @@ is supported and works well.
 =item L<wmii(1)>
 
 is supported and works well.  L<wmii(1)> was stealing the focus back
-from the popup, but this was fixed.
+from the pop-up, but this was fixed.
 
 =item L<wmx(1)>
 
@@ -339,6 +379,19 @@ L<xdwm(1)> does not support EWMH/NetWM for desktops.
 L<yeahwm(1)> does not support EWMH/NetWM and is currently unsupported.
 The pager will simply not do anything while this window manager is
 running.
+
+=back
+
+=head1 ENVIRONMENT
+
+The following environment variables are considered by the program:
+
+=over
+
+=item B<SESSION_MANAGER>
+
+Specifies the list of transport connections on which to contact the
+session manager.
 
 =back
 

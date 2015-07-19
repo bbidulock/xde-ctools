@@ -32,8 +32,8 @@ the program:
 
 =item [B<--popup>, B<-p>]
 
-Post a popup menu.  Depending on the setting of the B<--button> option,
-this will either post the popup menu at the current pointer position, or
+Post a pop-up menu.  Depending on the setting of the B<--button> option,
+this will either post the pop-up menu at the current pointer position, or
 centred on the window to which it corresponds.
 
 =item B<--help>, B<-h>
@@ -74,7 +74,7 @@ considered.
 
 =item B<--button>, B<-b> I<BUTTON>
 
-Specifies the button that was used to invoke the popup.  Defaults to
+Specifies the button that was used to invoke the pop-up.  Defaults to
 zero (0).  This should be the button that was used to pop the menu.  A
 window manager that invokes this command in response to a button press
 should release its passive grab on the button before invoking the window
@@ -84,11 +84,11 @@ a button.
 
 =item B<--timestamp>, B<-T> I<TIMESTAMP>
 
-Provides the X11 server time-stamp of the event that caused the popup.
+Provides the X11 server time-stamp of the event that caused the pop-up.
 
 =item B<--which>, B<-w> {B<active>|B<focused>|B<pointer>|B<select>}
 
-Specifies the window for which the popup the menu.  This can be one of
+Specifies the window for which the pop-up the menu.  This can be one of
 the following values (case insensitive, may be abbreviated):
 
 =over
@@ -138,11 +138,11 @@ exits.
 =item B<--id>, B<-x> I<WINDOW>
 
 Specify the X window identifier (XID) of the EWMH/NetWM client window
-for which to popup a menu.  Can also specified with B<--which>.
+for which to pop-up a menu.  Can also specified with B<--which>.
 
 =item B<--where>, B<-W> {B<pointer>|B<center>|B<topleft>|B<icongeom>}
 
-Specifies the position for the popup menu.  This can be one of the
+Specifies the position for the pop-up menu.  This can be one of the
 following values (case insensitive, may be abbreviated):
 
 =over
@@ -234,6 +234,14 @@ F<libwnck>.  This use means that B<xde-winmenu> does not currently
 provide any support for window managers that do not have a modicum of
 compliance to the EWMH/NetWM specifications.  That may change in the
 future.
+
+=head1 HISTORY
+
+I wrote B<xde-winmenu> primarily for the L<adwm(1)> window manager (and
+variations of L<dwm(1)>) that do not support a window menu of their own.
+Existing window menus associated with panels (and typically provided by
+F<libwnck>) do not support the special features associated with tagging
+and tiling window managers.
 
 =head1 AUTHOR
 

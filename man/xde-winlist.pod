@@ -31,11 +31,18 @@ of the program:
 
 =over
 
-=item [B<--popup>, B<-p>]
+=item I<unspecified>
 
-Post a pop up menu.  Depending on the setting of the B<--button> option,
-this will either post the pop up menu at the current pointer position,
-or centred on the monitor to which it corresponds.
+When no command option is specified, the default is to run the window
+list without replacing an existing instance.
+
+=item B<--replace>, B<-r>
+
+Run the window list, but replace a running instance of B<xde-winlist>.
+
+=item B<--quit>, B<-q>
+
+Ask a running instance of B<xde-winlist> to quit.
 
 =item B<--help>, B<-h>
 
@@ -45,12 +52,12 @@ and exits.
 =item B<--version>, B<-V>
 
 Prints the version of the program and a brief copyright statement and
-exits.  Parse the first line with L<awk(1)> to obtain just the version
+exits.  Parts the first line with L<awk(1)> to obtain just the version
 number.
 
 =item B<--copying>, B<-C>
 
-Prints the long copying permissions statement and exits.
+Prints the long copying permission statement and exits.
 
 =back
 
@@ -73,6 +80,25 @@ workspace.  The default is either specified by the B<DISPLAY>
 environment variable (which that variable specifies a screen);
 otherwise, all screens will be considered.
 
+=item B<--timeout>, B<-t> I<TIMEOUT>
+
+When cycling the desktops with the mouse or other than a modified
+keystroke, or if a key is pressed that does not result in a desktop
+change, the feedback window will persist for I<TIMEOUT> milliseconds.
+The default is 1000 (or 1 second).
+
+=item B<--border>, B<-B> I<WIDTH>
+
+Places a border around the pager of I<WIDTH> pixels.  The default is 5
+pixels.
+
+=item B<--proxy>, B<-p>
+
+Normally the pager will translate scroll wheel events received on a
+B<_WIN_DESKTOP_BUTTON_PROXY> window into desktop changes.  As other
+programs (such as a desktop) may also be doing so, this option causes
+the pager to consider the desktop button proxy.
+
 =item B<--button>, B<-b> I<BUTTON>
 
 Specifies the button that was used to invoke the pop up.  Defaults to
@@ -86,105 +112,6 @@ a button.
 =item B<--timestamp>, B<-T> I<TIMESTAMP>
 
 Provides the X11 server time-stamp of the event that caused the pop up.
-
-=item B<--which>, B<-w> {B<active>|B<focused>|B<pointer>|B<select>}
-
-Specifies the current window for which to pop up the menu.  This can be
-one of the following values (case insensitive, may be abbreviated):
-
-=over
-
-=item C<active>
-
-Popup a menu with the active window (in the EWMH sense) as the current
-window.  This is the window specified by the B<_NET_ACTIVE_WINDOW>
-property on the root window.
-
-=item C<focused>
-
-Popup a menu with the focused window (in the EWMH sense or simply the
-client with the keyboard focus) as the current window.  This is the
-client with a B<_NET_WM_STATE_FOCUSED> atom set in B<_NET_WM_STATE>, or
-the client (visible client with the B<WM_STATE> property set to state
-C<Normal>) that has keyboard focus according to the X server.
-
-If no focused window can be found (e.g. focus is on the root window),
-current window selection falls back to C<pointer> as described below.
-
-This is the default when B<--button> is unspecified, or specified as
-zero.
-
-=item C<pointer>
-
-Popup a menu with the client holding a pointer grab or the client
-or window manager frame directly under the pointer as the current
-window.
-
-This is the default when B<--button> is specified and non-zero.
-
-=item C<select>
-
-Select the client for the current window.  Use the normal X window
-selection protocol.  (This is not currently supported.)
-
-=item I<WINDOW>
-
-Use the window with XID, I<WINDOW>, as the current window.
-
-=back
-
-When a client window cannot be found, B<xde-winmenu> complains and
-exits.
-
-=item B<--id>, B<-x> I<WINDOW>
-
-Specify the X window identifier (XID) of the EWMH/NetWM client window
-to use as the current window.  Can also specified with B<--which>.
-
-=item B<--where>, B<-W> {B<pointer>|B<center>|B<topleft>|B<icongeom>}
-
-Specifies the position for the pop up menu.  This can be one of the
-following values (case insensitive, may be abbreviated):
-
-=over
-
-=item C<pointer>
-
-Place the northwest corner of the menu under the mouse pointer.  This
-will always succeed.  This is the default when B<--button> is specified
-and non-zero.
-
-=item C<center>
-
-Place the menu at the centre of the associated monitor.
-
-=item C<topleft>
-
-Place the menu in the top-left corner of the associated monitor.
-Consider the work area when doing so.
-
-=item C<bottomright>
-
-Place the menu at the bottom-right corner of the associated monitor.
-Consider the work area when doing so.
-
-=back
-
-When unspecified, the default placement algorithm is as follows:
-
-=over
-
-=item 1.
-
-If B<--button> is specified and non-zero, place the menu at the pointer
-regardless of the current window position or state.
-
-=item 2.
-
-If B<--button> is specified, or is zero, place the menu at the centre of
-the associated monitor.
-
-=back
 
 =item B<--cycle>, B<-c>.
 
@@ -284,6 +211,26 @@ This option may be repeated.
 
 =back
 
+=head2 SESSION MANAGEMENT OPTIONS
+
+X session management options are not used by another user other than the
+X11 Session Manager.  The following options are used X session
+management:
+
+=over
+
+=item B<-clientId> I<CLIENTID>
+
+Specifies the X Session Management client identifier of the previously
+running session of B<xde-winlist>.
+
+=item B<-restore> I<SAVEFILE>
+
+Specifies the X Session Management filename of a file to which to save
+session information.
+
+=back
+
 =head1 USAGE
 
 B<xde-winlist> currently uses F<libwnck+> or F<libwnck> both to identify
@@ -293,6 +240,16 @@ superior to L<libwnck>.  This use means that B<xde-winlist> does not
 current provide much support for window managers that do not have a
 modicum of compliance with the EWMH/NetWM specifications.  That may
 change in the future.
+
+=head1 HISTORY
+
+I wrote this program particularly for use with L<adwm(1)> and other
+tiling window managers that provide no feedback for window cycling
+changes and do not typically run will with a panel or window list.  It
+provides window cycling feedback without taking up valuable screen
+real-estate while the windows are not cycling.  Also, when used with
+F<libwnck+>, the window list is multiple-monitor aware and can handle
+per-monitor tagged workspaces.
 
 =head1 AUTHOR
 
