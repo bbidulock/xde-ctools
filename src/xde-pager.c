@@ -167,9 +167,13 @@ typedef struct {
 	int debug;
 	int output;
 	char *display;
+	int screen;
 	unsigned long timeout;
 	unsigned int border;
 	Bool proxy;
+	int button;
+	Time timestamp;
+	char *keys;
 	Command command;
 	char *clientId;
 	char *saveFile;
@@ -179,9 +183,13 @@ Options options = {
 	.debug = 0,
 	.output = 1,
 	.display = NULL,
+	.screen = -1,
 	.timeout = 1000,
 	.border = 5,
 	.proxy = False,
+	.button = 0,
+	.timestamp = CurrentTime,
+	.keys = NULL,
 	.command = CommandDefault,
 	.clientId = NULL,
 	.saveFile = NULL,
@@ -220,7 +228,9 @@ typedef struct {
 	GdkPixmap *pixmap;		/* pixmap for entire screen */
 	char *theme;			/* XDE theme name */
 	int nimg;			/* number of images */
+#if 1
 	XdeImage *sources;		/* the images for the theme */
+#endif
 	Window selwin;			/* selection owner window */
 	Atom atom;			/* selection atom for this screen */
 	int width, height;
@@ -344,8 +354,6 @@ workspace_created(WnckScreen *wnck, WnckWorkspace *space, gpointer user)
 	}
 }
 
-static void setup_button_proxy(XdeScreen *xscr);
-
 static Bool
 good_window_manager(XdeScreen *xscr)
 {
@@ -373,6 +381,8 @@ good_window_manager(XdeScreen *xscr)
 #endif
 	return True;
 }
+
+static void setup_button_proxy(XdeScreen *xscr);
 
 static void
 window_manager_changed(WnckScreen *wnck, gpointer user)
@@ -983,6 +993,20 @@ init_popup(XdeScreen *xscr)
 	g_signal_connect(G_OBJECT(popup), "map_event", G_CALLBACK(map_event), xscr);
 	g_signal_connect(G_OBJECT(popup), "realize", G_CALLBACK(widget_realize), xscr);
 	g_signal_connect(G_OBJECT(popup), "scroll_event", G_CALLBACK(scroll_event), xscr);
+#else
+	(void) button_press_event;
+	(void) button_release_event;
+	(void) enter_notify_event;
+	(void) focus_in_event;
+	(void) focus_out_event;
+	(void) grab_broken_event;
+	(void) grab_focus;
+	(void) key_press_event;
+	(void) key_release_event;
+	(void) leave_notify_event;
+	(void) map_event;
+	(void) widget_realize;
+	(void) scroll_event;
 #endif
 }
 
@@ -1870,9 +1894,10 @@ client_handler(GdkXEvent *xevent, GdkEvent *event, gpointer data)
 		return event_handler_ClientMessage(dpy, xev);
 	}
 	EPRINTF("wrong message type for handler %d\n", xev->type);
-	return GDK_FILTER_CONTINUE;
+	return GDK_FILTER_CONTINUE;	/* event not handled, continue processing */
 }
 
+#if 1
 static void
 set_current_desktop(XdeScreen *xscr, int index, Time timestamp)
 {
@@ -1896,6 +1921,7 @@ set_current_desktop(XdeScreen *xscr, int index, Time timestamp)
 
 	XSendEvent(dpy, root, False, SubstructureNotifyMask | SubstructureRedirectMask, &ev);
 }
+#endif
 
 static GdkFilterReturn
 proxy_handler(GdkXEvent *xevent, GdkEvent *event, gpointer data)
@@ -1934,12 +1960,16 @@ proxy_handler(GdkXEvent *xevent, GdkEvent *event, gpointer data)
 		case 4:
 			update_current_desktop(xscr, None);
 			num = (xscr->current - 1 + xscr->desks) % xscr->desks;
+#if 1
 			set_current_desktop(xscr, num, xev->xbutton.time);
+#endif
 			break;
 		case 5:
 			update_current_desktop(xscr, None);
 			num = (xscr->current + 1 + xscr->desks) % xscr->desks;
+#if 1
 			set_current_desktop(xscr, num, xev->xbutton.time);
+#endif
 			break;
 		}
 		return GDK_FILTER_CONTINUE;
@@ -2400,7 +2430,7 @@ startup(int argc, char *argv[])
 	GdkWindow *root;
 	Display *dpy;
 	char *file;
-	int len;
+	int len, nscr;
 
 	DPRINT();
 	home = getenv("HOME") ? : ".";
@@ -2416,6 +2446,12 @@ startup(int argc, char *argv[])
 	gtk_init(&argc, &argv);
 
 	disp = gdk_display_get_default();
+	nscr = gdk_display_get_n_screens(disp);
+
+	if (options.screen >= 0 && options.screen >= nscr) {
+		EPRINTF("bad screen specified: %d\n", options.screen);
+		exit(EXIT_FAILURE);
+	}
 
 	dpy = GDK_DISPLAY_XDISPLAY(disp);
 
@@ -2577,25 +2613,44 @@ Command options:\n\
         print copying permission and exit\n\
 Options:\n\
     -d, --display DISPLAY\n\
-        specify the X display, DISPLAY, to use [default: %2$s]\n\
+        specify the X display, DISPLAY, to use [default: %4$s]\n\
+    -s, --screen SCREEN\n\
+        specify the screen number, SCREEN, to use [default: %5$d]\n\
     -t, --timeout MILLISECONDS\n\
-        specify timeout when not modifier [default: %3$lu]\n\
-    -b, --border PIXELS\n\
-        border surrounding feedback popup [default: %4$u]\n\
+        specify timeout when not modifier [default: %6$lu]\n\
+    -B, --border PIXELS\n\
+        border surrounding feedback popup [default: %7$u]\n\
     -p, --proxy\n\
-        respond to button proxy [default: %5$s]\n\
+        respond to button proxy [default: %8$s]\n\
+    -b, --button BUTTON\n\
+        specify the mouse button number, BUTTON, for popup [default: %9$d]\n\
+    -T, --timestamp TIMESTAMP\n\
+        use the time, TIMESTAMP, for button/keyboard event [default: %10$lu]\n\
+    -k, --keys FORWARD:REVERSE\n\
+        specify keys for cycling [default: %11$s]\n\
     -D, --debug [LEVEL]\n\
-        increment or set debug LEVEL [default: %6$d]\n\
+        increment or set debug LEVEL [default: %2$d]\n\
     -v, --verbose [LEVEL]\n\
-        increment or set output verbosity LEVEL [default: %7$d]\n\
+        increment or set output verbosity LEVEL [default: %3$d]\n\
         this option may be repeated.\n\
+Session Management:\n\
+    -clientID CLIENTID\n\
+        client id for session management [default: %12$s]\n\
+    -restore SAVEFILE\n\
+        file in which to save session info [default: %13$s]\n\
 ", argv[0] 
+	, options.debug
+	, options.output
 	, options.display
+	, options.screen
 	, options.timeout
 	, options.border
 	, show_bool(options.proxy)
-	, options.debug
-	, options.output
+	, options.button
+	, options.timestamp
+	, options.keys ?: "AC+Left:AC+Right"
+	, options.clientId
+	, options.saveFile
 );
 	/* *INDENT-ON* */
 }
@@ -2612,10 +2667,16 @@ set_defaults(void)
 static void
 get_defaults(void)
 {
+	const char *p;
+	int n;
+
 	if (!options.display) {
 		EPRINTF("No DISPLAY environment variable or --display option\n");
 		exit(EXIT_FAILURE);
 	}
+	if (options.screen < 0 && (p = strrchr(options.display, '.'))
+	    && (n = strspn(++p, "0123456789")) && *(p + n) == '\0')
+		options.screen = atoi(p);
 	if (options.command == CommandDefault)
 		options.command = CommandRun;
 
@@ -2641,9 +2702,12 @@ main(int argc, char *argv[])
 		/* *INDENT-OFF* */
 		static struct option long_options[] = {
 			{"display",	required_argument,	NULL,	'd'},
+			{"screen",	required_argument,	NULL,	's'},
 			{"timeout",	required_argument,	NULL,	't'},
-			{"border",	required_argument,	NULL,	'b'},
+			{"border",	required_argument,	NULL,	'B'},
 			{"proxy",	no_argument,		NULL,	'p'},
+			{"button",	required_argument,	NULL,	'b'},
+			{"timestamp",	required_argument,	NULL,	'T'},
 
 			{"quit",	no_argument,		NULL,	'q'},
 			{"replace",	no_argument,		NULL,	'r'},
@@ -2661,10 +2725,10 @@ main(int argc, char *argv[])
 		};
 		/* *INDENT-ON* */
 
-		c = getopt_long_only(argc, argv, "d:t:b:pqrD::v::hVCH?",
+		c = getopt_long_only(argc, argv, "d:s:t:B:pb:T:qrD::v::hVCH?",
 				     long_options, &option_index);
 #else				/* _GNU_SOURCE */
-		c = getopt(argc, argv, "d:t:b:pqrD:vhVC?");
+		c = getopt(argc, argv, "d:s:t:B:pb:T:qrD:vhVC?");
 #endif				/* _GNU_SOURCE */
 		if (c == -1) {
 			if (options.debug)
@@ -2680,18 +2744,33 @@ main(int argc, char *argv[])
 			free(options.display);
 			options.display = strdup(optarg);
 			break;
+		case 's':	/* -s, --screen SCREEN */
+			options.screen = strtoul(optarg, NULL, 0);
+			break;
 		case 't':	/* -t, --timeout MILLISECONDS */
 			options.timeout = strtoul(optarg, NULL, 0);
 			if (!options.timeout)
 				goto bad_option;
 			break;
-		case 'b':	/* -b, --border PIXELS */
+		case 'B':	/* -B, --border PIXELS */
 			options.border = strtoul(optarg, NULL, 0);
 			if (options.border > 20)
 				goto bad_option;
 			break;
 		case 'p':	/* -p, --proxy */
 			options.proxy = True;
+			break;
+
+		case 'b':	/* -b, --button BUTTON */
+			options.button = strtoul(optarg, NULL, 0);
+			break;
+		case 'T':	/* -T, --timestamp TIMESTAMP */
+			options.timestamp = strtoul(optarg, NULL, 0);
+			break;
+
+		case 'k':	/* -k, --key [KEY1:KEY2] */
+			free(options.keys);
+			options.keys = strdup(optarg);
 			break;
 
 		case 'q':	/* -q, --quit */
@@ -2802,35 +2881,30 @@ main(int argc, char *argv[])
 	get_defaults();
 	startup(argc, argv);
 	switch (command) {
+	default:
 	case CommandDefault:
 	case CommandRun:
-		if (options.debug)
-			fprintf(stderr, "%s: running a new instance\n", argv[0]);
+		DPRINTF("%s: running a new instance\n", argv[0]);
 		do_run(argc, argv, False);
 		break;
 	case CommandQuit:
-		if (options.debug)
-			fprintf(stderr, "%s: asking existing instance to quit\n", argv[0]);
+		DPRINTF("%s: asking existing instance to quit\n", argv[0]);
 		do_quit(argc, argv);
 		break;
 	case CommandReplace:
-		if (options.debug)
-			fprintf(stderr, "%s: replacing existing instance\n", argv[0]);
+		DPRINTF("%s: replacing existing instance\n", argv[0]);
 		do_run(argc, argv, True);
 		break;
 	case CommandHelp:
-		if (options.debug)
-			fprintf(stderr, "%s: printing help message\n", argv[0]);
+		DPRINTF("%s: printing help message\n", argv[0]);
 		help(argc, argv);
 		break;
 	case CommandVersion:
-		if (options.debug)
-			fprintf(stderr, "%s: printing version message\n", argv[0]);
+		DPRINTF("%s: printing version message\n", argv[0]);
 		version(argc, argv);
 		break;
 	case CommandCopying:
-		if (options.debug)
-			fprintf(stderr, "%s: printing copying message\n", argv[0]);
+		DPRINTF("%s: printing copying message\n", argv[0]);
 		copying(argc, argv);
 		break;
 	}
