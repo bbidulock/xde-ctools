@@ -5069,10 +5069,8 @@ main(int argc, char *argv[])
 			exit(EXIT_SYNTAXERR);
 		}
 	}
-	if (options.debug) {
-		fprintf(stderr, "%s: option index = %d\n", argv[0], optind);
-		fprintf(stderr, "%s: option count = %d\n", argv[0], argc);
-	}
+	DPRINTF("%s: option index = %d\n", argv[0], optind);
+	DPRINTF("%s: option count = %d\n", argv[0], argc);
 	if (optind < argc) {
 		fprintf(stderr, "%s: excess non-option arguments near '", argv[0]);
 		while (optind < argc) {
@@ -5095,39 +5093,33 @@ main(int argc, char *argv[])
 		get_default_theme();
 
 	switch (command) {
+	default:
 	case CommandDefault:
-		if (options.debug)
-			fprintf(stderr, "%s: running without monitoring\n", argv[0]);
+		DPRINTF("%s: running without monitoring\n", argv[0]);
 		do_generate(argc, argv);
 		break;
 	case CommandRun:
-		if (options.debug)
-			fprintf(stderr, "%s: running a new instance\n", argv[0]);
+		DPRINTF("%s: running a new instance\n", argv[0]);
 		do_run(argc, argv, False);
 		break;
 	case CommandQuit:
-		if (options.debug)
-			fprintf(stderr, "%s: asking existing instance to quit\n", argv[0]);
+		DPRINTF("%s: asking existing instance to quit\n", argv[0]);
 		do_quit(argc, argv);
 		break;
 	case CommandReplace:
-		if (options.debug)
-			fprintf(stderr, "%s: replacing existing instance\n", argv[0]);
+		DPRINTF("%s: replacing existing instance\n", argv[0]);
 		do_run(argc, argv, True);
 		break;
 	case CommandHelp:
-		if (options.debug)
-			fprintf(stderr, "%s: printing help message\n", argv[0]);
+		DPRINTF("%s: printing help message\n", argv[0]);
 		help(argc, argv);
 		break;
 	case CommandVersion:
-		if (options.debug)
-			fprintf(stderr, "%s: printing version message\n", argv[0]);
+		DPRINTF("%s: printing version message\n", argv[0]);
 		version(argc, argv);
 		break;
 	case CommandCopying:
-		if (options.debug)
-			fprintf(stderr, "%s: printing copying message\n", argv[0]);
+		DPRINTF("%s: printing copying message\n", argv[0]);
 		copying(argc, argv);
 		break;
 	}
