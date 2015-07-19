@@ -42,16 +42,112 @@
 
  *****************************************************************************/
 
-#include "xde-winmenu.h"
+#ifdef HAVE_CONFIG_H
+#include "autoconf.h"
+#endif
+
+#ifndef _XOPEN_SOURCE
+#define _XOPEN_SOURCE 600
+#endif
+
+#include <stddef.h>
+#include <stdint.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <stdio.h>
+#include <string.h>
+#include <errno.h>
+#include <sys/types.h>
+#include <ctype.h>
+#include <sys/stat.h>
+#include <sys/select.h>
+#include <sys/time.h>
+#include <sys/ioctl.h>
+#include <sys/wait.h>
+#include <fcntl.h>
+#include <dirent.h>
+#include <time.h>
+#include <signal.h>
+#include <syslog.h>
+#include <sys/utsname.h>
+
+#include <assert.h>
+#include <locale.h>
+#include <stdarg.h>
+#include <strings.h>
+#include <regex.h>
+
+#include <X11/Xatom.h>
+#include <X11/Xlib.h>
+#include <X11/Xproto.h>
+#include <X11/Xutil.h>
+#include <X11/Xresource.h>
+#ifdef XRANDR
+#include <X11/extensions/Xrandr.h>
+#include <X11/extensions/randr.h>
+#endif
+#ifdef XINERAMA
+#include <X11/extensions/Xinerama.h>
+#endif
+#ifdef STARTUP_NOTIFICATION
+#define SN_API_NOT_YET_FROZEN
+#include <libsn/sn.h>
+#endif
+#include <X11/SM/SMlib.h>
+#include <gdk/gdkx.h>
+#include <gdk-pixbuf/gdk-pixbuf.h>
+#include <gtk/gtk.h>
+#include <cairo.h>
+
+#define WNCK_I_KNOW_THIS_IS_UNSTABLE
+#include <libwnck/libwnck.h>
+
+#include <pwd.h>
 
 #ifdef _GNU_SOURCE
 #include <getopt.h>
 #endif
 
-Atom _XA_WM_STATE;
-Atom _XA_XDE_THEME_NAME;
-Atom _XA_GTK_READ_RCFILES;
-Atom _XA_NET_WM_ICON_GEOMETRY;
+#define XPRINTF(args...) do { } while (0)
+#define OPRINTF(args...) do { if (options.output > 1) { \
+	fprintf(stderr, "I: "); \
+	fprintf(stderr, args); \
+	fflush(stderr); } } while (0)
+#define DPRINTF(args...) do { if (options.debug) { \
+	fprintf(stderr, "D: %s +%d %s(): ", __FILE__, __LINE__, __func__); \
+	fprintf(stderr, args); \
+	fflush(stderr); } } while (0)
+#define EPRINTF(args...) do { \
+	fprintf(stderr, "E: %s +%d %s(): ", __FILE__, __LINE__, __func__); \
+	fprintf(stderr, args); \
+	fflush(stderr);   } while (0)
+#define DPRINT() do { if (options.debug) { \
+	fprintf(stderr, "D: %s +%d %s()\n", __FILE__, __LINE__, __func__); \
+	fflush(stderr); } } while (0)
+
+#undef EXIT_SUCCESS
+#undef EXIT_FAILURE
+#undef EXIT_SYNTAXERR
+
+#define EXIT_SUCCESS	0
+#define EXIT_FAILURE	1
+#define EXIT_SYNTAXERR	2
+
+static Atom _XA_WM_STATE;
+static Atom _XA_XDE_THEME_NAME;
+static Atom _XA_GTK_READ_RCFILES;
+static Atom _XA_NET_WM_ICON_GEOMETRY;
+// static Atom _XA_NET_DESKTOP_LAYOUT;
+// static Atom _XA_NET_NUMBER_OF_DESKTOPS;
+// static Atom _XA_NET_CURRENT_DESKTOP;
+// static Atom _XA_WIN_DESKTOP_BUTTON_PROXY;
+// static Atom _XA_WIN_WORKSPACE_COUNT;
+// static Atom _XA_WIN_WORKSPACE;
+// static Atom _XA_XROOTPMAP_ID;
+// static Atom _XA_ESETROOT_PMAP_ID;
+
+// static Atom _XA_WIN_AREA;
+// static Atom _XA_WIN_AREA_COUNT;
 
 typedef enum {
 	UseWindowDefault,		/* default window by button */
@@ -619,7 +715,7 @@ on_selection_done(GtkMenuShell *menushell, gpointer user_data)
 }
 
 void
-pop_the_menu(int argc, char *argv[])
+do_popup(int argc, char *argv[])
 {
 	GdkDisplay *disp;
 	WnckScreen *scrn;
@@ -957,6 +1053,7 @@ help(int argc, char *argv[])
 {
 	if (!options.output && !options.debug)
 		return;
+	/* *INDENT-OFF* */
 	(void) fprintf(stdout, "\
 Usage:\n\
     %1$s [options]\n\
@@ -1001,10 +1098,21 @@ Options:\n\
     -v, --verbose [LEVEL]\n\
         increment or set output verbosity LEVEL [default: %3$d]\n\
         this option may be repeated.\n\
-", argv[0], options.debug, options.output, options.display, options.screen, options.button, options.timestamp, show_which(options.which), show_window(options.window), show_where(options.where));
+", argv[0]
+	, options.debug
+	, options.output
+	, options.display
+	, options.screen
+	, options.button
+	, options.timestamp
+	, show_which(options.which)
+	, show_window(options.window)
+	, show_where(options.where)
+);
+	/* *INDENT-ON* */
 }
 
-void
+static void
 set_defaults(void)
 {
 	const char *env;
@@ -1013,7 +1121,7 @@ set_defaults(void)
 		options.display = strdup(env);
 }
 
-void
+static void
 get_defaults(void)
 {
 	const char *p;
@@ -1205,7 +1313,7 @@ main(int argc, char *argv[])
 			      bad_usage:
 				usage(argc, argv);
 			}
-			exit(2);
+			exit(EXIT_SYNTAXERR);
 		}
 	}
 	if (options.debug) {
@@ -1220,34 +1328,31 @@ main(int argc, char *argv[])
 		}
 		fprintf(stderr, "'\n");
 		usage(argc, argv);
-		exit(2);
+		exit(EXIT_SYNTAXERR);
 	}
 	get_defaults();
 	startup(argc, argv);
 	switch (command) {
+	default:
 	case CommandDefault:
 	case CommandPopup:
-		if (options.debug)
-			fprintf(stderr, "%s: popping the menu\n", argv[0]);
-		pop_the_menu(argc, argv);
+		DPRINTF("%s: popping the window menu\n", argv[0]);
+		do_popup(argc, argv);
 		break;
 	case CommandHelp:
-		if (options.debug)
-			fprintf(stderr, "%s: printing help message\n", argv[0]);
+		DPRINTF("%s: printing help message\n", argv[0]);
 		help(argc, argv);
 		break;
 	case CommandVersion:
-		if (options.debug)
-			fprintf(stderr, "%s: printing version message\n", argv[0]);
+		DPRINTF("%s: printing version message\n", argv[0]);
 		version(argc, argv);
 		break;
 	case CommandCopying:
-		if (options.debug)
-			fprintf(stderr, "%s: printing copying message\n", argv[0]);
+		DPRINTF("%s: printing copying message\n", argv[0]);
 		copying(argc, argv);
 		break;
 	}
-	exit(0);
+	exit(EXIT_SUCCESS);
 }
 
 // vim: tw=100 com=sr0\:/**,mb\:*,ex\:*/,sr0\:/*,mb\:*,ex\:*/,b\:TRANS formatoptions+=tcqlor
