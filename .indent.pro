@@ -97,6 +97,17 @@
 -Tglock_t
 -TGMarkupParseContext
 -TGMarkupParser
+-TGMenuTree
+-TGMenuTreeAlias
+-TGMenuTreeChangedFunc
+-TGMenuTreeDirectory
+-TGMenuTreeEntry
+-TGMenuTreeFlags
+-TGMenuTreeHeader
+-TGMenuTreeItem
+-TGMenuTreeItemType
+-TGMenuTreeSeparator
+-TGMenuTreeSortKey
 -TGNode
 -Tgpointer
 -Tgroupview_t
