@@ -25,16 +25,18 @@ xde_run_CPPFLAGS = -DNAME=\"xde-run\"
 xde_run_SOURCES = xde-run.c xde-run.h
 
 xde_winmenu_CPPFLAGS = -DNAME=\"xde-winmenu\"
-xde_winmenu_SOURCES = xde-winmenu.c xde-winmenu.h
+xde_winmenu_SOURCES = xde-winmenu.c
 
 xde_recent_CPPFLAGS = -DNAME=\"xde-recent\"
 xde_recent_SOURCES = xde-recent.c
 
 xde_winlist_CPPFLAGS = -DNAME=\"xde-winlist\"
-xde_winlist_SOURCES = xde-winlist.c xde-winlist.h
+xde_winlist_SOURCES = xde-winlist.c
+xde_winlist_CFLAGS = $(AM_CFLAGS) $(ICE_CFLAGS) $(SMLIB_CFLAGS)
+xde_winlist_LDFLAGS = $(SMLIB_LIBS) $(ICE_LIBS) $(AM_LDFLAGS)
 
 xde_pager_CPPFLAGS = -DNAME=\"xde-pager\"
-xde_pager_SOURCES = xde-pager.c xde-pager.h
+xde_pager_SOURCES = xde-pager.c
 xde_pager_CFLAGS = $(AM_CFLAGS) $(ICE_CFLAGS) $(SMLIB_CFLAGS)
 xde_pager_LDFLAGS = $(SMLIB_LIBS) $(ICE_LIBS) $(AM_LDFLAGS)
 
