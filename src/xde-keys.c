@@ -283,8 +283,8 @@ set_defaults(int argc, char *argv[])
 		options.display = strdup(p);
 }
 
-void
-get_defaults(int argc, char *argv[])
+static void
+get_defaults(void)
 {
 }
 
@@ -393,27 +393,27 @@ main(int argc, char *argv[])
 			options.write = True;
 			break;
 
-		case 'D':	/* -D, --debug [level] */
+		case 'D':	/* -D, --debug [LEVEL] */
 			if (options.debug)
 				fprintf(stderr, "%s: increasing debug verbosity\n", argv[0]);
-			if (optarg == NULL) {
+			if (optarg == NULL)
 				options.debug++;
-			} else {
+			else {
 				if ((val = strtol(optarg, NULL, 0)) < 0)
 					goto bad_option;
 				options.debug = val;
 			}
 			break;
-		case 'v':	/* -v, --verbose [level] */
+		case 'v':	/* -v, --verbose [LEVEL] */
 			if (options.debug)
 				fprintf(stderr, "%s: increasing output verbosity\n", argv[0]);
-			if (optarg == NULL) {
+			if (optarg == NULL)
 				options.output++;
-				break;
+			else {
+				if ((val = strtol(optarg, NULL, 0)) < 0)
+					goto bad_option;
+				options.output = val;
 			}
-			if ((val = strtol(optarg, NULL, 0)) < 0)
-				goto bad_option;
-			options.output = val;
 			break;
 		case 'h':	/* -h, --help */
 		case 'H':	/* -H, --? */
@@ -460,11 +460,12 @@ main(int argc, char *argv[])
 	}
 	DPRINTF("%s: option index = %d\n", argv[0], optind);
 	DPRINTF("%s: option count = %d\n", argv[0], argc);
-	get_defaults(argc, argv);
 	if (optind < argc) {
-		fprintf(stderr, "%s: excess non-options arguments near '", argv[0]);
+		fprintf(stderr, "%s: excess non-option arguments near '", argv[0]);
 		goto bad_nonopt;
 	}
+	get_defaults();
+
 	switch (command) {
 	default:
 	case CommandDefault:
@@ -499,3 +500,5 @@ main(int argc, char *argv[])
 	}
 	exit(EXIT_SUCCESS);
 }
+
+// vim: tw=100 com=sr0\:/**,mb\:*,ex\:*/,sr0\:/*,mb\:*,ex\:*/,b\:TRANS formatoptions+=tcqlor
