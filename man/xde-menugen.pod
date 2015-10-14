@@ -295,7 +295,7 @@ menus.
 
 Existing XDG menu generators (such as the SuSE L<xdg_menu(1)> script) do
 not property merge default merge directories and do not observer
-C<E<lt>LayourtE<gt>> commands.  Also, they are poor at including icons
+C<E<lt>LayoutE<gt>> commands.  Also, they are poor at including icons
 in the generated menus.  They , of course, do not generate tray menus
 either.
 

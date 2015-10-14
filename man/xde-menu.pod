@@ -23,6 +23,42 @@ B<xde-menu> was written for a number of reasons:
 
 =over
 
+=item 1.
+
+Many existing light-weight window manager generators that read XDG
+F<.desktop> files do not conform to the XDG menu generation
+specifications and, in particular, are incapable of merging menus.
+
+=item 2.
+
+Existing XDG menu generators (such as the SuSE L<xdg_menu(1)> script) do
+not properly merge default merge directories and do not observe
+C<E<lt>LayoutE<gt>> commands.  Also, they are poor at including icons in
+the generated menus.  They, of course, do not generate system tray nor
+popup menus either.
+
+=item 3.
+
+Existing XDG menu generators run once and keep cahce information, or
+have a C<regenerate> command placed in the menu.  They do not monitor
+XDG directories for changes and update menus on changes.
+
+=item 4.
+
+The L<lxpanel(1)> and L<pcmanfm(1)> menu generators do not have any of
+the above deficiencies; however, they do not create window manager
+specific sub-menus.
+
 =back
+
+=head1 AUTHOR
+
+Brian Bidulock L<mailto:bidulock@openss7.org>.
+
+=head1 SEE ALSO
+
+L<xde-style(1)>
+
+=cut
 
 # vim: set sw=4 tw=72 spell spelllang=en_ca:
