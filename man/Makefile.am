@@ -1,6 +1,7 @@
 
 xde_man_files = \
 	xde-app.man \
+	xde-clip.man \
 	xde-ctools.man \
 	xde-cycle.man \
 	xde-dock.man \
@@ -18,6 +19,7 @@ CLEANFILES = $(xde_man_files)
 
 EXTRA_DIST = \
 	xde-app.pod \
+	xde-clip.pod \
 	xde-ctools.pod \
 	xde-cycle.pod \
 	xde-dock.pod \
