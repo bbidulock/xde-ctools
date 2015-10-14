@@ -17,6 +17,58 @@ B<xde-menu> is capable of generating either a complete menu for a number
 of well-known window managers, or for generating a sub-menu that can be
 included in the root menu of those window managers.
 
+=head1 OPTIONS
+
+B<xde-menu> uses L<getopt_long_only(3)>, so non-ambiguous option
+abbreviations are permitted.  B<xde-menu> recognizes the following
+options:
+
+=head2 COMMAND OPTIONS
+
+Command options affect the primary operating mode of the program.  Only
+one command option can be specified.  B<xde-menu> recognizes the
+following command options:
+
+=over
+
+=item B<--monitor>, B<-m>
+
+Specifies that B<xde-menu> is to monitor pertinent directories for
+changes and regenerate the menu when changes are detected.  This option
+implies the B<--output> option.  This options requires L<libinotify(3)>.
+
+=item B<--replace>, B<-R>
+
+Replace a currently running instance (that was invoked with the
+B<--monitor> option).  It is not an error if no other instance is
+running.  This option implies the B<--monitor> option.
+
+=item B<--quit>, B<-q>
+
+Ask a currently running instance (that was invoked with the B<--monitor>
+option) to quit.  It is not an error if no other instance is running.
+
+=item B<--help>, B<-h>
+
+Print usage information, including the current values of option
+defaults, and exit.
+
+=item B<--version>, B<-V>
+
+Print version information and exit.
+
+=item B<--copying>, B<-C>
+
+Print copying information and exit.
+
+=back
+
+=head2 GENERAL OPTIONS
+
+=over
+
+=back
+
 =head1 HISTORY
 
 B<xde-menu> was written for a number of reasons:
