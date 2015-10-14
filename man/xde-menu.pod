@@ -1,0 +1,28 @@
+=head1 NAME
+
+xde-menu - XDG Compliant Menu for XDE
+
+=head1 SYNOPSIS
+
+xde-menu -- [ OPTIONS ]
+
+=head1 DESCRIPTION
+
+B<xde-menu> is a menu generator, tray menu, and popup menu that can be
+used to both generate XDG compliant menus for a number of popular
+light-weight window managers as well as providing a system tray and
+popup menu.
+
+B<xde-menu> is capable of generating either a complete menu for a number
+of well-known window managers, or for generating a sub-menu that can be
+included in the root menu of those window managers.
+
+=head1 HISTORY
+
+B<xde-menu> was written for a number of reasons:
+
+=over
+
+=back
+
+# vim: set sw=4 tw=72 spell spelllang=en_ca:
