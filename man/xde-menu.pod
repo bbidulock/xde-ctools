@@ -227,6 +227,137 @@ style menu for use with dynamic window managers such as L<dwm(1)>.
 
 =back
 
+=head1 ENVIRONMENT
+
+The following environment variables are significant to the operation of
+B<xde-menu>:
+
+=over
+
+=item C<$XDG_CURRENT_DESKTOP>
+
+Specifies the current desktop.  When the B<--format> is not specified,
+the format defaults to the value of this environment variable converted
+to lower-case.  When the B<--desktop> is not specified, the desktop
+defaults to the value of this environment variable.
+
+=item C<$XDG_MENU_PREFIX>
+
+Specifies the prefix to apply to the default menu name to derive the
+root menu unless specified with the B<--root-menu> option.  When
+unspecified, this variable defaults to a null string.
+
+B<xde-menu> finds the root menu using the following logic:
+
+=over
+
+=item 1.
+
+If a file name is specified using the B<--root-menu> option, (and the
+window manager has not changed since B<xde-menu> was launched), that
+file name is used as the root menu.
+
+=item 2.
+
+If the window manager has changed since B<xde-menu> was launched, any
+B<--root-menu> option that was specified at launch is ignored.
+
+=item 3.
+
+If the file specified by B<--root-menu> is not found or unspecified, the
+file name F<${XDG_MENU_PREFIX}applications.menu> is sought in each of
+the sub-directories name F<menu> in the path
+F<$XDG_CONFIG_HOME:$XDG_CONFIG_DIRS> in accordance with the XDG
+menu specification.
+
+Note that the stem F<applications> can be changed using the
+B<--basename> option.
+
+=item 4.
+
+If not found, the file name F<applications.menu> is sought in each of
+the F<menu> sub-directories in the path
+F<$XDG_CONFIG_HOME:$XDG_CONFIG_DIRS> in accordance with the XDG
+menu specification.
+
+Note that the stem F<applications> can be changed using the
+B<--basename> option.
+
+=back
+
+=item C<$XDG_CONFIG_HOME>
+
+Specifies the XDG configuration directory.  When unspecified, defaults
+to F<$HOME/.config> in accordance with XDG specifications.
+
+=item C<$XDG_CONFIG_DIRS>
+
+Specifies the system XDG configuration directories.  When unspecified,
+defaults to F</etc/xdg> in accordance with XDG specifications.
+
+=item C<$XDG_DATA_HOME>
+
+Specifies the user XDG data directory.  When unspecified, defaults to
+F<$HOME/.local/share> in accordance with XDG specifications.
+
+=item C<$XDG_DATA_DIRS>
+
+Specifies the system XDG data directory search path.  When unspecified,
+defaults to F</usr/local/share:/usr/share> in accordance with XDG
+specifications.
+
+=item C<$XDG_ICON_THEME>
+
+Specifies the name of the icon theme.  When not specified, the icon
+theme will be determined from configuration sources (e.g. the
+F<$HOME/.gtkrc-2.0> file)
+
+=back
+
+=head1 PROPERTIES
+
+The following X11 window properties are significant to the operation of
+B<xde-menu>>
+
+=over
+
+=item C<_XDE_WM_NAME>
+
+When available and set on the root window, specifies the window manager
+name used to derive the B<--format> option when the option was
+unspecified or when the window manager has changed since the B<xde-menu>
+command was launched.
+
+=item C<_NET_WM_NAME>
+
+When C<_XDE_WM_NAME> is unavailable, and this property is set properly
+on the window manager EWMH/NetWM check window, the first word of the
+property will be used to derived the B<--format> option when the option
+was unspecified or when the window manager has changed wince the
+B<xde-menu> command was launched.
+
+=item C<_XDE_WM_STYLE>
+
+When set on the root window or XDE check window, used to determine the
+location of the window manager style file.
+
+=item C<_XDE_WM_STYLENAME>
+
+When set on the root window or XDE check window, used to determine the
+name of the style set for the window manager.
+
+=item C<_XDE_WM_THEME>
+
+When set on the root window or XDE check window, used to determine the
+name of the theme set for XDE.
+
+=item C<_XDE_WM_THEMEFILE>
+
+When set on the root window or XDE check window, used to determine the
+file to use for the theme set for XDE.
+
+=back
+
 =head1 HISTORY
 
 B<xde-menu> was written for a number of reasons:
