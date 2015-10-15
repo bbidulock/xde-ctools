@@ -268,7 +268,7 @@ F<$HOME/.local/share> in accordance with XDG specifications.
 
 Specifies the system XDG data directory search path.  When unspecified,
 defaults to F</usr/local/share:/usr/share> in accordance with XDG
-specific ations.
+specifications.
 
 =item C<$XDG_ICON_THEME>
 

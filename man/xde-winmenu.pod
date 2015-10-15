@@ -69,7 +69,7 @@ variable.
 
 Specify the screen number to use when locating the client window.  The
 default is either specified by the B<DISPLAY> environment variable
-(which that variable specifies a screen); otherwise, all screens will be
+(when that variable specifies a screen); otherwise, all screens will be
 considered.
 
 =item B<--button>, B<-b> I<BUTTON>
@@ -206,8 +206,6 @@ in which the window would normally be displayed.
 If the window is mapped but fully or partially obscured, raise the
 window and the place the menu in the top left corner of the client
 window (inside the decorative border).
-
-If the window is mapped, 
 
 =back
 

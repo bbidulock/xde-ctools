@@ -8,10 +8,10 @@ xde-menu -- [ OPTIONS ]
 
 =head1 DESCRIPTION
 
-B<xde-menu> is a menu generator, tray menu, and popup menu that can be
+B<xde-menu> is a menu generator, tray menu, and pop-up menu that can be
 used to both generate XDG compliant menus for a number of popular
 light-weight window managers as well as providing a system tray and
-popup menu.
+pop-up menu.
 
 B<xde-menu> is capable of generating either a complete menu for a number
 of well-known window managers, or for generating a sub-menu that can be
@@ -31,10 +31,10 @@ following command options:
 
 =over
 
-=item B<--popup>, B<-P>
+=item [B<--popup>, B<-P>]
 
-Specifies that B<xde-menu> is to request a running instance to popup a
-menu.  The menu to pop up, the location and invocation of the popup is
+Specifies that B<xde-menu> is to request a running instance to pop-up a
+menu.  The menu to pop up, the location and invocation of the pop-up is
 controlled by additional general options.
 
 =item B<--monitor>, B<-m>
@@ -72,6 +72,24 @@ Print copying information and exit.
 =head2 GENERAL OPTIONS
 
 =over
+
+=item B<--display>, B<-d> I<DISPLAY>
+
+Specify the display to use (overriding the B<DISPLAY> environment
+variable).  The default is the value of the B<DISPLAY> environment
+variable.
+
+=item B<--die-on-error>, B<-e>
+
+Abort execution on any error.
+
+=back
+
+=head2 MENU FORMAT OPTIONS
+
+The following options affect the formatting or output of the window
+manager root window menu, system tray menu and pop-up menu.  Not all
+options affect the system tray and pop-up menus.
 
 =item B<--format>, B<-f> I<FORMAT>
 
@@ -117,7 +135,7 @@ L</ENVIRONMENT>.
 
 When specified, output a full menu and not only the application
 sub-menu, or not.  The default is to output a full menu.  This also
-affects the system tray menu and popup menus.
+affects the system tray menu and pop-up menus.
 
 =item B<--desktop>, B<-d> I<DESKTOP>
 
@@ -129,7 +147,7 @@ unless the C<XDG_CURRENT_DESKTOP> environment variable is defined.
 
 Specify the character set with which to output the window manager root
 menu.  Defaults to the character set in use by the current locale.  This
-does not affect system tray and popup menus (which are both UTF-8).
+does not affect system tray and pop-up menus (which are both UTF-8).
 
 =item B<--language>, B<-l> I<LANGUAGE>
 
@@ -143,11 +161,7 @@ using XDG environment variables (see L</ENVIRONMENT>), and defaults to
 the file F<${XDG_MENU_PREFIX}applications.menu> in the
 F<$XDG_CONFIG_HOME:$XDG_CONFIG_DIRS> search path.  Note, however, that
 B<xde-menu> supports both I<applications> and I<system> menus using the
-B<--basename> option.
-
-=item B<--die-on-error>, B<-e>
-
-Abort execution on any error.
+B<--menu> option.
 
 =item B<--output>, B<-o> I<FILENAME>
 
@@ -173,8 +187,8 @@ L<waimea(1)>, it is not possible to place icons in the root menu and
 this option is therefore ignored.  The default is to place icons in icon
 capable generated menus.
 
-This option affects system tray menus and popup menus as well.  The
-default for system tray and popup menus is to only place icons in the
+This option affects system tray menus and pop-up menus as well.  The
+default for system tray and pop-up menus is to only place icons in the
 generated menus when the B<--format> also supports icons (to mimic the
 behaviour of the underlying window manager).  When the window manager
 B<--format> does not support a root menu, (e.g. L<dwm(1)>), icons will
@@ -211,7 +225,7 @@ this is useful for some pipe menu commands.
 
 =back
 
-This option does not affect the system tray nor popup menus.
+This option does not affect the system tray nor pop-up menus.
 
 =item B<--launch>, B<-L>, B<--nolaunch>
 
@@ -219,13 +233,104 @@ Specifies whether to use B<xde-launch(1)> to launch the desktop files
 directly or not.  This option will only be honoured when the
 L<xde-launch(1)> program is available and accessible.
 
+=item B<--menu>, B<-M> I<MENU>
+
+Specifies the filename stem of the root menu filename.  The default is
+F<applications>.  Another useful value is F<system>.  This option only
+affects the automatic determination of the root menu file.  When the
+root menu file is specified with the B<--root-menu> option, the filename
+is determined verbatim.
+
+=head2 POP-UP MENU OPTIONS
+
+The following options are only valid then the B<--popup> command option
+has been specified or implied.  These options only affect the pop-up
+menu.
+
+=over
+
+=item B<--screen>, B<-s> I<SCREEN>
+
+Specify the screen number to use when positioning the menu.  The default
+is either specified by the B<DISPLAY> environment variable (when that
+variable specifies a screen); otherwise, all screens will be considered.
+
+=item B<--button>, B<-b> I<BUTTON>
+
+Specifies the button that was used to invoke the pop-up.  Defaults to
+zero (0).  This should be button that was used to pop the menu.  A
+window manager that invokes this command in response to a button press
+should release its passive grab on the button before invoking the pop-up
+menu so that the popped up menu can grab the button.  A I<BUTTON> of
+zero (0) means that the program was invoked with a key-press instead of
+a button.
+
+=item B<--timestamp>, B<-T> I<TIMESTAMP>
+
+Provides the X11 server time-stamp of the event that caused the pop-up.
+
+=item B<--where>, B<-W> {B<pointer>|B<center>|B<topleft>}
+
+Specifies the position for the pop-up menu.  This can be one of the
+following values (case insensitive, may be abbreviated):
+
+=over
+
+=item C<pointer>
+
+Place the northwest corner of the menu under the mouse pointer.  This
+will always succeed.  This is the default when B<--button> is specified
+and non-zero.
+
+=item C<center>
+
+Place the menu in the centre of the root window on the current screen
+and monitor.  This is the default when B<--button> is unspecified or
+zero.
+
+=item C<topleft>
+
+Place the menu in the top-left corner of the current screen and monitor
+work area (considering panels and docks).
+
+=back
+
+When unspecified, the default placement algorithm is as follows:
+
+=over
+
+=item 1.
+
+If B<--button> is specified and non-zero, place the menu at the pointer
+regardless of the screen and monitor currently containing the pointer.
+If the pointer is positioned outside an active monitor, fall-back to the
+behaviour as if B<--button> was not specified.
+
+=item 2.
+
+If B<--button> is unspecified or zero, place the menu in the centre
+(considering work area) of the screen and monitor which currently
+contains the keyboard focus.
+
+=back
+
+=back
+
 =item B<--dmenu>
 
 This option is only valid in conjunction with the B<--popup> command
-option.  It specifies that the menu to popup should be a L<dmenu(1)>
+option.  It specifies that the menu to pop-up should be a L<dmenu(1)>
 style menu for use with dynamic window managers such as L<dwm(1)>.
 
-=back
+=head1 USAGE
+
+B<xde-menu> currently uses F<libwnck+> or F<libwnck> both to identify
+the window manager and to provide the window manager actions menu.  The
+rage and format of window manager actions provided by F<libwnk+> is
+superior to F<libwnck>.  This use means that B<xde-menu> does not
+currently provide any support for window managers that do not have a
+modicum of compliance to the EWMH/NetWM specifications.  That may change
+in the future.
 
 =head1 ENVIRONMENT
 
@@ -271,7 +376,7 @@ F<$XDG_CONFIG_HOME:$XDG_CONFIG_DIRS> in accordance with the XDG
 menu specification.
 
 Note that the stem F<applications> can be changed using the
-B<--basename> option.
+B<--menu> option.
 
 =item 4.
 
@@ -281,7 +386,7 @@ F<$XDG_CONFIG_HOME:$XDG_CONFIG_DIRS> in accordance with the XDG
 menu specification.
 
 Note that the stem F<applications> can be changed using the
-B<--basename> option.
+B<--menu> option.
 
 =back
 
@@ -376,7 +481,7 @@ Existing XDG menu generators (such as the SuSE L<xdg_menu(1)> script) do
 not properly merge default merge directories and do not observe
 C<E<lt>LayoutE<gt>> commands.  Also, they are poor at including icons in
 the generated menus.  They, of course, do not generate system tray nor
-popup menus either.
+pop-up menus either.
 
 =item 3.
 
