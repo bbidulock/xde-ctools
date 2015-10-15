@@ -126,25 +126,25 @@ sub-menu, or not.  The defaults it to output a full menu.
 
 =item B<--desktop>, B<-d> I<DESKTOP>
 
-Specify the desktop name for C<NotShowIn> and C<OnlyShowInc>
-comparisons.  The default is the all upper-case value corresponding to
-the format unless C<XDG_CURRENT_DESKTOP> is defined.
+Specify the desktop name for C<NotShowIn> and C<OnlyShowIn> comparisons.
+The default is the all upper-case string corresponding to the format
+unless C<XDG_CURRENT_DESKTOP> is defined.
 
 =item B<--charset>, B<-c> I<CHARSET>
 
 Specify the character set with which to output the menu.  Defaults to
-the character set in use by the current local.
+the character set in use by the current locale.
 
 =item B<--language>, B<-l> I<LANGUAGE>
 
 Specify the output language for the menu.  Defaults to the language in
 the current locale.
 
-=item B<--rooo-menu>, B<-r> I<MENU>
+=item B<--root-menu>, B<-r> I<MENU>
 
 Specify the location of the root menu file.  The default is calculated
-using XDG denvironment variables (see L</ENVIRONMENT>), and defaults to
-the file F<${XDG_MEU_PREFIX}applications.menu> in the
+using XDG environment variables (see L</ENVIRONMENT>), and defaults to
+the file F<${XDG_MENU_PREFIX}applications.menu> in the
 F<$XDG_CONFIG_HOME:$XDG_CONFIG_DIRS> search path.
 
 =item B<--die-on-error>, B<-e>
@@ -164,12 +164,12 @@ Do not include icons in the generated menu files.  This option has no
 effect when it is not possible to generate icons for the menu format.
 That is, when the B<--format> is one such as L<blackbox(1)>, or
 L<waimea(1)>, it is not possible to place icons in the menu and this
-option is therefore ignored.  The default is to place icons in in
+option is therefore ignored.  The default is to place icons in icon
 capable generated menus.
 
 =item B<--theme>, B<-t> I<THEME>
 
-Specify the icon theme name ot use when generating icons.  The default
+Specify the icon theme name to use when generating icons.  The default
 is to obtain the icon theme name from the default locations (such as
 the F<$HOME/.gtk2rc-2.0> file).
 
@@ -189,7 +189,7 @@ specification for the window manager.
 
 Output a complete menu; however, only output the applications portion of
 the menu (no styles, window manager controls, logout, etc), suitable to
-reference as an "Appications" menu.
+reference as an "Applications" menu.
 
 =item entries
 
@@ -201,7 +201,7 @@ this is useful for some pipe menu commands.
 =item B<--launch>, B<-L>, B<--nolaunch>
 
 Specifies whether to use B<xde-launch(1)> to launch the desktop files
-directly or not.  This option will only be honored when the
+directly or not.  This option will only be honoured when the
 L<xde-launch(1)> program is available and accessible.
 
 =back

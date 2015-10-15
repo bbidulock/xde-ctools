@@ -31,6 +31,12 @@ following command options:
 
 =over
 
+=item B<--popup>, B<-P>
+
+Specifies that B<xde-menu> is to request a running instance to popup a
+menu.  The menu to pop up, the location and invocation of the popup is
+controlled by additional general options.
+
 =item B<--monitor>, B<-m>
 
 Specifies that B<xde-menu> is to monitor pertinent directories for
@@ -66,6 +72,158 @@ Print copying information and exit.
 =head2 GENERAL OPTIONS
 
 =over
+
+=item B<--format>, B<-f> I<FORMAT>
+
+Specify the output format.  Recognized output formats are as follows:
+L<2bwm(1)>,
+L<adwm(1)>,
+L<afterstep(1)>,
+L<awesome(1)>,
+L<blackbox(1)>,
+L<ctwm(1)>,
+L<cwm(1)>,
+L<dtwm(1)>,
+L<dwm(1)>,
+L<echinus(1)>,
+L<etwm(1)>,
+L<fluxbox(1)>,
+L<flwm(1)>,
+L<fvwm(1)>,
+L<icewm(1)>,
+L<jwm(1)>,
+L<matwm2(1)>,
+L<metacity(1)>,
+L<mwmw(1)>,
+L<openbox(1)>,
+L<pekwm(1)>,
+L<spectrwm(1)>,
+L<twm(1)>,
+L<uwm(1)>,
+L<vtwm(1)>,
+L<waimea(1)>,
+L<wind(1)>,
+L<wmaker(1)>,
+L<wmx(1)>,
+L<yeahwm(1)>.
+
+When unspecified, the setting of the C<_XDE_WM_NAME> property on the
+root window (or the C<_NET_WM_NAME> property on the window manager check
+window) is examined to determine the format.  This is accomplished by
+converting the value of either property to all lower case.  See also,
+L</ENVIRONMENT>.
+
+=item B<--fullmenu>, B<-F>, B<--nofullmenu>, B<-N>
+
+When specified, output a full menu and not only the application
+sub-menu, or not.  The default is to output a full menu.  This also
+affects the system tray menu and popup menus.
+
+=item B<--desktop>, B<-d> I<DESKTOP>
+
+Specify the desktop name for C<NotShowIn> and C<OnlyShowIn> comparisons.
+The default is the all upper-case string corresponding to the format
+unless the C<XDG_CURRENT_DESKTOP> environment variable is defined.
+
+=item B<--charset>, B<-c> I<CHARSET>
+
+Specify the character set with which to output the window manager root
+menu.  Defaults to the character set in use by the current locale.  This
+does not affect system tray and popup menus (which are both UTF-8).
+
+=item B<--language>, B<-l> I<LANGUAGE>
+
+Specify the output language for the menu.  Defaults to the language in
+the current locale.  This option affects all menus.
+
+=item B<--root-menu>, B<-r> I<MENU>
+
+Specify the location of the root menu file.  The default is calculated
+using XDG environment variables (see L</ENVIRONMENT>), and defaults to
+the file F<${XDG_MENU_PREFIX}applications.menu> in the
+F<$XDG_CONFIG_HOME:$XDG_CONFIG_DIRS> search path.  Note, however, that
+B<xde-menu> supports both I<applications> and I<system> menus using the
+B<--basename> option.
+
+=item B<--die-on-error>, B<-e>
+
+Abort execution on any error.
+
+=item B<--output>, B<-o> I<FILENAME>
+
+Write the window manager root menu output to the file, I<FILENAME>.
+This is particularly useful with option B<--die-on-error> as the output
+will not be written at all if an error is encountered.  If the
+I<FILENAME> is not specified, the setting of the C<_XDE_WM_MENU>
+property on the root window is examined to determine the location of the
+menu file.  When the property is not set or not available, the default
+menu location for the current B<--format> will be used.
+
+Note that not all light-weight window managers support a root menu.
+
+Note also that at startup, B<xde-menu> will wait several seconds for a
+window manager to appear if one is not present at initialization.
+
+=item B<--noicons>, B<-n>
+
+Do not include icons in the generated menu files.  This option has no
+effect when it is not possible to generate icons for the menu format.
+That is, when the B<--format> is one such as L<blackbox(1)>, or
+L<waimea(1)>, it is not possible to place icons in the root menu and
+this option is therefore ignored.  The default is to place icons in icon
+capable generated menus.
+
+This option affects system tray menus and popup menus as well.  The
+default for system tray and popup menus is to only place icons in the
+generated menus when the B<--format> also supports icons (to mimic the
+behaviour of the underlying window manager).  When the window manager
+B<--format> does not support a root menu, (e.g. L<dwm(1)>), icons will
+be added to the menu.
+
+=item B<--theme>, B<-t> I<THEME>
+
+Specify the icon theme name to use when generating icons.  The default
+is to obtain the icon theme name from the default locations (such as the
+F<$HOME/.gtk2rc-2.0> file).
+
+=item B<--style>, B<-s> I<STYLE>
+
+Specify which format of window manager menu specification output to
+generate.  I<STYLE> can be one of the following:
+
+=over
+
+=item I<fullmenu>
+
+The default: output a full menu suitable for use as the root menu
+specification for the window manager.
+
+=item I<appmenu>
+
+Output a complete menu; however, only output the applications portion of
+the menu (no styles, window manager controls, logout, etc.), suitable to
+reference as an "Applications" menu.
+
+=item I<entries>
+
+Only output the entries for the menu but not the enclosing menu itself:
+this is useful for some pipe menu commands.
+
+=back
+
+This option does not affect the system tray nor popup menus.
+
+=item B<--launch>, B<-L>, B<--nolaunch>
+
+Specifies whether to use B<xde-launch(1)> to launch the desktop files
+directly or not.  This option will only be honoured when the
+L<xde-launch(1)> program is available and accessible.
+
+=item B<--dmenu>
+
+This option is only valid in conjunction with the B<--popup> command
+option.  It specifies that the menu to popup should be a L<dmenu(1)>
+style menu for use with dynamic window managers such as L<dwm(1)>.
 
 =back
 
