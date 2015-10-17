@@ -26,17 +26,31 @@ options:
 =head2 COMMAND OPTIONS
 
 Command options affect the primary operating mode of the program.  Only
-one command option can be specified.  B<xde-menu> recognizes the
-following command options:
+one command option can be specified.
+B<xde-menu> recognizes the following command options:
 
 =over
 
-=item [B<--monitor>, B<-m>]
+=item I<none>
 
-When no command option is specified, or when invoked as B<xde-menu>,
-normal operation is begun and a new instance is created.
-This option causes an error when another instances of B<xde-menu> is
+When no command option is specified, or when invoked as B<xde-menugen>,
+normal operation is begun, no new instance is created.  Only the
+root-menu is generated and then the program exits.
+This option does not cause an error when an instance of B<xde-menu> is
 running.
+This is the default when B<xde-menu> is invoked as B<xde-menugen> and no
+command option is specified.
+
+=item B<--monitor>, B<-m>
+
+Specifies that B<xde-menu> is to monitor pertinent directories for
+changes and regenerate all menus when changes are detected.  This option
+implies the B<--output> option.  This option normally requires
+L<libinotify(3)>.
+This option does not cause an error when another instance of B<xde-menu> is
+running, and the running instance is simply replaced.
+This is the default when B<xde-menu> is invoked as B<xde-menu-monitor>
+and no command option is specified.
 
 =item B<--popup>, B<-P>
 
@@ -48,12 +62,11 @@ pointer position, or will pop up the menu at the centre of the screen.
 When multiple monitors are present, the menu will pop up at the centre
 of the monitor in which the pointer currently resides (which is used by
 most tiling window managers as the "current" monitor).
-
+This option does not cause an error when no current instance of
+B<xde-menu> is running.
 This is the default when B<xde-menu> is invoked as B<xde-menu-popup>.
-This option causes an error when no current instance of B<xde-menu> is
-running.
 
-=item B<--refresh>, B<-r>
+=item B<--refresh>, B<-F>
 
 Asks a running instance of B<xde-menu> to refresh the menu.  This is
 normally not required when B<xde-menu> is run with the B<--monitor>
@@ -63,16 +76,14 @@ This option causes an error when no current instance of B<xde-menu> is
 running.
 This is the default when B<xde-menu> is invoked as B<xde-menu-refresh>.
 
-=item B<--restart>, B<-R>
+=item B<--restart>, B<-S>
 
+Asks a running instance of B<xde-menu> to restart itself with the same
+options and arguments that were originally provided.  This is not
+normally required or very useful.
+This option causes an error when no current instance of B<xde-menu> is
+running.
 This is the default when B<xde-menu> is invoked as B<xde-menu-restart>.
-
-=item B<--replace>, B<-R>
-
-Replace a currently running instance (that was invoked with the
-B<--monitor> option).  It is not an error if no other instance is
-running.  This option implies the B<--monitor> option.  This is
-the default when B<xde-menu> is invoked as B<xde-menu-replace>.
 
 =item B<--quit>, B<-q>
 
@@ -99,11 +110,44 @@ Print copying information and exit.
 
 =over
 
-=item B<--display>, B<-d> I<DISPLAY>
+=item B<--display> I<DISPLAY>
 
 Specify the display to use (overriding the B<DISPLAY> environment
 variable).  The default is the value of the B<DISPLAY> environment
 variable.
+
+=item B<--screen>, B<-s> I<SCREEN>
+
+Specify the screen number to use when positioning the menu.  The default
+is either specified by the B<DISPLAY> environment variable (when that
+variable specifies a screen); otherwise, all screens will be considered.
+
+=item B<--die-on-error>, B<-e>
+
+Abort execution on any error.
+
+=item B<--notray>
+
+Run without installing the menu in the system tray.
+
+=item B<--nogenerate>
+
+Do not generate window manager root menus.  This option invalid when no
+command option is specified or when the program is invoked as
+B<xde-menugen>.  When combined with the B<--notray> option, the program
+will background itself and service B<--popup> requests only.
+
+=item B<--verbose>, B<-v> [I<LEVEL>]
+
+Increases or sets the output verbosity level to I<LEVEL>.  The default
+level is C<1>.  Normal output is printed to standard output.  This
+option may be repeated.
+
+=item B<--debug>, B<-D> [I<LEVEL>]
+
+Increases or sets the debugging verbosity level to I<LEVEL>.  The
+default level is C<0>.  Debugging output is printed to standard error.
+This option may be repeated.
 
 =back
 
@@ -187,10 +231,6 @@ F<$XDG_CONFIG_HOME:$XDG_CONFIG_DIRS> search path.  Note, however, that
 B<xde-menu> supports both I<applications> and I<system> menus using the
 B<--menu> option.
 
-=item B<--die-on-error>, B<-e>
-
-Abort execution on any error.
-
 =item B<--output>, B<-o> I<FILENAME>
 
 Write the window manager root menu output to the file, I<FILENAME>.
@@ -227,12 +267,6 @@ be added to the menu.
 Specify the icon theme name to use when generating icons.  The default
 is to obtain the icon theme name from the default locations (such as the
 F<$HOME/.gtk2rc-2.0> file).
-
-=item B<--monitor>, B<-m>
-
-Specifies that B<xde-menu> is to monitor pertinent directories for
-changes and regenerate the menu when changes are detected.  This option
-implies the B<--output> option.  This options requires L<libinotify(3)>.
 
 =item B<--style>, B<-s> I<STYLE>
 
@@ -283,12 +317,6 @@ menu.
 
 =over
 
-=item B<--screen>, B<-s> I<SCREEN>
-
-Specify the screen number to use when positioning the menu.  The default
-is either specified by the B<DISPLAY> environment variable (when that
-variable specifies a screen); otherwise, all screens will be considered.
-
 =item B<--button>, B<-b> I<BUTTON>
 
 Specifies the button that was used to invoke the pop-up.  Defaults to
@@ -303,7 +331,7 @@ a button.
 
 Provides the X11 server time-stamp of the event that caused the pop-up.
 
-=item B<--where>, B<-W> {B<pointer>|B<center>|B<topleft>}
+=item B<--where>, B<-w> {B<pointer>|B<center>|B<topleft>}
 
 Specifies the position for the pop-up menu.  This can be one of the
 following values (case insensitive, may be abbreviated):
@@ -349,12 +377,6 @@ contains the keyboard focus.
 =back
 
 =back
-
-=item B<--dmenu>
-
-This option is only valid in conjunction with the B<--popup> command
-option.  It specifies that the menu to pop-up should be a L<dmenu(1)>
-style menu for use with dynamic window managers such as L<dwm(1)>.
 
 =head1 ENVIRONMENT
 
