@@ -62,8 +62,10 @@
 #include <sys/stat.h>
 #include <sys/select.h>
 #include <sys/time.h>
+#include <sys/timerfd.h>
 #include <sys/ioctl.h>
 #include <sys/wait.h>
+#include <sys/poll.h>
 #include <fcntl.h>
 #include <dirent.h>
 #include <time.h>
@@ -77,6 +79,8 @@
 #include <stdarg.h>
 #include <strings.h>
 #include <regex.h>
+#include <pwd.h>
+#include <dlfcn.h>
 
 #include <X11/Xatom.h>
 #include <X11/Xlib.h>
@@ -144,38 +148,71 @@
 
 #define XA_SELECTION_NAME	"_XDE_MENU_S%d"
 
-static int saveArgc;
-static char **saveArgv;
+int saveArgc;
+char **saveArgv;
 
-static Atom _XA_XDE_WM_NAME;
-static Atom _XA_XDE_WM_MENU;
-static Atom _XA_XDE_WM_THEME;
-static Atom _XA_XDE_WM_ICONTHEME;
-static Atom _XA_XDE_THEME_NAME;
-static Atom _XA_XDE_ICON_THEME_NAME;
-static Atom _XA_GTK_READ_RCFILES;
-static Atom _XA_MANAGER;
+Atom _XA_XDE_ICON_THEME_NAME;	/* XXX */
+Atom _XA_XDE_THEME_NAME;
+Atom _XA_XDE_WM_CLASS;
+Atom _XA_XDE_WM_CMDLINE;
+Atom _XA_XDE_WM_COMMAND;
+Atom _XA_XDE_WM_ETCDIR;
+Atom _XA_XDE_WM_HOST;
+Atom _XA_XDE_WM_HOSTNAME;
+Atom _XA_XDE_WM_ICCCM_SUPPORT;
+Atom _XA_XDE_WM_ICON;
+Atom _XA_XDE_WM_ICONTHEME;	/* XXX */
+Atom _XA_XDE_WM_INFO;
+Atom _XA_XDE_WM_MENU;
+Atom _XA_XDE_WM_NAME;
+Atom _XA_XDE_WM_NETWM_SUPPORT;
+Atom _XA_XDE_WM_PID;
+Atom _XA_XDE_WM_PRVDIR;
+Atom _XA_XDE_WM_RCFILE;
+Atom _XA_XDE_WM_REDIR_SUPPORT;
+Atom _XA_XDE_WM_STYLE;
+Atom _XA_XDE_WM_STYLENAME;
+Atom _XA_XDE_WM_SYSDIR;
+Atom _XA_XDE_WM_THEME;
+Atom _XA_XDE_WM_THEMEFILE;
+Atom _XA_XDE_WM_USRDIR;
+Atom _XA_XDE_WM_VERSION;
+
+Atom _XA_GTK_READ_RCFILES;
+Atom _XA_MANAGER;
 
 typedef enum {
-	CommandDefault,
-	CommandRun,
-	CommandQuit,
-	CommandReplace,
-	CommandHelp,
-	CommandVersion,
-	CommandCopying,
+	CommandDefault,	    /* just generate WM root menu */
+	CommandGenerate,    /* just generate WM root menu */
+	CommandMonitor,	    /* run a new instance with monitoring */
+	CommandQuit,	    /* ask running instance to quit */
+	CommandPopMenu,	    /* ask running instance to pop menu */
+	CommandRefresh,	    /* ask running instance to refresh menu */
+	CommandRestart,	    /* ask running instance to restart */
+	CommandReplace,	    /* replace a running instance */
+	CommandHelp,	    /* print usage info and exit */
+	CommandVersion,	    /* print version info and exit */
+	CommandCopying,	    /* print copying info and exit */
 } Command;
 
 typedef enum {
 	StyleFullmenu,
 	StyleAppmenu,
+	StyleSubmenu,
 	StyleEntries,
 } Style;
+
+typedef enum {
+	XdeStyleSystem,
+	XdeStyleUser,
+	XdeStyleMixed,
+} Which;
 
 typedef struct {
 	int debug;
 	int output;
 	Command command;
+	char *wmname;
 	char *format;
 	Style style;
 	char *desktop;
@@ -197,14 +234,44 @@ typedef struct {
 	char *recent;
 	char *keep;
 	char *menu;
+	char *display;
+	unsigned button;
+	char *keypress;
 } Options;
 
-Options options = { 0, 1, };
+typedef struct {
+	int index;
+	GdkDisplay *disp;
+	GdkScreen *scrn;
+	GdkWindow *root;
+	WnckScreen *wnck;
+	char *theme;
+	char *itheme;
+	Window selwin;
+	Atom atom;
+	char *wmname;
+	Bool goodwm;
+} XdeScreen;
+
+Options current = {
+	.debug = 0,
+	.output = 1,
+	.command = CommandDefault,
+	.launch = True,
+};
+
+Options options = {
+	.debug = 0,
+	.output = 1,
+	.command = CommandDefault,
+	.launch = True,
+};
 
 Options defaults = {
 	.debug = 0,
 	.output = 1,
 	.command = CommandDefault,
+	.wmname = NULL,
 	.format = NULL,
 	.style = StyleFullmenu,
 	.desktop = "XDE",
@@ -226,23 +293,12 @@ Options defaults = {
 	.recent = NULL,
 	.keep = "10",
 	.menu = "applications",
+	.display = NULL,
+	.button = 3,
+	.keypress = NULL,
 };
 
-typedef struct {
-	int index;
-	GdkDisplay *disp;
-	GdkScreen *scrn;
-	GdkWindow *root;
-	WnckScreen *wnck;
-	char *theme;
-	char *itheme;
-	Window selwin;
-	Atom atom;
-	char *wmname;
-	Bool goodwm;
-} XdeScreen;
-
-static XdeScreen *screens;
+XdeScreen *screens = NULL;
 
 char *xdg_data_home = NULL;
 char *xdg_data_dirs = NULL;
@@ -263,15 +319,17 @@ char *xdg_config_dirs = NULL;
 char *xdg_config_path = NULL;
 char *xdg_config_last = NULL;
 
+GMainLoop *loop = NULL;
+
 GMenuTree *tree = NULL;
 
 static void
-display_level(int level)
+display_level(FILE *file, int level)
 {
 	int i;
 
 	for (i = 0; i < level; i++)
-		fputs("  ", stdout);
+		fputs("  ", file);
 }
 
 static void display_directory(FILE *file, GMenuTreeDirectory *directory, int level);
@@ -283,9 +341,10 @@ static void display_alias(FILE *file, GMenuTreeAlias *alias, int level);
 static void
 display_invalid(FILE *file, int level)
 {
-	display_level(level);
+	display_level(file, level);
 	fprintf(file, "%s\n", "Invalid Entry");
 }
+
 
 #ifdef HAVE_GNOME_MENUS_3
 
@@ -294,61 +353,82 @@ display_entry(FILE *file, GMenuTreeEntry *entry, int level)
 {
 	GDesktopAppInfo *info;
 	GIcon *icon;
+	const gchar *const *act;
 
 	info = gmenu_tree_entry_get_app_info(entry);
 
-	display_level(level);
+	display_level(file, level);
 	fprintf(file, "%s\n", "Menu Entry");
 
-	display_level(level + 1);
+	level++;
+
+	display_level(file, level);
 	fprintf(file, "Name=%s\n", g_app_info_get_name(G_APP_INFO(info)));
-	display_level(level + 1);
+	display_level(file, level);
 	fprintf(file, "GenericName=%s\n", g_desktop_app_info_get_generic_name(info));
-	display_level(level + 1);
+	display_level(file, level);
 	fprintf(file, "DisplayName=%s\n", g_app_info_get_display_name(G_APP_INFO(info)));
-	display_level(level + 1);
+	display_level(file, level);
 	fprintf(file, "Comment=%s\n", g_app_info_get_description(G_APP_INFO(info)));
 	if ((icon = g_app_info_get_icon(G_APP_INFO(info)))) {
-		display_level(level + 1);
+		display_level(file, level);
 		fprintf(file, "Icon=%s\n", g_icon_to_string(icon));
 	}
-	display_level(level + 1);
+	display_level(file, level);
 	fprintf(file, "TryExec=%s\n", g_app_info_get_executable(G_APP_INFO(info)));
-	display_level(level + 1);
+	display_level(file, level);
 	fprintf(file, "Exec=%s\n", g_app_info_get_commandline(G_APP_INFO(info)));
-	display_level(level + 1);
-	fprintf(file, "Terminal=%s\n", g_desktop_app_info_get_string(info, "Terminal") ? "true" : "false");
+	display_level(file, level);
+	fprintf(file, "Terminal=%s\n",
+		g_desktop_app_info_get_string(info, "Terminal") ? "true" : "false");
 
-	display_level(level + 1);
+	display_level(file, level);
 	fprintf(file, "Path=%s\n", gmenu_tree_entry_get_desktop_file_path(entry));
-	display_level(level + 1);
+	display_level(file, level);
 	fprintf(file, "Id=%s\n", gmenu_tree_entry_get_desktop_file_id(entry));
-	display_level(level + 1);
+	display_level(file, level);
 	fprintf(file, "Excluded=%s\n", gmenu_tree_entry_get_is_excluded(entry) ? "true" : "false");
-	display_level(level + 1);
-	fprintf(file, "NoDisplay=%s\n", gmenu_tree_entry_get_is_nodisplay_recurse(entry) ? "true" : "false");
-	display_level(level + 1);
-	fprintf(file, "Unallocated=%s\n", gmenu_tree_entry_get_is_unallocated(entry) ? "true" : "false");
+	display_level(file, level);
+	fprintf(file, "NoDisplay=%s\n",
+		gmenu_tree_entry_get_is_nodisplay_recurse(entry) ? "true" : "false");
+	display_level(file, level);
+	fprintf(file, "Unallocated=%s\n",
+		gmenu_tree_entry_get_is_unallocated(entry) ? "true" : "false");
+
+	if ((act = g_desktop_app_info_list_actions(info)) && *act) {
+		display_level(file, level);
+		fprintf(file, "%s\n", "Menu Entry Actions");
+
+		level++;
+
+		while (*act) {
+			display_level(file, level);
+			fprintf(file, "DesktopAction=%s\n", *act);
+			display_level(file, level);
+			fprintf(file, "Name=%s\n", g_desktop_app_info_get_action_name(info, *act));
+			act++;
+		}
+	}
 }
 
 static void
 display_separator(FILE *file, GMenuTreeSeparator *separator, int level)
 {
-	display_level(level);
+	display_level(file, level);
 	fprintf(file, "%s\n", "Menu Separator");
 }
 
 static void
 display_header(FILE *file, GMenuTreeHeader *header, int level)
 {
-	display_level(level);
+	display_level(file, level);
 	fprintf(file, "%s\n", "Menu Header");
 }
 
 static void
 display_alias(FILE *file, GMenuTreeAlias *alias, int level)
 {
-	display_level(level);
+	display_level(file, level);
 	fprintf(file, "%s\n", "Menu Alias");
 }
 
@@ -359,23 +439,23 @@ display_directory(FILE* file, GMenuTreeDirectory *directory, int level)
 	GMenuTreeItemType type;
 	GIcon *icon;
 
-	display_level(level);
+	display_level(file, level);
 	fprintf(file, "%s\n", "Menu Directory");
-	display_level(level + 1);
+	display_level(file, level + 1);
 	fprintf(file, "Name=%s\n", gmenu_tree_directory_get_name(directory));
-	display_level(level + 1);
+	display_level(file, level + 1);
 	fprintf(file, "GenericName=%s\n", gmenu_tree_directory_get_generic_name(directory));
-	display_level(level + 1);
+	display_level(file, level + 1);
 	fprintf(file, "Comment=%s\n", gmenu_tree_directory_get_comment(directory));
 	if ((icon = gmenu_tree_directory_get_icon(directory))) {
-		display_level(level + 1);
+		display_level(file, level + 1);
 		fprintf(file, "Icon=%s\n", g_icon_to_string(icon));
 	}
-	display_level(level + 1);
+	display_level(file, level + 1);
 	fprintf(file, "Path=%s\n", gmenu_tree_directory_get_desktop_file_path(directory));
-	display_level(level + 1);
+	display_level(file, level + 1);
 	fprintf(file, "Id=%s\n", gmenu_tree_directory_get_menu_id(directory));
-	display_level(level + 1);
+	display_level(file, level + 1);
 	fprintf(file, "NoDisplay=%s\n",
 		gmenu_tree_directory_get_is_nodisplay(directory) ? "true" : "false");
 
@@ -404,6 +484,8 @@ display_directory(FILE* file, GMenuTreeDirectory *directory, int level)
 	}
 }
 
+
+
 static void
 make_menu(int argc, char *argv[])
 {
@@ -414,7 +496,7 @@ make_menu(int argc, char *argv[])
 		exit(EXIT_FAILURE);
 	}
 	if (!gmenu_tree_load_sync(tree, NULL)) {
-		EPRINTF("could not load mneu %s\n", options.rootmenu);
+		EPRINTF("could not load menu %s\n", options.rootmenu);
 		exit(EXIT_FAILURE);
 	}
 	fprintf(stdout, "Path=%s\n", gmenu_tree_get_canonical_menu_path(tree));
@@ -428,50 +510,50 @@ make_menu(int argc, char *argv[])
 static void
 display_entry(FILE *file, GMenuTreeEntry *entry, int level)
 {
-	display_level(level);
+	display_level(file, level);
 	fprintf(file, "%s\n", "Menu Entry");
-	display_level(level + 1);
+	display_level(file, level + 1);
 	fprintf(file, "Name=%s\n", gmenu_tree_entry_get_name(entry));
-	display_level(level + 1);
+	display_level(file, level + 1);
 	fprintf(file, "GenericName=%s\n", gmenu_tree_entry_get_generic_name(entry));
-	display_level(level + 1);
+	display_level(file, level + 1);
 	fprintf(file, "DisplayName=%s\n", gmenu_tree_entry_get_display_name(entry));
-	display_level(level + 1);
+	display_level(file, level + 1);
 	fprintf(file, "Comment=%s\n", gmenu_tree_entry_get_comment(entry));
-	display_level(level + 1);
+	display_level(file, level + 1);
 	fprintf(file, "Icon=%s\n", gmenu_tree_entry_get_icon(entry));
-	display_level(level + 1);
+	display_level(file, level + 1);
 	fprintf(file, "Exec=%s\n", gmenu_tree_entry_get_exec(entry));
-	display_level(level + 1);
+	display_level(file, level + 1);
 	fprintf(file, "Terminal=%s\n", gmenu_tree_entry_get_launch_in_terminal(entry) ? "true" : "false");
-	display_level(level + 1);
+	display_level(file, level + 1);
 	fprintf(file, "Path=%s\n", gmenu_tree_entry_get_desktop_file_path(entry));
-	display_level(level + 1);
+	display_level(file, level + 1);
 	fprintf(file, "Id=%s\n", gmenu_tree_entry_get_desktop_file_id(entry));
-	display_level(level + 1);
+	display_level(file, level + 1);
 	fprintf(file, "Excluded=%s\n", gmenu_tree_entry_get_is_excluded(entry) ? "true" : "false");
-	display_level(level + 1);
+	display_level(file, level + 1);
 	fprintf(file, "NoDisplay=%s\n", gmenu_tree_entry_get_is_nodisplay(entry) ? "true" : "false");
 }
 
 static void
 display_separator(FILE *file, GMenuTreeSeparator *separator, int level)
 {
-	display_level(level);
+	display_level(file, level);
 	fprintf(file, "%s\n", "Menu Separator");
 }
 
 static void
 display_header(FILE *file, GMenuTreeHeader *header, int level)
 {
-	display_level(level);
+	display_level(file, level);
 	fprintf(file, "%s\n", "Menu Header");
 }
 
 static void
 display_alias(FILE *file, GMenuTreeAlias *alias, int level)
 {
-	display_level(level);
+	display_level(file, level);
 	fprintf(file, "%s\n", "Menu Alias");
 }
 
@@ -517,19 +599,19 @@ display_directory(FILE *file, GMenuTreeDirectory *directory, int level)
 		.file = file,
 	};
 
-	display_level(level);
+	display_level(file, level);
 	fprintf(file, "%s\n", "Menu Directory");
-	display_level(level + 1);
+	display_level(file, level + 1);
 	fprintf(file, "Name=%s\n", gmenu_tree_directory_get_name(directory));
-	display_level(level + 1);
+	display_level(file, level + 1);
 	fprintf(file, "Comment=%s\n", gmenu_tree_directory_get_comment(directory));
-	display_level(level + 1);
+	display_level(file, level + 1);
 	fprintf(file, "Icon=%s\n", gmenu_tree_directory_get_icon(directory));
-	display_level(level + 1);
+	display_level(file, level + 1);
 	fprintf(file, "Path=%s\n", gmenu_tree_directory_get_desktop_file_path(directory));
-	display_level(level + 1);
+	display_level(file, level + 1);
 	fprintf(file, "Id=%s\n", gmenu_tree_directory_get_menu_id(directory));
-	display_level(level + 1);
+	display_level(file, level + 1);
 	fprintf(file, "NoDisplay=%s\n", gmenu_tree_directory_get_is_nodisplay(directory) ? "true" : "false");
 	contents = gmenu_tree_directory_get_contents(directory);
 	g_slist_foreach(contents, display_item, &ctx);
@@ -664,6 +746,10 @@ window_manager_changed(WnckScreen *wnck, gpointer user)
 	XdeScreen *xscr = user;
 	const char *name;
 
+	/* I suppose that what we should do here is set a timer and wait before doing
+	   anything; however, I think that libwnck++ already does this (waits before even 
+	   giving us the signal). */
+
 	if (!xscr) {
 		EPRINTF("xscr is NULL\n");
 		exit(EXIT_FAILURE);
@@ -691,6 +777,16 @@ window_manager_changed(WnckScreen *wnck, gpointer user)
 	}
 	DPRINTF("window manager is '%s'\n", xscr->wmname);
 	DPRINTF("window manager is %s\n", xscr->goodwm ? "usable" : "unusable");
+	if (xscr->goodwm) {
+		char *p;
+
+		free(options.format);
+		defaults.format = options.format = strdup(xscr->wmname);
+		free(options.desktop);
+		defaults.desktop = options.desktop = strdup(xscr->wmname);
+		for (p = options.desktop; *p; p++)
+			*p = toupper(*p);
+	}
 }
 
 static void
@@ -722,7 +818,7 @@ do_generate(int argc, char *argv[])
 }
 
 static void
-do_run(int argc, char *argv[], Bool replace)
+setup_x11(Bool replace)
 {
 	GdkDisplay *disp = gdk_display_get_default();
 	Display *dpy = GDK_DISPLAY_XDISPLAY(disp);
@@ -751,6 +847,7 @@ do_run(int argc, char *argv[], Bool replace)
 	sel = gdk_x11_window_foreign_new_for_display(disp, selwin);
 	gdk_window_add_filter(sel, selwin_handler, screens);
 
+	DPRINTF("initializing %d screens\n", nscr);
 	for (s = 0, xscr = screens; s < nscr; s++, xscr++) {
 		snprintf(selection, sizeof(selection), XA_SELECTION_NAME, s);
 		xscr->index = s;
@@ -764,8 +861,20 @@ do_run(int argc, char *argv[], Bool replace)
 		update_theme(xscr, None);
 		update_icon_theme(xscr, None);
 	}
+}
+
+static void
+do_run(int argc, char *argv[], Bool replace)
+{
+	if (options.display)
+		setup_x11(replace);
+
 	make_menu(argc, argv);
-	gtk_main();
+
+	if (options.display)
+		gtk_main();
+	else
+		g_main_loop_run(loop);
 }
 
 static void
@@ -1356,7 +1465,10 @@ clientDieCB(SmcConn smcConn, SmPointer data)
 {
 	SmcCloseConnection(smcConn, 0, NULL);
 	shutting_down = False;
-	gtk_main_quit();
+	if (options.display)
+		gtk_main_quit();
+	else
+		g_main_loop_quit(loop);
 }
 
 static void
@@ -1364,7 +1476,10 @@ clientSaveCompleteCB(SmcConn smcConn, SmPointer data)
 {
 	if (saving_yourself) {
 		saving_yourself = False;
-		gtk_main_quit();
+		if (options.display)
+			gtk_main_quit();
+		else
+			g_main_loop_quit(loop);
 	}
 
 }
@@ -1384,7 +1499,10 @@ static void
 clientShutdownCancelledCB(SmcConn smcConn, SmPointer data)
 {
 	shutting_down = False;
-	gtk_main_quit();
+	if (options.display)
+		gtk_main_quit();
+	else
+		g_main_loop_quit(loop);
 }
 
 /* *INDENT-OFF* */
@@ -1459,6 +1577,11 @@ init_smclient(void)
 	g_io_add_watch(chan, mask, on_ifd_watch, smcConn);
 }
 
+/*
+ *  This startup function starts up the X11 protocol connection and initializes GTK+.  Note that the
+ *  program can still be run from a console, in which case the "DISPLAY" environment variables should
+ *  not be defined: in which case, we will not start up X11 at all.
+ */
 static void
 startup(int argc, char *argv[])
 {
@@ -1473,6 +1596,16 @@ startup(int argc, char *argv[])
 	char *file;
 	int len;
 
+	/* We can start session management without a display; however, we then need to
+	   run a GLIB event loop instead of a GTK event loop.  */
+	init_smclient();
+
+	/* do not start up X11 connection unless DISPLAY is defined */
+	if (!options.display) {
+		loop = g_main_loop_new(NULL, FALSE);
+		return;
+	}
+
 	home = getenv("HOME") ? : ".";
 	len = strlen(home) + strlen(suffix);
 	file = calloc(len + 1, sizeof(*file));
@@ -1481,30 +1614,88 @@ startup(int argc, char *argv[])
 	gtk_rc_add_default_file(file);
 	free(file);
 
-	init_smclient();
-
 	gtk_init(&argc, &argv);
 
 	disp = gdk_display_get_default();
 	dpy = GDK_DISPLAY_XDISPLAY(disp);
 
-	atom = gdk_atom_intern_static_string("_XDE_WM_NAME");
-	_XA_XDE_WM_NAME = gdk_x11_atom_to_xatom_for_display(disp, atom);
-
-	atom = gdk_atom_intern_static_string("_XDE_WM_MENU");
-	_XA_XDE_WM_MENU = gdk_x11_atom_to_xatom_for_display(disp, atom);
-
-	atom = gdk_atom_intern_static_string("_XDE_WM_THEME");
-	_XA_XDE_WM_THEME = gdk_x11_atom_to_xatom_for_display(disp, atom);
-
-	atom = gdk_atom_intern_static_string("_XDE_WM_ICONTHEME");
-	_XA_XDE_WM_ICONTHEME = gdk_x11_atom_to_xatom_for_display(disp, atom);
+	atom = gdk_atom_intern_static_string("_XDE_ICON_THEME_NAME");
+	_XA_XDE_ICON_THEME_NAME = gdk_x11_atom_to_xatom_for_display(disp, atom);
 
 	atom = gdk_atom_intern_static_string("_XDE_THEME_NAME");
 	_XA_XDE_THEME_NAME = gdk_x11_atom_to_xatom_for_display(disp, atom);
 
-	atom = gdk_atom_intern_static_string("_XDE_ICON_THEME_NAME");
-	_XA_XDE_ICON_THEME_NAME = gdk_x11_atom_to_xatom_for_display(disp, atom);
+	atom = gdk_atom_intern_static_string("_XDE_WM_CLASS");
+	_XA_XDE_WM_CLASS = gdk_x11_atom_to_xatom_for_display(disp, atom);
+
+	atom = gdk_atom_intern_static_string("_XDE_WM_CMDLINE");
+	_XA_XDE_WM_CMDLINE = gdk_x11_atom_to_xatom_for_display(disp, atom);
+
+	atom = gdk_atom_intern_static_string("_XDE_WM_COMMAND");
+	_XA_XDE_WM_COMMAND = gdk_x11_atom_to_xatom_for_display(disp, atom);
+
+	atom = gdk_atom_intern_static_string("_XDE_WM_ETCDIR");
+	_XA_XDE_WM_ETCDIR = gdk_x11_atom_to_xatom_for_display(disp, atom);
+
+	atom = gdk_atom_intern_static_string("_XDE_WM_HOST");
+	_XA_XDE_WM_HOST = gdk_x11_atom_to_xatom_for_display(disp, atom);
+
+	atom = gdk_atom_intern_static_string("_XDE_WM_HOSTNAME");
+	_XA_XDE_WM_HOSTNAME = gdk_x11_atom_to_xatom_for_display(disp, atom);
+
+	atom = gdk_atom_intern_static_string("_XDE_WM_ICCCM_SUPPORT");
+	_XA_XDE_WM_ICCCM_SUPPORT = gdk_x11_atom_to_xatom_for_display(disp, atom);
+
+	atom = gdk_atom_intern_static_string("_XDE_WM_ICON");
+	_XA_XDE_WM_ICON = gdk_x11_atom_to_xatom_for_display(disp, atom);
+
+	atom = gdk_atom_intern_static_string("_XDE_WM_ICONTHEME");
+	_XA_XDE_WM_ICONTHEME = gdk_x11_atom_to_xatom_for_display(disp, atom);
+
+	atom = gdk_atom_intern_static_string("_XDE_WM_INFO");
+	_XA_XDE_WM_INFO = gdk_x11_atom_to_xatom_for_display(disp, atom);
+
+	atom = gdk_atom_intern_static_string("_XDE_WM_MENU");
+	_XA_XDE_WM_MENU = gdk_x11_atom_to_xatom_for_display(disp, atom);
+
+	atom = gdk_atom_intern_static_string("_XDE_WM_NAME");
+	_XA_XDE_WM_NAME = gdk_x11_atom_to_xatom_for_display(disp, atom);
+
+	atom = gdk_atom_intern_static_string("_XDE_WM_NETWM_SUPPORT");
+	_XA_XDE_WM_NETWM_SUPPORT = gdk_x11_atom_to_xatom_for_display(disp, atom);
+
+	atom = gdk_atom_intern_static_string("_XDE_WM_PID");
+	_XA_XDE_WM_PID = gdk_x11_atom_to_xatom_for_display(disp, atom);
+
+	atom = gdk_atom_intern_static_string("_XDE_WM_PRVDIR");
+	_XA_XDE_WM_PRVDIR = gdk_x11_atom_to_xatom_for_display(disp, atom);
+
+	atom = gdk_atom_intern_static_string("_XDE_WM_RCFILE");
+	_XA_XDE_WM_RCFILE = gdk_x11_atom_to_xatom_for_display(disp, atom);
+
+	atom = gdk_atom_intern_static_string("_XDE_WM_REDIR_SUPPORT");
+	_XA_XDE_WM_REDIR_SUPPORT = gdk_x11_atom_to_xatom_for_display(disp, atom);
+
+	atom = gdk_atom_intern_static_string("_XDE_WM_STYLE");
+	_XA_XDE_WM_STYLE = gdk_x11_atom_to_xatom_for_display(disp, atom);
+
+	atom = gdk_atom_intern_static_string("_XDE_WM_STYLENAME");
+	_XA_XDE_WM_STYLENAME = gdk_x11_atom_to_xatom_for_display(disp, atom);
+
+	atom = gdk_atom_intern_static_string("_XDE_WM_SYSDIR");
+	_XA_XDE_WM_SYSDIR = gdk_x11_atom_to_xatom_for_display(disp, atom);
+
+	atom = gdk_atom_intern_static_string("_XDE_WM_THEME");
+	_XA_XDE_WM_THEME = gdk_x11_atom_to_xatom_for_display(disp, atom);
+
+	atom = gdk_atom_intern_static_string("_XDE_WM_THEMEFILE");
+	_XA_XDE_WM_THEMEFILE = gdk_x11_atom_to_xatom_for_display(disp, atom);
+
+	atom = gdk_atom_intern_static_string("_XDE_WM_USRDIR");
+	_XA_XDE_WM_USRDIR = gdk_x11_atom_to_xatom_for_display(disp, atom);
+
+	atom = gdk_atom_intern_static_string("_XDE_WM_VERSION");
+	_XA_XDE_WM_VERSION = gdk_x11_atom_to_xatom_for_display(disp, atom);
 
 	atom = gdk_atom_intern_static_string("_GTK_READ_RCFILES");
 	_XA_GTK_READ_RCFILES = gdk_x11_atom_to_xatom_for_display(disp, atom);
@@ -1623,6 +1814,8 @@ show_style(Style style)
 		return ("appmenu");
 	case StyleEntries:
 		return ("entries");
+	case StyleSubmenu:
+		return ("submenu");
 	}
 	return ("(unknown)");
 }
@@ -1645,6 +1838,8 @@ Usage:\n\
 Command options:\n\
     -m, --monitor\n\
         generate a menu and monitor for changes\n\
+    -p, --popmenu\n\
+        pop the menu (on running or new instance)\n\
     -R, --replace\n\
         replace a running instance\n\
     -q, --quit\n\
@@ -1682,6 +1877,12 @@ Options:\n\
         fullmenu, appmenu or entries [default: %13$s]\n\
     -M, --menu MENU\n\
         filename stem of root menu filename [default: %16$s]\n\
+    --display DISPLAY\n\
+        specify the X11 display [default: %17$s]\n\
+    -b, --button [BUTTON]\n\
+        specify the button pressed when popping menu [default: %18$u]\n\
+    -k, --keypress [KEYSPEC]\n\
+        specify the key sequence active whne popping menu [default: %19$s]\n\
     -D, --debug [LEVEL]\n\
         increment or set debug LEVEL [default: %14$d]\n\
     -v, --verbose [LEVEL]\n\
@@ -1703,6 +1904,9 @@ Options:\n\
 	, defaults.debug
 	, defaults.output
 	, defaults.menu
+	, defaults.display
+	, defaults.button
+	, defaults.keypress
 );
 	/* *INDENT-ON* */
 }
@@ -1849,11 +2053,21 @@ set_default_files()
 	return;
 }
 
+/*
+ * Set options in the "defaults" structure.  These "defaults" are determined by preset defaults,
+ * environment variables and other startup information, but not information from the X Server.  All
+ * options are set in this way, only the ones that depend on environment variables or other startup
+ * information.
+ */
 static void
 set_defaults(void)
 {
 	char *env;
 
+	if ((env = getenv("DISPLAY"))) {
+		free(options.display);
+		defaults.display = options.display = strdup(env);
+	}
 	if ((env = getenv("XDG_CURRENT_DESKTOP"))) {
 		free(options.desktop);
 		defaults.desktop = options.desktop = strdup(env);
@@ -1922,6 +2136,31 @@ get_default_format()
 				XGetAtomName(dpy, prop));
 	} else
 		DPRINTF("could not get %s for root 0x%lx\n", XGetAtomName(dpy, prop), root);
+}
+
+static void
+get_default_desktop()
+{
+	XdeScreen *xscr = screens;
+	const char *env;
+	char *p;
+
+	if ((env = getenv("XDG_CURRENT_DESKTOP"))) {
+		free(options.desktop);
+		defaults.desktop = options.desktop = strdup(env);
+	} else if (options.format) {
+		free(options.desktop);
+		defaults.desktop = options.desktop = strdup(options.format);
+		for (p = options.desktop; *p; p++)
+			*p = toupper(*p);
+	} else if (xscr && xscr->wmname) {
+		free(options.desktop);
+		defaults.desktop = options.desktop = strdup(xscr->wmname);
+		for (p = options.desktop; *p; p++)
+			*p = toupper(*p);
+	} else if (!options.desktop) {
+		defaults.desktop = options.desktop = strdup("XDE");
+	}
 }
 
 static void
@@ -2171,17 +2410,31 @@ get_default_root()
 }
 
 static void
-get_defaults(void)
+get_defaults()
 {
 	get_default_locale();
 	get_default_root();
+
+	if (!options.format)
+		get_default_format();
+
+	if (!options.desktop || !strcmp(options.desktop, "XDE") || !options.format
+	    || strcasecmp(options.format, options.desktop))
+		get_default_desktop();
+
+	if (!options.filename)
+		get_default_output();
+
+	if (!options.theme)
+		get_default_theme();
+
 }
 
 int
 main(int argc, char *argv[])
 {
 	Command command = CommandDefault;
-	char *loc;
+	char *loc, *p;
 
 	if ((loc = setlocale(LC_ALL, ""))) {
 		free(options.locale);
@@ -2192,6 +2445,21 @@ main(int argc, char *argv[])
 	saveArgc = argc;
 	saveArgv = argv;
 
+	if ((p = strstr(argv[0], "-menugen")) && !p[8])
+		defaults.command = options.command = CommandGenerate;
+	else if ((p = strstr(argv[0], "-popmenu")) && !p[6])
+		defaults.command = options.command = CommandPopMenu;
+	else if ((p = strstr(argv[0], "-monitor")) && !p[8])
+		defaults.command = options.command = CommandMonitor;
+	else if ((p = strstr(argv[0], "-replace")) && !p[8])
+		defaults.command = options.command = CommandReplace;
+	else if ((p = strstr(argv[0], "-refresh")) && !p[8])
+		defaults.command = options.command = CommandRefresh;
+	else if ((p = strstr(argv[0], "-restart")) && !p[8])
+		defaults.command = options.command = CommandRestart;
+	else if ((p = strstr(argv[0], "-quit")) && !p[5])
+		defaults.command = options.command = CommandQuit;
+
 	while (1) {
 		int c, val;
 
@@ -2199,6 +2467,7 @@ main(int argc, char *argv[])
 		int option_index = 0;
 		/* *INDENT-OFF* */
 		static struct option long_options[] = {
+			{"wmname",	required_argument,	NULL,	'w'},
 			{"format",	required_argument,	NULL,	'f'},
 			{"fullmenu",	no_argument,		NULL,	'F'},
 			{"nofullmenu",	no_argument,		NULL,	'N'},
@@ -2215,22 +2484,24 @@ main(int argc, char *argv[])
 			{"menu",	required_argument,	NULL,	'M'},
 
 			{"button",	required_argument,	NULL,	'b'},
+			{"keyboard",	optional_argument,	NULL,	'k'},
 			{"timestamp",	required_argument,	NULL,	'T'},
-			{"where",	required_argument,	NULL,	'w'},
+			{"where",	required_argument,	NULL,	'W'},
 
-			{"display",	required_argument,	NULL,	'1'},
+			{"display",	required_argument,	NULL,	 1 },
 			{"screen",	required_argument,	NULL,	's'},
 			{"die-on-error",no_argument,		NULL,	'e'},
-			{"notray",	no_argument,		NULL,	'2'},
-			{"nogenerate",	no_argument,		NULL,	'3'},
+			{"notray",	no_argument,		NULL,	 2 },
+			{"nogenerate",	no_argument,		NULL,	 3 },
 			{"verbose",	optional_argument,	NULL,	'v'},
 			{"debug",	optional_argument,	NULL,	'D'},
 
-			{"popup",	no_argument,		NULL,	'P'},
+			{"generate",	no_argument,		NULL,	'G'},
+			{"popmenu",	no_argument,		NULL,	'P'},
 			{"monitor",	no_argument,		NULL,	'm'},
-			{"replace",	no_argument,		NULL,	'R'},
 			{"refresh",	no_argument,		NULL,	'F'},
 			{"restart",	no_argument,		NULL,	'S'},
+			{"replace",	no_argument,		NULL,	'R'},
 			{"quit",	no_argument,		NULL,	'q'},
 
 			{"help",	no_argument,		NULL,	'h'},
@@ -2255,6 +2526,10 @@ main(int argc, char *argv[])
 		case 0:
 			goto bad_usage;
 
+		case 'w':	/* --wmname, -w WMNAME */
+			free(options.wmname);
+			defaults.wmname = options.wmname = strdup(optarg);
+			break;
 		case 'f':	/* --format, -f FORMAT */
 			free(options.format);
 			defaults.format = options.format = strdup(optarg);
@@ -2287,8 +2562,8 @@ main(int argc, char *argv[])
 		case 'o':	/* -o, --output [OUTPUT] */
 			defaults.fileout = options.fileout = True;
 			if (optarg != NULL) {
-				free(options.rootmenu);
-				defaults.rootmenu = options.rootmenu = strdup(optarg);
+				free(options.filename);
+				defaults.filename = options.filename = strdup(optarg);
 			}
 			break;
 		case 'n':	/* -n, --noicons */
@@ -2297,13 +2572,6 @@ main(int argc, char *argv[])
 		case 't':	/* -t, --theme THEME */
 			free(options.theme);
 			defaults.theme = options.theme = strdup(optarg);
-			break;
-		case 'm':	/* -m, --monitor */
-			if (options.command != CommandDefault)
-				goto bad_option;
-			if (command == CommandDefault)
-				command = CommandRun;
-			defaults.command = options.command = CommandRun;
 			break;
 		case 'L':	/* -L, --launch */
 			defaults.launch = options.launch = True;
@@ -2330,12 +2598,26 @@ main(int argc, char *argv[])
 			defaults.menu = options.menu = strdup(optarg);
 			break;
 
-		case 'q':	/* -q, --quit */
+		case 'G':	/* -G, --generate */
 			if (options.command != CommandDefault)
 				goto bad_option;
 			if (command == CommandDefault)
-				command = CommandQuit;
-			defaults.command = options.command = CommandQuit;
+				command = CommandGenerate;
+			defaults.command = options.command = CommandGenerate;
+			break;
+		case 'P':	/* -P, --popmenu */
+			if (options.command != CommandDefault)
+				goto bad_option;
+			if (command == CommandDefault)
+				command = CommandPopMenu;
+			defaults.command = options.command = CommandPopMenu;
+			break;
+		case 'm':	/* -m, --monitor */
+			if (options.command != CommandDefault)
+				goto bad_option;
+			if (command == CommandDefault)
+				command = CommandMonitor;
+			defaults.command = options.command = CommandMonitor;
 			break;
 		case 'R':	/* -R, --replace */
 			if (options.command != CommandDefault)
@@ -2343,6 +2625,47 @@ main(int argc, char *argv[])
 			if (command == CommandDefault)
 				command = CommandReplace;
 			defaults.command = options.command = CommandReplace;
+			break;
+		case 'E':	/* -F, --refresh */
+			if (options.command != CommandDefault)
+				goto bad_option;
+			if (command == CommandDefault)
+				command = CommandRefresh;
+			defaults.command = options.command = CommandRefresh;
+			break;
+		case 'S':	/* -S, --restart */
+			if (options.command != CommandDefault)
+				goto bad_option;
+			if (command == CommandDefault)
+				command = CommandRefresh;
+			defaults.command = options.command = CommandRestart;
+			break;
+		case 'q':	/* -q, --quit */
+			if (options.command != CommandDefault)
+				goto bad_option;
+			if (command == CommandDefault)
+				command = CommandQuit;
+			defaults.command = options.command = CommandQuit;
+			break;
+
+		case 1:	/* --display DISPLAY */
+			free(options.display);
+			defaults.display = options.display = strdup(optarg);
+			break;
+		case 'b':	/* -b, --button BUTTON */
+			if (options.command != CommandPopMenu)
+				goto bad_option;
+			if (!optarg)
+				break;
+			defaults.button = options.button = strtoul(optarg, NULL, 0);
+			break;
+		case 'k':	/* -k, --keyboard */
+			if (options.command != CommandPopMenu)
+				goto bad_option;
+			if (!optarg)
+				break;
+			free(options.keypress);
+			defaults.keypress = options.keypress = strdup(optarg);
 			break;
 
 		case 'D':	/* -D, --debug [LEVEL] */
@@ -2422,16 +2745,8 @@ main(int argc, char *argv[])
 		usage(argc, argv);
 		exit(EXIT_SYNTAXERR);
 	}
-	get_defaults();
-
 	startup(argc, argv);
-
-	if (!options.format)
-		get_default_format();
-	if (!options.filename)
-		get_default_output();
-	if (!options.theme)
-		get_default_theme();
+	get_defaults();
 
 	switch (command) {
 	default:
@@ -2439,17 +2754,37 @@ main(int argc, char *argv[])
 		DPRINTF("%s: running without monitoring\n", argv[0]);
 		do_generate(argc, argv);
 		break;
-	case CommandRun:
+	case CommandGenerate:
+		DPRINTF("%s: just generating window manager root menu\n", argv[0]);
+		/* FIXME */
+		break;
+	case CommandPopMenu:
+		DPRINTF("%s: asking existing instance to pop menu\n", argv[0]);
+		/* FIXME */
+		break;
+	case CommandMonitor:
 		DPRINTF("%s: running a new instance\n", argv[0]);
 		do_run(argc, argv, False);
-		break;
-	case CommandQuit:
-		DPRINTF("%s: asking existing instance to quit\n", argv[0]);
-		do_quit(argc, argv);
 		break;
 	case CommandReplace:
 		DPRINTF("%s: replacing existing instance\n", argv[0]);
 		do_run(argc, argv, True);
+		break;
+	case CommandRefresh:
+		DPRINTF("%s: asking existing instance to refresh\n", argv[0]);
+		/* FIXME */
+		break;
+	case CommandRestart:
+		DPRINTF("%s: asking existing instance to restart\n", argv[0]);
+		/* FIXME */
+		break;
+	case CommandQuit:
+		if (!options.display) {
+			EPRINTF("%s: cannot ask instance to quit without DISPLAY\n", argv[0]);
+			exit(EXIT_FAILURE);
+		}
+		DPRINTF("%s: asking existing instance to quit\n", argv[0]);
+		do_quit(argc, argv);
 		break;
 	case CommandHelp:
 		DPRINTF("%s: printing help message\n", argv[0]);

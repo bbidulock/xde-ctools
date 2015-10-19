@@ -1,14 +1,26 @@
+=pod
+
 =head1 NAME
 
-xde-menu - XDG Compliant Menu for XDE
+xde-menu - XDG compliant menus for XDE
 
 =head1 SYNOPSIS
 
-xde-menu -- [ OPTIONS ]
+ xde-menu [ COMMAND ] [ OPTIONS ]
+ xde-menugen [ OPTIONS ]
+ xde-menu-popmenu [ OPTIONS ]
+ xde-menu-monitor [ OPTIONS ]
+ xde-menu-replace [ OPTIONS ]
+ xde-menu-refresh [ OPTIONS ]
+ xde-menu-restart [ OPTIONS ]
+ xde-menu-quit [ OPTIONS ]
 
 =head1 DESCRIPTION
 
-B<xde-menu> is a menu generator, system tray menu, and pop-up menu that
+B<xde-menu> is a command-line program that can be used to generate an
+XDG compliant menu in a number of formats to support configuration of
+the root menu for light-weight window managers.
+It is a menu generator, system tray menu, and pop-up menu that
 can be used to both generate XDG compliant menus for a number of popular
 light-weight window managers as well as providing a system tray and
 pop-up menu.
@@ -29,30 +41,32 @@ Command options affect the primary operating mode of the program.  Only
 one command option can be specified.
 B<xde-menu> recognizes the following command options:
 
+B<xde-menu> is typically invoked as an XDG I<autostart> item with the
+B<--monitor> command option at startup of the X11 session.  The
+B<--wmname> and B<--format> options can often be unspecified.
+
+An XDG I<autostart> F<.desktop> file is installed when the package
+installs that will invoke B<xde-menu> and add a status icon to the
+system tray.
+
 =over
 
-=item I<none>
+=item B<--generate>, B<-G>
 
-When no command option is specified, or when invoked as B<xde-menugen>,
-normal operation is begun, no new instance is created.  Only the
-root-menu is generated and then the program exits.
+Specifies that B<xde-menu> is to generate a window manager root-menu and
+then exit.  No new instance is created: only the root-menu is generated
+and then the program exits.
 This option does not cause an error when an instance of B<xde-menu> is
-running.
-This is the default when B<xde-menu> is invoked as B<xde-menugen> and no
-command option is specified.
+running (or not).
+This is the default when B<xde-menu> is invoked as B<xde-menugen>.
 
-=item B<--monitor>, B<-m>
+B<xde-menu> is typically used with the B<--generate> option to generate
+an initial window manager root menu as part of the initialization
+sequence of a particular window manager or panel.  The B<--wmname>,
+B<--format>, B<--output> and B<--die-on-error> options are normally
+specified in this case.
 
-Specifies that B<xde-menu> is to monitor pertinent directories for
-changes and regenerate all menus when changes are detected.  This option
-implies the B<--output> option.  This option normally requires
-L<libinotify(3)>.
-This option does not cause an error when another instance of B<xde-menu> is
-running, and the running instance is simply replaced.
-This is the default when B<xde-menu> is invoked as B<xde-menu-monitor>
-and no command option is specified.
-
-=item B<--popup>, B<-P>
+=item B<--popmenu>, B<-P>
 
 Specifies that B<xde-menu> is to request a running instance to pop-up a
 menu.  The menu to pop up, the location and invocation of the pop-up is
@@ -64,23 +78,76 @@ of the monitor in which the pointer currently resides (which is used by
 most tiling window managers as the "current" monitor).
 This option does not cause an error when no current instance of
 B<xde-menu> is running.
-This is the default when B<xde-menu> is invoked as B<xde-menu-popup>.
+This is the default when B<xde-menu> is invoked as B<xde-menu-popmenu>.
 
-=item B<--refresh>, B<-F>
+For pop-up menu operation, an background instance of B<xde-menu> can be
+asked to pop up an applications or other menu using the B<--popmenu>
+command option.  The major use of this operation is to pop a menu from
+another program (such as a panel), or to pop a menu as a result of a
+button click or button press using window manager bindings.
+
+=item B<--monitor>, B<-m>
+
+Specifies that B<xde-menu> is not to exit after successfully
+generating the menu, but to monitor pertinent directories for changes,
+and regenerate the menu when changes are detected.  This option implies
+the B<--output> option, without an argument.
+
+When changes are detected in the application database, the menu is
+regenerated after an interval of no changes.  When changes are detected
+to the active window manager, the menu is regenerated, to the location
+and in the format of the new window manager, after an interval of no
+changes.
+
+Runs a new instance of B<xde-menu> and specifies that the program is to
+monitor pertinent directories for changes and regenerate all menus
+(root, system tray and pop-up) when changes are detected.
+This option implies the B<--output> option.
+This option normally requires L<libinotify(3)>.
+This option causes an error when another instance of B<xde-menu> is
+already running.
+(See the B<--replace> option, below.)
+This is the default when B<xde-menu> is invoked as B<xde-menu-monitor>.
+
+When performing background operation with the B<--monitor> command
+option, the program will add a status icon to the system tray.  The
+status icon will be able to be used to  pop up the menu.  Addition of a
+status icon to the system tray can be avoided using the B<--notray>
+option.  The status icon can also be removed using the status icon
+pop-up configuration menu.
+
+=item [B<--replace>, B<-R>]
+
+Replace a currently running instance (that was invoked with the
+B<--monitor> option).
+It is not an error if no other instance is running.
+Runs a new instance of B<xde-menu> and specifies that the program is to
+monitor pertinent directories for changes and regenerate all menus when
+changes are detected.
+This option implies the B<--output> and B<--monitor> option.
+This option normally requires L<libinotify(3)>.
+This option (unlike B<--monitor>) does not cause an error when another
+instance of B<xde-menu> is already running, and simply replaces all
+other instances.
+This is the default when B<xde-menu> is invoked as B<xde-menu-replace>,
+or when no command option is specified.
+
+=item B<--refresh>, B<-E>
 
 Asks a running instance of B<xde-menu> to refresh the menu.  This is
 normally not required when B<xde-menu> is run with the B<--monitor>
-option, as B<xde-menu> then detects when F<.desktop>, icon or theme
-files have changed and automatically refreshes the menu in response.
+option, as B<xde-menu> then detects when F<.desktop> files, icons, theme
+files or window managers have changed and automatically refreshes the
+menus in response.
 This option causes an error when no current instance of B<xde-menu> is
 running.
 This is the default when B<xde-menu> is invoked as B<xde-menu-refresh>.
 
 =item B<--restart>, B<-S>
 
-Asks a running instance of B<xde-menu> to restart itself with the same
-options and arguments that were originally provided.  This is not
-normally required or very useful.
+Asks a running instance of B<xde-menu> to restart (re-execute itself
+with the same options and arguments).  This is useful when the
+B<xde-menu> executables have been upgraded.
 This option causes an error when no current instance of B<xde-menu> is
 running.
 This is the default when B<xde-menu> is invoked as B<xde-menu-restart>.
@@ -112,56 +179,64 @@ Print copying information and exit.
 
 =item B<--display> I<DISPLAY>
 
-Specify the display to use (overriding the B<DISPLAY> environment
-variable).  The default is the value of the B<DISPLAY> environment
+Specify the display to use (overriding the C<DISPLAY> environment
+variable).  The default is the value of the C<DISPLAY> environment
 variable.
 
 =item B<--screen>, B<-s> I<SCREEN>
 
 Specify the screen number to use when positioning the menu.  The default
-is either specified by the B<DISPLAY> environment variable (when that
+is either specified by the C<DISPLAY> environment variable (when that
 variable specifies a screen); otherwise, all screens will be considered.
 
 =item B<--die-on-error>, B<-e>
 
 Abort execution on any error.
+Useful in conjunction with the B<--generate> option.
 
 =item B<--notray>
 
 Run without installing the menu in the system tray.
+This is the default when the program in invoked as B<xde-menu-generate>
+or when the B<--generate> option is specified.
 
 =item B<--nogenerate>
 
-Do not generate window manager root menus.  This option invalid when no
-command option is specified or when the program is invoked as
+Do not generate window manager root menus.  This option is invalid when
+no command option is specified, or when the program is invoked as
 B<xde-menugen>.  When combined with the B<--notray> option, the program
-will background itself and service B<--popup> requests only.
+will background itself and service B<--popmenu> requests only.
 
 =item B<--verbose>, B<-v> [I<LEVEL>]
 
-Increases or sets the output verbosity level to I<LEVEL>.  The default
-level is C<1>.  Normal output is printed to standard output.  This
-option may be repeated.
+When generating output, generate more verbose output.  Increments or
+sets the output verbosity to I<LEVEL>.  The default level is C<1>.
+Normal output is printed to standard output.  This option may be
+repeated.
 
 =item B<--debug>, B<-D> [I<LEVEL>]
 
-Increases or sets the debugging verbosity level to I<LEVEL>.  The
-default level is C<0>.  Debugging output is printed to standard error.
-This option may be repeated.
+Print debugging information to standard error during operation.
+Increments or sets the debug verbosity to I<LEVEL>.  The default level
+is C<0>.  Debugging output is printed to standard error.  This option
+may be repeated.
 
 =back
 
-=head2 MENU FORMAT OPTIONS
+=head3 MENU FORMAT OPTIONS
 
-The following options affect the formatting or output of the window
+The following options affect the formatting and output of the window
 manager root window menu, system tray menu and pop-up menu.  Not all
 options affect the system tray and pop-up menus.
 
+=over
+
 =item B<--wmname>, B<-w> I<WMNAME>
 
-=item B<--format>, B<-f> I<FORMAT>
+Specifies the name of the window manager for which menus are to be
+generated.  Currently recognized window managers are as follows:
 
-Specify the output format.  Recognized output formats are as follows:
+
 L<2bwm(1)>,
 L<adwm(1)>,
 L<afterstep(1)>,
@@ -180,7 +255,7 @@ L<icewm(1)>,
 L<jwm(1)>,
 L<matwm2(1)>,
 L<metacity(1)>,
-L<mwmw(1)>,
+L<mwm(1)>,
 L<openbox(1)>,
 L<pekwm(1)>,
 L<spectrwm(1)>,
@@ -190,26 +265,97 @@ L<vtwm(1)>,
 L<waimea(1)>,
 L<wind(1)>,
 L<wmaker(1)>,
+L<wmx(1)> and
+L<yeahwm(1)>.
+
+When unspecified, or when a window manager change is detected, the
+setting of the C<_XDE_WM_NAME> property on the root window (or the
+C<WM_NAME> or C<_NET_WM_NAME> property on the window manager check
+window) is examined to determine the window manager name.  This is
+accomplished by converting the value of either property to all
+lowercase.  See also, L</ENVIRONMENT> and L</PROPERTIES>.
+
+When the program is running in monitor mode for the active window
+manager, the window manager name need not be specified explicitly.
+However, when using the program in B<--generate> mode to simply generate
+a root menu, this option (or the B<--format> option) must be specified
+explicitly.
+
+=item B<--format>, B<-f> I<FORMAT>
+
+Specify the output format.  Recognized output formats are as follows:
+
+L<2bwm(1)>,
+L<adwm(1)>,
+L<afterstep(1)>,
+L<awesome(1)>,
+L<blackbox(1)>,
+L<ctwm(1)>,
+L<cwm(1)>,
+L<dtwm(1)>,
+L<dwm(1)>,
+L<echinus(1)>,
+L<etwm(1)>,
+L<fluxbox(1)>,
+L<flwm(1)>,
+L<fvwm(1)>,
+L<icewm(1)>,
+L<jwm(1)>,
+L<matwm2(1)>,
+L<metacity(1)>,
+L<mwm(1)>,
+L<openbox(1)>,
+C<openboxold>,
+L<pekwm(1)>,
+L<perlpanel(1)>,
+L<spectrwm(1)>,
+L<twm(1)>,
+L<uwm(1)>,
+L<vtwm(1)>,
+L<waimea(1)>,
+L<wind(1)>,
+L<wmaker(1)>,
+C<wmakerold>,
 L<wmx(1)>,
 L<yeahwm(1)>.
 
-When unspecified, the setting of the C<_XDE_WM_NAME> property on the
-root window (or the C<_NET_WM_NAME> property on the window manager check
-window) is examined to determine the format.  This is accomplished by
-converting the value of either property to all lower case.  See also,
-L</ENVIRONMENT> and L<xde-identify(1)>.
+When unspecified, the setting or implied setting of the B<--wmname>
+option is used.  If the B<--wmname> option is also unspecified, or when
+a window manager change is detected, the setting of the C<_XDE_WM_NAME>
+property on the root window (or the C<WM_NAME> or C<_NET_WM_NAME>
+property on the window manager check window) is examined to determine
+the window manager name.  This is accomplished by converting the first
+word in the value of either property to all lowercase.  See also,
+L</ENVIRONMENT> and L</PROPERTIES>.
+
+When the program is running in monitor mode for the active window
+manager, the format need not be specified explicitly.  However, when
+using the program in B<--generate> mode to simply generate a root menu,
+this option (or the B<--wmname> option) must be specified explicitly.
+
+Note that L<openbox(1)> and L<wmaker(1)> support both an old and new
+menu format.  The old formats are only selected when explicitly
+specified as C<openboxold> or C<wmakerold>.
+
+Note also that L<perlpanel(1)> format is not associated with a specific
+window manager; however, the B<--wmname> option is used to determine
+which entries to place in the perl panel output and the B<--desktop>
+option is used to determine which application or system entries to
+include.
 
 =item B<--fullmenu>, B<-F>, B<--nofullmenu>, B<-N>
 
 When specified, output a full menu and not only the application
 sub-menu, or not.  The default is to output a full menu.  This also
-affects the system tray menu and pop-up menus.
+affects the system tray menu and pop-up menus accordingly.
 
 =item B<--desktop>, B<-d> I<DESKTOP>
 
 Specify the desktop name for C<NotShowIn> and C<OnlyShowIn> comparisons.
-The default is the all upper-case string corresponding to the format
-unless the C<XDG_CURRENT_DESKTOP> environment variable is defined.
+The default is the all uppercase string corresponding to the window
+manager name, (or the desktop name explicitly specified for the window
+manager and format), unless the C<XDG_CURRENT_DESKTOP> environment
+variable is defined.
 
 =item B<--charset>, B<-c> I<CHARSET>
 
@@ -219,8 +365,8 @@ does not affect system tray and pop-up menus (which are both UTF-8).
 
 =item B<--language>, B<-l> I<LANGUAGE>
 
-Specify the output language for the menu.  Defaults to the language in
-the current locale.  This option affects all menus.
+Specify the output language for the window manager root menu.  Defaults
+to the language in the current locale.  This option affects all menus.
 
 =item B<--root-menu>, B<-r> I<MENU>
 
@@ -228,10 +374,10 @@ Specify the location of the root menu file.  The default is calculated
 using XDG environment variables (see L</ENVIRONMENT>), and defaults to
 the file F<${XDG_MENU_PREFIX}applications.menu> in the
 F<$XDG_CONFIG_HOME:$XDG_CONFIG_DIRS> search path.  Note, however, that
-B<xde-menu> supports both I<applications> and I<system> menus using the
+B<xde-menu> supports both C<applications> and C<system> menus using the
 B<--menu> option.
 
-=item B<--output>, B<-o> I<FILENAME>
+=item B<--output>, B<-o> [I<FILENAME>]
 
 Write the window manager root menu output to the file, I<FILENAME>.
 This is particularly useful with option B<--die-on-error> as the output
@@ -239,12 +385,12 @@ will not be written at all if an error is encountered.  If the
 I<FILENAME> is not specified, the setting of the C<_XDE_WM_MENU>
 property on the root window is examined to determine the location of the
 menu file.  When the property is not set or not available, the default
-menu location for the current B<--format> will be used.
+menu location for the current B<--wmname> or B<--format> will be used.
 
 Note that not all light-weight window managers support a root menu.
-
 Note also that at startup, B<xde-menu> will wait several seconds for a
-window manager to appear if one is not present at initialization.
+window manager to appear if one is not present at initialization and
+neither the B<--wmname> nor B<--format> options are specified.
 
 =item B<--icons>, B<--noicons>, B<-n>
 
@@ -266,7 +412,7 @@ be added to the menu.
 
 Specify the icon theme name to use when generating icons.  The default
 is to obtain the icon theme name from the default locations (such as the
-F<$HOME/.gtk2rc-2.0> file).
+F<$HOME/.gtkrc-2.0> file).
 
 =item B<--style>, B<-s> I<STYLE>
 
@@ -297,30 +443,39 @@ This option does not affect the system tray nor pop-up menus.
 
 =item B<--launch>, B<-L>, B<--nolaunch>
 
-Specifies whether to use B<xde-launch(1)> to launch the desktop files
+Specifies whether to use L<xde-launch(1)> to launch the desktop files
 directly or not.  This option will only be honoured when the
 L<xde-launch(1)> program is available and accessible.
+Also, some window managers (e.g. L<openbox(1)>) provide their own
+desktop startup launching and some don't.  So, the default setting may
+depend on the active window manager.
 
-=item B<--menu>, B<-M> I<MENU>
+=item B<--menu>, B<-M> I<MENUNAME>
 
-Specifies the filename stem of the root menu filename.  The default is
-F<applications>.  Another useful value is F<system>.  This option only
-affects the automatic determination of the root menu file.  When the
-root menu file is specified with the B<--root-menu> option, the filename
-is determined verbatim.
+Specifies the filename stem of the root menu filename.
+This defaults to "F<applications>."
+Another useful value is "F<system>."
+Other possible values include "F<information>" and "F<settings>."
+The special value "F<all>" specifies that menus are to be generated for all known stems.
+This option only affects the automatic determination of the root menu
+file.
+When the root menu file is specified with the B<--root-menu> option, the
+filename is determined verbatim.
 
-=head2 POP-UP MENU OPTIONS
+=back
 
-The following options are only valid then the B<--popup> command option
-has been specified or implied.  These options only affect the pop-up
-menu.
+=head3 POP-UP MENU OPTIONS
+
+The following options are only valid when the B<--popmenu> command
+option has been specified or implied.  These options only affect the
+pop-up menu.
 
 =over
 
 =item B<--button>, B<-b> I<BUTTON>
 
 Specifies the button that was used to invoke the pop-up.  Defaults to
-zero (0).  This should be button that was used to pop the menu.  A
+zero (0).  This should be the button that was used to pop the menu.  A
 window manager that invokes this command in response to a button press
 should release its passive grab on the button before invoking the pop-up
 menu so that the popped up menu can grab the button.  A I<BUTTON> of
@@ -331,7 +486,7 @@ a button.
 
 Provides the X11 server time-stamp of the event that caused the pop-up.
 
-=item B<--where>, B<-w> {B<pointer>|B<center>|B<topleft>}
+=item B<--where>, B<-W> {B<pointer>|B<center>|B<topleft>}
 
 Specifies the position for the pop-up menu.  This can be one of the
 following values (case insensitive, may be abbreviated):
@@ -365,16 +520,228 @@ When unspecified, the default placement algorithm is as follows:
 
 If B<--button> is specified and non-zero, place the menu at the pointer
 regardless of the screen and monitor currently containing the pointer.
-If the pointer is positioned outside an active monitor, fall-back to the
+If the pointer is positioned outside an active monitor, fall back to the
 behaviour as if B<--button> was not specified.
 
 =item 2.
 
-If B<--button> is unspecified or zero, place the menu in the centre
+If B<--button> is unspecified or zero (0), place the menu in the centre
 (considering work area) of the screen and monitor which currently
 contains the keyboard focus.
 
 =back
+
+=back
+
+=head1 SUPPORTED WINDOW MANAGERS
+
+The following window managers and menu environments are supported by
+B<xde-menu>:
+
+=over
+
+=item B<--wmname=>I<2bwm> B<--format=>I<2bwm>
+
+Like L<dwm(1)>, L<2bwm(1)> does not provide a root menu; however, it
+does provide a mechanism for invoking an external root menu.
+This can be used to invoke the GTK+ version of the root menu (i.e.
+pop-up menu).
+
+=item B<--wmname=>I<adwm> B<--format=>I<adwm>
+
+Like L<dwm(1)>, L<adwm(1)> does not provide a root menu; however, it
+does provide a mechanism for invoking an external root menu.
+This can be used to invoke the GTK+ version of the root menu (i.e.
+pop-up menu).
+
+=item B<--wmname=>I<afterstep> B<--format=>I<afterstep>
+
+No support has yet been included for L<afterstep(1)>.
+
+=item B<--wmname=>I<awesome> B<--format=>I<awesome>
+
+No support has yet been included for L<awesome(1)>.
+
+=item B<--wmname=>I<blackbox> B<--format=>I<blackbox>
+
+L<blackbox(1)> provides a root menu that is formatted similar to
+L<fluxbox(1)> and the older L<openbox(1)> (C<openboxold>) menu style.
+The primary difference is that L<blackbox(1)> does not support the
+display of icons.
+
+=item B<--wmname=>I<ctwm> B<--format=>I<ctwm>
+
+L<ctwm(1)> provides a root menu that is formatted similar to L<twm(1)>.
+This root menu format does not support the display of icons.
+
+=item B<--wmname=>I<cwm> B<--format=>I<cwm>
+
+L<cwm(1)> only provides a rudimentary root menu (with no ability to
+generate sub-menus); however, it has the ability to specify command
+actions in response to key bindings or mouse buttons and can easily be
+configured to launch the GTK+ menu.
+
+=item B<--wmname=>I<dtwm> B<--format=>I<dtwm>
+
+L<dtwm(1)>
+
+=item B<--wmname=>I<dwm> B<--format=>I<dwm>
+
+L<dwm(1)> does not provide a root menu; however, it does provide a
+mechanism for invoking an external root menu.  This is used to invoke
+the GTK+ version of the root menu.
+
+=item B<--wmname=>I<echinus> B<--format=>I<echinus>
+
+Like L<dwm(1)>, L<echinus(1)> does not provide a root menu; however, it
+does provide a mechanism for invoking an external root menu.  This is
+used to invoke the GTK+ version of the root menu.
+
+=item B<--wmname=>I<etwm> B<--format=>I<etwm>
+
+L<etwm(1)> provides a root menu that is formatted similar to L<twm(1)>.
+This root menu format does not support the display of icons.
+
+=item B<--wmname=>I<fluxbox> B<--format=>I<fluxbox>
+
+L<fluxbox(1)> provides a root menu that is formatted similar to
+L<blackbox(1)>.  This root menu, however, provides additional support
+for the display of icons.
+
+=item B<--wmname=>I<flwm> B<--format=>I<flwm>
+
+L<flwm(1)> uses a directory of executables instead of a file format in
+the identical fashion to the L<wmx(1)> window manager on which it is
+based.  It does not support the use of icons in menu items.  In fact,
+this is an alias for I<wmx> as the two formats are completely compatible
+and interoperable.
+
+=item B<--wmname=>I<fvwm> B<--format=>I<fvwm>
+
+L<fvwm(1)> provides a root menu using its own unique menu format.
+Although at one time L<fvwm(1)> used a L<dtwm(1)>-like menu format, it
+now uses its own unique L<perl(1)> interface.  L<fvwm(1)> supports the
+use of icons in menu items.
+
+=item B<--wmname=>I<icewm> B<--format=>I<icewm>
+
+L<icewm(1)> provides a programs menu using its own unique menu format.
+It support the display of icons in menu items.  L<icewm(1)> does not
+provide the ability to specify the entire root menu: some items in the
+root menu are fixed by window manager and do not appear in the menu
+file.
+
+=item B<--wmname=>I<jwm> B<--format=>I<jwm>
+
+L<jwm(1)> provides a root menu using its own XML-based menu format.  It
+support the display of icons in menu items.  L<jwm(1)> recently had a
+rework of its configuration files.  Unless you are on the most current
+versions, your mileage may vary.
+
+=item B<--wmname=>I<matwm2> B<--format=>I<matwm2>
+
+Like L<dwm(1)>, L<matwm2(1)> does not provide a root menu; however, it
+does provide a mechanism for invoking an external root menu.  This is
+used to invoke the GTK+ version of the root menu.
+
+=item B<--wmname=>I<metacity> B<--format=>I<metacity>
+
+L<metacity(1)> does not provide a root menu; however, it has ample
+facility for launching the GTK+ menu.
+
+=item B<--wmname=>I<mwm> B<--format=>I<mwm>
+
+L<mwm(1)> is the old pre-openmotify window manager that was intended on
+providing the capabilities of the L<dtwm(1)> OSF/Motif/CDE window
+manager.  It provides a root menu following a similar configuration file
+format to L<twm(1)>, L<ctwm(1)>, L<etwm(1)> and L<vtwm(1)>.  It does not
+have the ability to display icons in menu items.
+
+=item B<--wmname=>I<openbox> B<--format=>I<openbox> or B<--format=>I<openboxold>
+
+Two formats are supported for the L<openbox(1)> window manager: the
+newer openbox-3 XML format (I<openbox>) and the older
+L<fluxbox(1)>-like menu format (I<openboxold>). The default for the
+L<openbox(1)> window manager is the newer style; however, it still
+supports both formats.  Both formats support the use of icons in menu
+items.
+
+=item B<--wmname=>I<pekwm> B<--format=>I<pekwm>
+
+L<pekwm(1)> provides a root menu that is formatted using its own file
+format.  It supports dynamic menus and provides support for displaying
+icons in menu elements.
+
+=item B<--format=>I<perlpanel>
+
+L<perlpanel(1)> can read a L<fluxbox(1)> or L<blackbox(1)> style menu
+and generate a GTK+ menu from it.  This format generates a
+L<fluxbox(1)>-like menu for use by L<perlpanel(1)>.  (Note that this
+format can be specified in addition to other formats, in which case,
+this format will be generated as well.)  The menu file is typically
+stored in F<~/.perlpanel/menu>, F<~/.config/perlpanel/menu> or
+F</usr/share/perlpanel/menu>, independent of which window manager is
+currently running.
+
+=item B<--wmname=>I<spectrwm> B<--format=>I<spectrwm>
+
+Like L<dwm(1)>, L<spectrwm(1)> does not provide a root menu; however, it
+does provide a mechanism for invoking an external root menu.  This is
+used to invoke the GTK+ version of the root menu.
+
+=item B<--wmname=>I<twm> B<--format=>I<twm>
+
+L<twm(1)> provides a root menu that uses its own format.  L<ctwm(1)>,
+L<etwm(1)> and L<vtwm(1)> share this format.  The format does not
+support the display of icons in the root menu.
+
+=item B<--wmname=>I<uwm> B<--format=>I<uwm>
+
+L<uwm(1)> provides a root menu that uses its own format.  The format
+supports the use of icons in menu items.
+
+=item B<--wmname=>I<vtwm> B<--format=>I<vtwm>
+
+L<vtwm(1)> provides a root menu that is formatted similar to L<twm(1)>.
+This root menu format does not support the display of icons.
+
+=item B<--wmname=>I<waimea> B<--format=>I<waimea>
+
+L<waimea(1)> provides a root menu that is formatted similar to
+L<blackbox(1)>.  As with L<blackbox(1)>, this root menu does not support
+the display of icons.
+
+=item B<--wmname=>I<wind> B<--format=>I<wind>
+
+L<wind(1)> does not have a root menu: it doesn't have any menus at all.
+L<wind(1)> window manager is difficult to support: the window manager
+has no mechanism for launching a menu.  However, an external key-binder
+such as L<bbkeys(1)> can be used to launch the menu.  Also, it appears
+that L<wind(1)> does not grab button clicks on the root window.
+
+=item B<--wmname=>I<wmaker> B<--format=>I<wmaker> or B<--format=>I<wmakerold>
+
+Two formats are supported for the L<wmaker(1)> window manager: the newer
+window maker lisp-based menu (I<wmaker>) and the older line-based menu
+(I<wmakerold>).  The default for the L<wmaker(1)> window manager is the
+newer style; however, it still supports both formats.  Neither format
+supports the use of icons in menu items.
+
+=item B<--wmname=>I<wmx> B<--format=>I<wmx>
+
+L<wmx(1)> uses a directory of executables instead of a file format in
+the identical fashion to L<flwm(1)> (which was based on L<wmx(1)>).  It
+does not support the use of icons in menu items.  In fact, this is an
+alias for I<flwm> as the two formats are completely compatible and
+interoperable.
+
+=item B<--wmname=>I<yeahwm> B<--format=>I<yeahwm>
+
+L<yeahwm(1)> does not have a root menu: it doesn't have any menus at
+all.  Therefore, the GTK+ menu must be used.   L<yeahwm(1)> is another
+window manager that is difficult to support without an external key
+binder (such as L<bbkeys(1)>).  Mouse button clicks on the root window
+are intercepted by the window manager.  Support is unlikely.
 
 =back
 
@@ -418,8 +785,8 @@ B<--root-menu> option that was specified at launch is ignored.
 If the file specified by B<--root-menu> is not found or unspecified, the
 file name F<${XDG_MENU_PREFIX}applications.menu> is sought in each of
 the sub-directories name F<menu> in the path
-F<$XDG_CONFIG_HOME:$XDG_CONFIG_DIRS> in accordance with the XDG
-menu specification.
+F<$XDG_CONFIG_HOME:$XDG_CONFIG_DIRS> in accordance with the XDG menu
+specification.
 
 Note that the stem F<applications> can be changed using the
 B<--menu> option.
@@ -428,8 +795,8 @@ B<--menu> option.
 
 If not found, the file name F<applications.menu> is sought in each of
 the F<menu> sub-directories in the path
-F<$XDG_CONFIG_HOME:$XDG_CONFIG_DIRS> in accordance with the XDG
-menu specification.
+F<$XDG_CONFIG_HOME:$XDG_CONFIG_DIRS> in accordance with the XDG menu
+specification.
 
 Note that the stem F<applications> can be changed using the
 B<--menu> option.
@@ -438,7 +805,7 @@ B<--menu> option.
 
 =item C<$XDG_CONFIG_HOME>
 
-Specifies the XDG configuration directory.  When unspecified, defaults
+Specifies the user XDG configuration directory.  When unspecified, defaults
 to F<$HOME/.config> in accordance with XDG specifications.
 
 =item C<$XDG_CONFIG_DIRS>
@@ -461,45 +828,45 @@ specifications.
 
 Specifies the name of the icon theme.  When not specified, the icon
 theme will be determined from configuration sources (e.g. the
-F<$HOME/.gtkrc-2.0> file)
+F<$HOME/.gtkrc-2.0> file).
 
 =back
 
 =head1 PROPERTIES
 
 The following X11 window properties are significant to the operation of
-B<xde-menu>>
+B<xde-menu>:
 
 =over
 
 =item C<_XDE_WM_NAME>
 
 When available and set on the root window, specifies the window manager
-name used to derive the B<--format> option when the option was
-unspecified or when the window manager has changed since the B<xde-menu>
-command was launched.
+name used to derive the B<--wmname> and B<--format> options when the
+options are unspecified or when the window manager has changed since the
+B<xde-menu> command was launched.
 
 =item C<_NET_WM_NAME>
 
 When C<_XDE_WM_NAME> is unavailable, and this property is set properly
 on the window manager EWMH/NetWM check window, the first word of the
-property will be used to derived the B<--format> option when the option
-was unspecified or when the window manager has changed wince the
-B<xde-menu> command was launched.
+property will be used to derive the B<--wmname> and B<--format> options
+when the options are unspecified or when the window manager has changed
+since the B<xde-menu> command was launched.
 
 =item C<_XDE_WM_STYLE>
 
-When set on the root window or XDE check window, used to determine the
+When set on the root window, or XDE check window, used to determine the
 location of the window manager style file.
 
 =item C<_XDE_WM_STYLENAME>
 
-When set on the root window or XDE check window, used to determine the
+When set on the root window, or XDE check window, used to determine the
 name of the style set for the window manager.
 
 =item C<_XDE_WM_THEME>
 
-When set on the root window or XDE check window, used to determine the
+When set on the root window, or XDE check window, used to determine the
 name of the theme set for XDE.
 
 =item C<_XDE_WM_THEMEFILE>
@@ -513,7 +880,7 @@ file to use for the theme set for XDE.
 
 B<xde-menu> currently uses F<libwnck+> or F<libwnck> both to identify
 the window manager and to provide the window manager actions menu.  The
-rage and format of window manager actions provided by F<libwnk+> is
+range and format of window manager actions provided by F<libwnck+> is
 superior to F<libwnck>.  This use means that B<xde-menu> does not
 currently provide any support for window managers that do not have a
 modicum of compliance to the EWMH/NetWM specifications.  That may change
@@ -526,6 +893,11 @@ B<xde-menu> was written for a number of reasons:
 =over
 
 =item 1.
+
+Existing L<fluxbox(1)> menu generators that read XDG .desktop files
+(L<fbmenugen(1)>, L<menutray(1)>) do not conform to the XDG menu
+generation specifications and in particular are incapable of merging
+menus.
 
 Many existing light-weight window manager generators that read XDG
 F<.desktop> files do not conform to the XDG menu generation
@@ -541,7 +913,7 @@ pop-up menus either.
 
 =item 3.
 
-Existing XDG menu generators run once and keep cahce information, or
+Existing XDG menu generators run once and keep cache information, or
 have a C<regenerate> command placed in the menu.  They do not monitor
 XDG directories for changes and update menus on changes.
 
@@ -564,11 +936,13 @@ Brian Bidulock L<mailto:bidulock@openss7.org>.
 
 =head1 SEE ALSO
 
+L<xde-style(1)>,
 L<xde-menugen(1)>,
 L<xdg-traymenu(1p)>,
 L<xdg-menugen(1p)>,
-L<xde-identify(1)>.
+L<xde-identify(1)>,
+L<inotify(7)>.
 
 =cut
 
-# vim: set sw=4 tw=72 spell spelllang=en_ca:
+# vim: set ft=pod sw=4 tw=72 nocin spell spelllang=en_ca:
