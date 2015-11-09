@@ -5,4 +5,4 @@ rm -f cscope.*
 ./configure.sh
 make cscope
 cscope -b
-make clean all
+make V=0 clean all
