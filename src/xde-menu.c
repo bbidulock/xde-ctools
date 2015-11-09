@@ -187,7 +187,7 @@ Atom _XA_XDE_MENU_POPMENU;
 
 typedef enum {
 	CommandDefault,			/* just generate WM root menu */
-	CommandGenerate,		/* just generate WM root menu */
+	CommandMenugen,			/* just generate WM root menu */
 	CommandMonitor,			/* run a new instance with monitoring */
 	CommandQuit,			/* ask running instance to quit */
 	CommandPopMenu,			/* ask running instance to pop menu */
@@ -211,6 +211,13 @@ typedef enum {
 	XdeStyleUser,
 	XdeStyleMixed,
 } Which;
+
+typedef enum {
+	XdePositionDefault,
+	XdePositionPointer,
+	XdePositionCenter,
+	XdePositionTopLeft,
+} Position;
 
 typedef struct {
 	int debug;
@@ -241,6 +248,11 @@ typedef struct {
 	char *display;
 	unsigned button;
 	char *keypress;
+	unsigned long int timestamp;
+	Position where;
+	int screen;
+	Bool tray;
+	Bool generate;
 } Options;
 
 typedef struct MenuContext MenuContext;
@@ -255,21 +267,21 @@ struct MenuContext {
 	char *indent;
 	GtkIconLookupFlags iconflags;
 	GList *output;
-	GList *(*create) (MenuContext * ctx, Style style, const char *name);
-	GList *(*wmmenu) (MenuContext * ctx);	/* output the window manager menu */
-	GList *(*appmenu) (MenuContext * ctx, GList *entries, const char *name);
-	GList *(*rootmenu) (MenuContext * ctx, GList *entries);
-	GList *(*build) (MenuContext * ctx, GMenuTreeItemType type, gpointer item);
+	GList *(*create) (MenuContext *ctx, Style style, const char *name);
+	GList *(*wmmenu) (MenuContext *ctx);	/* output the window manager menu */
+	GList *(*appmenu) (MenuContext *ctx, GList *entries, const char *name);
+	GList *(*rootmenu) (MenuContext *ctx, GList *entries);
+	GList *(*build) (MenuContext *ctx, GMenuTreeItemType type, gpointer item);
 	struct {
-		GList *(*menu) (MenuContext * ctx, GMenuTreeDirectory *menu);
-		GList *(*directory) (MenuContext * ctx, GMenuTreeDirectory *dir);
-		GList *(*header) (MenuContext * ctx, GMenuTreeHeader *hdr);
-		GList *(*separator) (MenuContext * ctx, GMenuTreeSeparator *sep);
-		GList *(*entry) (MenuContext * ctx, GMenuTreeEntry *ent);
-		GList *(*alias) (MenuContext * ctx, GMenuTreeAlias *als);
+		GList *(*menu) (MenuContext *ctx, GMenuTreeDirectory *menu);
+		GList *(*directory) (MenuContext *ctx, GMenuTreeDirectory *dir);
+		GList *(*header) (MenuContext *ctx, GMenuTreeHeader *hdr);
+		GList *(*separator) (MenuContext *ctx, GMenuTreeSeparator *sep);
+		GList *(*entry) (MenuContext *ctx, GMenuTreeEntry *ent);
+		GList *(*alias) (MenuContext *ctx, GMenuTreeAlias *als);
 	} ops;
-	GList *(*themes) (MenuContext * ctx);
-	GList *(*styles) (MenuContext * ctx);
+	GList *(*themes) (MenuContext *ctx);
+	GList *(*styles) (MenuContext *ctx);
 };
 
 typedef struct {
@@ -330,6 +342,11 @@ Options defaults = {
 	.display = NULL,
 	.button = 3,
 	.keypress = NULL,
+	.timestamp = 0,
+	.where = XdePositionDefault,
+	.screen = 0,
+	.tray = True,
+	.generate = True,
 };
 
 XdeScreen *screens = NULL;
@@ -393,7 +410,7 @@ display_invalid(FILE *file, int level)
 }
 
 char *
-xde_get_icons(MenuContext * ctx, const char *inames[])
+xde_get_icons(MenuContext *ctx, const char *inames[])
 {
 	GtkIconTheme *theme;
 	GtkIconInfo *info;
@@ -416,7 +433,7 @@ xde_get_icons(MenuContext * ctx, const char *inames[])
 }
 
 char *
-xde_get_icon(MenuContext * ctx, const char *iname)
+xde_get_icon(MenuContext *ctx, const char *iname)
 {
 	GtkIconTheme *theme;
 	GtkIconInfo *info;
@@ -434,7 +451,7 @@ xde_get_icon(MenuContext * ctx, const char *iname)
 }
 
 char *
-xde_get_icon2(MenuContext * ctx, const char *iname1, const char *iname2)
+xde_get_icon2(MenuContext *ctx, const char *iname1, const char *iname2)
 {
 	GtkIconTheme *theme;
 	GtkIconInfo *info;
@@ -466,7 +483,7 @@ xde_get_icon2(MenuContext * ctx, const char *iname1, const char *iname2)
 }
 
 gboolean
-xde_test_icon_ext(MenuContext * ctx, const char *path, int flags)
+xde_test_icon_ext(MenuContext *ctx, const char *path, int flags)
 {
 	char *p;
 
@@ -497,7 +514,7 @@ xde_test_icon_ext(MenuContext * ctx, const char *path, int flags)
  * any leading path elements and look for the icon by name.  The flags above are used.
  */
 char *
-xde_get_entry_icon(MenuContext * ctx, GKeyFile *entry, const char *dflt1,
+xde_get_entry_icon(MenuContext *ctx, GKeyFile *entry, const char *dflt1,
 		   const char *dflt2, int flags)
 {
 	GtkIconTheme *theme;
@@ -587,7 +604,7 @@ xde_get_entry_icon(MenuContext * ctx, GKeyFile *entry, const char *dflt1,
 }
 
 char *
-xde_get_app_icon(MenuContext * ctx, GDesktopAppInfo * app, const char *dflt1,
+xde_get_app_icon(MenuContext *ctx, GDesktopAppInfo * app, const char *dflt1,
 		 const char *dflt2, int flags)
 {
 	GtkIconTheme *theme;
@@ -962,7 +979,7 @@ xde_free_xsessions(GList *list)
 }
 
 int
-xde_reset_indent(MenuContext * ctx, int level)
+xde_reset_indent(MenuContext *ctx, int level)
 {
 	int old = ctx->level, i, chars;
 
@@ -976,7 +993,7 @@ xde_reset_indent(MenuContext * ctx, int level)
 }
 
 char *
-xde_increase_indent(MenuContext * ctx)
+xde_increase_indent(MenuContext *ctx)
 {
 	int i, chars;
 
@@ -990,7 +1007,7 @@ xde_increase_indent(MenuContext * ctx)
 }
 
 char *
-xde_decrease_indent(MenuContext * ctx)
+xde_decrease_indent(MenuContext *ctx)
 {
 	int chars;
 
@@ -1173,7 +1190,7 @@ print_line(gpointer string, gpointer file)
 }
 
 GList *
-xde_create_simple(MenuContext * ctx, Style style, const char *name)
+xde_create_simple(MenuContext *ctx, Style style, const char *name)
 {
 	GMenuTreeDirectory *directory;
 	GList *result = NULL;
@@ -1206,7 +1223,7 @@ xde_create_simple(MenuContext * ctx, Style style, const char *name)
 }
 
 GList *
-xde_build_simple(MenuContext * ctx, GMenuTreeItemType type, gpointer item)
+xde_build_simple(MenuContext *ctx, GMenuTreeItemType type, gpointer item)
 {
 	GList *text = NULL;
 
@@ -1238,7 +1255,7 @@ xde_build_simple(MenuContext * ctx, GMenuTreeItemType type, gpointer item)
 }
 
 GList *
-xde_menu_simple(MenuContext * ctx, GMenuTreeDirectory *menu)
+xde_menu_simple(MenuContext *ctx, GMenuTreeDirectory *menu)
 {
 	GMenuTreeItemType type;
 	GMenuTreeIter *iter;
@@ -1287,7 +1304,7 @@ xde_menu_simple(MenuContext * ctx, GMenuTreeDirectory *menu)
 }
 
 GList *
-xde_alias_simple(MenuContext * ctx, GMenuTreeAlias *als)
+xde_alias_simple(MenuContext *ctx, GMenuTreeAlias *als)
 {
 	GMenuTreeItemType type;
 	GList *text = NULL;
@@ -1312,7 +1329,7 @@ xde_alias_simple(MenuContext * ctx, GMenuTreeAlias *als)
 }
 
 static void
-make_menu(int argc, char *argv[])
+get_menu(int argc, char *argv[])
 {
 	if (options.desktop)
 		setenv("XDG_CURRENT_DESKTOP", options.desktop, TRUE);
@@ -1323,7 +1340,8 @@ make_menu(int argc, char *argv[])
 //                                           | GMENU_TREE_FLAGS_INCLUDE_UNALLOCATED
 //                                           | GMENU_TREE_FLAGS_SHOW_EMPTY
 //                                           | GMENU_TREE_FLAGS_SHOW_ALL_SEPARATORS
-					     | GMENU_TREE_FLAGS_SORT_DISPLAY_NAME))) {
+//					     | GMENU_TREE_FLAGS_SORT_DISPLAY_NAME
+	))) {
 		EPRINTF("could not look up menu %s\n", options.rootmenu);
 		exit(EXIT_FAILURE);
 	}
@@ -1331,6 +1349,14 @@ make_menu(int argc, char *argv[])
 		EPRINTF("could not load menu %s\n", options.rootmenu);
 		exit(EXIT_FAILURE);
 	}
+}
+
+
+static void
+make_menu(int argc, char *argv[])
+{
+	get_menu(argc, argv);
+
 #if 1
 	{
 		GMenuTreeDirectory *directory;
@@ -1360,6 +1386,41 @@ make_menu(int argc, char *argv[])
 		g_list_foreach(menu, print_line, stdout);
 	}
 #endif
+}
+
+static MenuContext *wm_menu_context(const char *name);
+
+static void
+generate_menu(int argc, char *argv[])
+{
+	GList *menu;
+	MenuContext *ctx;
+	FILE *file = stdout;
+
+	if (!options.wmname) {
+		EPRINTF("%s: need window manager name for menugen option\n", argv[0]);
+		exit(EXIT_FAILURE);
+	}
+	if (!(ctx = wm_menu_context(options.wmname))) {
+		EPRINTF("%s: could not get menu context for %s\n", argv[0], options.wmname);
+		exit(EXIT_FAILURE);
+	}
+	get_menu(argc, argv);
+	ctx->tree = tree;
+	ctx->level = 0;
+	ctx->indent = calloc(64, sizeof(*ctx->indent));
+	DPRINTF("%s: calling create\n", argv[0]);
+	menu = ctx->create(ctx, options.style, NULL);
+	DPRINTF("%s: done create\n", argv[0]);
+	if (options.filename) {
+		if (!(file = fopen(options.filename, "w"))) {
+			EPRINTF("%s: cannot open %s for writing\n", argv[0], options.filename);
+			exit(EXIT_FAILURE);
+		}
+	}
+	g_list_foreach(menu, print_line, file);
+	if (file && file != stdout)
+		fclose(file);
 }
 
 #else				/* HAVE_GNOME_MENUS_3 */
@@ -1734,7 +1795,7 @@ do_generate(int argc, char *argv[])
 	if (options.display)
 		setup_x11(False);
 
-	make_menu(argc, argv);
+	generate_menu(argc, argv);
 }
 
 static void
@@ -1886,7 +1947,7 @@ do_popmenu(int argc, char *argv[])
 			ev.xclient.data.l[0] = CurrentTime;
 			ev.xclient.data.l[1] = atom;
 			ev.xclient.data.l[2] = owner;
-			ev.xclient.data.l[3] = 0;
+			ev.xclient.data.l[3] = options.button;
 			ev.xclient.data.l[4] = 0;
 
 			XSendEvent(dpy, owner, False, StructureNotifyMask, &ev);
@@ -2035,6 +2096,29 @@ update_icon_theme(XdeScreen *xscr, Atom prop)
 	}
 }
 
+static void
+menu_refresh(XEvent *xev)
+{
+	/* asked to refresh the menu (as though there was a change) */
+	DPRINTF("%s: refreshing the menus\n", NAME);
+}
+
+static void
+menu_restart(XEvent *xev)
+{
+	/* asked to restart the menu (as though we were re-executed) */
+	DPRINTF("%s: restarting the menus\n", NAME);
+}
+
+static void
+menu_popmenu(XEvent *xev)
+{
+	int button = xev->xclient.data.l[3];
+
+	/* asked to popup the GTK+ menu */
+	DPRINTF("%s: popping up the menu for button %d\n", NAME, button);
+}
+
 static GdkFilterReturn
 event_handler_PropertyNotify(Display *dpy, XEvent *xev, XdeScreen *xscr)
 {
@@ -2105,6 +2189,15 @@ event_handler_ClientMessage(Display *dpy, XEvent *xev)
 	if (xscr && xev->xclient.message_type == _XA_GTK_READ_RCFILES) {
 		update_theme(xscr, xev->xclient.message_type);
 		update_icon_theme(xscr, xev->xclient.message_type);
+		return GDK_FILTER_REMOVE;
+	} else if (xscr && xev->xclient.message_type == _XA_XDE_MENU_REFRESH) {
+		menu_refresh(xev);
+		return GDK_FILTER_REMOVE;
+	} else if (xscr && xev->xclient.message_type == _XA_XDE_MENU_RESTART) {
+		menu_restart(xev);
+		return GDK_FILTER_REMOVE;
+	} else if (xscr && xev->xclient.message_type == _XA_XDE_MENU_POPMENU) {
+		menu_popmenu(xev);
 		return GDK_FILTER_REMOVE;
 	}
 	return GDK_FILTER_CONTINUE;
@@ -2853,6 +2946,22 @@ show_style(Style style)
 	return ("(unknown)");
 }
 
+const char *
+show_where(Position position)
+{
+	switch (position) {
+	case XdePositionDefault:
+		return ("default");
+	case XdePositionPointer:
+		return ("pointer");
+	case XdePositionCenter:
+		return ("center");
+	case XdePositionTopLeft:
+		return ("topleft");
+	}
+	return ("(unknown)");
+}
+
 static void
 help(int argc, char *argv[])
 {
@@ -2862,19 +2971,29 @@ help(int argc, char *argv[])
 	(void) fprintf(stdout, "\
 Usage:\n\
     %1$s [options]\n\
+    %1$s {-G|--menugen} [options]\n\
+    %1$s {-P|--popmenu} [options]\n\
     %1$s {-m|--monitor} [options]\n\
     %1$s {-R|--replace} [options]\n\
+    %1$s {-E|--refresh} [options]\n\
+    %1$s {-S|--restart} [options]\n\
     %1$s {-q|--quit} [options]\n\
     %1$s {-h|--help} [options]\n\
     %1$s {-V|--version}\n\
     %1$s {-C|--copying}\n\
 Command options:\n\
-    -m, --monitor\n\
-        generate a menu and monitor for changes\n\
-    -p, --popmenu\n\
+   [-G, --menugen]\n\
+        generate a menu in foreground only\n\
+    -P, --popmenu\n\
         pop the menu (on running or new instance)\n\
+    -m, --monitor\n\
+        generate a menu and monitor for changes and requests\n\
     -R, --replace\n\
         replace a running instance\n\
+    -E, --refresh\n\
+        ask a running instance to refresh the menus\n\
+    -S, --restart\n\
+        ask a running instance to reexecute itself\n\
     -q, --quit\n\
         ask a running instance to quit\n\
     -h, --help, -?, --?\n\
@@ -2883,21 +3002,21 @@ Command options:\n\
         print version and exit\n\
     -C, --copying\n\
         print copying permission and exit\n\
-Options:\n\
+Format options:\n\
+    -w, --wmname WMNAME\n\
+        specify the window manager name [default: %2$s]\n\
     -f, --format FORMAT\n\
-        specify the menu format [default: %2$s]\n\
+        specify the menu format [default: %3$s]\n\
     -F, --fullmenu, -N, --nofullmenu\n\
-        full menu or applications menu [default: %3$s]\n\
+        full menu or applications menu [default: %4$s]\n\
     -d, --desktop DESKTOP\n\
-        desktop environment [default: %4$s]\n\
+        desktop environment [default: %5$s]\n\
     -c, --charset CHARSET\n\
-        character set for menu [default: %5$s]\n\
+        character set for menu [default: %6$s]\n\
     -l, --language LANGUAGE\n\
-        language for menu [default: %6$s]\n\
+        language for menu [default: %7$s]\n\
     -r, --root-menu MENU\n\
-        root menu file [default: %7$s]\n\
-    -e, --die-on-error\n\
-        abort on error [default: %8$s]\n\
+        root menu file [default: %8$s]\n\
     -o, --output [OUTPUT]\n\
         output file [default: %9$s]\n\
     -n, --noicons\n\
@@ -2907,39 +3026,59 @@ Options:\n\
     -L, --launch, --nolaunch\n\
         use xde-launch to launch programs [default: %12$s]\n\
     -s, --style STYLE\n\
-        fullmenu, appmenu or entries [default: %13$s]\n\
+        fullmenu, appmenu, submenu or entries [default: %13$s]\n\
     -M, --menu MENU\n\
-        filename stem of root menu filename [default: %16$s]\n\
-    --display DISPLAY\n\
-        specify the X11 display [default: %17$s]\n\
+        filename stem of root menu filename [default: %14$s]\n\
+Pop up menu options:\n\
     -b, --button [BUTTON]\n\
-        specify the button pressed when popping menu [default: %18$u]\n\
+        specify the button pressed when popping menu [default: %15$u]\n\
     -k, --keypress [KEYSPEC]\n\
-        specify the key sequence active whne popping menu [default: %19$s]\n\
+        specify the key sequence active whne popping menu [default: %16$s]\n\
+    -T, --timestamp TIMESTAMP\n\
+        specify the button/keypress event timestamp [default: %17$lu]\n\
+    -w, --where WHERE\n\
+        where to put menu: pointer, center or topleft [default: %18$s]\n\
+General options:\n\
+    --display DISPLAY\n\
+        specify the X11 display [default: %19$s]\n\
+    --screen SCREEN\n\
+        specify the X11 scrfeen [default: %20$d]\n\
+    -e, --die-on-error\n\
+        abort on error [default: %21$s]\n\
+    --notray\n\
+        do not install a system tray icon [default: %22$s]\n\
+    --nogenerate\n\
+        do not generate window manager root menu [default: %23$s]\n\
     -D, --debug [LEVEL]\n\
-        increment or set debug LEVEL [default: %14$d]\n\
+        increment or set debug LEVEL [default: %24$d]\n\
     -v, --verbose [LEVEL]\n\
-        increment or set output verbosity LEVEL [default: %15$d]\n\
+        increment or set output verbosity LEVEL [default: %25$d]\n\
         this option may be repeated.\n\
 ", argv[0] 
+	, defaults.wmname
 	, defaults.format
 	, show_style(defaults.style)
 	, defaults.desktop
 	, defaults.charset
 	, defaults.language
 	, defaults.rootmenu
-	, show_bool(defaults.dieonerr)
 	, defaults.filename
 	, show_bool(defaults.noicons)
 	, defaults.theme
 	, show_bool(defaults.launch)
 	, show_style(defaults.style)
-	, defaults.debug
-	, defaults.output
 	, defaults.menu
-	, defaults.display
 	, defaults.button
 	, defaults.keypress
+	, defaults.timestamp
+	, show_where(defaults.where)
+	, defaults.display
+	, defaults.screen
+	, show_bool(defaults.dieonerr)
+	, show_bool(!defaults.tray)
+	, show_bool(!defaults.generate)
+	, defaults.debug
+	, defaults.output
 );
 	/* *INDENT-ON* */
 }
@@ -3140,35 +3279,116 @@ get_default_locale()
 	DPRINTF("language is '%s'\n", options.language);
 }
 
-static void
-get_default_format()
+static Bool
+get_text_property(Display *dpy, Window root, Atom prop, char ***listp, int *stringsp)
 {
-	GdkDisplay *disp = gdk_display_get_default();
-	Display *dpy = GDK_DISPLAY_XDISPLAY(disp);
-	GdkScreen *scrn = gdk_display_get_default_screen(disp);
-	GdkWindow *wind = gdk_screen_get_root_window(scrn);
-	Window root = GDK_WINDOW_XID(wind);
 	XTextProperty xtp = { NULL, };
-	Atom prop = _XA_XDE_WM_NAME;
 
 	if (XGetTextProperty(dpy, root, &xtp, prop)) {
+		*listp = NULL;
+		*stringsp = 0;
+
+		if (Xutf8TextPropertyToTextList(dpy, &xtp, listp, stringsp) == Success)
+			return True;
+		else
+			EPRINTF("%s: could not get text list for %s property\n", NAME,
+				XGetAtomName(dpy, prop));
+	} else
+		EPRINTF("%s: could not get %s for root 0x%lx\n", NAME,
+			XGetAtomName(dpy, prop), root);
+	return False;
+}
+
+static void
+get_default_wmname()
+{
+	if (options.wmname) {
+		DPRINTF("%s: option wmname is set to '%s'\n", NAME, options.wmname);
+		return;
+	}
+
+	if (options.format) {
+		char *p;
+
+		free(options.wmname);
+		defaults.wmname = options.wmname = strdup(options.format);
+		if ((p = strstr(options.wmname, "old")) && !p[3])
+			p[0] = '\0';
+		for (p = options.wmname; *p; p++)
+			*p = tolower(*p);
+	}
+	if (options.display) {
+		GdkDisplay *disp = gdk_display_get_default();
+		Display *dpy = GDK_DISPLAY_XDISPLAY(disp);
+		GdkScreen *scrn = gdk_display_get_default_screen(disp);
+		GdkWindow *wind = gdk_screen_get_root_window(scrn);
+		Window root = GDK_WINDOW_XID(wind);
+		Atom prop = _XA_XDE_WM_NAME;
 		char **list = NULL;
 		int strings = 0;
 
-		if (Xutf8TextPropertyToTextList(dpy, &xtp, &list, &strings) == Success) {
-			if (strings >= 1) {
-				if (!options.format || strcmp(options.format, list[0])) {
-					free(options.format);
-					defaults.format = options.format = strdup(list[0]);
-				}
-			}
+		if (get_text_property(dpy, root, prop, &list, &strings)) {
+			if (!options.wmname) {
+				free(options.wmname);
+				defaults.wmname = options.wmname = strdup(list[0]);
+			} else if (strcmp(options.wmname, list[0]))
+				DPRINTF("%s: default wmname %s different from actual %s\n", NAME,
+					options.wmname, list[0]);
 			if (list)
 				XFreeStringList(list);
 		} else
-			EPRINTF("could not get text list for %s property\n",
-				XGetAtomName(dpy, prop));
+			EPRINTF("%s: could not get %s for root 0x%lx\n", NAME,
+				XGetAtomName(dpy, prop), root);
 	} else
-		DPRINTF("could not get %s for root 0x%lx\n", XGetAtomName(dpy, prop), root);
+		EPRINTF("%s: cannot determine wmname without DISPLAY\n", NAME);
+
+	if (options.wmname)
+		DPRINTF("%s: assigned wmname as '%s'\n", NAME, options.wmname);
+}
+
+static void
+get_default_format()
+{
+	if (options.format) {
+		DPRINTF("%s: option format is set to '%s'\n", NAME, options.format);
+		return;
+	}
+
+	if (options.wmname) {
+		char *p;
+
+		free(options.format);
+		defaults.format = options.format = strdup(options.wmname);
+		for (p = options.format; *p; p++)
+			*p = tolower(*p);
+	}
+	if (options.display) {
+		GdkDisplay *disp = gdk_display_get_default();
+		Display *dpy = GDK_DISPLAY_XDISPLAY(disp);
+		GdkScreen *scrn = gdk_display_get_default_screen(disp);
+		GdkWindow *wind = gdk_screen_get_root_window(scrn);
+		Window root = GDK_WINDOW_XID(wind);
+		Atom prop = _XA_XDE_WM_NAME;
+		char **list = NULL;
+		int strings = 0;
+
+		if (get_text_property(dpy, root, prop, &list, &strings)) {
+			if (!options.format) {
+				free(options.format);
+				defaults.format = options.format = strdup(list[0]);
+			} else if (strcmp(options.format, list[0]))
+				DPRINTF("%s: default format %s different from actual %s\n", NAME,
+					options.format, list[0]);
+			if (list)
+				XFreeStringList(list);
+		} else
+			EPRINTF("%s: could not get %s for root 0x%lx\n", NAME,
+				XGetAtomName(dpy, prop), root);
+	} else
+		EPRINTF("%s: cannot determine format without DISPLAY\n", NAME);
+
+	if (options.format)
+		DPRINTF("%s: assigned format as '%s'\n", NAME, options.format);
 }
 
 static void
@@ -3178,55 +3398,65 @@ get_default_desktop()
 	const char *env;
 	char *p;
 
-	if ((env = getenv("XDG_CURRENT_DESKTOP"))) {
-		free(options.desktop);
-		defaults.desktop = options.desktop = strdup(env);
-	} else if (options.format) {
-		free(options.desktop);
-		defaults.desktop = options.desktop = strdup(options.format);
-		for (p = options.desktop; *p; p++)
-			*p = toupper(*p);
-	} else if (xscr && xscr->wmname) {
-		free(options.desktop);
-		defaults.desktop = options.desktop = strdup(xscr->wmname);
-		for (p = options.desktop; *p; p++)
-			*p = toupper(*p);
-	} else if (!options.desktop) {
-		defaults.desktop = options.desktop = strdup("XDE");
+	if (!options.desktop || !strcmp(options.desktop, "XDE") || !options.wmname
+	    || strcasecmp(options.wmname, options.desktop)) {
+		if ((env = getenv("XDG_CURRENT_DESKTOP"))) {
+			free(options.desktop);
+			defaults.desktop = options.desktop = strdup(env);
+		} else if (options.format) {
+			free(options.desktop);
+			defaults.desktop = options.desktop = strdup(options.format);
+			for (p = options.desktop; *p; p++)
+				*p = toupper(*p);
+		} else if (xscr && xscr->wmname) {
+			free(options.desktop);
+			defaults.desktop = options.desktop = strdup(xscr->wmname);
+			for (p = options.desktop; *p; p++)
+				*p = toupper(*p);
+		} else if (!options.desktop) {
+			defaults.desktop = options.desktop = strdup("XDE");
+		}
 	}
+	if (options.desktop)
+		DPRINTF("%s: assigned desktop as '%s'\n", NAME, options.desktop);
 }
 
 static void
 get_default_output()
 {
-	GdkDisplay *disp = gdk_display_get_default();
-	Display *dpy = GDK_DISPLAY_XDISPLAY(disp);
-	GdkScreen *scrn = gdk_display_get_default_screen(disp);
-	GdkWindow *wind = gdk_screen_get_root_window(scrn);
-	Window root = GDK_WINDOW_XID(wind);
-	XTextProperty xtp = { NULL, };
-	Atom prop = _XA_XDE_WM_MENU;
-
-	if (XGetTextProperty(dpy, root, &xtp, prop)) {
+	if (options.filename) {
+		DPRINTF("%s: option output is set to '%s'\n", NAME, options.filename);
+		return;
+	}
+	if (options.display) {
+		GdkDisplay *disp = gdk_display_get_default();
+		Display *dpy = GDK_DISPLAY_XDISPLAY(disp);
+		GdkScreen *scrn = gdk_display_get_default_screen(disp);
+		GdkWindow *wind = gdk_screen_get_root_window(scrn);
+		Window root = GDK_WINDOW_XID(wind);
+		Atom prop = _XA_XDE_WM_MENU;
 		char **list = NULL;
 		int strings = 0;
 
-		if (Xutf8TextPropertyToTextList(dpy, &xtp, &list, &strings) == Success) {
-			if (strings >= 1) {
-				if (!options.filename || strcmp(options.filename, list[0])) {
-					free(options.filename);
-					defaults.filename = options.filename = strdup(list[0]);
-				}
-			}
+		if (get_text_property(dpy, root, prop, &list, &strings)) {
+			if (!options.filename) {
+				free(options.filename);
+				defaults.filename = options.filename = strdup(list[0]);
+			} else if (strcmp(options.filename, list[0]))
+				DPRINTF("%s: default filename %s different from actual '%s'\n",
+					NAME, options.filename, list[0]);
 			if (list)
 				XFreeStringList(list);
-		} else
-			EPRINTF("could not get text list for %s property\n",
-				XGetAtomName(dpy, prop));
-	} else {
-		DPRINTF("could not get %s for root 0x%lx\n", XGetAtomName(dpy, prop), root);
-		DPRINTF("chances are window manager does not have a root menu\n");
-	}
+		} else {
+			DPRINTF("%s: could not get %s for root 0x%lx\n", NAME,
+				XGetAtomName(dpy, prop), root);
+			DPRINTF("%s: chances are window manager does not have a root menu\n", NAME);
+		}
+	} else
+		EPRINTF("%s: cannot determine filename without DISPLAY\n", NAME);
+
+	if (options.filename)
+		DPRINTF("%s: assigned filename as '%s'\n", NAME, options.filename);
 }
 
 static void
@@ -3447,20 +3677,11 @@ get_defaults()
 {
 	get_default_locale();
 	get_default_root();
-
-	if (!options.format)
-		get_default_format();
-
-	if (!options.desktop || !strcmp(options.desktop, "XDE") || !options.format
-	    || strcasecmp(options.format, options.desktop))
-		get_default_desktop();
-
-	if (!options.filename)
-		get_default_output();
-
-	if (!options.theme)
-		get_default_theme();
-
+	get_default_wmname();
+	get_default_format();
+	get_default_desktop();
+	get_default_output();
+	get_default_theme();
 }
 
 int
@@ -3479,7 +3700,7 @@ main(int argc, char *argv[])
 	saveArgv = argv;
 
 	if ((p = strstr(argv[0], "-menugen")) && !p[8])
-		defaults.command = options.command = CommandGenerate;
+		defaults.command = options.command = CommandMenugen;
 	else if ((p = strstr(argv[0], "-popmenu")) && !p[6])
 		defaults.command = options.command = CommandPopMenu;
 	else if ((p = strstr(argv[0], "-monitor")) && !p[8])
@@ -3517,19 +3738,19 @@ main(int argc, char *argv[])
 			{"menu",	required_argument,	NULL,	'M'},
 
 			{"button",	required_argument,	NULL,	'b'},
-			{"keyboard",	optional_argument,	NULL,	'k'},
+			{"keypress",	optional_argument,	NULL,	'k'},
 			{"timestamp",	required_argument,	NULL,	'T'},
 			{"where",	required_argument,	NULL,	'W'},
 
 			{"display",	required_argument,	NULL,	 1 },
-			{"screen",	required_argument,	NULL,	's'},
+			{"screen",	required_argument,	NULL,	 4 },
 			{"die-on-error",no_argument,		NULL,	'e'},
 			{"notray",	no_argument,		NULL,	 2 },
 			{"nogenerate",	no_argument,		NULL,	 3 },
 			{"verbose",	optional_argument,	NULL,	'v'},
 			{"debug",	optional_argument,	NULL,	'D'},
 
-			{"generate",	no_argument,		NULL,	'G'},
+			{"menugen",	no_argument,		NULL,	'G'},
 			{"popmenu",	no_argument,		NULL,	'P'},
 			{"monitor",	no_argument,		NULL,	'm'},
 			{"refresh",	no_argument,		NULL,	'F'},
@@ -3545,10 +3766,11 @@ main(int argc, char *argv[])
 		};
 		/* *INDENT-ON* */
 
-		c = getopt_long_only(argc, argv, "f:FNd:c:l:r:eo::nt:mL0s:M:qRD::v::hVCH?",
+		c = getopt_long_only(argc, argv,
+				     "w:f:FNd:c:l:r:o::nt:L0s:M:b:k::T:W:ev::D::GPmFSRqhVCH?",
 				     long_options, &option_index);
 #else
-		c = getopt(argc, argv, "f:FNd:c:l:r:eo:nt:mL0s:M:qRD:vhVC?");
+		c = getopt(argc, argv, "w:f:FNd:c:l:r:o:nt:L0s:M:b:k:T:W:ev:D:GPmFSRqhVCH?");
 #endif
 		if (c == -1) {
 			if (options.debug)
@@ -3589,9 +3811,6 @@ main(int argc, char *argv[])
 			free(options.rootmenu);
 			defaults.rootmenu = options.rootmenu = strdup(optarg);
 			break;
-		case 'e':	/* -e, --die-on-error */
-			defaults.dieonerr = options.dieonerr = True;
-			break;
 		case 'o':	/* -o, --output [OUTPUT] */
 			defaults.fileout = options.fileout = True;
 			if (optarg != NULL) {
@@ -3621,6 +3840,10 @@ main(int argc, char *argv[])
 				defaults.style = options.style = StyleAppmenu;
 				break;
 			}
+                        if (!strncmp("submenu", optarg, strlen(optarg))) {
+                                defaults.style = options.style = StyleSubmenu;
+                                break;
+                        }
 			if (!strncmp("entries", optarg, strlen(optarg))) {
 				defaults.style = options.style = StyleEntries;
 				break;
@@ -3631,12 +3854,69 @@ main(int argc, char *argv[])
 			defaults.menu = options.menu = strdup(optarg);
 			break;
 
-		case 'G':	/* -G, --generate */
+		case 'b':	/* -b, --button [BUTTON] */
+			if (options.command != CommandPopMenu)
+				goto bad_option;
+			if (!optarg)
+				break;
+			defaults.button = options.button = strtoul(optarg, NULL, 0);
+			break;
+		case 'k':	/* -k, --keypress [KEYSPEC] */
+			if (options.command != CommandPopMenu)
+				goto bad_option;
+			defaults.button = options.button = 0;
+			if (!optarg)
+				break;
+			free(options.keypress);
+			defaults.keypress = options.keypress = strdup(optarg);
+			break;
+		case 'T':	/* -T, --timestamp TIMESTAMP */
+			if (options.command != CommandPopMenu)
+				goto bad_option;
+			if (!optarg)
+				break;
+			options.timestamp = strtoul(optarg, NULL, 0);
+			break;
+		case 'W':	/* -W, --where WHERE */
+			if (options.command != CommandPopMenu)
+				goto bad_option;
+			if (!optarg)
+				break;
+			if (!strcasecmp(optarg, "pointer")) {
+				defaults.where = options.where = XdePositionPointer;
+			} else if (!strcasecmp(optarg, "center")) {
+				defaults.where = options.where = XdePositionCenter;
+			} else if (!strcasecmp(optarg, "topleft")) {
+				defaults.where = options.where = XdePositionTopLeft;
+			} else
+				goto bad_option;
+			break;
+
+		case 1:		/* --display DISPLAY */
+			free(options.display);
+			defaults.display = options.display = strdup(optarg);
+			break;
+		case 4:		/* --screen SCREEN */
+			options.screen = atoi(optarg);
+			break;
+		case 'e':	/* -e, --die-on-error */
+			defaults.dieonerr = options.dieonerr = True;
+			break;
+		case 2:		/* --notray */
+			options.tray = False;
+			break;
+		case 3:		/* --nogenerate */
+			if (options.command == CommandMenugen)
+				goto bad_option;
+			options.generate = False;
+			break;
+
+		case 'G':	/* -G, --menugen */
 			if (options.command != CommandDefault)
 				goto bad_option;
 			if (command == CommandDefault)
-				command = CommandGenerate;
-			defaults.command = options.command = CommandGenerate;
+				command = CommandMenugen;
+			defaults.command = options.command = CommandMenugen;
 			break;
 		case 'P':	/* -P, --popmenu */
 			if (options.command != CommandDefault)
@@ -3679,26 +3959,6 @@ main(int argc, char *argv[])
 			if (command == CommandDefault)
 				command = CommandQuit;
 			defaults.command = options.command = CommandQuit;
-			break;
-
-		case 1:	/* --display DISPLAY */
-			free(options.display);
-			defaults.display = options.display = strdup(optarg);
-			break;
-		case 'b':	/* -b, --button BUTTON */
-			if (options.command != CommandPopMenu)
-				goto bad_option;
-			if (!optarg)
-				break;
-			defaults.button = options.button = strtoul(optarg, NULL, 0);
-			break;
-		case 'k':	/* -k, --keyboard */
-			if (options.command != CommandPopMenu)
-				goto bad_option;
-			if (!optarg)
-				break;
-			free(options.keypress);
-			defaults.keypress = options.keypress = strdup(optarg);
 			break;
 
 		case 'D':	/* -D, --debug [LEVEL] */
@@ -3784,7 +4044,7 @@ main(int argc, char *argv[])
 	switch (command) {
 	default:
 	case CommandDefault:
-	case CommandGenerate:
+	case CommandMenugen:
 		DPRINTF("%s: just generating window manager root menu\n", argv[0]);
 		do_generate(argc, argv);
 		break;

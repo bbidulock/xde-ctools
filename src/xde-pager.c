@@ -1310,6 +1310,7 @@ update_layout(XdeScreen *xscr, Atom prop)
 	int format = 0, num;
 	unsigned long nitems = 0, after = 0;
 	unsigned long *data = NULL;
+	Bool propok = False;
 
 	DPRINT();
 	if (prop == None || prop == _XA_NET_DESKTOP_LAYOUT) {
@@ -1324,6 +1325,7 @@ update_layout(XdeScreen *xscr, Atom prop)
 			XFree(data);
 			data = NULL;
 		}
+		propok = True;
 	}
 	if (prop == None || prop == _XA_WIN_WORKSPACE_COUNT) {
 		if (XGetWindowProperty
@@ -1336,6 +1338,7 @@ update_layout(XdeScreen *xscr, Atom prop)
 			XFree(data);
 			data = NULL;
 		}
+		propok = True;
 	}
 	if (prop == None || prop == _XA_NET_NUMBER_OF_DESKTOPS) {
 		if (XGetWindowProperty
@@ -1348,7 +1351,9 @@ update_layout(XdeScreen *xscr, Atom prop)
 			XFree(data);
 			data = NULL;
 		}
-	} else
+		propok = True;
+	}
+	if (!propok)
 		EPRINTF("wrong property passed\n");
 
 	if (xscr->desks <= 0)
