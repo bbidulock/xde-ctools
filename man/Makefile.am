@@ -6,8 +6,6 @@ xde_man_files = \
 	xde-cycle.man \
 	xde-dock.man \
 	xde-keys.man \
-	xde-menu.man \
-	xde-menugen.man \
 	xde-pager.man \
 	xde-preferred.man \
 	xde-run.man \
@@ -25,8 +23,6 @@ EXTRA_DIST = \
 	xde-cycle.pod \
 	xde-dock.pod \
 	xde-keys.pod \
-	xde-menu.pod \
-	xde-menugen.pod \
 	xde-pager.pod \
 	xde-preferred.pod \
 	xde-run.pod \
