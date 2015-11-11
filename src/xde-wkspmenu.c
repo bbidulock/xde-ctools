@@ -210,33 +210,151 @@ Options options = {
 	.command = CommandDefault,
 };
 
+gboolean
+workspace_button_press(GtkWidget *item, GdkEvent *event, gpointer menu)
+{
+	OPRINTF("Button pressed!\n");
+	gtk_menu_popdown(menu);
+	gtk_main_quit();
+	return TRUE;
+}
+
+void
+workspace_activate(GtkMenuItem *item, gpointer user_data)
+{
+	OPRINTF("Menu item [%s] activated\n", gtk_menu_item_get_label(GTK_MENU_ITEM(item)));
+	wnck_workspace_activate(user_data, gtk_get_current_event_time());
+}
+
+void
+workspace_activate_item(GtkMenuItem *item, gpointer user_data)
+{
+	OPRINTF("Menu item [%s] activated item\n", gtk_menu_item_get_label(GTK_MENU_ITEM(item)));
+}
+
+void
+workspace_selected(GtkItem *item, gpointer user_data)
+{
+	OPRINTF("Menu item [%s] selected!\n", gtk_menu_item_get_label(GTK_MENU_ITEM(item)));
+}
+
+void
+workspace_deselected(GtkItem *item, gpointer user_data)
+{
+	OPRINTF("Menu item [%s] deselected!\n", gtk_menu_item_get_label(GTK_MENU_ITEM(item)));
+}
+
+void
+show_child(GtkWidget *child, gpointer user_data)
+{
+	OPRINTF("Type of child %p is %lu\n", child, G_OBJECT_TYPE(child));
+}
+
 GtkWidget *
 workspace_menu_new(WnckScreen *scrn)
 {
-	GtkWidget *menu;
+	GtkWidget *menu, *sep;
 	GList *workspaces, *workspace;
 	GList *windows, *window;
+	GSList *group = NULL;
+	WnckWorkspace *active;
+	int anum;
 
 	menu = gtk_menu_new();
 	workspaces = wnck_screen_get_workspaces(scrn);
 	windows = wnck_screen_get_windows_stacked(scrn);
+	active = wnck_screen_get_active_workspace(scrn);
+	anum = wnck_workspace_get_number(active);
+	{
+		GtkWidget *item, *submenu;
+		int window_count = 0;
+		
+		item = gtk_menu_item_new_with_label("Iconified Windows");
+		gtk_menu_append(menu, item);
+		gtk_widget_show(item);
+
+		submenu = gtk_menu_new();
+
+		for (window = windows; window; window = window->next) {
+			GdkPixbuf *pixbuf;
+			const char *wname;
+			WnckWindow *win;
+			GtkWidget *witem, *image;
+
+			win = window->data;
+			if (wnck_window_is_skip_tasklist(win))
+				continue;
+			if (wnck_window_is_pinned(win))
+				continue;
+			if (!wnck_window_is_minimized(win))
+				continue;
+			wname = wnck_window_get_name(win);
+			witem = gtk_image_menu_item_new_with_label(wname);
+			pixbuf = wnck_window_get_mini_icon(win);
+			if ((image = gtk_image_new_from_pixbuf(pixbuf)))
+				gtk_image_menu_item_set_image(GTK_IMAGE_MENU_ITEM(witem), image);
+			gtk_menu_append(submenu, witem);
+			gtk_widget_show(witem);
+			window_count++;
+		}
+		if (window_count) {
+			gtk_menu_item_set_submenu(GTK_MENU_ITEM(item), submenu);
+			gtk_widget_show(submenu);
+		} else {
+			gtk_menu_item_set_submenu(GTK_MENU_ITEM(item), submenu);
+			gtk_widget_hide(submenu);
+		}
+	}
+	sep = gtk_separator_menu_item_new();
+	gtk_menu_append(menu, sep);
+	gtk_widget_show(sep);
 	for (workspace = workspaces; workspace; workspace = workspace->next) {
-		int wnum;
+		int wnum, len;
 		const char *name;
 		WnckWorkspace *work;
-		GtkWidget *item, *submenu;
-		char *label;
+		GtkWidget *item, *submenu, *title;
+		char *label, *wkname, *p;
+		int window_count = 0;
 
 		work = workspace->data;
 		wnum = wnck_workspace_get_number(work);
 		name = wnck_workspace_get_name(work);
-		label = g_strdup_printf("%d - %s", wnum, name);
+		wkname = strdup(name);
+		while ((p = strrchr(wkname, ' ')) && p[1] == '\0')
+			*p = '\0';
+		for (p = wkname; *p == ' '; p++) ;
+		len = strlen(p);
+		if (len < 6 || strspn(p, " 0123456789") == len)
+			label = g_strdup_printf("Workspace %s", p);
+		else
+			label = g_strdup_printf("[%d] %s", wnum + 1, p);
+		free(wkname);
+#if 0
 		item = gtk_menu_item_new_with_label(label);
+#else
+		item = gtk_radio_menu_item_new_with_label(group, label);
+		group = gtk_radio_menu_item_get_group(GTK_RADIO_MENU_ITEM(item));
+		if (wnum == anum)
+			gtk_check_menu_item_set_active(GTK_CHECK_MENU_ITEM(item), TRUE);
+		else
+			gtk_check_menu_item_set_active(GTK_CHECK_MENU_ITEM(item), FALSE);
+#endif
 		g_free(label);
 		gtk_menu_append(menu, item);
+		gtk_widget_show(item);
+
 		submenu = gtk_menu_new();
-		gtk_menu_item_set_submenu(GTK_MENU_ITEM(item), submenu);
-		gtk_widget_show_all(item);
+
+#if 1
+		title = gtk_menu_item_new_with_label(label);
+		gtk_menu_append(submenu, title);
+		gtk_widget_show(title);
+		g_signal_connect(G_OBJECT(title), "activate", G_CALLBACK(workspace_activate), work);
+		sep = gtk_separator_menu_item_new();
+		gtk_menu_append(submenu, sep);
+		gtk_widget_show(sep);
+		window_count++;
+#endif
 
 		for (window = windows; window; window = window->next) {
 			GdkPixbuf *pixbuf;
@@ -247,18 +365,89 @@ workspace_menu_new(WnckScreen *scrn)
 			win = window->data;
 			if (!wnck_window_is_on_workspace(win, work))
 				continue;
+			if (wnck_window_is_skip_tasklist(win))
+				continue;
+			if (wnck_window_is_pinned(win))
+				continue;
+			if (wnck_window_is_minimized(win))
+				continue;
 			wname = wnck_window_get_name(win);
 			witem = gtk_image_menu_item_new_with_label(wname);
 			pixbuf = wnck_window_get_mini_icon(win);
 			if ((image = gtk_image_new_from_pixbuf(pixbuf)))
 				gtk_image_menu_item_set_image(GTK_IMAGE_MENU_ITEM(witem), image);
 			gtk_menu_append(submenu, witem);
-			gtk_widget_show_all(witem);
+			gtk_widget_show(witem);
+			window_count++;
 		}
-		gtk_widget_show_all(submenu);
-
+#if 0
+		g_signal_connect(G_OBJECT(item), "button-press-event", G_CALLBACK(workspace_button_press), menu);
+		g_signal_connect(G_OBJECT(item), "select", G_CALLBACK(workspace_selected), work);
+		g_signal_connect(G_OBJECT(item), "deselect", G_CALLBACK(workspace_deselected), work);
+		g_signal_connect(G_OBJECT(item), "activate", G_CALLBACK(workspace_activate), work);
+		g_signal_connect(G_OBJECT(item), "activate-item", G_CALLBACK(workspace_activate_item), work);
+#endif
+		if (window_count) {
+			gtk_menu_item_set_submenu(GTK_MENU_ITEM(item), submenu);
+			gtk_widget_show(submenu);
+		} else {
+#if 1
+			gtk_widget_destroy(submenu);
+#else
+			gtk_menu_item_set_submenu(GTK_MENU_ITEM(item), submenu);
+			gtk_widget_hide(submenu);
+#endif
+		}
 	}
-	gtk_widget_show_all(menu);
+	sep = gtk_separator_menu_item_new();
+	gtk_menu_append(menu, sep);
+	gtk_widget_show(sep);
+	{
+		GtkWidget *item, *submenu;
+		int window_count = 0;
+		
+		item = gtk_menu_item_new_with_label("All Workspaces");
+		gtk_menu_append(menu, item);
+		gtk_widget_show(item);
+
+		submenu = gtk_menu_new();
+
+		for (window = windows; window; window = window->next) {
+			GdkPixbuf *pixbuf;
+			const char *wname;
+			WnckWindow *win;
+			GtkWidget *witem, *image;
+
+			win = window->data;
+			if (wnck_window_is_skip_tasklist(win))
+				continue;
+			if (!wnck_window_is_pinned(win))
+				continue;
+			if (wnck_window_is_minimized(win))
+				continue;
+			wname = wnck_window_get_name(win);
+			witem = gtk_image_menu_item_new_with_label(wname);
+			pixbuf = wnck_window_get_mini_icon(win);
+			if ((image = gtk_image_new_from_pixbuf(pixbuf)))
+				gtk_image_menu_item_set_image(GTK_IMAGE_MENU_ITEM(witem), image);
+			gtk_menu_append(submenu, witem);
+			gtk_widget_show(witem);
+			window_count++;
+		}
+		if (window_count) {
+			gtk_menu_item_set_submenu(GTK_MENU_ITEM(item), submenu);
+			gtk_widget_show(submenu);
+		} else {
+#if 0
+			gtk_widget_destroy(submenu);
+#else
+			gtk_menu_item_set_submenu(GTK_MENU_ITEM(item), submenu);
+			gtk_widget_hide(submenu);
+#endif
+		}
+	}
+
+	gtk_widget_show(menu);
 	return (menu);
 }
 
