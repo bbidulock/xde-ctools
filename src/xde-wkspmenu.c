@@ -247,7 +247,7 @@ workspace_deselected(GtkItem *item, gpointer user_data)
 void
 show_child(GtkWidget *child, gpointer user_data)
 {
-	OPRINTF("Type of child %p is %lu\n", child, G_OBJECT_TYPE(child));
+	OPRINTF("Type of child %p is %zu\n", child, G_OBJECT_TYPE(child));
 }
 
 GtkWidget *
