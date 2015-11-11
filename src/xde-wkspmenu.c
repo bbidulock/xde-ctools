@@ -214,8 +214,51 @@ GtkWidget *
 workspace_menu_new(WnckScreen *scrn)
 {
 	GtkWidget *menu;
+	GList *workspaces, *workspace;
+	GList *windows, *window;
 
 	menu = gtk_menu_new();
+	workspaces = wnck_screen_get_workspaces(scrn);
+	windows = wnck_screen_get_windows_stacked(scrn);
+	for (workspace = workspaces; workspace; workspace = workspace->next) {
+		int wnum;
+		const char *name;
+		WnckWorkspace *work;
+		GtkWidget *item, *submenu;
+		char *label;
+
+		work = workspace->data;
+		wnum = wnck_workspace_get_number(work);
+		name = wnck_workspace_get_name(work);
+		label = g_strdup_printf("%d - %s", wnum, name);
+		item = gtk_menu_item_new_with_label(label);
+		g_free(label);
+		gtk_menu_append(menu, item);
+		submenu = gtk_menu_new();
+		gtk_menu_item_set_submenu(GTK_MENU_ITEM(item), submenu);
+		gtk_widget_show_all(item);
+
+		for (window = windows; window; window = window->next) {
+			GdkPixbuf *pixbuf;
+			const char *wname;
+			WnckWindow *win;
+			GtkWidget *witem, *image;
+
+			win = window->data;
+			if (!wnck_window_is_on_workspace(win, work))
+				continue;
+			wname = wnck_window_get_name(win);
+			witem = gtk_image_menu_item_new_with_label(wname);
+			pixbuf = wnck_window_get_mini_icon(win);
+			if ((image = gtk_image_new_from_pixbuf(pixbuf)))
+				gtk_image_menu_item_set_image(GTK_IMAGE_MENU_ITEM(witem), image);
+			gtk_menu_append(submenu, witem);
+			gtk_widget_show_all(witem);
+		}
+		gtk_widget_show_all(submenu);
+
+	}
+	gtk_widget_show_all(menu);
 	return (menu);
 }
 
