@@ -14,7 +14,7 @@ Provides a window list for window managers that do not provide one
 themselves or as a better window list for those that provide an inferior
 one.  The window list is a list of windows on workspaces with a sub-menu
 of actions that can be performed against each window or workspace and is
-normally access with a hot key, or by clicking on the root window, or by
+normally access with a hot key, or by clicking on a window, or by
 pressing one or more modifier keys and clicking on a window.
 B<xde-winlist> supports all of these activations.  See L</USAGE> and
 L</WINDOW MANAGERS> for more information about activation.  For hot key
@@ -82,22 +82,15 @@ otherwise, all screens will be considered.
 
 =item B<--timeout>, B<-t> I<TIMEOUT>
 
-When cycling the desktops with the mouse or other than a modified
-keystroke, or if a key is pressed that does not result in a desktop
-change, the feedback window will persist for I<TIMEOUT> milliseconds.
-The default is 1000 (or 1 second).
+When cycling windows with the mouse or other than a modified keystroke,
+or if a key is pressed that does not result in a active window change,
+the feedback window will persist for I<TIMEOUT> milliseconds.  The
+default is 1000 (or 1 second).
 
 =item B<--border>, B<-B> I<WIDTH>
 
-Places a border around the pager of I<WIDTH> pixels.  The default is 5
-pixels.
-
-=item B<--proxy>, B<-p>
-
-Normally the pager will translate scroll wheel events received on a
-B<_WIN_DESKTOP_BUTTON_PROXY> window into desktop changes.  As other
-programs (such as a desktop) may also be doing so, this option causes
-the pager to consider the desktop button proxy.
+Places a border around the window list of I<WIDTH> pixels.  The default
+is 5 pixels.
 
 =item B<--button>, B<-b> I<BUTTON>
 
@@ -214,7 +207,7 @@ This option may be repeated.
 =head2 SESSION MANAGEMENT OPTIONS
 
 X session management options are not used by another user other than the
-X11 Session Manager.  The following options are used X session
+X11 Session Manager.  The following options are used by X session
 management:
 
 =over
@@ -261,4 +254,4 @@ L<xde-keys(1)>
 
 =cut
 
-# vim: set sw=4 tw=72 nocin:
+# vim: set sw=4 tw=72 nocin spell spelllang=en_ca:

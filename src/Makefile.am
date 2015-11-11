@@ -12,7 +12,8 @@ bin_PROGRAMS = \
 	xde-pager \
 	xde-cycle \
 	xde-setbg \
-	xde-keys
+	xde-keys \
+	xde-wkspmenu
 
 xde_app_CPPFLAGS = -DNAME=\"xde-app\"
 xde_app_SOURCES = xde-app.c xde-app.h
@@ -49,4 +50,7 @@ xde_setbg_LDFLAGS = $(SMLIB_LIBS) $(ICE_LIBS) $(AM_LDFLAGS)
 
 xde_keys_CPPFLAGS = -DNAME=\"xde-keys\"
 xde_keys_SOURCES = xde-keys.c xde-keys.h
+
+xde_wkspmenu_CPPFLAGS = -DNAME=\"xde-wkspmenu\"
+xde_wkspmenu_SOURCES = xde-wkspmenu.c
 

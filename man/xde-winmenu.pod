@@ -88,7 +88,7 @@ Provides the X11 server time-stamp of the event that caused the pop-up.
 
 =item B<--which>, B<-w> {B<active>|B<focused>|B<pointer>|B<select>}
 
-Specifies the window for which the pop-up the menu.  This can be one of
+Specifies the window for which to pop-up the menu.  This can be one of
 the following values (case insensitive, may be abbreviated):
 
 =over

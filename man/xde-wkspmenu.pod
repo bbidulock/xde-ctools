@@ -1,0 +1,196 @@
+=pod
+
+=head1 NAME
+
+xde-wkspmenu - pop-up workspace menu for XDE
+
+=head1 SYNOPSIS
+
+B<xde-wkspmenu> [I<OPTIONS>]
+
+=head1 DESCRIPTION
+
+Provides a workspace menu for window managers that do not provide on
+themselves or as a better workspace menu for those that provide an
+inferior one.  The workspace menu is a menu of workspaces (now called
+desktops) and windows.  This is not a feedback mechanism (such as
+B<xde-pager(1)> or B<xde-winlist(1)>) but is a pop-up menu that can be
+used to control windows similar to a task bar.
+
+=head1 OPTIONS
+
+B<xde-wkspmenu> accepts the following options:
+
+=head2 COMMAND OPTIONS
+
+When specified, the following options alter the primary operating mode
+of the program:
+
+=over
+
+=item [B<--popup>, B<-p>]
+
+Post a pop-up menu.  Depending on the setting of the B<--button> option,
+this will either post the pop-up menu at the current pointer position,
+or centred on the workspace (screen and monitor) to which it corresponds.
+
+=item B<--help>, B<-h>
+
+Prints usage information and the current options settings and defaults
+to standard output, then exits.
+
+=item B<--version>, B<-V>
+
+Prints the version of the program and a brief copyright statement to
+standard output, then exits.  Parse the first line with L<awk(1)> to
+obtain just the version number.
+
+=item B<--copying>, B<-C>
+
+Prints the long copying permissions statement to standard output, then
+exits.
+
+=back
+
+=head2 GENERAL OPTIONS
+
+The following options are general options:
+
+=over
+
+=item B<--display>, B<-d> I<DISPLAY>
+
+Specify the display to use (overriding the B<DISPLAY> environment
+variable).  The default is the value of the B<DISPLAY> environment
+variable.
+
+=item B<--screen>, B<-s> I<SCREEN>
+
+Specify the screen number to use.  The default is either specified by
+the B<DISPLAY> environment variable (when that variable specifies a
+screen); otherwise, all screens will be considered.
+
+=item B<--button>, B<-b> I<BUTTON>
+
+Specifies the button that was used to invoke the pop-up.  Defaults to
+zero (0).  This should be the button that was used to pop the menu.  A
+window manager that invokes this command in response to a button press
+should release its passive grab on the button before invoking the window
+menu so that the popped up menu can grab the button.  A I<BUTTON> of
+zero (0) means that the program was invoked with a key-press instead of
+a button.
+
+=item B<--timestamp>, B<-T> I<TIMESTAMP>
+
+Provides the X11 server time-stamp of the event that caused the pop-up.
+
+=item B<--where>, B<-W> {B<pointer>|B<center>|B<topleft>}
+
+Specifies the position for the pop-up menu.  This can be one of the
+following values (case insensitive, may be abbreviated):
+
+=over
+
+=item C<pointer>
+
+Place the northwest corner of the menu under the mouse pointer.  This
+will always succeed.  This is the default when B<--button> is specified
+and non-zero.
+
+=item C<center>
+
+Place the menu in the centre of the current monitor belonging to the
+current screen.  The current monitor and screen is the monitor which
+contains (or is closest to the location of) the pointer.
+
+=item C<topleft>
+
+Place the menu in the top-left corner of the work area (excluding panels
+and docks) for the current screen.  The current screen is the screen
+specified by the B<--display> or B<--screen> options, or the screen that
+currently contains the pointer.
+
+=back
+
+When unspecified (which is the normal case), the default placement
+algorithm is as follows:
+
+=over
+
+=item 1.
+
+If B<--button> is specified and non-zero, place the menu at the pointer
+regardless of the work area, monitor or screen.
+
+=item 2.
+
+Place the menu in the centre of the current monitor or screen.
+
+=item 3.
+
+Place the menu in the top left corner of the current work area.
+
+=back
+
+=item B<--verbose>, B<-v> [I<LEVEL>]
+
+Increases or sets the output verbosity level to I<LEVEL>.  The default
+level is C<1>.  Normal output is printed to standard output.  This
+option may be repeated.
+
+=item B<--debug>, B<-D> [I<LEVEL>]
+
+Increases or sets the debugging verbosity level to I<LEVEL>.  The
+default level is C<0>.  Debugging output is printed to standard error.
+This option may be repeated.
+
+=back
+
+=back
+
+=head1 WINDOW MANAGER SUPPORT
+
+B<xde-wkspmenu> provides a number of formats consistent with the use of
+workspace menus in various lightweight window managers.  The formats are
+as follows:
+
+=over
+
+=item B<--format=>blackbox
+
+L<blackbox(1)> provides a workspace menu that follow a specific format.
+This format mimics the L<blackbox(1)> workspace menu format.
+
+=back
+
+=head1 USAGE
+
+B<xde-wkspmenu> current uses F<libwnck+> or F<libwnck> both to identify
+the window manager and to provide the window actions menu.  The range
+and format of window actions provided by F<libwnck+> is superior to
+F<libwnck>.  This use means that B<xde-wkspmenu> does not currently
+provide any support for window managers that do not have a modicum of
+compliance to the EWMH/NetWM specifications.  That may change in the
+future.
+
+=head1 HISTORY
+
+I wrote B<xde-wkspmenu> primarily for the L<adwm(1)> window manager (and
+variations of L<dwm(1)>) that do not support a workspace menu of their
+own.  Existing workspace menus associated with panels (and typically
+provided by F<libwnk>) do not support the special features associated
+with tagging and tiling window managers. 
+
+=head1 AUTHOR
+
+Brian Bidulock L<mailto:bidulock@openss7.org>.
+
+=head1 SEE ALSO
+
+L<xde-pager(1)>,
+L<xde-winlist(1)>,
+L<xde-keys(1)>.
+
+=cut
+
+# vim: set sw=4 tw=72 nocin spell spelllang=en_ca:
