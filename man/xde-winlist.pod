@@ -234,6 +234,237 @@ current provide much support for window managers that do not have a
 modicum of compliance with the EWMH/NetWM specifications.  That may
 change in the future.
 
+=head2 WINDOW MANAGERS
+
+=over
+
+=item L<2bwm(1)>
+
+L<2bwm(1)> does not provide window cycling feedback of its own.
+L<2bwm(1)> is supported and should work well.
+
+=item L<adwm(1)>
+
+L<adwm(1)> does not provide window cycling feedback of its own.
+L<adwm(1)> is supported and should work well.
+
+=item L<aewm(1)>
+
+L<aewm(1)> does not provide window cycling feedback of its own.
+L<aewm(1)> is supported and should work well.
+
+=item L<aewm++(1)>
+
+L<aewm++(1)> is barely ICCCM compliant.  It does not support EWMH/NetWM
+nor GNOME/WinWM hints and is, therefore, not supported.
+
+=item L<afterstep(1)>
+
+=item L<awesome(1)>
+
+L<awesome(1)> does not provide window cycling feedback of its own.
+L<awesome(1)> is supported and should work well.
+
+=item L<blackbox(1)>
+
+L<blackbox(1)>, when run with L<bbkeys(1)>, provides an adequate window
+cycling feedback pop-up of its own and it follows the style of the
+window manager.  (Its only real shortcoming is that the feedback window
+cannot be centred on the screen or monitor and must be absolutely placed
+in the L<bbkeys(1)> configuration file.) When running under
+L<blackbox(1)>, B<xde-winlist> will do nothing.
+
+=item L<bspwm(1)>
+
+L<bspwm(1)> does not provide window cycling feedback of its own.
+L<bspwm(1)> is supported and should work well.
+
+=item L<ctwm(1)>
+
+L<ctwm(1)> is only GNOME/WinWM compliant and is not yet supported by
+F<libwnck+>.  B<xde-winlist> mitigates this to some extent; however, use
+L<etwm(1)> instead.
+
+=item L<cwm(1)>
+
+L<cwm(1)> is supported, but it doesn't work that well because L<cwm(1)>
+is not placing B<_NET_WM_STATE> on client windows, so F<libwnck+> cannot
+locate them.
+
+=item L<dtwm(1)>
+
+L<dtwm(1)> is only ICCCM and OSF/Motif compliant.  F<libwnck+> does not
+yet support OSF/Motif/CDE, but B<xde-winlist> mitigates this to some
+extent.
+
+=item L<dwm(1)>
+
+L<dwm(1)> is barely ICCCM compliant.  It is not supported.
+
+=item L<echinus(1)>
+
+L<echinus(1)> does not provide window cycling feedback of its own.
+L<echinus(1)> is supported and should work well.
+
+=item L<etwm(1)>
+
+L<etwm(1)> does not provide window cycling feedback of its own.
+L<etwm(1)> is supported and should work well.
+
+=item L<failsafewm(1)>
+
+L<failsafewm(1)> is minimal and not supported.
+
+=item L<fluxbox(1)>
+
+L<fluxbox(1)> does not provide window cycling feedback of its own.
+L<fluxbox(1)> is supported and should work well.
+
+=item L<flwm(1)>
+
+L<flwm(1)> supports GNOME/WinWM but not EWMH/NetWM and is not currently
+supported by F<libwnck+>.  B<xde-winlist> mitigates this to some extent.
+
+=item L<fvwm(1)>
+
+L<fvwm(1)> does not provide window cycling feedback of its own.
+L<fvwm(1)> is supported and should work well.
+
+=item L<glasswm(1)>
+
+L<glasswm(1)> provides some window control atoms of its own; however,
+B<xde-winlist> does not support these at this time.
+
+=item L<goomwwm(1)>
+
+L<goomwwm(1)> does not provide window cycling feedback of its own.
+L<goomwwm(1)> is supported and should work well.
+
+=item L<herbstluftwm(1)>
+
+L<herbstluftwm(1)> does not provide window cycling feedback of its own.
+L<herbstluftwm(1)> is supported and should work well.
+
+=item L<i3(1)>
+
+L<i3(1)> does not provide window cycling feedback of its own.
+L<i3(1)> is supported and should work well.
+
+=item L<icewm(1)>
+
+L<icewm(1)> provides an adequate window cycling feedback pop-up of its
+own and it follows the style of the window manager.  Therefore, when
+running under L<icewm(1)>, B<xde-winlist> will do nothing.
+
+=item L<jwm(1)>
+
+L<jwm(1)> does not provide window cycling feedback of its own.
+L<jwm(1)> is supported and should work well.
+
+=item L<larswm(1)>
+
+L<larswm(1)> is barely ICCCM compliant and is, therefore, not supported.
+
+=item L<matwm2(1)>
+
+L<matwm2(1)> does not provide window cycling feedback of its own.
+L<matwm2(1)> is supported and should work well.
+
+=item L<metacity(1)>
+
+L<metacity(1)> provides an adequate window cycling feedback pop-up of its
+own and it follows the style of the window manager.  Therefore, when
+running under L<metacity(1)>, B<xde-winlist> will do nothing.
+
+=item L<mvwm(1)>
+
+L<mvwm(1)> does not provide window cycling feedback of its own.
+L<mvwm(1)> is supported and should work well.
+
+=item L<mwm(1)>
+
+L<mwm(1)> only supports ICCCM and OSF/Motif and does not support
+multiple desktops.  It is not supported.
+
+=item L<openbox(1)>
+
+L<openbox(1)> does not provide window cycling feedback of its own.
+L<openbox(1)> is supported and should work well.
+
+=item L<pekwm(1)>
+
+L<pekwm(1)> does not provide window cycling feedback of its own.
+L<pekwm(1)> is supported and should work well.
+
+=item L<spectrwm(1)>
+
+L<spectrwm(1)> is supported, but it doesn't work that well because, like
+L<cwm(1)>, L<spectrwm(1)> is not placing B<_NET_WM_STATE> on client
+windows, so F<libwnck+> cannot locate them.  This may have been fixed in
+more current versions of L<spectrwm(1)>.
+
+=item L<twm(1)>
+
+L<twm(1)> only supports part of ICCCM and is not supported.
+
+=item L<uwm(1)>
+
+L<uwm(1)> does not provide window cycling feedback of its own.
+L<uwm(1)> is supported and should work well.
+
+=item L<velox(1)>
+
+L<velox(1)> is untested.
+
+=item L<vtwm(1)>
+
+L<vtwm(1)> is barely ICCCM compliant and currently unsupported: use
+L<etwm(1)> instead.
+
+=item L<waimea(1)>
+
+L<waimea(1)> does not provide window cycling feedback of its own.
+L<waimea(1)> is supported and should work well.  Because L<waimea(1)>
+has other issues, use the version at
+L<https://github.com/bbidulock/waimea> for a corrected version.
+
+=item L<wind(1)>
+
+L<wind(1)> does not provide window cycling feedback of its own.
+L<wind(1)> is supported and should work well.
+
+=item L<wm2(1)>
+
+L<wm2(1)> is barely ICCCM compliant and currently unsupported: use its
+L<wmx(1)> derivative.
+
+=item L<wmaker(1)>
+
+L<wmaker(1)> provides an adequate window cycling feedback pop-up of its
+own and it follows the theme of the window manager.  When running under
+L<wmaker(1)>, B<xde-winlist> will do nothing.
+
+=item L<wmii(1)>
+
+L<wmii(1)> does not provide window cycling feedback of its own.
+L<wmii(1)> is supported and should work well.
+
+=item L<wmx(1)>
+
+L<wmx(1)> does not provide window cycling feedback of its own.
+L<wmx(1)> is supported and should work well.
+
+=item L<xdwm(1)>
+
+L<xdwm(1)> has minimal EWMH/NetWM support.  It should still work
+somewhat.
+
+=item L<yeahwm(1)>
+
+L<yeahwm(1)> is barely ICCCM compliant and is currently unsupported.
+
+=back
+
 =head1 HISTORY
 
 I wrote this program particularly for use with L<adwm(1)> and other

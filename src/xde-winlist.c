@@ -392,24 +392,160 @@ good_window_manager(XdeScreen *xscr)
 	/* ignore non fully compliant names */
 	if (!xscr->wmname)
 		return False;
+	/* XXX: 2bwm(1) is supported and works well. */
+	if (!strcasecmp(xscr->wmname, "2bwm"))
+		return True;
+	/* XXX: adwm(1) is supported and works well. */
+	if (!strcasecmp(xscr->wmname, "adwm"))
+		return True;
+	/* XXX: awewm(1) does not really support desktops and is, therefore, not
+	   supported.  (Welllll, it does.) */
+	if (!strcasecmp(xscr->wmname, "aewm"))
+		return True;
+	/* XXX: afterstep(1) provides both workspaces and viewports (large desktops).
+	   libwnck+ does not support these well, so when xde-pager detects that it is
+	   running under afterstep(1), it does nothing.  (It has a desktop button proxy,
+	   but it does not relay scroll wheel events by default.) */
 	if (!strcasecmp(xscr->wmname, "afterstep"))
 		return False;
+	/* XXX: awesome(1) is supported and works well. */
+	if (!strcasecmp(xscr->wmname, "awesome"))
+		return True;
+	/* XXX: blackbox(1) is supported and works well. */
+	if (!strcasecmp(xscr->wmname, "blackbox"))
+		return True;
+	/* XXX: bspwm(1) is supported and works well. */
+	if (!strcasecmp(xscr->wmname, "baspwm"))
+		return True;
+	/* XXX: ctwm(1) is only GNOME/WinWM compliant and is not yet supported by
+	   libwnck+.  Use etwm(1) instead.  xde-pager mitigates this somewhat, so it is
+	   still listed as supported. */
+	if (!strcasecmp(xscr->wmname, "ctwm"))
+		return True;
+	/* XXX: cwm(1) is supported, but it doesn't work that well because cwm(1) is not
+	   placing _NET_WM_STATE on client windows, so libwnck+ cannot locate them and
+	   will not provide contents in the pager. */
+	if (!strcasecmp(xscr->wmname, "cwm"))
+		return True;
+	/* XXX: dtwm(1) is only OSF/Motif compliant and does support multiple desktops;
+	   however, libwnck+ does not yet support OSF/Motif/CDE.  This is not mitigated
+	   by xde-pager. */
+	if (!strcasecmp(xscr->wmname, "dtwm"))
+		return False;
+	/* XXX: dwm(1) is barely ICCCM compliant.  It is not supported. */
+	if (!strcasecmp(xscr->wmname, "dwm"))
+		return False;
+	/* XXX: echinus(1) is supported and works well. */
+	if (!strcasecmp(xscr->wmname, "echinus"))
+		return True;
+	/* XXX: etwm(1) is supported and works well. */
+	if (!strcasecmp(xscr->wmname, "etwm"))
+		return True;
+	/* XXX: failsafewm(1) has no desktops and is not supported. */
+	if (!strcasecmp(xscr->wmname, "failsafewm"))
+		return False;
+	/* XXX: fluxbox(1) is supported and works well. */
+	if (!strcasecmp(xscr->wmname, "fluxbox"))
+		return True;
+	/* XXX: flwm(1) supports GNOME/WinWM but not EWMH/NetWM and is not currently
+	   supported by libwnck+.  xde-pager mitigates this to some extent. */
+	if (!strcasecmp(xscr->wmname, "flwm"))
+		return True;
+	/* XXX: fvwm(1) is supported and works well.  fvwm(1) provides a desktop button
+	   proxy, but it needs the --noproxy option.  Viewports work better than on
+	   afterstep(1) and behaviour is predictable. */
+	if (!strcasecmp(xscr->wmname, "fvwm"))
+		return True;
+	/* XXX: herbstluftwm(1) is supported and works well. */
+	if (!strcasecmp(xscr->wmname, "herbstluftwm"))
+		return True;
+	/* XXX: i3(1) is supported; however, i3(1) does not support
+	   _NET_NUMBER_OF_DESKTOPS, so only the current desktop is shown at any given
+	   time, which makes it less effective. */
+	if (!strcasecmp(xscr->wmname, "i3"))
+		return True;
+	/* XXX: icewm(1) provides its own pager on the panel, but does respect
+	   _NET_DESKTOP_LAYOUT in some versions.  Although a desktop button proxy is
+	   provided, older versions of icewm(1) will not proxy butt events sent by the
+	   pager.  Use the version at https://github.com/bbidulock/icewm for best
+	   results. */
+	if (!strcasecmp(xscr->wmname, "icewm"))
+		return True;
+	/* XXX: jwm(1) provides its own pager on the panel, but does not respect or set
+	   _NET_DESKTOP_LAYOUT, and key bindings are confused.  When xde-pager detects
+	   that it is running under jwm(1) it will simply do nothing. */
 	if (!strcasecmp(xscr->wmname, "jwm"))
 		return False;
+	/* XXX: matwm2(1) is supported and works well. */
+	if (!strcasecmp(xscr->wmname, "matwm2"))
+		return True;
+	/* XXX: metacity(1) provides its own competent desktop switching feedback pop-up. 
+	   When xde-pager detects that it is running under metacity(1), it will simply do 
+	   nothing. */
 	if (!strcasecmp(xscr->wmname, "metacity"))
 		return False;
+	/* XXX: mwm(1) only supports OSF/Motif and does not support multiple desktops. It 
+	   is not supported. */
+	if (!strcasecmp(xscr->wmname, "mwm"))
+		return False;
+	/* XXX: mutter(1) has not been tested. */
+	if (!strcasecmp(xscr->wmname, "mutter"))
+		return True;
+	/* XXX: openbox(1) provides its own meager desktop switching feedback pop-up.  It 
+	   does respect _NET_DESKTOP_LAYOUT but does not provide any of the contents of
+	   the desktop. When both are running it is a little confusing, so when xde-pager 
+	   detects that it is running under openbox(1), it will simply do nothing. */
 	if (!strcasecmp(xscr->wmname, "openbox"))
 		return False;
+	/* XXX: pekwm(1) provides its own broken desktop switching feedback pop-up;
+	   however, it does not respect _NET_DESKTOP_LAYOUT and key bindings are
+	   confused.  When xde-pager detects that it is running under pekwm(1), it will
+	   simply do nothing. */
 	if (!strcasecmp(xscr->wmname, "pekwm"))
 		return False;
-	if (!strcasecmp(xscr->wmname, "xdwm"))
-		return False;
-#if 0
-	if (!strcasecmp(xscr->wmname, "cwm"))
-		return False;
+	/* XXX: spectrwm(1) is supported, but it doesn't work that well because, like
+	   cwm(1), spectrwm(1) is not placing _NET_WM_STATE on client windows, so
+	   libwnck+ cannot locate them and will not provide contents in the pager. */
 	if (!strcasecmp(xscr->wmname, "spectrwm"))
+		return True;
+	/* XXX: twm(1) does not support multiple desktops and is not supported. */
+	if (!strcasecmp(xscr->wmname, "twm"))
 		return False;
-#endif
+	/* XXX: uwm(1) is supported and works well. */
+	if (!strcasecmp(xscr->wmname, "uwm"))
+		return True;
+	/* XXX: vtwm(1) is barely ICCCM compliant and currently unsupported: use etwm
+	   instead. */
+	if (!strcasecmp(xscr->wmname, "vtwm"))
+		return False;
+	/* XXX: waimea(1) is supported; however, waimea(1) defaults to triple-sized large 
+	   desktops in a 2x2 arrangement.  With large virtual desktops, libwnck+ gets
+	   confused just as with afterstep(1).  fvwm(1) must be doing something right. It 
+	   appears to be _NET_DESKTOP_VIEWPORT, which is supposed to be set to the
+	   viewport position of each desktop (and isn't).  Use the waimea at
+	   https://github.com/bbidulock/waimea for a corrected version. */
+	if (!strcasecmp(xscr->wmname, "waimea"))
+		return True;
+	/* XXX: wind(1) is supported and works well. */
+	if (!strcasecmp(xscr->wmname, "wind"))
+		return True;
+	/* XXX: wmaker(1) is supported and works well. */
+	if (!strcasecmp(xscr->wmname, "wmaker"))
+		return True;
+	/* XXX: wmii(1) is supported and works well.  wmii(1) was stealing the focus back 
+	   from the pop-up, but this was fixed. */
+	if (!strcasecmp(xscr->wmname, "wmii"))
+		return True;
+	/* XXX: wmx(1) is supported and works well. */
+	if (!strcasecmp(xscr->wmname, "wmx"))
+		return True;
+	/* XXX: xdwm(1) does not support EWMH/NetWM for desktops. */
+	if (!strcasecmp(xscr->wmname, "xdwm"))	/* XXX */
+		return False;
+	/* XXX: yeahwm(1) does not support EWMH/NetWM and is currently unsupported.  The
+	   pager will simply not do anything while this window manager is running. */
+	if (!strcasecmp(xscr->wmname, "yeahwm"))
+		return True;
 	return True;
 }
 
@@ -1082,6 +1218,29 @@ update_current_desktop(XdeScreen *xscr, Atom prop)
 	XdeMonitor *xmon;
 
 	DPRINT();
+	if (prop == None || prop == _XA_WM_DESKTOP) {
+		if (XGetWindowProperty(dpy, root, _XA_WM_DESKTOP, 0, 64, False,
+				       XA_CARDINAL, &actual, &format, &nitems, &after,
+				       (unsigned char **) &data) == Success &&
+		    format == 32 && actual && nitems >= 1 && data) {
+			if (xscr->current != (int) data[0]) {
+				xscr->current = data[0];
+				changed = True;
+			}
+			if (nitems >= xscr->nmon) {
+				for (i = 0, xmon = xscr->mons; i < xscr->nmon; i++, xmon++) {
+					if (xmon->current != (int) data[i]) {
+						xmon->current = data[i];
+						changed = True;
+					}
+				}
+			}
+		}
+		if (data) {
+			XFree(data);
+			data = NULL;
+		}
+	}
 	if (prop == None || prop == _XA_WIN_WORKSPACE) {
 		if (XGetWindowProperty(dpy, root, _XA_WIN_WORKSPACE, 0, 64, False,
 				       XA_CARDINAL, &actual, &format, &nitems, &after,
@@ -1341,10 +1500,8 @@ init_wnck(XdeScreen *xscr)
 			 G_CALLBACK(workspace_destroyed), xscr);
 	g_signal_connect(G_OBJECT(wnck), "workspace_created",
 			 G_CALLBACK(workspace_created), xscr);
-
 	g_signal_connect(G_OBJECT(wnck), "window_manager_changed",
 			 G_CALLBACK(window_manager_changed), xscr);
-
 	g_signal_connect(G_OBJECT(wnck), "viewports_changed",
 			 G_CALLBACK(viewports_changed), xscr);
 	g_signal_connect(G_OBJECT(wnck), "background_changed",
@@ -1642,6 +1799,11 @@ event_handler_PropertyNotify(Display *dpy, XEvent *xev, XdeScreen *xscr)
 		DPRINT();
 		update_current_desktop(xscr, xev->xproperty.atom);
 	} else
+	    if (xev->xproperty.atom == _XA_WM_DESKTOP
+		&& xev->xproperty.state == PropertyNewValue) {
+		DPRINT();
+		update_current_desktop(xscr, xev->xproperty.atom);
+	} else
 	    if (xev->xproperty.atom == _XA_XROOTPMAP_ID
 		&& xev->xproperty.state == PropertyNewValue) {
 		DPRINT();
@@ -1675,7 +1837,6 @@ event_handler_PropertyNotify(Display *dpy, XEvent *xev, XdeScreen *xscr)
 		DPRINT();
 		update_client_list(xscr, xev->xproperty.atom);
 	}
-
 	return GDK_FILTER_CONTINUE;	/* event not handled */
 }
 
@@ -2209,19 +2370,21 @@ proxy_handler(GdkXEvent *xevent, GdkEvent *event, gpointer data)
 			num = (xscr->current - 1 + xscr->desks) % xscr->desks;
 #if 0
 			set_current_desktop(xscr, num, xev->xbutton.time);
+			return GDK_FILTER_REMOVE;
 #else
 			(void) num;
-#endif
 			break;
+#endif
 		case 5:
 			update_current_desktop(xscr, None);
 			num = (xscr->current + 1 + xscr->desks) % xscr->desks;
 #if 0
 			set_current_desktop(xscr, num, xev->xbutton.time);
+			return GDK_FILTER_REMOVE;
 #else
 			(void) num;
-#endif
 			break;
+#endif
 		}
 		return GDK_FILTER_CONTINUE;
 	case ButtonRelease:

@@ -192,13 +192,19 @@ is supported and works well.
 
 =item L<aewm(1)>
 
-L<aewm(1)> does not really support desktops and is, therefore, not supported.
+L<aewm(1)> does not really support desktops and is, therefore, not
+supported.  (Well, it does.)
+
+=item L<aewm++(1)>
+
+L<aewm++(1)> is barely ICCCM compliant.  It does not really support
+desktops and is, therefore, not supported.
 
 =item L<afterstep(1)>
 
 L<afterstep(1)> provides both workspaces and viewports (large desktops).
 F<libwnck+> does not support these well, so when B<xde-pager> detects
-that it is running under L<afterstep(1)> is does nothing.  (It has a
+that it is running under L<afterstep(1)> it does nothing.  (It has a
 desktop button proxy, but it does not relay scroll wheel events by
 default.)
 
@@ -217,7 +223,8 @@ is supported and works well.
 =item L<ctwm(1)>
 
 L<ctwm(1)> is only GNOME/WinWM compliant and is not yet supported by
-F<libwnck+>.  Use L<etwm(1)> instead.
+F<libwnck+>.  B<xde-pager> mitigates this to some extent; however, use
+L<etwm(1)> instead.
 
 =item L<cwm(1)>
 
@@ -253,13 +260,23 @@ is supported and works well.
 =item L<flwm(1)>
 
 L<flwm(1)> supports GNOME/WinWM but not EWMH/NetWM and is not currently
-supported by F<libwnck+>.
+supported by F<libwnck+>.  B<xde-pager> mitigates this to some extent.
 
 =item L<fvwm(1)>
 
 is supported and works well.  L<fvwm(1)> provides a desktop
 button proxy but it needs the B<--noproxy> option.  Viewports work
 better than on L<afterstep(1)> and behaviour is predictable.
+
+=item L<glasswm(1)>
+
+L<glasswm(1)> provides some window control atoms of its own; however,
+B<xde-pager> does not support these at this time.
+
+=item L<goomwwm(1)>
+
+L<goomwwm(1)> does not provide workspace cycling feedback of its own.
+L<goomwwm(1)> is supported and should work well.
 
 =item L<herbstluftwm(1)>
 
@@ -269,7 +286,8 @@ is supported and works well.
 
 L<i3(1)> is supported; however,  L<i3(1)> does not support
 B<_NET_NUMBER_OF_DESKTOPS>, so only the current desktop is shown at any
-given time, which makes it less effective.
+given time, which makes it less effective.  (This may have been fixed in
+current versions of L<i3(1)>).
 
 =item L<icewm(1)>
 
@@ -286,6 +304,10 @@ set B<_NET_DESKTOP_LAYOUT>, and key bindings are confused.
 When B<xde-pager> detects that it is running under L<jwm(1)> it will
 simply do nothing.
 
+=item L<larswm(1)>
+
+L<larswm(1)> is barely ICCCM compliant and is, therefore, not supported.
+
 =item L<matwm2(1)>
 
 is supported and works well.
@@ -296,6 +318,12 @@ L<metacity(1)> provides its own compentent desktop switching feedback
 pop-up.
 When B<xde-pager> detects that it is running under L<metacity(1)> it
 will simply do nothing.
+
+=item L<mvwm(1)>
+
+is supported and works well.  L<mvwm(1)> provides a desktop
+button proxy but it needs the B<--noproxy> option.  Viewports work
+better than on L<afterstep(1)> and behaviour is predictable.
 
 =item L<mwm(1)>
 
@@ -323,7 +351,8 @@ simply do nothing.
 L<spectrwm(1)> is supported, but it doesn't work that well because, like
 L<cwm(1)>, L<spectrwm(1)> is not placing B<_NET_WM_STATE> on client
 windows, so F<libwnck+> cannot locate them and will not provide contents
-in the pager.
+in the pager.  This may have been fixed in more current versions of
+L<spectrwm(1)>.
 
 =item L<twm(1)>
 
@@ -332,6 +361,10 @@ L<twm(1)> does not support multiple desktops and is unsupported.
 =item L<uwm(1)>
 
 is supported and works well.
+
+=item L<velox(1)>
+
+is untested.
 
 =item L<vtwm(1)>
 
