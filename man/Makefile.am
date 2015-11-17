@@ -7,6 +7,7 @@ xde_man_files = \
 	xde-dock.man \
 	xde-keys.man \
 	xde-pager.man \
+	xde-places.man \
 	xde-preferred.man \
 	xde-run.man \
 	xde-setbg.man \
@@ -25,6 +26,7 @@ EXTRA_DIST = \
 	xde-dock.pod \
 	xde-keys.pod \
 	xde-pager.pod \
+	xde-places.pod \
 	xde-preferred.pod \
 	xde-run.pod \
 	xde-setbg.pod \

@@ -2,24 +2,23 @@
 
 =head1 NAME
 
-xde-wkspmenu - pop-up workspace menu for XDE
+xde-places - pop-up places menu for XDE
 
 =head1 SYNOPSIS
 
-B<xde-wkspmenu> [I<OPTIONS>]
+B<xde-places> [I<OPTIONS>]
 
 =head1 DESCRIPTION
 
-Provides a workspace menu for window managers that do not provide one
-themselves or as a better workspace menu for those that provide an
-inferior one.  The workspace menu is a menu of workspaces (now called
-desktops) and windows.  This is not a feedback mechanism (such as
-B<xde-pager(1)> or B<xde-winlist(1)>) but is a pop-up menu that can be
-used to control windows similar to a task bar.
+Provides a places menu for window managers that do not provide one
+themselves or as a better places menu for those that provide an inferior
+one.  The places menu is a menu of standard desktop locations as well as
+user bookmarked places.  This is not a feedback mechanism, but is a
+pop-up menu that can be used to display special and bookmarked folders.
 
 =head1 OPTIONS
 
-B<xde-wkspmenu> accepts the following options:
+B<xde-places> accepts the following options:
 
 =head2 COMMAND OPTIONS
 
@@ -32,7 +31,8 @@ of the program:
 
 Post a pop-up menu.  Depending on the setting of the B<--button> option,
 this will either post the pop-up menu at the current pointer position,
-or centred on the workspace (screen and monitor) to which it corresponds.
+or centred on the workspace (screen and monitor) to which it
+corresponds.
 
 =item B<--help>, B<-h>
 
@@ -157,40 +157,14 @@ This option may be repeated.
 
 =back
 
-=head1 USAGE
-
-B<xde-wkspmenu> current uses F<libwnck+> or F<libwnck> both to identify
-the window manager and to provide the window actions menu.  The range
-and format of window actions provided by F<libwnck+> is superior to
-F<libwnck>.  This use means that B<xde-wkspmenu> does not currently
-provide any support for window managers that do not have a modicum of
-compliance to the EWMH/NetWM specifications.  That may change in the
-future.
-
-=head2 WINDOW MANAGERS
-
-B<xde-wkspmenu> provides a number of formats consistent with the use of
-workspace menus in various lightweight window managers.  The formats are
-as follows:
-
-=over
-
-=item B<--format=>blackbox
-
-L<blackbox(1)> provides a workspace menu that follow a specific format.
-This format mimics the L<blackbox(1)> workspace menu format.
-
-=back
-
 =head1 HISTORY
 
-I wrote B<xde-wkspmenu> primarily for the L<adwm(1)> window manager (and
-variations of L<dwm(1)>) that do not support a workspace menu of their
-own.  Existing workspace menus associated with panels (and typically
-provided by F<libwnk>) do not support the special features associated
-with tagging and tiling window managers. 
+I wrote B<xde-places> primarily for the L<adwm(1)> window manager (and
+variations of L<dwm(1)>) that do not support a places menu of their own.
+Existing workspace menus associated with panels do not support the
+special features associated with tagging and tiling window managers.
 
-=head1 AUTHOR
+=head1 AuTHOR
 
 Brian Bidulock L<mailto:bidulock@openss7.org>.
 
