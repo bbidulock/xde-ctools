@@ -210,46 +210,6 @@ Options options = {
 	.command = CommandDefault,
 };
 
-gboolean
-workspace_button_press(GtkWidget *item, GdkEvent *event, gpointer menu)
-{
-	OPRINTF("Button pressed!\n");
-	gtk_menu_popdown(menu);
-	gtk_main_quit();
-	return TRUE;
-}
-
-void
-workspace_activate(GtkMenuItem *item, gpointer user_data)
-{
-	OPRINTF("Menu item [%s] activated\n", gtk_menu_item_get_label(GTK_MENU_ITEM(item)));
-	wnck_workspace_activate(user_data, gtk_get_current_event_time());
-}
-
-void
-workspace_activate_item(GtkMenuItem *item, gpointer user_data)
-{
-	OPRINTF("Menu item [%s] activated item\n", gtk_menu_item_get_label(GTK_MENU_ITEM(item)));
-}
-
-void
-workspace_selected(GtkItem *item, gpointer user_data)
-{
-	OPRINTF("Menu item [%s] selected!\n", gtk_menu_item_get_label(GTK_MENU_ITEM(item)));
-}
-
-void
-workspace_deselected(GtkItem *item, gpointer user_data)
-{
-	OPRINTF("Menu item [%s] deselected!\n", gtk_menu_item_get_label(GTK_MENU_ITEM(item)));
-}
-
-void
-show_child(GtkWidget *child, gpointer user_data)
-{
-	OPRINTF("Type of child %p is %zu\n", child, G_OBJECT_TYPE(child));
-}
-
 void
 xde_entry_activated(GtkMenuItem *menuitem, gpointer user_data)
 {
@@ -292,7 +252,7 @@ xde_list_free(gpointer data)
 	free(place);
 }
 
-GList *
+static GList *
 get_simple_bookmarks(GList *list, const char *file)
 {
 	FILE *f;
@@ -335,7 +295,7 @@ get_simple_bookmarks(GList *list, const char *file)
 	return (list);
 }
 
-GtkWidget *
+static GtkWidget *
 places_menu_new(WnckScreen *scrn)
 {
 	GtkWidget *menu, *item, *image;
@@ -511,7 +471,7 @@ places_menu_new(WnckScreen *scrn)
   * Either specified with options.screen, or if the DISPLAY environment variable
   * specifies a screen, use that screen; otherwise, return NULL.
   */
-WnckScreen *
+static WnckScreen *
 find_specific_screen(GdkDisplay *disp)
 {
 	WnckScreen *scrn = NULL;
@@ -525,7 +485,7 @@ find_specific_screen(GdkDisplay *disp)
 
 /** @brief find the screen of window with the focus
   */
-WnckScreen *
+static WnckScreen *
 find_focus_screen(GdkDisplay *disp)
 {
 	WnckScreen *scrn = NULL;
@@ -543,7 +503,7 @@ find_focus_screen(GdkDisplay *disp)
 	return (scrn);
 }
 
-WnckScreen *
+static WnckScreen *
 find_pointer_screen(GdkDisplay *disp)
 {
 	WnckScreen *scrn = NULL;
@@ -555,7 +515,7 @@ find_pointer_screen(GdkDisplay *disp)
 	return (scrn);
 }
 
-WnckScreen *
+static WnckScreen *
 find_screen(GdkDisplay *disp)
 {
 	WnckScreen *scrn = NULL;
@@ -677,13 +637,13 @@ position_menu(GtkMenu *menu, gint *x, gint *y, gboolean *push_in, gpointer user_
 	}
 }
 
-void
+static void
 on_selection_done(GtkMenuShell *menushell, gpointer user_data)
 {
 	gtk_main_quit();
 }
 
-void
+static void
 do_popup(int argc, char *argv[])
 {
 	GdkDisplay *disp;
@@ -709,7 +669,7 @@ do_popup(int argc, char *argv[])
 	gtk_main();
 }
 
-void
+static void
 reparse(Display *dpy, Window root)
 {
 	XTextProperty xtp = { NULL, };
@@ -817,7 +777,7 @@ filter_handler(GdkXEvent * xevent, GdkEvent * event, gpointer data)
 	return handle_event(dpy, xev);
 }
 
-void
+static void
 startup(int argc, char *argv[])
 {
 	GdkAtom atom;
