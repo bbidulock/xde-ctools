@@ -250,39 +250,259 @@ show_child(GtkWidget *child, gpointer user_data)
 	OPRINTF("Type of child %p is %zu\n", child, G_OBJECT_TYPE(child));
 }
 
-typedef struct {
-	const char *var_name;
-	const char *uri;
-	const char *icon;
-	enum GUserDirectory dir;
-	char *display_name;
-	char *path;
-	char *dirname;
-} Places;
+void
+xde_entry_activated(GtkMenuItem *menuitem, gpointer user_data)
+{
+	char *cmd;
 
-Places places[] = {
-	{ "XDG_HOME_DIR",	 "file://",	 "user-home",		},
-	{ "XDG_ROOT_DIR",	 "file://",	 "folder",		},
-	{ "XDG_DESKTOP_DIR",	 "file://",	 "user-desktop",	},
-	{ "XDG_DOWNLOAD_DIR",	 "file://",	 "folder-download",	},
-	{ "XDG_TEMPLATES_DIR",	 "file://",	 "folder-templates",	},
-	{ "XDG_PUBLICSHARE_DIR", "file://",	 "folder-publicshare",	},
-	{ "XDG_DOCUMENTS_DIR",	 "file://",	 "folder-documents",	},
-	{ "XDG_MUSIC_DIR",	 "file://",	 "folder-music",	},
-	{ "XDG_PICTURES_DIR",	 "file://",	 "folder-pictures",	},
-	{ "XDG_VIDEOS_DIR",	 "file://",	 "folder-videos",	},
-	{ "XDG_COMPUTER_DIR",	 "computer://", "computer",		},
-	{ "XDG_NETWORK_DIR",	 "network://",	 "network",		},
-	{ "XDG_TRASH_DIR",	 "trash://",	 "user-trash",		},
-};
+	if ((cmd = user_data)) {
+		pid_t pid;
+
+		if ((pid = fork()) == -1) {
+			/* error */
+			EPRINTF("%s: %s\n", NAME, strerror(errno));
+			exit(EXIT_FAILURE);
+			return;
+		} else if (pid == 0) {
+			/* we are the child */
+			execl("/bin/sh", "sh", "-c", cmd, NULL);
+			exit(EXIT_FAILURE);
+			return;
+		}
+		/* we are the parent */
+	}
+	gtk_main_quit();
+}
+
+typedef struct {
+	char *label;
+	char *place;
+	char *cmd;
+	char *icon;
+} Place;
+
+static void
+xde_list_free(gpointer data)
+{
+	Place *place = data;
+	free(place->label);
+	free(place->place);
+	free(place->cmd);
+	free(place->icon);
+	free(place);
+}
+
+GList *
+get_simple_bookmarks(GList *list, const char *file)
+{
+	FILE *f;
+	char *b;
+
+	if (!(f = fopen(file, "r"))) {
+		DPRINTF("%s: %s\n", NAME, strerror(errno));
+		return (list);
+	}
+	b = calloc(BUFSIZ, sizeof(*b));
+	while (fgets(b, BUFSIZ, f)) {
+		Place *place;
+		GList *node;
+		char *p;
+
+		if ((p = strchr(b, '\n')))
+			*p = '\0';
+		if (!(p = strchr(b, ' ')) || !p[1])
+			continue;
+		*p = '\0';
+		p++;
+		for (node = list; node; node = node->next) {
+			if ((place = node->data) && place->place && !strcmp(place->place, b)) {
+				g_free(place->label);
+				place->label = g_strdup(p);
+				break;
+			}
+		}
+		if (node)
+			continue;
+		place = calloc(1, sizeof(*place));
+		place->label = g_strdup(p);
+		place->place = g_strdup(b);
+		place->cmd = g_strdup_printf("xdg-open %s", b);
+		place->icon = g_strdup("folder");
+		list = g_list_append(list, place);
+	}
+	free(b);
+	fclose(f);
+	return (list);
+}
 
 GtkWidget *
 places_menu_new(WnckScreen *scrn)
 {
-	GtkWidget *menu = NULL;
+	GtkWidget *menu, *item, *image;
+	GtkIconTheme *itheme;
+	GtkIconInfo *info;
+	GdkPixbuf *pixbuf = NULL;
+	gchar *file;
+	const gchar *dir;
+	GList *list = NULL, *node;
+	Place *place;
 
 	menu = gtk_menu_new();
+	itheme = gtk_icon_theme_get_default();
 
+	place = calloc(1, sizeof(*place));
+	place->label = g_strdup("Home");
+	place->place = g_markup_printf_escaped("file://%s", g_get_home_dir());
+	place->cmd = g_strdup_printf("xdg-open %s", place->place);
+	place->icon = g_strdup("user-home");
+	list = g_list_append(list, place);
+
+	place = calloc(1, sizeof(*place));
+	place->label = g_strdup("Root");
+	place->place = g_markup_printf_escaped("file://%s", "/");
+	place->cmd = g_strdup_printf("xdg-open %s", place->place);
+	place->icon = g_strdup("folder");
+	list = g_list_append(list, place);
+
+	place = calloc(1, sizeof(*place));
+	list = g_list_append(list, place);
+
+	if ((dir = g_get_user_special_dir(G_USER_DIRECTORY_DESKTOP))) {
+		place = calloc(1, sizeof(*place));
+		place->label = g_strdup("Desktop");
+		place->place = g_markup_printf_escaped("file://%s", dir);
+		place->cmd = g_strdup_printf("xdg-open %s", place->place);
+		place->icon = g_strdup("user-desktop");
+		list = g_list_append(list, place);
+	}
+	if ((dir = g_get_user_special_dir(G_USER_DIRECTORY_DOWNLOAD))) {
+		place = calloc(1, sizeof(*place));
+		place->label = g_strdup("Download");
+		place->place = g_markup_printf_escaped("file://%s", dir);
+		place->cmd = g_strdup_printf("xdg-open %s", place->place);
+		place->icon = g_strdup("folder-download");
+		list = g_list_append(list, place);
+	}
+	if ((dir = g_get_user_special_dir(G_USER_DIRECTORY_TEMPLATES))) {
+		place = calloc(1, sizeof(*place));
+		place->label = g_strdup("Templates");
+		place->place = g_markup_printf_escaped("file://%s", dir);
+		place->cmd = g_strdup_printf("xdg-open %s", place->place);
+		place->icon = g_strdup("folder-templates");
+		list = g_list_append(list, place);
+	}
+	if ((dir = g_get_user_special_dir(G_USER_DIRECTORY_PUBLIC_SHARE))) {
+		place = calloc(1, sizeof(*place));
+		place->label = g_strdup("Public Share");
+		place->place = g_markup_printf_escaped("file://%s", dir);
+		place->cmd = g_strdup_printf("xdg-open %s", place->place);
+		place->icon = g_strdup("folder-publicshare");
+		list = g_list_append(list, place);
+	}
+	if ((dir = g_get_user_special_dir(G_USER_DIRECTORY_DOCUMENTS))) {
+		place = calloc(1, sizeof(*place));
+		place->label = g_strdup("Documents");
+		place->place = g_markup_printf_escaped("file://%s", dir);
+		place->cmd = g_strdup_printf("xdg-open %s", place->place);
+		place->icon = g_strdup("folder-documents");
+		list = g_list_append(list, place);
+	}
+	if ((dir = g_get_user_special_dir(G_USER_DIRECTORY_MUSIC))) {
+		place = calloc(1, sizeof(*place));
+		place->label = g_strdup("Music");
+		place->place = g_markup_printf_escaped("file://%s", dir);
+		place->cmd = g_strdup_printf("xdg-open %s", place->place);
+		place->icon = g_strdup("folder-music");
+		list = g_list_append(list, place);
+	}
+	if ((dir = g_get_user_special_dir(G_USER_DIRECTORY_PICTURES))) {
+		place = calloc(1, sizeof(*place));
+		place->label = g_strdup("Pictures");
+		place->place = g_markup_printf_escaped("file://%s", dir);
+		place->cmd = g_strdup_printf("xdg-open %s", place->place);
+		place->icon = g_strdup("folder-pictures");
+		list = g_list_append(list, place);
+	}
+	if ((dir = g_get_user_special_dir(G_USER_DIRECTORY_VIDEOS))) {
+		place = calloc(1, sizeof(*place));
+		place->label = g_strdup("Videos");
+		place->place = g_markup_printf_escaped("file://%s", dir);
+		place->cmd = g_strdup_printf("xdg-open %s", place->place);
+		place->icon = g_strdup("folder-videos");
+		list = g_list_append(list, place);
+	}
+	place = calloc(1, sizeof(*place));
+	list = g_list_append(list, place);
+
+	place = calloc(1, sizeof(*place));
+	place->label = g_strdup("Computer");
+	place->place = g_markup_printf_escaped("computer://%s", "/");
+	place->cmd = g_strdup_printf("pcmanfm %s", place->place);
+	place->icon = g_strdup("computer");
+	list = g_list_append(list, place);
+
+	place = calloc(1, sizeof(*place));
+	place->label = g_strdup("Network");
+	place->place = g_markup_printf_escaped("network://%s", "/");
+	place->cmd = g_strdup_printf("pcmanfm %s", place->place);
+	place->icon = g_strdup("network");
+	list = g_list_append(list, place);
+
+	place = calloc(1, sizeof(*place));
+	place->label = g_strdup("Trash");
+	place->place = g_markup_printf_escaped("trash://%s", "/");
+	place->cmd = g_strdup_printf("xdg-open %s", place->place);
+	place->icon = g_strdup("user-trash");
+	list = g_list_append(list, place);
+
+	place = calloc(1, sizeof(*place));
+	list = g_list_append(list, place);
+
+	file = g_strdup_printf("%s/gtk-3.0/bookmarks", g_get_user_config_dir());
+	list = get_simple_bookmarks(list, file);
+	g_free(file);
+
+	file = g_strdup_printf("%s/spacefm/bookmarks", g_get_user_config_dir());
+	list = get_simple_bookmarks(list, file);
+	g_free(file);
+
+	file = g_strdup_printf("%s/.gtk-bookmarks", g_get_home_dir());
+	list = get_simple_bookmarks(list, file);
+	g_free(file);
+
+	for (node = list; node; node = node->next) {
+		place = node->data;
+
+		if (!place->label && !place->place && !place->cmd && !place->icon) {
+			item = gtk_separator_menu_item_new();
+		} else {
+			item = gtk_image_menu_item_new();
+			if (place->label)
+				gtk_menu_item_set_label(GTK_MENU_ITEM(item), place->label);
+			if (place->icon) {
+				if ((info = gtk_icon_theme_lookup_icon(itheme, place->icon, 16,
+								       GTK_ICON_LOOKUP_FORCE_SIZE |
+								       GTK_ICON_LOOKUP_GENERIC_FALLBACK))
+				    && (pixbuf = gtk_icon_info_load_icon(info, NULL))
+				    && (image = gtk_image_new_from_pixbuf(pixbuf)))
+					gtk_image_menu_item_set_image(GTK_IMAGE_MENU_ITEM(item),
+								      image);
+				if (pixbuf) {
+					g_object_unref(pixbuf);
+					pixbuf = NULL;
+				}
+			}
+			if (place->cmd)
+				g_signal_connect(G_OBJECT(item), "activate",
+						 G_CALLBACK(xde_entry_activated), g_strdup(place->cmd));
+			gtk_widget_set_tooltip_text(item, place->place);
+		}
+		gtk_menu_append(menu, item);
+		gtk_widget_show(item);
+	}
+	g_list_free_full(list, &xde_list_free);
+
+	gtk_widget_show_all(menu);
 	return (menu);
 }
 
@@ -609,7 +829,7 @@ startup(int argc, char *argv[])
 	char *file;
 	int nscr;
 
-	file = g_strdup_printf("%s/.gtkrc-2.0.xde", getenv("HOME") ? : ".");
+	file = g_strdup_printf("%s/.gtkrc-2.0.xde", g_get_home_dir());
 	gtk_rc_add_default_file(file);
 	g_free(file);
 

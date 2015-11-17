@@ -13,7 +13,8 @@ bin_PROGRAMS = \
 	xde-cycle \
 	xde-setbg \
 	xde-keys \
-	xde-wkspmenu
+	xde-wkspmenu \
+	xde-places
 
 xde_app_CPPFLAGS = -DNAME=\"xde-app\"
 xde_app_SOURCES = xde-app.c xde-app.h
@@ -53,4 +54,7 @@ xde_keys_SOURCES = xde-keys.c xde-keys.h
 
 xde_wkspmenu_CPPFLAGS = -DNAME=\"xde-wkspmenu\"
 xde_wkspmenu_SOURCES = xde-wkspmenu.c
+
+xde_places_CPPFLAGS = -DNAME=\"xde-places\"
+xde_places_SOURCES = xde-places.c
 
