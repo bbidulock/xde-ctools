@@ -93,11 +93,14 @@
 #define SN_API_NOT_YET_FROZEN
 #include <libsn/sn.h>
 #endif
+#include <X11/SM/SMlib.h>
 #include <gio/gio.h>
 #include <glib.h>
+#include <gdk/gdkx.h>
 #include <gdk-pixbuf/gdk-pixbuf.h>
 #include <gtk/gtk.h>
-#include <gdk/gdkx.h>
+#include <cairo.h>
+
 #define WNCK_I_KNOW_THIS_IS_UNSTABLE
 #include <libwnck/libwnck.h>
 
@@ -160,9 +163,9 @@ typedef enum {
 } Command;
 
 typedef enum {
-	SortByDefault,
-	SortByRecent,
-	SortByFavorite,
+	SortByDefault,			/* default sorting */
+	SortByRecent,			/* sort from most recent */
+	SortByFavorite,			/* sort from most frequent */
 } Sorting;
 
 typedef enum {
@@ -185,6 +188,7 @@ typedef struct {
 		int value;
 		int sign;
 	} x, y;
+	unsigned int w, h;
 	Sorting sorting;
 	Include include;
 	gboolean groups;
@@ -210,6 +214,8 @@ Options options = {
 	      .sign = 1,
 	      }
 	,
+	.w = 0,
+	.h = 0,
 	.sorting = SortByDefault,
 	.include = IncludeDefault,
 	.groups = FALSE,
@@ -561,6 +567,53 @@ run_command(int argc, char *argv[])
 	items = NULL;
 }
 
+typedef struct {
+	char *label;
+	char *place;
+	char *cmd;
+	char *icon;
+	char *tooltip;
+	time_t time;
+	int count;
+} Place;
+
+static void
+xde_list_free(gpointer data)
+{
+	Place *place = data;
+
+	free(place->label);
+	free(place->place);
+	free(place->cmd);
+	free(place->icon);
+	free(place->tooltip);
+	free(place);
+}
+
+static GList *
+get_xbel_recent_list(GList *list, const char *filename)
+{
+	return (list);
+}
+
+static GList *
+get_xml_recent_list(GList *list, const char *filename)
+{
+	return (list);
+}
+
+static GList *
+get_simple_recent_list(GList *list, const char *filename)
+{
+	return (list);
+}
+
+static GList *
+do_list_sorting(GList *list)
+{
+	return (list);
+}
+
 void
 xde_entry_activated(GtkMenuItem *menuitem, gpointer user_data)
 {
@@ -598,8 +651,8 @@ popup_menu_new(WnckScreen *scrn)
 	GtkIconInfo *info;
 	GdkPixbuf *pixbuf = NULL;
 	gchar *file;
-	const gchar *dir;
 	GList *list = NULL, *node;
+	Place *place;
 
 	menu = gtk_menu_new();
 	gtk_menu_set_title(GTK_MENU(menu), "Recent");
@@ -611,15 +664,63 @@ popup_menu_new(WnckScreen *scrn)
 
 	itheme = gtk_icon_theme_get_default();
 
-	(void) itheme;
-	(void) item;
-	(void) image;
-	(void) info;
-	(void) pixbuf;
-	(void) file;
-	(void) dir;
-	(void) list;
-	(void) node;
+	file = g_build_filename(g_get_user_config_dir(), "xde", "recent-applications", NULL);
+	list = get_simple_recent_list(list, file);
+	g_free(file);
+
+	file = g_build_filename(g_get_home_dir(), ".recently-used", NULL);
+	list = get_xml_recent_list(list, file);
+	g_free(file);
+
+	file = g_build_filename(g_get_user_data_dir(), "recently-used", NULL);
+	list = get_xml_recent_list(list, file);
+	g_free(file);
+
+	file = g_build_filename(g_get_user_data_dir(), "recently-used.xbel", NULL);
+	list = get_xbel_recent_list(list, file);
+	g_free(file);
+
+	file = g_build_filename(g_get_home_dir(), ".recent-applications", NULL);
+	list = get_xml_recent_list(list, file);
+	g_free(file);
+
+	file = g_build_filename(g_get_user_data_dir(), "recent-applications", NULL);
+	list = get_xml_recent_list(list, file);
+	g_free(file);
+
+	file = g_build_filename(g_get_user_data_dir(), "recent-applications.xbel", NULL);
+	list = get_xbel_recent_list(list, file);
+	g_free(file);
+
+	list = do_list_sorting(list);
+
+	for (node = list; node; node = node->next) {
+		place = node->data;
+
+		item = gtk_image_menu_item_new();
+		if (place->label)
+			gtk_menu_item_set_label(GTK_MENU_ITEM(item), place->label);
+		if (place->icon) {
+			if ((info = gtk_icon_theme_lookup_icon(itheme, place->icon, 16,
+							GTK_ICON_LOOKUP_FORCE_SIZE |
+							GTK_ICON_LOOKUP_GENERIC_FALLBACK))
+					&& (pixbuf = gtk_icon_info_load_icon(info, NULL))
+					&& (image = gtk_image_new_from_pixbuf(pixbuf)))
+				gtk_image_menu_item_set_image(GTK_IMAGE_MENU_ITEM(item), image);
+			if (pixbuf) {
+				g_object_unref(pixbuf);
+				pixbuf = NULL;
+			}
+		}
+		if (place->tooltip)
+			gtk_widget_set_tooltip_text(item, place->tooltip);
+		if (place->cmd)
+			g_signal_connect(G_OBJECT(item), "activate",
+					G_CALLBACK(xde_entry_activated), g_strdup(place->cmd));
+		gtk_menu_append(menu, item);
+		gtk_widget_show(item);
+	}
+	g_list_free_full(list, &xde_list_free);
 
 	gtk_widget_show_all(menu);
 	return (menu);
@@ -761,10 +862,39 @@ position_topleft_workarea(GtkMenu *menu, WnckScreen *scrn, gint *x, gint *y)
 static gboolean
 position_specified(GtkMenu *menu, WnckScreen *scrn, gint *x, gint *y)
 {
-	*x = (options.x.sign < 0)
-	    ? wnck_screen_get_width(scrn) - options.x.value : options.x.value;
-	*y = (options.y.sign < 0)
-	    ? wnck_screen_get_height(scrn) - options.y.value : options.y.value;
+	int x1, y1, sw, sh;
+
+	sw = wnck_screen_get_width(scrn);
+	sh = wnck_screen_get_height(scrn);
+
+	x1 = (options.x.sign < 0) ? sw - options.x.value : options.x.value;
+	y1 = (options.y.sign < 0) ? sh - options.y.value : options.y.value;
+
+	if (!options.w && !options.h) {
+		*x = x1;
+		*y = y1;
+	} else {
+		GtkRequisition req;
+		int x2, y2;
+
+		gtk_widget_size_request(GTK_WIDGET(menu), &req);
+		x2 = x1 + options.w;
+		y2 = y1 + options.h;
+
+		if (x1 + req.width < sw)
+			*x = x1;
+		else if (x2 - req.width > 0)
+			*x = x2 - req.width;
+		else
+			*x = 0;
+
+		if (y2 + req.height < sh)
+			*y = y2;
+		else if (y1 - req.height > 0)
+			*y = y1 - req.height;
+		else
+			*y = 0;
+	}
 	return TRUE;
 }
 
@@ -1108,7 +1238,7 @@ show_where(MenuPosition where)
 	case PositionTopLeft:
 		return ("topleft");
 	case PositionSpecified:
-		snprintf(position, sizeof(position), "%c%d%c%d",
+		snprintf(position, sizeof(position), "%ux%u%c%d%c%d", options.w, options.h,
 			 (options.x.sign < 0) ? '-' : '+', options.x.value,
 			 (options.y.sign < 0) ? '-' : '+', options.y.value);
 		return (position);
@@ -1358,7 +1488,9 @@ main(int argc, char *argv[])
 				goto bad_option;
 			break;
 		case 'T':       /* -T, --timestamp TIMESTAMP */
-			options.timestamp = strtoul(optarg, NULL, 0);
+			options.timestamp = strtoul(optarg, &endptr, 0);
+			if (endptr && *endptr)
+				goto bad_option;
 			break;
 		case 'w':	/* -w, --which WHICH */
 			if (options.which != UseScreenDefault)
@@ -1401,6 +1533,8 @@ main(int argc, char *argv[])
 				options.x.sign = (mask & XNegative) ? -1 : 1;
 				options.y.value = y;
 				options.y.sign = (mask & YNegative) ? -1 : 1;
+				options.w = w;
+				options.h = h;
 			}
 			break;
 
@@ -1439,7 +1573,9 @@ main(int argc, char *argv[])
 				options.debug++;
 				break;
 			}
-			if ((val = strtol(optarg, NULL, 0)) < 0)
+			if ((val = strtol(optarg, &endptr, 0)) < 0)
+				goto bad_option;
+			if (endptr && *endptr)
 				goto bad_option;
 			options.debug = val;
 			break;
@@ -1450,7 +1586,9 @@ main(int argc, char *argv[])
 				options.output++;
 				break;
 			}
-			if ((val = strtol(optarg, NULL, 0)) < 0)
+			if ((val = strtol(optarg, &endptr, 0)) < 0)
+				goto bad_option;
+			if (endptr && *endptr)
 				goto bad_option;
 			options.output = val;
 			break;

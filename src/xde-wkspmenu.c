@@ -94,6 +94,8 @@
 #include <libsn/sn.h>
 #endif
 #include <X11/SM/SMlib.h>
+#include <gio/gio.h>
+#include <glib.h>
 #include <gdk/gdkx.h>
 #include <gdk-pixbuf/gdk-pixbuf.h>
 #include <gtk/gtk.h>
@@ -186,6 +188,7 @@ typedef struct {
 		int value;
 		int sign;
 	} x, y;
+	unsigned int w, h;
 	Command command;
 } Options;
 
@@ -207,6 +210,8 @@ Options options = {
 	      .sign = 1,
 	      }
 	,
+	.w = 0,
+	.h = 0,
 	.command = CommandDefault,
 };
 
@@ -587,10 +592,39 @@ position_topleft_workarea(GtkMenu *menu, WnckScreen *scrn, gint *x, gint *y)
 static gboolean
 position_specified(GtkMenu *menu, WnckScreen *scrn, gint *x, gint *y)
 {
-	*x = (options.x.sign < 0)
-	    ? wnck_screen_get_width(scrn) - options.x.value : options.x.value;
-	*y = (options.y.sign < 0)
-	    ? wnck_screen_get_height(scrn) - options.y.value : options.y.value;
+	int x1, y1, sw, sh;
+
+	sw = wnck_screen_get_width(scrn);
+	sh = wnck_screen_get_height(scrn);
+
+	x1 = (options.x.sign < 0) ? sw - options.x.value : options.x.value;
+	y1 = (options.y.sign < 0) ? sh - options.y.value : options.y.value;
+
+	if (!options.w && !options.h) {
+		*x = x1;
+		*y = y1;
+	} else {
+		GtkRequisition req;
+		int x2, y2;
+
+		gtk_widget_size_request(GTK_WIDGET(menu), &req);
+		x2 = x1 + options.w;
+		y2 = y1 + options.h;
+
+		if (x1 + req.width < sw)
+			*x = x1;
+		else if (x2 - req.width > 0)
+			*x = x2 - req.width;
+		else
+			*x = 0;
+
+		if (y2 + req.height < sh)
+			*y = y2;
+		else if (y1 - req.height > 0)
+			*y = y1 - req.height;
+		else
+			*y = 0;
+	}
 	return TRUE;
 }
 
@@ -940,7 +974,7 @@ show_where(MenuPosition where)
 	case PositionTopLeft:
 		return ("topleft");
 	case PositionSpecified:
-		snprintf(position, sizeof(position), "%c%d%c%d",
+		snprintf(position, sizeof(position), "%ux%u%c%d%c%d", options.w, options.h,
 			 (options.x.sign < 0) ? '-' : '+', options.x.value,
 			 (options.y.sign < 0) ? '-' : '+', options.y.value);
 		return (position);
@@ -1152,6 +1186,8 @@ main(int argc, char *argv[])
 				options.x.sign = (mask & XNegative) ? -1 : 1;
 				options.y.value = y;
 				options.y.sign = (mask & YNegative) ? -1 : 1;
+				options.w = w;
+				options.h = h;
 			}
 			break;
 		case 'D':       /* -D, --debug [LEVEL] */

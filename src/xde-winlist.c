@@ -94,6 +94,8 @@
 #include <libsn/sn.h>
 #endif
 #include <X11/SM/SMlib.h>
+#include <gio/gio.h>
+#include <glib.h>
 #include <gdk/gdkx.h>
 #include <gdk-pixbuf/gdk-pixbuf.h>
 #include <gtk/gtk.h>
@@ -161,6 +163,22 @@ static Atom _XA_WIN_FOCUS;
 static Atom _XA_WIN_CLIENT_LIST;
 
 typedef enum {
+	UseScreenDefault,               /* default screen by button */
+	UseScreenActive,                /* screen with active window */
+	UseScreenFocused,               /* screen with focused window */
+	UseScreenPointer,               /* screen with pointer */
+	UseScreenSpecified,             /* specified screen */
+} UseScreen;
+
+typedef enum {
+	PositionDefault,                /* default position */
+	PositionPointer,                /* position at pointer */
+	PositionCenter,                 /* center of monitor */
+	PositionTopLeft,                /* top left of work area */
+	PositionSpecified,		/* specified position (X geometry) */
+} MenuPosition;
+
+typedef enum {
 	CommandDefault,
 	CommandRun,
 	CommandQuit,
@@ -186,6 +204,13 @@ typedef struct {
 	Bool proxy;
 	int button;
 	Time timestamp;
+	UseScreen which;
+	MenuPosition where;
+	struct {
+		int value;
+		int sign;
+	} x, y;
+	unsigned int w, h;
 	Bool cycle;
 	Bool hidden;
 	Bool minimized;
@@ -211,6 +236,19 @@ Options options = {
 	.proxy = False,
 	.button = 0,
 	.timestamp = CurrentTime,
+	.where = PositionDefault,
+	.x = {
+	      .value = 0,
+	      .sign = 1,
+	      }
+	,
+	.y = {
+	      .value = 0,
+	      .sign = 1,
+	      }
+	,
+	.w = 0,
+	.h = 0,
 	.cycle = False,
 	.hidden = False,
 	.minimized = False,
@@ -2835,8 +2873,6 @@ init_smclient(void)
 static void
 startup(int argc, char *argv[])
 {
-	static const char *suffix = "/.gtkrc-2.0.xde";
-	const char *home;
 	GdkAtom atom;
 	GdkEventMask mask;
 	GdkDisplay *disp;
@@ -2844,16 +2880,11 @@ startup(int argc, char *argv[])
 	GdkWindow *root;
 	Display *dpy;
 	char *file;
-	int len, nscr;
+	int nscr;
 
-	DPRINT();
-	home = getenv("HOME") ? : ".";
-	len = strlen(home) + strlen(suffix) + 1;
-	file = calloc(len, sizeof(*file));
-	strncpy(file, home, len);
-	strncat(file, suffix, len);
+	file = g_strdup_printf("%s/.gtkrc-2.0.xde", g_get_home_dir());
 	gtk_rc_add_default_file(file);
-	free(file);
+	g_free(file);
 
 	init_smclient();
 
@@ -2939,7 +2970,7 @@ copying(int argc, char *argv[])
 --------------------------------------------------------------------------------\n\
 %1$s\n\
 --------------------------------------------------------------------------------\n\
-Copyright (c) 2008-2014  Monavacon Limited <http://www.monavacon.com/>\n\
+Copyright (c) 2008-2015  Monavacon Limited <http://www.monavacon.com/>\n\
 Copyright (c) 2001-2008  OpenSS7 Corporation <http://www.openss7.com/>\n\
 Copyright (c) 1997-2001  Brian F. G. Bidulock <bidulock@openss7.org>\n\
 \n\
@@ -2983,7 +3014,7 @@ version(int argc, char *argv[])
 %1$s (OpenSS7 %2$s) %3$s\n\
 Written by Brian Bidulock.\n\
 \n\
-Copyright (c) 2008, 2009, 2010, 2011, 2012, 2013, 2014  Monavacon Limited.\n\
+Copyright (c) 2008, 2009, 2010, 2011, 2012, 2013, 2014, 2015  Monavacon Limited.\n\
 Copyright (c) 2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008  OpenSS7 Corporation.\n\
 Copyright (c) 1997, 1998, 1999, 2000, 2001  Brian F. G. Bidulock.\n\
 This is free software; see the source for copying conditions.  There is NO\n\
@@ -3028,6 +3059,58 @@ show_order(WindowOrder order)
 		return ("client");
 	case WindowOrderStacking:
 		return ("stacking");
+	}
+	return NULL;
+}
+
+static const char *
+show_screen(int snum)
+{
+	static char screen[64] = { 0, };
+
+	if (options.screen == -1)
+		return ("None");
+	snprintf(screen, sizeof(screen), "%d", options.screen);
+	return (screen);
+}
+
+const char *
+show_which(UseScreen which)
+{
+	switch (which) {
+	case UseScreenDefault:
+		return ("default");
+	case UseScreenActive:
+		return ("active");
+	case UseScreenFocused:
+		return ("focused");
+	case UseScreenPointer:
+		return ("pointer");
+	case UseScreenSpecified:
+		return show_screen(options.screen);
+	}
+	return NULL;
+}
+
+const char *
+show_where(MenuPosition where)
+{
+	static char position[128] = { 0, };
+
+	switch (where) {
+	case PositionDefault:
+		return ("default");
+	case PositionPointer:
+		return ("pointer");
+	case PositionCenter:
+		return ("center");
+	case PositionTopLeft:
+		return ("topleft");
+	case PositionSpecified:
+		snprintf(position, sizeof(position), "%ux%u%c%d%c%d", options.w, options.h,
+			 (options.x.sign < 0) ? '-' : '+', options.x.value,
+			 (options.y.sign < 0) ? '-' : '+', options.y.value);
+		return (position);
 	}
 	return NULL;
 }
@@ -3094,6 +3177,7 @@ Options:\n\
         restore previous windows when cycling [default: %20$s]\n\
     -D, --debug [LEVEL]\n\
         increment or set debug LEVEL [default: %2$d]\n\
+        this option may be repeated.\n\
     -v, --verbose [LEVEL]\n\
         increment or set output verbosity LEVEL [default: %3$d]\n\
         this option may be repeated.\n\
@@ -3144,7 +3228,7 @@ get_defaults(void)
 	int n;
 
 	if (!options.display) {
-		EPRINTF("No DISPLAY environment variable or --display option\n");
+		EPRINTF("No DISPLAY environment variable nor --display option\n");
 		exit(EXIT_FAILURE);
 	}
 	if (options.screen < 0 && (p = strrchr(options.display, '.'))
@@ -3168,7 +3252,7 @@ main(int argc, char *argv[])
 	saveArgv = argv;
 
 	while (1) {
-		int c, val;
+		int c, val, len;
 		char *endptr = NULL;
 
 #ifdef _GNU_SOURCE
@@ -3182,6 +3266,8 @@ main(int argc, char *argv[])
 			{"proxy",		no_argument,		NULL,	'p'},
 			{"button",		required_argument,	NULL,	'b'},
 			{"timestamp",		required_argument,	NULL,	'T'},
+			{"which",		required_argument,	NULL,	'w'},
+			{"where",		required_argument,	NULL,	'W'},
 
 			{"cycle",		no_argument,		NULL,	'c'},
 			{"hidden",		no_argument,		NULL,	'1'},
@@ -3261,6 +3347,51 @@ main(int argc, char *argv[])
 			options.timestamp = strtoul(optarg, &endptr, 0);
 			if (endptr && *endptr)
 				goto bad_option;
+			break;
+		case 'w':	/* -w, --which WHICH */
+			if (options.which != UseScreenDefault)
+				goto bad_option;
+			if (!(len = strlen(optarg)))
+				goto bad_option;
+			if (!strncasecmp("active", optarg, len))
+				options.which = UseScreenActive;
+			else if (!strncasecmp("focused", optarg, len))
+				options.which = UseScreenFocused;
+			else if (!strncasecmp("pointer", optarg, len))
+				options.where = UseScreenPointer;
+			else {
+				options.screen = strtoul(optarg, &endptr, 0);
+				if (endptr && *endptr)
+					goto bad_option;
+				options.which = UseScreenSpecified;
+			}
+			break;
+		case 'W':	/* -W, --where WHERE */
+			if (options.where != PositionDefault)
+				goto bad_option;
+			if (!(len = strlen(optarg)))
+				goto bad_option;
+			if (!strncasecmp("pointer", optarg, len))
+				options.where = PositionPointer;
+			else if (!strncasecmp("center", optarg, len))
+				options.where = PositionCenter;
+			else if (!strncasecmp("topleft", optarg, len))
+				options.where = PositionTopLeft;
+			else {
+				int mask, x = 0, y = 0;
+				unsigned int w = 0, h = 0;
+
+				mask = XParseGeometry(optarg, &x, &y, &w, &h);
+				if (!(mask & XValue) || !(mask & YValue))
+					goto bad_option;
+				options.where = PositionSpecified;
+				options.x.value = x;
+				options.x.sign = (mask & XNegative) ? -1 : 1;
+				options.y.value = y;
+				options.y.sign = (mask & YNegative) ? -1 : 1;
+				options.w = w;
+				options.h = h;
+			}
 			break;
 
 		case 'c':	/* -c, --cycle */
