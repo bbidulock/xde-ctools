@@ -213,11 +213,13 @@ Options options = {
 void
 xde_entry_activated(GtkMenuItem *menuitem, gpointer user_data)
 {
-	char *cmd;
+	GtkWidget *menu;
+	char *cmd, *exec;
 
 	if ((cmd = user_data)) {
 		pid_t pid;
 
+		exec = g_strdup_printf("%s &", cmd);
 		if ((pid = fork()) == -1) {
 			/* error */
 			EPRINTF("%s: %s\n", NAME, strerror(errno));
@@ -225,13 +227,16 @@ xde_entry_activated(GtkMenuItem *menuitem, gpointer user_data)
 			return;
 		} else if (pid == 0) {
 			/* we are the child */
-			execl("/bin/sh", "sh", "-c", cmd, NULL);
+			execl("/bin/sh", "sh", "-c", exec, NULL);
 			exit(EXIT_FAILURE);
 			return;
 		}
+		g_free(exec);
 		/* we are the parent */
 	}
-	gtk_main_quit();
+	if (!(menu = gtk_widget_get_parent(GTK_WIDGET(menuitem))) ||
+	    !gtk_menu_get_tearoff_state(GTK_MENU(menu)))
+		gtk_main_quit();
 }
 
 typedef struct {
@@ -239,6 +244,7 @@ typedef struct {
 	char *place;
 	char *cmd;
 	char *icon;
+	char *tooltip;
 } Place;
 
 static void
@@ -249,7 +255,68 @@ xde_list_free(gpointer data)
 	free(place->place);
 	free(place->cmd);
 	free(place->icon);
+	free(place->tooltip);
 	free(place);
+}
+
+static GList *
+get_xbel_bookmarks(GList *list, const char *file)
+{
+	GBookmarkFile *bookmark;
+	gchar **uris, **uri;
+	GError *error = NULL;
+
+	DPRINTF("getting bookmark file %s\n", file);
+	if (!(bookmark = g_bookmark_file_new()))
+		return (list);
+	if (!g_bookmark_file_load_from_file(bookmark, file, &error)) {
+		DPRINTF("could not load bookmark file %s: %s\n", file, error->message);
+		g_error_free(error);
+		g_bookmark_file_free(bookmark);
+		return (list);
+	}
+	uris = g_bookmark_file_get_uris(bookmark, NULL);
+	for (uri = uris; uri && *uri; uri++) {
+		Place *place;
+		GList *node;
+		gchar *value;
+
+		DPRINTF("processing uri %s\n", *uri);
+		if (g_bookmark_file_get_is_private(bookmark, *uri, NULL))
+			continue;
+
+		for (node = list; node; node = node->next) {
+			if (!(place = node->data) || !place->place || strcmp(place->place, *uri))
+				continue;
+
+			if ((value = g_bookmark_file_get_title(bookmark, *uri, NULL))) {
+				g_free(place->label);
+				place->label = value;
+			}
+			if ((value = g_bookmark_file_get_description(bookmark, *uri, NULL))) {
+				g_free(place->tooltip);
+				place->tooltip = value;
+			}
+			if (g_bookmark_file_get_icon(bookmark, *uri, &value, NULL, NULL)) {
+				g_free(place->icon);
+				place->icon = value;
+			}
+			break;
+		}
+		if (node)
+			continue;
+		place = calloc(1, sizeof(*place));
+		place->label = g_bookmark_file_get_title(bookmark, *uri, NULL);
+		place->place = g_strdup(*uri);
+		place->cmd = g_strdup_printf("xdg-open '%s'", *uri);
+		g_bookmark_file_get_icon(bookmark, *uri, &place->icon, NULL, NULL);
+		place->tooltip = g_bookmark_file_get_description(bookmark, *uri, NULL);
+		list = g_list_append(list, place);
+	}
+	if (uris)
+		g_strfreev(uris);
+	g_bookmark_file_free(bookmark);
+	return (list);
 }
 
 static GList *
@@ -286,8 +353,9 @@ get_simple_bookmarks(GList *list, const char *file)
 		place = calloc(1, sizeof(*place));
 		place->label = g_strdup(p);
 		place->place = g_strdup(b);
-		place->cmd = g_strdup_printf("xdg-open %s", b);
+		place->cmd = g_strdup_printf("xdg-open '%s'", b);
 		place->icon = g_strdup("folder");
+		place->tooltip = g_strdup(place->place);
 		list = g_list_append(list, place);
 	}
 	free(b);
@@ -308,20 +376,29 @@ places_menu_new(WnckScreen *scrn)
 	Place *place;
 
 	menu = gtk_menu_new();
+	gtk_menu_set_title(GTK_MENU(menu), "Places");
+#if 0
+	item = gtk_tearoff_menu_item_new();
+	gtk_widget_show(item);
+	gtk_menu_append(menu, item);
+#endif
+
 	itheme = gtk_icon_theme_get_default();
 
 	place = calloc(1, sizeof(*place));
 	place->label = g_strdup("Home");
 	place->place = g_markup_printf_escaped("file://%s", g_get_home_dir());
-	place->cmd = g_strdup_printf("xdg-open %s", place->place);
+	place->cmd = g_strdup_printf("xdg-open '%s'", place->place);
 	place->icon = g_strdup("user-home");
+	place->tooltip = g_strdup(place->place);
 	list = g_list_append(list, place);
 
 	place = calloc(1, sizeof(*place));
 	place->label = g_strdup("Root");
 	place->place = g_markup_printf_escaped("file://%s", "/");
-	place->cmd = g_strdup_printf("xdg-open %s", place->place);
+	place->cmd = g_strdup_printf("xdg-open '%s'", place->place);
 	place->icon = g_strdup("folder");
+	place->tooltip = g_strdup(place->place);
 	list = g_list_append(list, place);
 
 	place = calloc(1, sizeof(*place));
@@ -331,64 +408,72 @@ places_menu_new(WnckScreen *scrn)
 		place = calloc(1, sizeof(*place));
 		place->label = g_strdup("Desktop");
 		place->place = g_markup_printf_escaped("file://%s", dir);
-		place->cmd = g_strdup_printf("xdg-open %s", place->place);
+		place->cmd = g_strdup_printf("xdg-open '%s'", place->place);
 		place->icon = g_strdup("user-desktop");
+		place->tooltip = g_strdup(place->place);
 		list = g_list_append(list, place);
 	}
 	if ((dir = g_get_user_special_dir(G_USER_DIRECTORY_DOWNLOAD))) {
 		place = calloc(1, sizeof(*place));
 		place->label = g_strdup("Download");
 		place->place = g_markup_printf_escaped("file://%s", dir);
-		place->cmd = g_strdup_printf("xdg-open %s", place->place);
+		place->cmd = g_strdup_printf("xdg-open '%s'", place->place);
 		place->icon = g_strdup("folder-download");
+		place->tooltip = g_strdup(place->place);
 		list = g_list_append(list, place);
 	}
 	if ((dir = g_get_user_special_dir(G_USER_DIRECTORY_TEMPLATES))) {
 		place = calloc(1, sizeof(*place));
 		place->label = g_strdup("Templates");
 		place->place = g_markup_printf_escaped("file://%s", dir);
-		place->cmd = g_strdup_printf("xdg-open %s", place->place);
+		place->cmd = g_strdup_printf("xdg-open '%s'", place->place);
 		place->icon = g_strdup("folder-templates");
+		place->tooltip = g_strdup(place->place);
 		list = g_list_append(list, place);
 	}
 	if ((dir = g_get_user_special_dir(G_USER_DIRECTORY_PUBLIC_SHARE))) {
 		place = calloc(1, sizeof(*place));
 		place->label = g_strdup("Public Share");
 		place->place = g_markup_printf_escaped("file://%s", dir);
-		place->cmd = g_strdup_printf("xdg-open %s", place->place);
+		place->cmd = g_strdup_printf("xdg-open '%s'", place->place);
 		place->icon = g_strdup("folder-publicshare");
+		place->tooltip = g_strdup(place->place);
 		list = g_list_append(list, place);
 	}
 	if ((dir = g_get_user_special_dir(G_USER_DIRECTORY_DOCUMENTS))) {
 		place = calloc(1, sizeof(*place));
 		place->label = g_strdup("Documents");
 		place->place = g_markup_printf_escaped("file://%s", dir);
-		place->cmd = g_strdup_printf("xdg-open %s", place->place);
+		place->cmd = g_strdup_printf("xdg-open '%s'", place->place);
 		place->icon = g_strdup("folder-documents");
+		place->tooltip = g_strdup(place->place);
 		list = g_list_append(list, place);
 	}
 	if ((dir = g_get_user_special_dir(G_USER_DIRECTORY_MUSIC))) {
 		place = calloc(1, sizeof(*place));
 		place->label = g_strdup("Music");
 		place->place = g_markup_printf_escaped("file://%s", dir);
-		place->cmd = g_strdup_printf("xdg-open %s", place->place);
+		place->cmd = g_strdup_printf("xdg-open '%s'", place->place);
 		place->icon = g_strdup("folder-music");
+		place->tooltip = g_strdup(place->place);
 		list = g_list_append(list, place);
 	}
 	if ((dir = g_get_user_special_dir(G_USER_DIRECTORY_PICTURES))) {
 		place = calloc(1, sizeof(*place));
 		place->label = g_strdup("Pictures");
 		place->place = g_markup_printf_escaped("file://%s", dir);
-		place->cmd = g_strdup_printf("xdg-open %s", place->place);
+		place->cmd = g_strdup_printf("xdg-open '%s'", place->place);
 		place->icon = g_strdup("folder-pictures");
+		place->tooltip = g_strdup(place->place);
 		list = g_list_append(list, place);
 	}
 	if ((dir = g_get_user_special_dir(G_USER_DIRECTORY_VIDEOS))) {
 		place = calloc(1, sizeof(*place));
 		place->label = g_strdup("Videos");
 		place->place = g_markup_printf_escaped("file://%s", dir);
-		place->cmd = g_strdup_printf("xdg-open %s", place->place);
+		place->cmd = g_strdup_printf("xdg-open '%s'", place->place);
 		place->icon = g_strdup("folder-videos");
+		place->tooltip = g_strdup(place->place);
 		list = g_list_append(list, place);
 	}
 	place = calloc(1, sizeof(*place));
@@ -397,22 +482,25 @@ places_menu_new(WnckScreen *scrn)
 	place = calloc(1, sizeof(*place));
 	place->label = g_strdup("Computer");
 	place->place = g_markup_printf_escaped("computer://%s", "/");
-	place->cmd = g_strdup_printf("pcmanfm %s", place->place);
+	place->cmd = g_strdup_printf("pcmanfm '%s'", place->place);
 	place->icon = g_strdup("computer");
+	place->tooltip = g_strdup(place->place);
 	list = g_list_append(list, place);
 
 	place = calloc(1, sizeof(*place));
 	place->label = g_strdup("Network");
 	place->place = g_markup_printf_escaped("network://%s", "/");
-	place->cmd = g_strdup_printf("pcmanfm %s", place->place);
+	place->cmd = g_strdup_printf("pcmanfm '%s'", place->place);
 	place->icon = g_strdup("network");
+	place->tooltip = g_strdup(place->place);
 	list = g_list_append(list, place);
 
 	place = calloc(1, sizeof(*place));
 	place->label = g_strdup("Trash");
 	place->place = g_markup_printf_escaped("trash://%s", "/");
-	place->cmd = g_strdup_printf("xdg-open %s", place->place);
+	place->cmd = g_strdup_printf("xdg-open '%s'", place->place);
 	place->icon = g_strdup("user-trash");
+	place->tooltip = g_strdup(place->place);
 	list = g_list_append(list, place);
 
 	place = calloc(1, sizeof(*place));
@@ -428,6 +516,10 @@ places_menu_new(WnckScreen *scrn)
 
 	file = g_strdup_printf("%s/.gtk-bookmarks", g_get_home_dir());
 	list = get_simple_bookmarks(list, file);
+	g_free(file);
+
+	file = g_strdup_printf("%s/user-places.xbel", g_get_user_data_dir());
+	list = get_xbel_bookmarks(list, file);
 	g_free(file);
 
 	for (node = list; node; node = node->next) {
@@ -452,10 +544,11 @@ places_menu_new(WnckScreen *scrn)
 					pixbuf = NULL;
 				}
 			}
+			if (place->tooltip)
+				gtk_widget_set_tooltip_text(item, place->tooltip);
 			if (place->cmd)
 				g_signal_connect(G_OBJECT(item), "activate",
 						 G_CALLBACK(xde_entry_activated), g_strdup(place->cmd));
-			gtk_widget_set_tooltip_text(item, place->place);
 		}
 		gtk_menu_append(menu, item);
 		gtk_widget_show(item);
@@ -614,6 +707,7 @@ position_menu(GtkMenu *menu, gint *x, gint *y, gboolean *push_in, gpointer user_
 {
 	WnckScreen *scrn = user_data;
 
+	*push_in = FALSE;
 	if (options.button) {
 		position_pointer(menu, scrn, x, y);
 		return;
@@ -640,7 +734,8 @@ position_menu(GtkMenu *menu, gint *x, gint *y, gboolean *push_in, gpointer user_
 static void
 on_selection_done(GtkMenuShell *menushell, gpointer user_data)
 {
-	gtk_main_quit();
+	if (!gtk_menu_get_tearoff_state(GTK_MENU(menushell)))
+		gtk_main_quit();
 }
 
 static void

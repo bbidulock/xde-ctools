@@ -157,6 +157,40 @@ This option may be repeated.
 
 =back
 
+=head1 FILES
+
+The following file locations are scanned for user-defined bookmarks:
+
+=over
+
+=item F<$XDG_CONFIG_HOME/xde/bookmarks>
+
+This is the location of a simple bookmark file used for the XDE (X
+Desktop Environment).
+
+=item F<$XDG_CONFIG_HOME/gtk-3.0/bookmarks>
+
+This is the location of a simple bookmark file used by GTK3 and many
+file manager utilities.
+
+=item F<$XDG_CONFIG_HOME/spacefm/bookmarks>
+
+This is the location of a simple bookmark file used by the L<spacefm(1)>
+file manager.
+
+=item F<$HOME/.gtk-bookmarks>
+
+This is the legacy location of a simple bookmark file use by GTK2 and a
+number of file manager utilities.
+
+=item F<$XDG_DATA_HOME/user-places.xbel>
+
+This is the location of the XML bookmark file that follows the
+freedesktop.org L<Desktop Bookmark Specification> and is used by more
+recent toolkits and applications.
+
+=back
+
 =head1 HISTORY
 
 I wrote B<xde-places> primarily for the L<adwm(1)> window manager (and
