@@ -110,9 +110,9 @@
 
 #define XPRINTF(args...) do { } while (0)
 #define OPRINTF(args...) do { if (options.output > 1) { \
-	fprintf(stderr, "I: "); \
-	fprintf(stderr, args); \
-	fflush(stderr); } } while (0)
+	fprintf(stdout, "I: "); \
+	fprintf(stdout, args); \
+	fflush(stdout); } } while (0)
 #define DPRINTF(args...) do { if (options.debug) { \
 	fprintf(stderr, "D: %s +%d %s(): ", __FILE__, __LINE__, __func__); \
 	fprintf(stderr, args); \
@@ -250,8 +250,8 @@ show_child(GtkWidget *child, gpointer user_data)
 	OPRINTF("Type of child %p is %zu\n", child, G_OBJECT_TYPE(child));
 }
 
-GtkWidget *
-workspace_menu_new(WnckScreen *scrn)
+static GtkWidget *
+popup_menu_new(WnckScreen *scrn)
 {
 	GtkWidget *menu, *sep;
 	GList *workspaces, *workspace;
@@ -447,7 +447,7 @@ workspace_menu_new(WnckScreen *scrn)
 		}
 	}
 
-	gtk_widget_show(menu);
+	gtk_widget_show_all(menu);
 	return (menu);
 }
 
@@ -456,7 +456,7 @@ workspace_menu_new(WnckScreen *scrn)
   * Either specified with options.screen, or if the DISPLAY environment variable
   * specifies a screen, use that screen; otherwise, return NULL.
   */
-WnckScreen *
+static WnckScreen *
 find_specific_screen(GdkDisplay *disp)
 {
 	WnckScreen *scrn = NULL;
@@ -470,7 +470,7 @@ find_specific_screen(GdkDisplay *disp)
 
 /** @brief find the screen of window with the focus
   */
-WnckScreen *
+static WnckScreen *
 find_focus_screen(GdkDisplay *disp)
 {
 	WnckScreen *scrn = NULL;
@@ -488,7 +488,7 @@ find_focus_screen(GdkDisplay *disp)
 	return (scrn);
 }
 
-WnckScreen *
+static WnckScreen *
 find_pointer_screen(GdkDisplay *disp)
 {
 	WnckScreen *scrn = NULL;
@@ -500,7 +500,7 @@ find_pointer_screen(GdkDisplay *disp)
 	return (scrn);
 }
 
-WnckScreen *
+static WnckScreen *
 find_screen(GdkDisplay *disp)
 {
 	WnckScreen *scrn = NULL;
@@ -599,6 +599,7 @@ position_menu(GtkMenu *menu, gint *x, gint *y, gboolean *push_in, gpointer user_
 {
 	WnckScreen *scrn = user_data;
 
+	*push_in = FALSE;
 	if (options.button) {
 		position_pointer(menu, scrn, x, y);
 		return;
@@ -622,13 +623,14 @@ position_menu(GtkMenu *menu, gint *x, gint *y, gboolean *push_in, gpointer user_
 	}
 }
 
-void
+static void
 on_selection_done(GtkMenuShell *menushell, gpointer user_data)
 {
-	gtk_main_quit();
+	if (!gtk_menu_get_tearoff_state(GTK_MENU(menushell)))
+		gtk_main_quit();
 }
 
-void
+static void
 do_popup(int argc, char *argv[])
 {
 	GdkDisplay *disp;
@@ -644,7 +646,7 @@ do_popup(int argc, char *argv[])
 		exit(EXIT_FAILURE);
 	}
 	wnck_screen_force_update(scrn);
-	if (!(menu = workspace_menu_new(scrn))) {
+	if (!(menu = popup_menu_new(scrn))) {
 		EPRINTF("cannot get menu\n");
 		exit(EXIT_FAILURE);
 	}
@@ -654,7 +656,7 @@ do_popup(int argc, char *argv[])
 	gtk_main();
 }
 
-void
+static void
 reparse(Display *dpy, Window root)
 {
 	XTextProperty xtp = { NULL, };
@@ -762,7 +764,7 @@ filter_handler(GdkXEvent * xevent, GdkEvent * event, gpointer data)
 	return handle_event(dpy, xev);
 }
 
-void
+static void
 startup(int argc, char *argv[])
 {
 	GdkAtom atom;
@@ -774,7 +776,7 @@ startup(int argc, char *argv[])
 	char *file;
 	int nscr;
 
-	file = g_strdup_printf("%s/.gtkrc-2.0.xde", getenv("HOME") ? : ".");
+	file = g_strdup_printf("%s/.gtkrc-2.0.xde", g_get_home_dir());
 	gtk_rc_add_default_file(file);
 	g_free(file);
 
@@ -982,11 +984,12 @@ Options:\n\
         \"focused\"  - the screen with EWMH/NetWM focused client\n\
         \"pointer\"  - the screen with EWMH/NetWM pointer\n\
         \"SCREEN\"   - the specified screen number\n\
-    -W, --where {pointer|center|topleft|SCREEN}\n\
+    -W, --where {pointer|center|topleft|POSITION}\n\
         specify where to place the menu [default: %9$s]\n\
         \"pointer\"  - northwest corner under the pointer\n\
         \"center\"   - center of associated monitor\n\
         \"topleft\"  - northwest corner of work area\n\
+        POSITION   - postion on screen as X geometry\n\
     -D, --debug [LEVEL]\n\
         increment or set debug LEVEL [default: %2$d]\n\
         this option may be repeated.\n\
@@ -1070,7 +1073,7 @@ main(int argc, char *argv[])
 		c = getopt_long_only(argc, argv, "d:s:pb:T:w:W:D::v::hVCH?",
 				     long_options, &option_index);
 #else                           /* _GNU_SOURCE */
-		c = getopt(argc, argv, "d:s:pb:T:w:W:D:vhVC?");
+		c = getopt(argc, argv, "d:s:pb:T:w:W:D:vhVCH?");
 #endif                          /* _GNU_SOURCE */
 		if (c == -1) {
 			if (options.debug)
@@ -1104,7 +1107,9 @@ main(int argc, char *argv[])
 				goto bad_option;
 			break;
 		case 'T':       /* -T, --timestamp TIMESTAMP */
-			options.timestamp = strtoul(optarg, NULL, 0);
+			options.timestamp = strtoul(optarg, &endptr, 0);
+			if (endptr && *endptr)
+				goto bad_option;
 			break;
 		case 'w':	/* -w, --which WHICH */
 			if (options.which != UseScreenDefault)
@@ -1156,7 +1161,9 @@ main(int argc, char *argv[])
 				options.debug++;
 				break;
 			}
-			if ((val = strtol(optarg, NULL, 0)) < 0)
+			if ((val = strtol(optarg, &endptr, 0)) < 0)
+				goto bad_option;
+			if (endptr && *endptr)
 				goto bad_option;
 			options.debug = val;
 			break;
@@ -1167,7 +1174,9 @@ main(int argc, char *argv[])
 				options.output++;
 				break;
 			}
-			if ((val = strtol(optarg, NULL, 0)) < 0)
+			if ((val = strtol(optarg, &endptr, 0)) < 0)
+				goto bad_option;
+			if (endptr && *endptr)
 				goto bad_option;
 			options.output = val;
 			break;
@@ -1212,7 +1221,6 @@ main(int argc, char *argv[])
 				usage(argc, argv);
 			}
 			exit(EXIT_SYNTAXERR);
-
 		}
 	}
 	if (options.debug) {
@@ -1235,7 +1243,7 @@ main(int argc, char *argv[])
 	default:
 	case CommandDefault:
 	case CommandPopup:
-		DPRINTF("%s: popping the workspace menu\n", argv[0]);
+		DPRINTF("%s: popping the menu\n", argv[0]);
 		do_popup(argc, argv);
 		break;
 	case CommandHelp:

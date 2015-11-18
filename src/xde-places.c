@@ -1223,7 +1223,9 @@ main(int argc, char *argv[])
 				goto bad_option;
 			break;
 		case 'T':       /* -T, --timestamp TIMESTAMP */
-			options.timestamp = strtoul(optarg, NULL, 0);
+			options.timestamp = strtoul(optarg, &endptr, 0);
+			if (endptr && *endptr)
+				goto bad_option;
 			break;
 		case 'w':	/* -w, --which WHICH */
 			if (options.which != UseScreenDefault)
@@ -1275,7 +1277,9 @@ main(int argc, char *argv[])
 				options.debug++;
 				break;
 			}
-			if ((val = strtol(optarg, NULL, 0)) < 0)
+			if ((val = strtol(optarg, &endptr, 0)) < 0)
+				goto bad_option;
+			if (endptr && *endptr)
 				goto bad_option;
 			options.debug = val;
 			break;
@@ -1286,7 +1290,9 @@ main(int argc, char *argv[])
 				options.output++;
 				break;
 			}
-			if ((val = strtol(optarg, NULL, 0)) < 0)
+			if ((val = strtol(optarg, &endptr, 0)) < 0)
+				goto bad_option;
+			if (endptr && *endptr)
 				goto bad_option;
 			options.output = val;
 			break;

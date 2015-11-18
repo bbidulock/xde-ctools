@@ -1199,7 +1199,7 @@ Options:\n\
         \"recent\"   - arrange the most recent item first\n\
         \"favorite\" - arrange the most used item first\n\
     -g, --groups\n\
-        specify whether to sort itesm by group [default: %12$s]\n\
+        specify whether to sort items by group [default: %12$s]\n\
     -D, --debug [LEVEL]\n\
         increment or set debug LEVEL [default: %2$d]\n\
         this option may be repeated.\n\
@@ -1408,9 +1408,7 @@ main(int argc, char *argv[])
 			if (options.include != IncludeDefault)
 				goto bad_option;
 			len = strlen(optarg);
-			if (!strncasecmp("default", optarg, len))
-				options.include = IncludeDefault;
-			else if (!strncasecmp("docs", optarg, len))
+			if (!strncasecmp("docs", optarg, len))
 				options.include = IncludeDocs;
 			else if (!strncasecmp("apps", optarg, len))
 				options.include = IncludeApps;
@@ -1423,9 +1421,7 @@ main(int argc, char *argv[])
 			if (options.sorting != SortByDefault)
 				goto bad_option;
 			len = strlen(optarg);
-			if (!strncasecmp("default", optarg, len))
-				options.sorting = SortByDefault;
-			else if (!strncasecmp("recent", optarg, len))
+			if (!strncasecmp("recent", optarg, len))
 				options.sorting = SortByRecent;
 			else if (!strncasecmp("favorite", optarg, len))
 				options.sorting = SortByFavorite;
