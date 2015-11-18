@@ -234,6 +234,11 @@ current provide much support for window managers that do not have a
 modicum of compliance with the EWMH/NetWM specifications.  That may
 change in the future.
 
+To locate the menu under a button that was pressed in, for example, an
+external panel, where the button has the geometry C<55x20+30+0>, specify
+the C<--where='55x20+30+0'> option.  This will properly position the
+menu under the button.
+
 =head2 WINDOW MANAGERS
 
 =over

@@ -2,23 +2,24 @@
 
 =head1 NAME
 
-xde-places - pop-up places menu for XDE
+xde-recent - pop-up recent files menu for XDE
 
 =head1 SYNOPSIS
 
-B<xde-places> [I<OPTIONS>]
+B<xde-recent> [I<OPTIONS>]
 
 =head1 DESCRIPTION
 
-Provides a places menu for window managers that do not provide one
-themselves or as a better places menu for those that provide an inferior
-one.  The places menu is a menu of standard desktop locations as well as
-user bookmarked places.  This is not a feedback mechanism, but is a
-pop-up menu that can be used to display special and bookmarked folders.
+Provides a recent files menu for window managers that do not provide one
+themselves or as a better recent files menu for those that provide an
+inferior one.  The recent files menu is a menus of recent (or favourite)
+files or applications.  This is not a feedback mechanism, but is a
+pop-up menu that can be used to access files or applications similar to
+a file manager or application launcher.
 
 =head1 OPTIONS
 
-B<xde-places> accepts the following options:
+B<xde-recent> accepts the following options:
 
 =head2 COMMAND OPTIONS
 
@@ -143,6 +144,59 @@ Place the menu in the top left corner of the current work area.
 
 =back
 
+=item B<--include>, B<-i> {B<docs>|B<apps>|B<both>}
+
+Specifies which objects to include in the list, as follows:
+
+=over
+
+=item C<docs>
+
+Only include recently used files (documents) in the list.
+
+=item C<apps>
+
+Only include recent applications (launched F<.desktop> files) in the
+list.
+
+=item C<both>
+
+Include both recently used files (documents) and recent applications
+(launched F<.desktop> files) in the list.  This option is not terribly
+useful.
+
+=back
+
+The default when unspecified is C<docs>.
+
+=item B<--sorting>, B<-S> {B<recent>|B<favorite>}
+
+Specifies the sorting to use for sorting the list, as follows:
+
+=over
+
+=item C<recent>
+
+Sort the items in the list from the most recently used to the least
+recently used items.  When this sorting is specified, the items from all
+files can be used.
+
+=item C<favorite>
+
+Sort the item in the list from the most frequently used to the least
+frequently used items.  When this sorting is specified, only the items
+from the more current XBEL formatted files can be used.  (They are the
+only ones that include frequency of use.)
+
+=back
+
+The default sorting is C<recent>.
+
+=item B<--groups>, B<-g>
+
+Specifies that items are to be sorted by group.  When unspecified, the
+default is to disregard groups when sorting.
+
 =item B<--verbose>, B<-v> [I<LEVEL>]
 
 Increases or sets the output verbosity level to I<LEVEL>.  The default
@@ -159,6 +213,12 @@ This option may be repeated.
 
 =head1 USAGE
 
+To obtain a typical recently used file list, specify C<--include=docs>
+and C<--sorting=recent>.
+
+To obtain a typical favourite applications list, specify
+C<--include=apps> and C<--sorting=favorite>.
+
 To locate the menu under a button that was pressed in, for example, an
 external panel, where the button has the geometry C<55x20+30+0>, specify
 the C<--where='55x20+30+0'> option.  This will properly position the
@@ -166,44 +226,52 @@ menu under the button.
 
 =head1 FILES
 
-The following file locations are scanned for user-defined bookmarks:
+The following file locations are scanned for recent files and
+applications:
 
 =over
 
-=item F<$XDG_CONFIG_HOME/xde/bookmarks>
+=item F<$XDG_CONFIG_HOME/xde/recent-applications>
 
-This is the location of a simple bookmark file used for the XDE (X
-Desktop Environment).
+This is the location of a simple recent applications file maintained by
+the L<xde-app(1)> launcher application.
 
-=item F<$XDG_CONFIG_HOME/gtk-3.0/bookmarks>
+=item F<$HOME/.recently-used>
 
-This is the location of a simple bookmark file used by GTK3 and many
-file manager utilities.
+=item F<$XDG_DATA_HOME/recently-used>
 
-=item F<$XDG_CONFIG_HOME/spacefm/bookmarks>
+These are the locations of a simple XML formatted recently used files list
+maintained by legacy applications (as well as L<xdg-launch(1)>).
 
-This is the location of a simple bookmark file used by the L<spacefm(1)>
-file manager.
 
-=item F<$HOME/.gtk-bookmarks>
+=item F<$HOME/.recent-applications>
 
-This is the legacy location of a simple bookmark file use by GTK2 and a
-number of file manager utilities.
+=item F<$XDG_DATA_HOME/recent-applications>
 
-=item F<$XDG_DATA_HOME/user-places.xbel>
+These are the locations of a simple XML formatted recently used
+applications list maintained by legacy applications (as well as
+L<xdg-launch(1)>).
 
-This is the location of the XML bookmark file that follows the
-freedesktop.org L<Desktop Bookmark Specification> and is used by more
-recent toolkits and applications.
+=item F<$XDG_DATA_HOME/recently-used.xbel>
+
+This is the location of the current XBEL formatted recently used files
+list maintained by current applications (as well as L<xdg-launch(1)>).
+
+=item F<$XDG_DATA_HOME/recent-applications.xbel>
+
+This is the location of the current XBEL formatted recently used
+applications list maintained by current applications (as well as
+L<xdg-launch(1)>.
 
 =back
 
 =head1 HISTORY
 
-I wrote B<xde-places> primarily for the L<adwm(1)> window manager (and
-variations of L<dwm(1)>) that do not support a places menu of their own.
-Existing workspace menus associated with panels do not support the
-special features associated with tagging and tiling window managers.
+I wrote B<xde-recent> primarily for the L<adwm(1)> window manager and
+other tiling window managers that do not support a recent files menu of
+their own.  Existing recent files menus associated with panels do not
+support the special features associated with tagging and tiling window
+managers.
 
 =head1 AuTHOR
 
@@ -211,9 +279,9 @@ Brian Bidulock L<mailto:bidulock@openss7.org>.
 
 =head1 SEE ALSO
 
-L<xde-pager(1)>,
-L<xde-winlist(1)>,
-L<xde-keys(1)>.
+L<xdg-launcher(1)>,
+L<xde-app(1)>,
+L<xde-places(1)>.
 
 =cut
 

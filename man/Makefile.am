@@ -9,6 +9,7 @@ xde_man_files = \
 	xde-pager.man \
 	xde-places.man \
 	xde-preferred.man \
+	xde-recent.man \
 	xde-run.man \
 	xde-setbg.man \
 	xde-winlist.man \
@@ -28,6 +29,7 @@ EXTRA_DIST = \
 	xde-pager.pod \
 	xde-places.pod \
 	xde-preferred.pod \
+	xde-recent.pod \
 	xde-run.pod \
 	xde-setbg.pod \
 	xde-winlist.pod \
