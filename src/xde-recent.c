@@ -46,6 +46,10 @@
 #include "autoconf.h"
 #endif
 
+#ifndef _XOPEN_SOURCE
+#define _XOPEN_SOURCE 600
+#endif
+
 #include <stddef.h>
 #include <stdint.h>
 #include <stdlib.h>
@@ -91,16 +95,23 @@
 #endif
 #include <gio/gio.h>
 #include <glib.h>
+#include <gdk-pixbuf/gdk-pixbuf.h>
 #include <gtk/gtk.h>
 #include <gdk/gdkx.h>
 #define WNCK_I_KNOW_THIS_IS_UNSTABLE
 #include <libwnck/libwnck.h>
 
+#include <pwd.h>
+
+#ifdef _GNU_SOURCE
+#include <getopt.h>
+#endif
+
 #define XPRINTF(args...) do { } while (0)
 #define OPRINTF(args...) do { if (options.output > 1) { \
-	fprintf(stderr, "I: "); \
-	fprintf(stderr, args); \
-	fflush(stderr); } } while (0)
+	fprintf(stdout, "I: "); \
+	fprintf(stdout, args); \
+	fflush(stdout); } } while (0)
 #define DPRINTF(args...) do { if (options.debug) { \
 	fprintf(stderr, "D: %s +%d %s(): ", __FILE__, __LINE__, __func__); \
 	fprintf(stderr, args); \
@@ -113,19 +124,39 @@
 	fprintf(stderr, "D: %s +%d %s()\n", __FILE__, __LINE__, __func__); \
 	fflush(stderr); } } while (0)
 
-#ifdef _GNU_SOURCE
-#include <getopt.h>
-#endif
+#undef EXIT_SUCCESS
+#undef EXIT_FAILURE
+#undef EXIT_SYNTAXERR
 
-Atom _XA_XDE_THEME_NAME;
-Atom _XA_GTK_READ_RCFILES;
+#define EXIT_SUCCESS    0
+#define EXIT_FAILURE    1
+#define EXIT_SYNTAXERR  2
+
+static Atom _XA_XDE_THEME_NAME;
+static Atom _XA_GTK_READ_RCFILES;
+
+typedef enum {
+	UseScreenDefault,               /* default screen by button */
+	UseScreenActive,                /* screen with active window */
+	UseScreenFocused,               /* screen with focused window */
+	UseScreenPointer,               /* screen with pointer */
+	UseScreenSpecified,             /* specified screen */
+} UseScreen;
+
+typedef enum {
+	PositionDefault,                /* default position */
+	PositionPointer,                /* position at pointer */
+	PositionCenter,                 /* center of monitor */
+	PositionTopLeft,                /* top left of work area */
+	PositionSpecified,		/* specified position (X geometry) */
+} MenuPosition;
 
 typedef enum {
 	CommandDefault,
 	CommandPopup,
 	CommandHelp,
 	CommandVersion,
-	CommandCopying
+	CommandCopying,
 } Command;
 
 typedef enum {
@@ -135,19 +166,11 @@ typedef enum {
 } Sorting;
 
 typedef enum {
-	WhichDefault,			/* default things */
-	WhichDocs,			/* documents (files) only */
-	WhichApps,			/* applications only */
-	WhichBoth,			/* both documents and applications */
-} Which;
-
-typedef enum {
-	PositionDefault,		/* default position */
-	PositionPointer,		/* position at pointer */
-	PositionCenter,			/* center of window */
-	PositionTopLeft,		/* top left of window */
-	PositionIconGeom,		/* icon geometry position */
-} MenuPosition;
+	IncludeDefault,			/* default things */
+	IncludeDocs,			/* documents (files) only */
+	IncludeApps,			/* applications only */
+	IncludeBoth,			/* both documents and applications */
+} Include;
 
 typedef struct {
 	int debug;
@@ -156,15 +179,16 @@ typedef struct {
 	int screen;
 	int button;
 	Time timestamp;
-	Sorting sorting;
-	Which which;
-	gboolean groups;
+	UseScreen which;
 	MenuPosition where;
-	int recent;
-	char *runhist;
-	char *recapps;
+	struct {
+		int value;
+		int sign;
+	} x, y;
+	Sorting sorting;
+	Include include;
+	gboolean groups;
 	char *recently;
-	int xdg;
 	Command command;
 } Options;
 
@@ -175,38 +199,24 @@ Options options = {
 	.screen = -1,
 	.button = 0,
 	.timestamp = CurrentTime,
-	.sorting = SortByDefault,
-	.which = WhichDefault,
-	.groups = FALSE,
 	.where = PositionDefault,
-	.recent = 10,
-	.runhist = NULL,
-	.recapps = NULL,
+	.x = {
+	      .value = 0,
+	      .sign = 1,
+	      }
+	,
+	.y = {
+	      .value = 0,
+	      .sign = 1,
+	      }
+	,
+	.sorting = SortByDefault,
+	.include = IncludeDefault,
+	.groups = FALSE,
 	.recently = NULL,
-	.xdg = 1,
 	.command = CommandDefault,
 };
 
-Options defaults = {
-	.debug = 0,
-	.output = 1,
-	.display = ":0.0",
-	.screen = 0,
-	.button = 0,
-	.timestamp = CurrentTime,
-	.sorting = SortByDefault,
-	.which = WhichDefault,
-	.groups = FALSE,
-	.where = PositionDefault,
-	.recent = 10,
-	.runhist = "~/.config/xde/run-history",
-	.recapps = "~/.config/xde/recent-applications",
-	.recently = "~/.local/share/recently-used",
-	.xdg = 1,
-	.command = CommandDefault,
-};
-
-GtkRecentManager *manager = NULL;
 GList *items = NULL;
 
 void
@@ -489,6 +499,7 @@ run_command2(int argc, char *argv[])
 	FILE *file;
 	int dummy;
 
+	OPRINTF("Running run_command2()\n");
 	g_list_free_full(recent, recent_free);
 
 	if (!(file = fopen(options.recently, "r"))) {
@@ -525,10 +536,22 @@ run_command2(int argc, char *argv[])
 void
 run_command(int argc, char *argv[])
 {
-	if (!manager && !(manager = gtk_recent_manager_get_default())) {
+	GValue value = G_VALUE_INIT;
+	const gchar *filename;
+	GtkRecentManager *manager;
+
+	OPRINTF("Running run_command()\n");
+	if (!(manager = gtk_recent_manager_get_default())) {
 		EPRINTF("could not get recent manager instance\n");
 		exit(1);
 	}
+
+	g_value_init(&value, G_TYPE_STRING);
+	g_object_get_property(G_OBJECT(manager), "filename", &value);
+	filename = g_value_get_string(&value);
+	OPRINTF("recent manager filename is %s\n", filename);
+	g_value_unset(&value);
+
 	if (!(items = gtk_recent_manager_get_items(manager))) {
 		EPRINTF("could not get recent items list\n");
 		exit(1);
@@ -539,6 +562,275 @@ run_command(int argc, char *argv[])
 }
 
 void
+xde_entry_activated(GtkMenuItem *menuitem, gpointer user_data)
+{
+	GtkWidget *menu;
+	char *cmd, *exec;
+
+	if ((cmd = user_data)) {
+		pid_t pid;
+
+		exec = g_strdup_printf("%s &", cmd);
+		if ((pid = fork()) == -1) {
+			/* error */
+			EPRINTF("%s: %s\n", NAME, strerror(errno));
+			exit(EXIT_FAILURE);
+			return;
+		} else if (pid == 0) {
+			/* we are the child */
+			execl("/bin/sh", "sh", "-c", exec, NULL);
+			exit(EXIT_FAILURE);
+			return;
+		}
+		g_free(exec);
+		/* we are the parent */
+	}
+	if (!(menu = gtk_widget_get_parent(GTK_WIDGET(menuitem))) ||
+	    !gtk_menu_get_tearoff_state(GTK_MENU(menu)))
+		gtk_main_quit();
+}
+
+static GtkWidget *
+popup_menu_new(WnckScreen *scrn)
+{
+	GtkWidget *menu, *item, *image;
+	GtkIconTheme *itheme;
+	GtkIconInfo *info;
+	GdkPixbuf *pixbuf = NULL;
+	gchar *file;
+	const gchar *dir;
+	GList *list = NULL, *node;
+
+	menu = gtk_menu_new();
+	gtk_menu_set_title(GTK_MENU(menu), "Recent");
+#if 0
+	item = gtk_tearoff_menu_item_new();
+	gtk_widget_show(item);
+	gtk_menu_append(menu, item);
+#endif
+
+	itheme = gtk_icon_theme_get_default();
+
+	(void) itheme;
+	(void) item;
+	(void) image;
+	(void) info;
+	(void) pixbuf;
+	(void) file;
+	(void) dir;
+	(void) list;
+	(void) node;
+
+	gtk_widget_show_all(menu);
+	return (menu);
+}
+
+/** @brief find the specified screen
+  * 
+  * Either specified with options.screen, or if the DISPLAY environment variable
+  * specifies a screen, use that screen; otherwise, return NULL.
+  */
+static WnckScreen *
+find_specific_screen(GdkDisplay *disp)
+{
+	WnckScreen *scrn = NULL;
+	int nscr = gdk_display_get_n_screens(disp);
+
+	if (0 <= options.screen && options.screen < nscr)
+		/* user specified a valid screen number */
+		scrn = wnck_screen_get(options.screen);
+	return (scrn);
+}
+
+/** @brief find the screen of window with the focus
+  */
+static WnckScreen *
+find_focus_screen(GdkDisplay *disp)
+{
+	WnckScreen *scrn = NULL;
+	Window focus = None, froot = None;
+	int di;
+	unsigned int du;
+	Display *dpy = GDK_DISPLAY_XDISPLAY(disp);
+
+	XGetInputFocus(dpy, &focus, &di);
+	if (focus != PointerRoot && focus != None) {
+		XGetGeometry(dpy, focus, &froot, &di, &di, &du, &du, &du, &du);
+		if (froot)
+			scrn = wnck_screen_get_for_root(froot);
+	}
+	return (scrn);
+}
+
+static WnckScreen *
+find_pointer_screen(GdkDisplay *disp)
+{
+	WnckScreen *scrn = NULL;
+	GdkScreen *screen = NULL;
+
+	gdk_display_get_pointer(disp, &screen, NULL, NULL, NULL);
+	if (screen)
+		scrn = wnck_screen_get(gdk_screen_get_number(screen));
+	return (scrn);
+}
+
+static WnckScreen *
+find_screen(GdkDisplay *disp)
+{
+	WnckScreen *scrn = NULL;
+
+	if ((scrn = find_specific_screen(disp)))
+		return (scrn);
+	switch (options.which) {
+	case UseScreenDefault:
+		if (options.button) {
+			if ((scrn = find_pointer_screen(disp)))
+				return (scrn);
+			if ((scrn = find_focus_screen(disp)))
+				return (scrn);
+		} else {
+			if ((scrn = find_focus_screen(disp)))
+				return (scrn);
+			if ((scrn = find_pointer_screen(disp)))
+				return (scrn);
+		}
+		break;
+	case UseScreenActive:
+		break;
+	case UseScreenFocused:
+		if ((scrn = find_focus_screen(disp)))
+			return (scrn);
+		break;
+	case UseScreenPointer:
+		if ((scrn = find_pointer_screen(disp)))
+			return (scrn);
+		break;
+	case UseScreenSpecified:
+		break;
+	}
+	if (!scrn)
+		scrn = wnck_screen_get_default();
+	return (scrn);
+}
+
+static gboolean
+position_pointer(GtkMenu *menu, WnckScreen *scrn, gint *x, gint *y)
+{
+	GdkDisplay *disp;
+	
+	DPRINT();
+	disp = gtk_widget_get_display(GTK_WIDGET(menu));
+	gdk_display_get_pointer(disp, NULL, x, y, NULL);
+	return TRUE;
+}
+
+static gboolean
+position_center_monitor(GtkMenu *menu, WnckScreen *scrn, gint *x, gint *y)
+{
+	GdkDisplay *disp;
+	GdkScreen *scr;
+	GdkRectangle rect;
+	gint px, py, nmon;
+	GtkRequisition req;
+
+	DPRINT();
+	disp = gtk_widget_get_display(GTK_WIDGET(menu));
+	gdk_display_get_pointer(disp, &scr, &px, &py, NULL);
+	nmon = gdk_screen_get_monitor_at_point(scr, px, py);
+	gdk_screen_get_monitor_geometry(scr, nmon, &rect);
+	gtk_widget_get_requisition(GTK_WIDGET(menu), &req);
+
+	*x = rect.x + (rect.width - req.width) / 2;
+	*y = rect.y + (rect.height - req.height) / 2;
+
+	return TRUE;
+}
+
+static gboolean
+position_topleft_workarea(GtkMenu *menu, WnckScreen *scrn, gint *x, gint *y)
+{
+	WnckWorkspace *wkspc;
+
+	wkspc = wnck_screen_get_active_workspace(scrn);
+	*x = wnck_workspace_get_viewport_x(wkspc);
+	*y = wnck_workspace_get_viewport_y(wkspc);
+
+	return TRUE;
+}
+
+static gboolean
+position_specified(GtkMenu *menu, WnckScreen *scrn, gint *x, gint *y)
+{
+	*x = (options.x.sign < 0)
+	    ? wnck_screen_get_width(scrn) - options.x.value : options.x.value;
+	*y = (options.y.sign < 0)
+	    ? wnck_screen_get_height(scrn) - options.y.value : options.y.value;
+	return TRUE;
+}
+
+static void
+position_menu(GtkMenu *menu, gint *x, gint *y, gboolean *push_in, gpointer user_data)
+{
+	WnckScreen *scrn = user_data;
+
+	*push_in = FALSE;
+	if (options.button) {
+		position_pointer(menu, scrn, x, y);
+		return;
+	}
+	switch (options.where) {
+	case PositionDefault:
+		position_center_monitor(menu, scrn, x, y);
+		break;
+	case PositionPointer:
+		position_pointer(menu, scrn, x, y);
+		break;
+	case PositionCenter:
+		position_center_monitor(menu, scrn, x, y);
+		break;
+	case PositionTopLeft:
+		position_topleft_workarea(menu, scrn, x, y);
+		break;
+	case PositionSpecified:
+		position_specified(menu, scrn, x, y);
+		break;
+	}
+}
+
+static void
+on_selection_done(GtkMenuShell *menushell, gpointer user_data)
+{
+	if (!gtk_menu_get_tearoff_state(GTK_MENU(menushell)))
+		gtk_main_quit();
+}
+
+static void
+do_popup(int argc, char *argv[])
+{
+	GdkDisplay *disp;
+	WnckScreen *scrn;
+	GtkWidget *menu;
+
+	if (!(disp = gdk_display_get_default())) {
+		EPRINTF("cannot get default display\n");
+		exit(EXIT_FAILURE);
+	}
+	if (!(scrn = find_screen(disp))) {
+		EPRINTF("cannot find screen\n");
+		exit(EXIT_FAILURE);
+	}
+	wnck_screen_force_update(scrn);
+	if (!(menu = popup_menu_new(scrn))) {
+		EPRINTF("cannot get menu\n");
+		exit(EXIT_FAILURE);
+	}
+	g_signal_connect(G_OBJECT(menu), "selection-done", G_CALLBACK(on_selection_done), NULL);
+	gtk_menu_popup(GTK_MENU(menu), NULL, NULL, position_menu, scrn,
+		       options.button, options.timestamp);
+	gtk_main();
+}
+
+static void
 reparse(Display *dpy, Window root)
 {
 	XTextProperty xtp = { NULL, };
@@ -549,18 +841,11 @@ reparse(Display *dpy, Window root)
 	if (XGetTextProperty(dpy, root, &xtp, _XA_XDE_THEME_NAME)) {
 		if (Xutf8TextPropertyToTextList(dpy, &xtp, &list, &strings) == Success) {
 			if (strings >= 1) {
-				static const char *prefix = "gtk-theme-name=\"";
-				static const char *suffix = "\"";
 				char *rc_string;
-				int len;
 
-				len = strlen(prefix) + strlen(list[0]) + strlen(suffix) + 1;
-				rc_string = calloc(len, sizeof(*rc_string));
-				strncpy(rc_string, prefix, len);
-				strncat(rc_string, list[0], len);
-				strncat(rc_string, suffix, len);
+				rc_string = g_strdup_printf("gtk-theme-name=\"%s\"", list[0]);
 				gtk_rc_parse_string(rc_string);
-				free(rc_string);
+				g_free(rc_string);
 			}
 			if (list)
 				XFreeStringList(list);
@@ -653,11 +938,9 @@ filter_handler(GdkXEvent * xevent, GdkEvent * event, gpointer data)
 	return handle_event(dpy, xev);
 }
 
-void
+static void
 startup(int argc, char *argv[])
 {
-	static const char *suffix = "/.gtkrc-2.0.xde";
-	const char *home;
 	GdkAtom atom;
 	GdkEventMask mask;
 	GdkDisplay *disp;
@@ -665,15 +948,11 @@ startup(int argc, char *argv[])
 	GdkWindow *root;
 	Display *dpy;
 	char *file;
-	int len, nscr;
+	int nscr;
 
-	home = getenv("HOME") ? : ".";
-	len = strlen(home) + strlen(suffix) + 1;
-	file = calloc(len, sizeof(*file));
-	strncpy(file, home, len);
-	strncat(file, suffix, len);
+	file = g_strdup_printf("%s/.gtkrc-2.0.xde", g_get_home_dir());
 	gtk_rc_add_default_file(file);
-	free(file);
+	g_free(file);
 
 	gtk_init(&argc, &argv);
 
@@ -701,6 +980,8 @@ startup(int argc, char *argv[])
 	gdk_window_set_events(root, mask);
 
 	reparse(dpy, GDK_WINDOW_XID(root));
+
+	wnck_set_client_type(WNCK_CLIENT_TYPE_PAGER);
 }
 
 static void
@@ -776,11 +1057,79 @@ usage(int argc, char *argv[])
 		return;
 	(void) fprintf(stderr, "\
 Usage:\n\
-    %1$s [options]\n\
+    %1$s [-p|--popup] [options]\n\
     %1$s {-h|--help}\n\
     %1$s {-V|--version}\n\
     %1$s {-C|--copying}\n\
 ", argv[0]);
+}
+
+static const char *
+show_screen(int snum)
+{
+	static char screen[64] = { 0, };
+
+	if (options.screen == -1)
+		return ("None");
+	snprintf(screen, sizeof(screen), "%d", options.screen);
+	return (screen);
+}
+
+static const char *
+show_which(UseScreen which)
+{
+	switch (which) {
+	case UseScreenDefault:
+		return ("default");
+	case UseScreenActive:
+		return ("active");
+	case UseScreenFocused:
+		return ("focused");
+	case UseScreenPointer:
+		return ("pointer");
+	case UseScreenSpecified:
+		return show_screen(options.screen);
+	}
+	return NULL;
+}
+
+static const char *
+show_where(MenuPosition where)
+{
+	static char position[128] = { 0, };
+
+	switch (where) {
+	case PositionDefault:
+		return ("default");
+	case PositionPointer:
+		return ("pointer");
+	case PositionCenter:
+		return ("center");
+	case PositionTopLeft:
+		return ("topleft");
+	case PositionSpecified:
+		snprintf(position, sizeof(position), "%c%d%c%d",
+			 (options.x.sign < 0) ? '-' : '+', options.x.value,
+			 (options.y.sign < 0) ? '-' : '+', options.y.value);
+		return (position);
+	}
+	return NULL;
+}
+
+static const char *
+show_include(Include include)
+{
+	switch (include) {
+	case IncludeDefault:
+		return ("default");
+	case IncludeDocs:
+		return ("documents");
+	case IncludeApps:
+		return ("applications");
+	case IncludeBoth:
+		return ("both");
+	}
+	return NULL;
 }
 
 static const char *
@@ -797,54 +1146,21 @@ show_sorting(Sorting sorting)
 	return NULL;
 }
 
-static const char *
-show_which(Which which)
-{
-	switch (which) {
-	case WhichDefault:
-		return ("default");
-	case WhichDocs:
-		return ("documents");
-	case WhichApps:
-		return ("applications");
-	case WhichBoth:
-		return ("both");
-	}
-	return NULL;
-}
-
-static const char *
-show_where(MenuPosition where)
-{
-	switch (where) {
-	case PositionDefault:
-		return ("default");
-	case PositionPointer:
-		return ("pointer");
-	case PositionCenter:
-		return ("center");
-	case PositionTopLeft:
-		return ("topleft");
-	case PositionIconGeom:
-		return ("icongeom");
-	}
-	return NULL;
-}
-
 static void
 help(int argc, char *argv[])
 {
 	if (!options.output && !options.debug)
 		return;
+	/* *INDENT-OFF* */
 	(void) fprintf(stdout, "\
 Usage:\n\
-    %1$s [options]\n\
-    %1$s {-h|--help}\n\
+    %1$s [-p|--popup] [options]\n\
+    %1$s {-h|--help} [options]\n\
     %1$s {-V|--version}\n\
     %1$s {-C|--copying}\n\
 Command options:\n\
    [-p, --popup]\n\
-        popup the menu\n\
+        pop up the menu\n\
     -h, --help, -?, --?\n\
         print this usage information and exit\n\
     -V, --version\n\
@@ -853,74 +1169,66 @@ Command options:\n\
         print copying permission and exit\n\
 Options:\n\
     -d, --display DISPLAY\n\
-        specify the X display, DISPLAY, to use [default: %2$s]\n\
+        specify the X display, DISPLAY, to use [default: %4$s]\n\
     -s, --screen SCREEN\n\
-        specify the screen number, SCREEN, to use [default: %3$d]\n\
+        specify the screen number, SCREEN, to use [default: %5$d]\n\
     -b, --button BUTTON\n\
-        specify the mouse button number, BUTTON, for popup [default: %4$d]\n\
+        specify the mouse button number, BUTTON, for popup [default: %6$d]\n\
     -T, --timestamp TIMESTAMP\n\
-        use the time, TIMESTAMP, for button/keyboard event [default: %5$lu]\n\
-    -w, --which {default|docs|apps|both}\n\
-        specify which things to show [default: %6$s]\n\
-        \"default\"  - the default setting\n\
-        \"docs\"     - show only documents\n\
-        \"apps\"     - show only applications\n\
-        \"both\"     - show both documents and applications\n\
-    -W, --where {default|pointer|center|topleft|icongeom}\n\
-        specify where to place the menu [default: %7$s]\n\
-        \"default\"  - the default setting\n\
+        use the time, TIMESTAMP, for button/keyboard event [default: %7$lu]\n\
+    -w, --which {active|focused|pointer|select}\n\
+        specify the screen for which to pop the menu [default: %8$s]\n\
+        \"active\"   - the screen with EWMH/NetWM active client\n\
+        \"focused\"  - the screen with EWMH/NetWM focused client\n\
+        \"pointer\"  - the screen with EWMH/NetWM pointer\n\
+        \"SCREEN\"   - the specified screen number\n\
+    -W, --where {pointer|center|topleft|POSITION}\n\
+        specify where to place the menu [default: %9$s]\n\
         \"pointer\"  - northwest corner under the pointer\n\
-        \"center\"   - center on associated window\n\
-        \"topleft\"  - northwest corner top left of window\n\
-        \"icongeom\" - above or below icon geometry\n\
+        \"center\"   - center of associated monitor\n\
+        \"topleft\"  - northwest corner of work area\n\
+        POSITION   - postion on screen as X geometry\n\
+    -i, --include {docs|apps|both}\n\
+        specify which things to include [default: %10$s]\n\
+        \"docs\"     - include only documents\n\
+        \"apps\"     - include only applications\n\
+        \"both\"     - include both documents and applications\n\
     -S, --sorting {default|recent|favorite}\n\
-        specify how to sort the menu [default: %8$s]\n\
+        specify how to sort the menu [default: %11$s]\n\
         \"default\"  - the default setting\n\
         \"recent\"   - arrange the most recent item first\n\
         \"favorite\" - arrange the most used item first\n\
     -g, --groups\n\
-        specify whether to sort itesm by group [default: %9$s]\n\
-    -x, --xdg\n\
-        operate as an XDG launcher [default: %10$s]\n\
-    -r, --recent NUMBER\n\
-        only show and save NUMBER of most recent entries [default: %11$d]\n\
-    -f, --file FILENAME\n\
-        use alternate recent file [default: %12$s]\n\
-    -l, --list FILENAME\n\
-        use alternate run history file [default: %13$s]\n\
-    -a, --apps FILENAME\n\
-        use alternate recent application file [default: %14$s]\n\
+        specify whether to sort itesm by group [default: %12$s]\n\
     -D, --debug [LEVEL]\n\
-        increment or set debug LEVEL [default: %15$d]\n\
-    -v, --verbose [LEVEL]\n\
-        increment or set output verbosity LEVEL [default: %16$d]\n\
+        increment or set debug LEVEL [default: %2$d]\n\
         this option may be repeated.\n\
-", argv[0],
-	options.display,
-	options.screen,
-	options.button,
-	options.timestamp,
-	show_which(options.which),
-	show_where(options.where),
-	show_sorting(options.sorting),
-	options.groups ? "true" : "false",
-	options.xdg ? "true" : "false",
-	options.recent,
-	options.xdg ? options.recapps : options.runhist,
-	options.runhist,
-	options.recapps,
-	options.debug,
-	options.output
+    -v, --verbose [LEVEL]\n\
+        increment or set output verbosity LEVEL [default: %3$d]\n\
+        this option may be repeated.\n\
+", argv[0]
+	, options.debug
+	, options.output
+	, options.display
+	, options.screen
+	, options.button
+	, options.timestamp
+	, show_which(options.which)
+	, show_where(options.where)
+	, show_include(options.include)
+	, show_sorting(options.sorting)
+	, options.groups ? "true" : "false"
 );
+	/* *INDENT-ON* */
 }
 
-void
+static void
 set_defaults(void)
 {
 	static const char *xsuffix = "/recently-used";
 	static const char *hsuffix = "/.recently-used";
 	int len;
-	char *env;
+	const char *env;
 
 	if ((env = getenv("DISPLAY")))
 		options.display = strdup(env);
@@ -957,14 +1265,14 @@ set_defaults(void)
 	}
 }
 
-void
+static void
 get_defaults(void)
 {
 	const char *p;
 	int n;
 
 	if (!options.display) {
-		EPRINTF("No DISPLAY environment variable or --display option\n");
+		EPRINTF("No DISPLAY environment variable nor --display option\n");
 		exit(EXIT_FAILURE);
 	}
 	if (options.screen < 0 && (p = strrchr(options.display, '.'))
@@ -972,7 +1280,6 @@ get_defaults(void)
 		options.screen = atoi(p);
 	if (options.command == CommandDefault)
 		options.command = CommandPopup;
-
 }
 
 int
@@ -986,33 +1293,38 @@ main(int argc, char *argv[])
 
 	while (1) {
 		int c, val, len;
+		char *endptr = NULL;
 
 #ifdef _GNU_SOURCE
 		int option_index = 0;
 		/* *INDENT-OFF* */
 		static struct option long_options[] = {
-			{"docs",	    no_argument,	NULL,	'd'},
-			{"documents",	    no_argument,	NULL,	'd'},
-			{"apps",	    no_argument,	NULL,	'a'},
-			{"applications",    no_argument,	NULL,	'a'},
-			{"both",	    no_argument,	NULL,	'b'},
-			{"recent",	    no_argument,	NULL,	'r'},
-			{"favorite",	    no_argument,	NULL,	'f'},
-			{"groups",	    no_argument,	NULL,	'g'},
+			{"display",		required_argument,	NULL,	'd'},
+			{"screen",		required_argument,	NULL,	's'},
+			{"popup",		no_argument,		NULL,	'p'},
+			{"button",		required_argument,	NULL,	'b'},
+			{"timestamp",		required_argument,	NULL,	'T'},
+			{"which",		required_argument,	NULL,	'w'},
+			{"where",		required_argument,	NULL,	'W'},
 
-			{"debug",	    optional_argument,	NULL,	'D'},
-			{"verbose",	    optional_argument,	NULL,	'v'},
-			{"help",	    no_argument,	NULL,	'h'},
-			{"version",	    no_argument,	NULL,	'V'},
-			{"copying",	    no_argument,	NULL,	'C'},
-			{"?",		    no_argument,	NULL,	'H'},
+			{"include",		required_argument,	NULL,	'i'},
+			{"sorting",		required_argument,	NULL,	'S'},
+			{"groups",		no_argument,		NULL,	'g'},
+
+			{"debug",		optional_argument,	NULL,	'D'},
+			{"verbose",		optional_argument,	NULL,	'v'},
+			{"help",		no_argument,		NULL,	'h'},
+			{"version",		no_argument,		NULL,	'V'},
+			{"copying",		no_argument,		NULL,	'C'},
+			{"?",			no_argument,		NULL,	'H'},
 			{ 0, }
 		};
 		/* *INDENT-ON* */
 
-		c = getopt_long_only(argc, argv, "dabrfD::v::hVCH?", long_options, &option_index);
+		c = getopt_long_only(argc, argv, "d:s:pb:T:w:W:i:S:gD::v::hVCH?",
+				     long_options, &option_index);
 #else				/* _GNU_SOURCE */
-		c = getopt(argc, argv, "darbfDvhVCH?");
+		c = getopt(argc, argv, "d:s:pb:T:w:W:i:S:D:vhVCH?");
 #endif				/* _GNU_SOURCE */
 		if (c == -1) {
 			if (options.debug)
@@ -1023,63 +1335,87 @@ main(int argc, char *argv[])
 		case 0:
 			goto bad_usage;
 
-		case 'd':	/* -d, --docs, --documents */
-			if (options.which != WhichDefault)
-				goto bad_option;
-			options.which = WhichDocs;
+		case 'd':       /* -d, --display DISPLAY */
+			setenv("DISPLAY", optarg, TRUE);
+			free(options.display);
+			options.display = strdup(optarg);
 			break;
-		case 'a':	/* -a, --apps, --applications */
-			if (options.which != WhichDefault)
+		case 's':       /* -s, --screen SCREEN */
+			options.screen = strtoul(optarg, &endptr, 0);
+			if (endptr && *endptr)
 				goto bad_option;
-			options.which = WhichApps;
 			break;
-		case 'b':	/* -b, --both */
-			if (options.which != WhichDefault)
+		case 'p':       /* -p, --popup */
+			if (options.command != CommandDefault)
 				goto bad_option;
-			options.which = WhichBoth;
+			if (command == CommandDefault)
+				command = CommandPopup;
+			options.command = CommandPopup;
 			break;
-		case 'f':	/* -f, --favorite */
-			if (options.sorting != SortByDefault)
+		case 'b':       /* -b, --button BUTTON */
+			options.button = strtoul(optarg, &endptr, 0);
+			if (endptr && *endptr)
 				goto bad_option;
-			options.sorting = SortByFavorite;
 			break;
-		case 'r':	/* -r, --recent */
-			if (options.sorting != SortByDefault)
-				goto bad_option;
-			options.sorting = SortByRecent;
+		case 'T':       /* -T, --timestamp TIMESTAMP */
+			options.timestamp = strtoul(optarg, NULL, 0);
 			break;
-		case 'g':	/* -g, --groups */
-			options.groups = TRUE;
-			break;
-		case 'w':	/* -w, --which WHAT */ 
-			if (options.which != WhichDefault)
+		case 'w':	/* -w, --which WHICH */
+			if (options.which != UseScreenDefault)
 				goto bad_option;
-			len = strlen(optarg);
-			if (!strncasecmp("default", optarg, len))
-				options.which = WhichDefault;
-			else if (!strncasecmp("docs", optarg, len))
-				options.which = WhichDocs;
-			else if (!strncasecmp("apps", optarg, len))
-				options.which = WhichApps;
-			else if (!strncasecmp("both", optarg, len))
-				options.which = WhichBoth;
-			else
+			if (!(len = strlen(optarg)))
 				goto bad_option;
+			if (!strncasecmp("active", optarg, len))
+				options.which = UseScreenActive;
+			else if (!strncasecmp("focused", optarg, len))
+				options.which = UseScreenFocused;
+			else if (!strncasecmp("pointer", optarg, len))
+				options.where = UseScreenPointer;
+			else {
+				options.screen = strtoul(optarg, &endptr, 0);
+				if (endptr && *endptr)
+					goto bad_option;
+				options.which = UseScreenSpecified;
+			}
 			break;
 		case 'W':	/* -W, --where WHERE */
 			if (options.where != PositionDefault)
 				goto bad_option;
-			len = strlen(optarg);
-			if (!strncasecmp("default", optarg, len))
-				options.where = PositionDefault;
-			else if (!strncasecmp("pointer", optarg, len))
+			if (!(len = strlen(optarg)))
+				goto bad_option;
+			if (!strncasecmp("pointer", optarg, len))
 				options.where = PositionPointer;
 			else if (!strncasecmp("center", optarg, len))
 				options.where = PositionCenter;
 			else if (!strncasecmp("topleft", optarg, len))
 				options.where = PositionTopLeft;
-			else if (!strncasecmp("icongeom", optarg, len))
-				options.where = PositionIconGeom;
+			else {
+				int mask, x = 0, y = 0;
+				unsigned int w = 0, h = 0;
+
+				mask = XParseGeometry(optarg, &x, &y, &w, &h);
+				if (!(mask & XValue) || !(mask & YValue))
+					goto bad_option;
+				options.where = PositionSpecified;
+				options.x.value = x;
+				options.x.sign = (mask & XNegative) ? -1 : 1;
+				options.y.value = y;
+				options.y.sign = (mask & YNegative) ? -1 : 1;
+			}
+			break;
+
+		case 'i':	/* -i, --include INCLUDE */
+			if (options.include != IncludeDefault)
+				goto bad_option;
+			len = strlen(optarg);
+			if (!strncasecmp("default", optarg, len))
+				options.include = IncludeDefault;
+			else if (!strncasecmp("docs", optarg, len))
+				options.include = IncludeDocs;
+			else if (!strncasecmp("apps", optarg, len))
+				options.include = IncludeApps;
+			else if (!strncasecmp("both", optarg, len))
+				options.include = IncludeBoth;
 			else
 				goto bad_option;
 			break;
@@ -1096,19 +1432,22 @@ main(int argc, char *argv[])
 			else
 				goto bad_option;
 			break;
+		case 'g':	/* -g, --groups */
+			options.groups = TRUE;
+			break;
 
-		case 'D':	/* -D, --debug [level] */
+		case 'D':	/* -D, --debug [LEVEL] */
 			if (options.debug)
 				fprintf(stderr, "%s: increasing debug verbosity\n", argv[0]);
 			if (optarg == NULL) {
 				options.debug++;
-			} else {
-				if ((val = strtol(optarg, NULL, 0)) < 0)
-					goto bad_option;
-				options.debug = val;
+				break;
 			}
+			if ((val = strtol(optarg, NULL, 0)) < 0)
+				goto bad_option;
+			options.debug = val;
 			break;
-		case 'v':	/* -v, --verbose [level] */
+		case 'v':	/* -v, --verbose [LEVEL] */
 			if (options.debug)
 				fprintf(stderr, "%s: increasing output verbosity\n", argv[0]);
 			if (optarg == NULL) {
@@ -1121,11 +1460,7 @@ main(int argc, char *argv[])
 			break;
 		case 'h':	/* -h, --help */
 		case 'H':	/* -H, --? */
-			if (options.command != CommandDefault)
-				goto bad_option;
-			if (command == CommandDefault)
-				command = CommandHelp;
-			options.command = CommandHelp;
+			command = CommandHelp;
 			break;
 		case 'V':	/* -V, --version */
 			if (options.command != CommandDefault)
@@ -1163,7 +1498,7 @@ main(int argc, char *argv[])
 			      bad_usage:
 				usage(argc, argv);
 			}
-			exit(2);
+			exit(EXIT_SYNTAXERR);
 		}
 	}
 	if (options.debug) {
@@ -1171,41 +1506,41 @@ main(int argc, char *argv[])
 		fprintf(stderr, "%s: option count = %d\n", argv[0], argc);
 	}
 	if (optind < argc) {
-		fprintf(stderr, "%s: excess non-options arguments near '", argv[0]);
+		fprintf(stderr, "%s: excess non-option arguments near '", argv[0]);
 		while (optind < argc) {
 			fprintf(stderr, "%s", argv[optind++]);
 			fprintf(stderr, "%s", (optind < argc) ? " " : "");
 		}
 		fprintf(stderr, "'\n");
 		usage(argc, argv);
-		exit(2);
+		exit(EXIT_SYNTAXERR);
 	}
 	get_defaults();
 	startup(argc, argv);
 	switch (command) {
+	default:
 	case CommandDefault:
-	case CommandPopup:
-		if (options.debug)
-			fprintf(stderr, "%s: running command\n", argv[0]);
 		run_command2(argc, argv);
 		run_command(argc, argv);
-//		pop_the_menu(argc, argv);
+		break;
+	case CommandPopup:
+		DPRINTF("%s: popping the menu\n", argv[0]);
+		do_popup(argc, argv);
 		break;
 	case CommandHelp:
-		if (options.debug)
-			fprintf(stderr, "%s: printing help message\n", argv[0]);
+		DPRINTF("%s: printing help message\n", argv[0]);
 		help(argc, argv);
 		break;
 	case CommandVersion:
-		if (options.debug)
-			fprintf(stderr, "%s: printing version message\n", argv[0]);
+		DPRINTF("%s: printing version message\n", argv[0]);
 		version(argc, argv);
 		break;
 	case CommandCopying:
-		if (options.debug)
-			fprintf(stderr, "%s: printing copying message\n", argv[0]);
+		DPRINTF("%s: printing copying message\n", argv[0]);
 		copying(argc, argv);
 		break;
 	}
-	exit(0);
+	exit(EXIT_SUCCESS);
 }
+
+// vim: tw=100 com=sr0\:/**,mb\:*,ex\:*/,sr0\:/*,mb\:*,ex\:*/,b\:TRANS formatoptions+=tcqlor

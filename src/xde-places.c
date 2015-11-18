@@ -110,9 +110,9 @@
 
 #define XPRINTF(args...) do { } while (0)
 #define OPRINTF(args...) do { if (options.output > 1) { \
-	fprintf(stderr, "I: "); \
-	fprintf(stderr, args); \
-	fflush(stderr); } } while (0)
+	fprintf(stdout, "I: "); \
+	fprintf(stdout, args); \
+	fflush(stdout); } } while (0)
 #define DPRINTF(args...) do { if (options.debug) { \
 	fprintf(stderr, "D: %s +%d %s(): ", __FILE__, __LINE__, __func__); \
 	fprintf(stderr, args); \
@@ -210,35 +210,6 @@ Options options = {
 	.command = CommandDefault,
 };
 
-void
-xde_entry_activated(GtkMenuItem *menuitem, gpointer user_data)
-{
-	GtkWidget *menu;
-	char *cmd, *exec;
-
-	if ((cmd = user_data)) {
-		pid_t pid;
-
-		exec = g_strdup_printf("%s &", cmd);
-		if ((pid = fork()) == -1) {
-			/* error */
-			EPRINTF("%s: %s\n", NAME, strerror(errno));
-			exit(EXIT_FAILURE);
-			return;
-		} else if (pid == 0) {
-			/* we are the child */
-			execl("/bin/sh", "sh", "-c", exec, NULL);
-			exit(EXIT_FAILURE);
-			return;
-		}
-		g_free(exec);
-		/* we are the parent */
-	}
-	if (!(menu = gtk_widget_get_parent(GTK_WIDGET(menuitem))) ||
-	    !gtk_menu_get_tearoff_state(GTK_MENU(menu)))
-		gtk_main_quit();
-}
-
 typedef struct {
 	char *label;
 	char *place;
@@ -282,8 +253,10 @@ get_xbel_bookmarks(GList *list, const char *file)
 		gchar *value;
 
 		DPRINTF("processing uri %s\n", *uri);
-		if (g_bookmark_file_get_is_private(bookmark, *uri, NULL))
+		if (g_bookmark_file_get_is_private(bookmark, *uri, NULL)) {
+			DPRINTF("uri is private: %s\n", *uri);
 			continue;
+		}
 
 		for (node = list; node; node = node->next) {
 			if (!(place = node->data) || !place->place || strcmp(place->place, *uri))
@@ -305,12 +278,18 @@ get_xbel_bookmarks(GList *list, const char *file)
 		}
 		if (node)
 			continue;
+		DPRINTF("adding uri to places: %s\n", *uri);
 		place = calloc(1, sizeof(*place));
 		place->label = g_bookmark_file_get_title(bookmark, *uri, NULL);
 		place->place = g_strdup(*uri);
 		place->cmd = g_strdup_printf("xdg-open '%s'", *uri);
 		g_bookmark_file_get_icon(bookmark, *uri, &place->icon, NULL, NULL);
 		place->tooltip = g_bookmark_file_get_description(bookmark, *uri, NULL);
+		DPRINTF("label   = %s\n", place->label);
+		DPRINTF("place   = %s\n", place->place);
+		DPRINTF("cmd     = %s\n", place->cmd);
+		DPRINTF("icon    = %s\n", place->icon);
+		DPRINTF("tooltip = %s\n", place->tooltip);
 		list = g_list_append(list, place);
 	}
 	if (uris)
@@ -363,8 +342,37 @@ get_simple_bookmarks(GList *list, const char *file)
 	return (list);
 }
 
+void
+xde_entry_activated(GtkMenuItem *menuitem, gpointer user_data)
+{
+	GtkWidget *menu;
+	char *cmd, *exec;
+
+	if ((cmd = user_data)) {
+		pid_t pid;
+
+		exec = g_strdup_printf("%s &", cmd);
+		if ((pid = fork()) == -1) {
+			/* error */
+			EPRINTF("%s: %s\n", NAME, strerror(errno));
+			exit(EXIT_FAILURE);
+			return;
+		} else if (pid == 0) {
+			/* we are the child */
+			execl("/bin/sh", "sh", "-c", exec, NULL);
+			exit(EXIT_FAILURE);
+			return;
+		}
+		g_free(exec);
+		/* we are the parent */
+	}
+	if (!(menu = gtk_widget_get_parent(GTK_WIDGET(menuitem))) ||
+	    !gtk_menu_get_tearoff_state(GTK_MENU(menu)))
+		gtk_main_quit();
+}
+
 static GtkWidget *
-places_menu_new(WnckScreen *scrn)
+popup_menu_new(WnckScreen *scrn)
 {
 	GtkWidget *menu, *item, *image;
 	GtkIconTheme *itheme;
@@ -754,7 +762,7 @@ do_popup(int argc, char *argv[])
 		exit(EXIT_FAILURE);
 	}
 	wnck_screen_force_update(scrn);
-	if (!(menu = places_menu_new(scrn))) {
+	if (!(menu = popup_menu_new(scrn))) {
 		EPRINTF("cannot get menu\n");
 		exit(EXIT_FAILURE);
 	}
@@ -1092,11 +1100,12 @@ Options:\n\
         \"focused\"  - the screen with EWMH/NetWM focused client\n\
         \"pointer\"  - the screen with EWMH/NetWM pointer\n\
         \"SCREEN\"   - the specified screen number\n\
-    -W, --where {pointer|center|topleft|SCREEN}\n\
+    -W, --where {pointer|center|topleft|POSITION}\n\
         specify where to place the menu [default: %9$s]\n\
         \"pointer\"  - northwest corner under the pointer\n\
         \"center\"   - center of associated monitor\n\
         \"topleft\"  - northwest corner of work area\n\
+        POSITION   - postion on screen as X geometry\n\
     -D, --debug [LEVEL]\n\
         increment or set debug LEVEL [default: %2$d]\n\
         this option may be repeated.\n\
@@ -1180,7 +1189,7 @@ main(int argc, char *argv[])
 		c = getopt_long_only(argc, argv, "d:s:pb:T:w:W:D::v::hVCH?",
 				long_options, &option_index);
 #else				/* _GNU_SOURCE */
-		c = getopt(argc, argv, "d:s:pb:T:w:W:D:vhVC?");
+		c = getopt(argc, argv, "d:s:pb:T:w:W:D:vhVCH?");
 #endif				/* _GNU_SOURCE */
 		if (c == -1) {
 			if (options.debug)
@@ -1322,7 +1331,6 @@ main(int argc, char *argv[])
 				usage(argc, argv);
 			}
 			exit(EXIT_SYNTAXERR);
-
 		}
 	}
 	if (options.debug) {
@@ -1345,7 +1353,7 @@ main(int argc, char *argv[])
 	default:
 	case CommandDefault:
 	case CommandPopup:
-		DPRINTF("%s: popping the places menu\n", argv[0]);
+		DPRINTF("%s: popping the menu\n", argv[0]);
 		do_popup(argc, argv);
 		break;
 	case CommandHelp:
