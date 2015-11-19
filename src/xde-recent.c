@@ -970,6 +970,15 @@ sort_recent(gconstpointer a, gconstpointer b)
 	const Place *A = a;
 	const Place *B = b;
 
+	if (options.groups) {
+		gboolean aisapp = (A->mime && !strcmp(A->mime, "application/x-desktop"));
+		gboolean bisapp = (B->mime && !strcmp(B->mime, "application/x-desktop"));
+
+		if (!aisapp && bisapp)
+			return (1);
+		if (aisapp && !bisapp)
+			return (-1);
+	}
 	if (A->time < B->time)
 		return (1);
 	if (A->time > B->time)
@@ -987,6 +996,15 @@ sort_favorite(gconstpointer a, gconstpointer b)
 	const Place *A = a;
 	const Place *B = b;
 
+	if (options.groups) {
+		gboolean aisapp = (A->mime && !strcmp(A->mime, "application/x-desktop"));
+		gboolean bisapp = (B->mime && !strcmp(B->mime, "application/x-desktop"));
+
+		if (!aisapp && bisapp)
+			return (1);
+		if (aisapp && !bisapp)
+			return (-1);
+	}
 	if (A->count < B->count)
 		return (1);
 	if (A->count > B->count)
@@ -1286,27 +1304,37 @@ popup_menu_new(WnckScreen *scrn)
 
 	for (node = list; node; node = node->next) {
 		place = node->data;
-		gchar *filename = NULL, *scheme;
+		gchar *filename, *appid = NULL;
 		GDesktopAppInfo *app = NULL;
 		GIcon *gicon = NULL;
 		GdkPixbuf *pixbuf = NULL;
 		GtkIconInfo *info = NULL;
 
-		if ((scheme = g_uri_parse_scheme(place->place)) && !strcmp(scheme, "file")) {
-			g_free(scheme);
-			if (!(filename = g_filename_from_uri(place->place, NULL, NULL))
-			    || access(filename, R_OK)) {
-				DPRINTF("file %s does not exist or is not readable\n", filename);
-				g_free(filename);
-				continue;
-			}
-		}
+		filename = g_filename_from_uri(place->place, NULL, NULL);
 
 		DPRINTF("creating uri %s\n", place->place);
 		item = gtk_image_menu_item_new();
 
-		if (place->mime && !strcmp(place->mime, "application/x-desktop"))
-			app = g_desktop_app_info_new_from_filename(filename);
+		if (place->mime && !strcmp(place->mime, "application/x-desktop") && filename) {
+			if ((appid = strrchr(filename, '/')))
+				appid++;
+			if (!access(filename, R_OK))
+				app = g_desktop_app_info_new_from_filename(filename);
+			else if (appid)
+				app = g_desktop_app_info_new(appid);
+			if (!app) {
+				DPRINTF("cannot get app for %s\n", appid ? : filename);
+				g_free(filename);
+				continue;
+			}
+		}
+#if 1
+		if (!app && (!filename || access(filename, R_OK))) {
+			DPRINTF("file %s does not exist or is not readable\n", filename);
+			g_free(filename);
+			continue;
+		}
+#endif
 		if (!place->label && app) {
 			const char *label;
 
@@ -1439,7 +1467,7 @@ popup_menu_new(WnckScreen *scrn)
 		}
 		if (!place->cmd) {
 			if (app)
-				place->cmd = g_strdup_printf("xdg-launch '%s'", place->place);
+				place->cmd = g_strdup_printf("xdg-launch '%s'", appid ? : (filename ? : place->place));
 			else
 				place->cmd = g_strdup_printf("xdg-open '%s'", place->place);
 		}
@@ -1465,6 +1493,9 @@ popup_menu_new(WnckScreen *scrn)
 					 G_CALLBACK(xde_entry_activated), g_strdup(place->cmd));
 		gtk_menu_append(menu, item);
 		gtk_widget_show(item);
+		if (app)
+			g_object_unref(app);
+		g_free(filename);
 	}
 	g_list_free_full(list, &xde_list_free);
 
