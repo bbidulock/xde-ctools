@@ -215,36 +215,6 @@ Options options = {
 	.command = CommandDefault,
 };
 
-static char *
-xde_escape_uri(const char *uri)
-{
-	const char *p;
-	char *q, *esc;
-	int n;
-
-	/* calculate length of new string */
-	for (p = uri, n = 0; p && *p; p++, n++) {
-		char c = *p;
-
-		if (isalnum(c) || strchr("/&=-_.!~*'()", c))
-			continue;
-		n += 2;
-	}
-	esc = calloc(n+1, sizeof(*esc));
-	for (p = uri, q = esc; p && *p; p++) {
-		char c = *p;
-
-		if (isalnum(c) || strchr("/&=-_.!~*'()", c)) {
-			*q++ = *p;
-			continue;
-		}
-		*q++ = '%';
-		sprintf(q, "%02X", c);
-		q += 2;
-	}
-	return (esc);
-}
-
 typedef struct {
 	char *label;
 	char *place;
@@ -432,9 +402,9 @@ popup_menu_new(WnckScreen *scrn)
 
 	place = calloc(1, sizeof(*place));
 	place->label = g_strdup("Home");
-	esc = xde_escape_uri(g_get_home_dir());
+	esc = g_uri_escape_string(g_get_home_dir(), "/", FALSE);
 	place->place = g_strdup_printf("file://%s", esc);
-	free(esc);
+	g_free(esc);
 	place->cmd = g_strdup_printf("xdg-open '%s'", place->place);
 	place->icon = g_strdup("user-home");
 	place->tooltip = g_strdup(place->place);
@@ -454,9 +424,9 @@ popup_menu_new(WnckScreen *scrn)
 	if ((dir = g_get_user_special_dir(G_USER_DIRECTORY_DESKTOP))) {
 		place = calloc(1, sizeof(*place));
 		place->label = g_strdup("Desktop");
-		esc = xde_escape_uri(dir);
+		esc = g_uri_escape_string(dir, "/", FALSE);
 		place->place = g_strdup_printf("file://%s", esc);
-		free(esc);
+		g_free(esc);
 		place->cmd = g_strdup_printf("xdg-open '%s'", place->place);
 		place->icon = g_strdup("user-desktop");
 		place->tooltip = g_strdup(place->place);
@@ -465,9 +435,9 @@ popup_menu_new(WnckScreen *scrn)
 	if ((dir = g_get_user_special_dir(G_USER_DIRECTORY_DOWNLOAD))) {
 		place = calloc(1, sizeof(*place));
 		place->label = g_strdup("Download");
-		esc = xde_escape_uri(dir);
+		esc = g_uri_escape_string(dir, "/", FALSE);
 		place->place = g_strdup_printf("file://%s", esc);
-		free(esc);
+		g_free(esc);
 		place->cmd = g_strdup_printf("xdg-open '%s'", place->place);
 		place->icon = g_strdup("folder-download");
 		place->tooltip = g_strdup(place->place);
@@ -476,9 +446,9 @@ popup_menu_new(WnckScreen *scrn)
 	if ((dir = g_get_user_special_dir(G_USER_DIRECTORY_TEMPLATES))) {
 		place = calloc(1, sizeof(*place));
 		place->label = g_strdup("Templates");
-		esc = xde_escape_uri(dir);
+		esc = g_uri_escape_string(dir, "/", FALSE);
 		place->place = g_strdup_printf("file://%s", esc);
-		free(esc);
+		g_free(esc);
 		place->cmd = g_strdup_printf("xdg-open '%s'", place->place);
 		place->icon = g_strdup("folder-templates");
 		place->tooltip = g_strdup(place->place);
@@ -487,9 +457,9 @@ popup_menu_new(WnckScreen *scrn)
 	if ((dir = g_get_user_special_dir(G_USER_DIRECTORY_PUBLIC_SHARE))) {
 		place = calloc(1, sizeof(*place));
 		place->label = g_strdup("Public Share");
-		esc = xde_escape_uri(dir);
+		esc = g_uri_escape_string(dir, "/", FALSE);
 		place->place = g_strdup_printf("file://%s", esc);
-		free(esc);
+		g_free(esc);
 		place->cmd = g_strdup_printf("xdg-open '%s'", place->place);
 		place->icon = g_strdup("folder-publicshare");
 		place->tooltip = g_strdup(place->place);
@@ -498,9 +468,9 @@ popup_menu_new(WnckScreen *scrn)
 	if ((dir = g_get_user_special_dir(G_USER_DIRECTORY_DOCUMENTS))) {
 		place = calloc(1, sizeof(*place));
 		place->label = g_strdup("Documents");
-		esc = xde_escape_uri(dir);
+		esc = g_uri_escape_string(dir, "/", FALSE);
 		place->place = g_strdup_printf("file://%s", esc);
-		free(esc);
+		g_free(esc);
 		place->cmd = g_strdup_printf("xdg-open '%s'", place->place);
 		place->icon = g_strdup("folder-documents");
 		place->tooltip = g_strdup(place->place);
@@ -509,9 +479,9 @@ popup_menu_new(WnckScreen *scrn)
 	if ((dir = g_get_user_special_dir(G_USER_DIRECTORY_MUSIC))) {
 		place = calloc(1, sizeof(*place));
 		place->label = g_strdup("Music");
-		esc = xde_escape_uri(dir);
+		esc = g_uri_escape_string(dir, "/", FALSE);
 		place->place = g_strdup_printf("file://%s", esc);
-		free(esc);
+		g_free(esc);
 		place->cmd = g_strdup_printf("xdg-open '%s'", place->place);
 		place->icon = g_strdup("folder-music");
 		place->tooltip = g_strdup(place->place);
@@ -520,9 +490,9 @@ popup_menu_new(WnckScreen *scrn)
 	if ((dir = g_get_user_special_dir(G_USER_DIRECTORY_PICTURES))) {
 		place = calloc(1, sizeof(*place));
 		place->label = g_strdup("Pictures");
-		esc = xde_escape_uri(dir);
+		esc = g_uri_escape_string(dir, "/", FALSE);
 		place->place = g_strdup_printf("file://%s", esc);
-		free(esc);
+		g_free(esc);
 		place->cmd = g_strdup_printf("xdg-open '%s'", place->place);
 		place->icon = g_strdup("folder-pictures");
 		place->tooltip = g_strdup(place->place);
@@ -531,9 +501,9 @@ popup_menu_new(WnckScreen *scrn)
 	if ((dir = g_get_user_special_dir(G_USER_DIRECTORY_VIDEOS))) {
 		place = calloc(1, sizeof(*place));
 		place->label = g_strdup("Videos");
-		esc = xde_escape_uri(dir);
+		esc = g_uri_escape_string(dir, "/", FALSE);
 		place->place = g_strdup_printf("file://%s", esc);
-		free(esc);
+		g_free(esc);
 		place->cmd = g_strdup_printf("xdg-open '%s'", place->place);
 		place->icon = g_strdup("folder-videos");
 		place->tooltip = g_strdup(place->place);

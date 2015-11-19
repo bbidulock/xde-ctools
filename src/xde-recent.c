@@ -95,6 +95,7 @@
 #endif
 #include <X11/SM/SMlib.h>
 #include <gio/gio.h>
+#include <gio/gdesktopappinfo.h>
 #include <glib.h>
 #include <gdk/gdkx.h>
 #include <gdk-pixbuf/gdk-pixbuf.h>
@@ -289,8 +290,6 @@ items_print(gpointer data, gpointer user_data)
 	}
 }
 
-GList *recent = NULL;
-
 typedef struct {
 	gchar *uri;
 	gchar *mime;
@@ -299,17 +298,22 @@ typedef struct {
 	GSList *groups;
 } RecentItem;
 
-RecentItem *current = NULL;
+typedef struct {
+	GList *recent;
+	RecentItem *current;
+} RecentContext;
 
 static void
 xml_start_element(GMarkupParseContext *context, const gchar *element_name,
 		  const gchar **attribute_names, const gchar **attribute_values, gpointer user_data,
 		  GError **error)
 {
+	RecentContext *rc = user_data;
+
 	if (!strcmp(element_name, "RecentFiles")) {
 		/* don't care */
 	} else if (!strcmp(element_name, "RecentItem")) {
-		if (!current && !(current = calloc(1, sizeof(*current)))) {
+		if (!rc->current && !(rc->current = calloc(1, sizeof(*rc->current)))) {
 			EPRINTF("could not allocate element\n");
 			exit(1);
 		}
@@ -320,7 +324,7 @@ xml_start_element(GMarkupParseContext *context, const gchar *element_name,
 	} else if (!strcmp(element_name, "Timestamp")) {
 		/* don't care */
 	} else if (!strcmp(element_name, "Private")) {
-		current->private = TRUE;
+		rc->current->private = TRUE;
 	} else if (!strcmp(element_name, "Groups")) {
 		/* don't care */
 	} else if (!strcmp(element_name, "Group")) {
@@ -335,11 +339,13 @@ static void
 xml_end_element(GMarkupParseContext *context, const gchar *element_name, gpointer user_data,
 		GError **error)
 {
+	RecentContext *rc = user_data;
+
 	if (!strcmp(element_name, "RecentFiles")) {
 		/* don't care */
 	} else if (!strcmp(element_name, "RecentItem")) {
-		recent = g_list_append(recent, (gpointer) current);
-		current = NULL;
+		rc->recent = g_list_append(rc->recent, rc->current);
+		rc->current = NULL;
 	} else if (!strcmp(element_name, "URI")) {
 		/* don't care */
 	} else if (!strcmp(element_name, "Mime-Type")) {
@@ -362,6 +368,7 @@ static void
 xml_character_data(GMarkupParseContext *context, const gchar *text, gsize text_len,
 		   gpointer user_data, GError **error)
 {
+	RecentContext *rc = user_data;
 	const gchar *element_name;
 
 	element_name = g_markup_parse_context_get_element(context);
@@ -370,23 +377,23 @@ xml_character_data(GMarkupParseContext *context, const gchar *text, gsize text_l
 	} else if (!strcmp(element_name, "RecentItem")) {
 		/* don't care */
 	} else if (!strcmp(element_name, "URI")) {
-		free(current->uri);
-		current->uri = calloc(1, text_len + 1);
-		memcpy(current->uri, text, text_len);
+		free(rc->current->uri);
+		rc->current->uri = calloc(1, text_len + 1);
+		memcpy(rc->current->uri, text, text_len);
 	} else if (!strcmp(element_name, "Mime-Type")) {
-		free(current->mime);
-		current->mime = calloc(1, text_len + 1);
-		memcpy(current->mime, text, text_len);
+		free(rc->current->mime);
+		rc->current->mime = calloc(1, text_len + 1);
+		memcpy(rc->current->mime, text, text_len);
 	} else if (!strcmp(element_name, "Timestamp")) {
 		char *buf, *end = NULL;
 		unsigned long int val;
 
-		current->stamp = 0;
+		rc->current->stamp = 0;
 		buf = calloc(1, text_len + 1);
 		memcpy(buf, text, text_len);
 		val = strtoul(buf, &end, 0);
 		if (end && *end == '\0')
-			current->stamp = val;
+			rc->current->stamp = val;
 	} else if (!strcmp(element_name, "Private")) {
 		/* don't care */
 	} else if (!strcmp(element_name, "Groups")) {
@@ -396,7 +403,7 @@ xml_character_data(GMarkupParseContext *context, const gchar *text, gsize text_l
 
 		buf = calloc(1, text_len + 1);
 		memcpy(buf, text, text_len);
-		current->groups = g_slist_append(current->groups, (gpointer) buf);
+		rc->current->groups = g_slist_append(rc->current->groups, (gpointer) buf);
 	} else {
 		DPRINTF("bad element name '%s'\n", element_name);
 		return;
@@ -504,9 +511,9 @@ run_command2(int argc, char *argv[])
 	gsize got;
 	FILE *file;
 	int dummy;
+	RecentContext rc = { NULL, NULL };
 
 	OPRINTF("Running run_command2()\n");
-	g_list_free_full(recent, recent_free);
 
 	if (!(file = fopen(options.recently, "r"))) {
 		EPRINTF("cannot open file for reading: %s\n", options.recently);
@@ -516,7 +523,7 @@ run_command2(int argc, char *argv[])
 	if (!(context = g_markup_parse_context_new(&xml_parser,
 						   G_MARKUP_TREAT_CDATA_AS_TEXT |
 						   G_MARKUP_PREFIX_ERROR_POSITION |
-						   G_MARKUP_IGNORE_QUALIFIED, NULL, NULL))) {
+						   G_MARKUP_IGNORE_QUALIFIED, &rc, NULL))) {
 		EPRINTF("cannot create XML parser\n");
 		exit(1);
 	}
@@ -533,9 +540,8 @@ run_command2(int argc, char *argv[])
 	g_markup_parse_context_unref(context);
 	dummy = lockf(fileno(file), F_ULOCK, 0);
 	fclose(file);
-	g_list_foreach(recent, recent_print, (gpointer) stdout);
-	g_list_free_full(recent, recent_free);
-	recent = NULL;
+	g_list_foreach(rc.recent, recent_print, stdout);
+	g_list_free_full(rc.recent, &recent_free);
 	(void) dummy;
 }
 
@@ -563,7 +569,7 @@ run_command(int argc, char *argv[])
 		exit(1);
 	}
 	g_list_foreach(items, items_print, (gpointer) stdout);
-	g_list_free_full(items, items_free);
+	g_list_free_full(items, &items_free);
 	items = NULL;
 }
 
@@ -572,7 +578,9 @@ typedef struct {
 	char *place;
 	char *cmd;
 	char *icon;
+	GdkPixbuf *pixbuf;
 	char *tooltip;
+	char *mime;
 	time_t time;
 	int count;
 } Place;
@@ -586,19 +594,384 @@ xde_list_free(gpointer data)
 	free(place->place);
 	free(place->cmd);
 	free(place->icon);
+	if (place->pixbuf)
+		g_object_unref(place->pixbuf);
 	free(place->tooltip);
+	free(place->mime);
 	free(place);
 }
 
-static GList *
-get_xbel_recent_list(GList *list, const char *filename)
+static void
+manager_free(gpointer info)
 {
+	gtk_recent_info_unref(info);
+}
+
+static GList *
+get_gtk2_recent_list(GList *list, const char *file)
+{
+	GtkRecentManager *mgr;
+	GList *items, *item;
+
+	if (!(mgr = g_object_new(GTK_TYPE_RECENT_MANAGER, "filename", file, NULL))) {
+		EPRINTF("could not get recement manager for %s\n", file);
+		return (list);
+	}
+	items = gtk_recent_manager_get_items(mgr);
+	for (item = items; item; item = item->next) {
+		GtkRecentInfo *info;
+		const gchar *uri;
+		Place *place;
+		GList *node;
+		const gchar *value, *mime;
+		time_t time;
+		gchar **names, **name;
+		GdkPixbuf *pixbuf;
+		gboolean isapp = FALSE;
+
+		if (!(info = item->data))
+			continue;
+		uri = gtk_recent_info_get_uri(info);
+
+		DPRINTF("processing gtk2 uri %s\n", uri);
+
+#if 0
+		if (gtk_recent_info_get_private_hint(info)) {
+			DPRINTF("uri is private: %s\n", uri);
+			continue;
+		}
+#endif
+		if ((mime = gtk_recent_info_get_mime_type(info))) {
+			isapp = !strcmp(mime, "application/x-desktop");
+			switch (options.include) {
+			case IncludeDefault:
+			case IncludeDocs:
+				if (isapp) {
+					DPRINTF("not including apps\n");
+					continue;
+				}
+				break;
+			case IncludeApps:
+				if (!isapp) {
+					DPRINTF("not including docs\n");
+					continue;
+				}
+				break;
+			case IncludeBoth:
+				break;
+			}
+		}
+		for (node = list; node; node = node->next)
+			if ((place = node->data) && place->place && !strcmp(place->place, uri))
+				break;
+		if (node) {
+			place = node->data;
+			DPRINTF("using gtk2 uri %s\n", uri);
+		} else {
+			DPRINTF("adding gtk2 uri %s\n", uri);
+			place = calloc(1, sizeof(*place));
+			place->place = g_strdup(uri);
+			list = g_list_append(list, place);
+		}
+		if ((value = gtk_recent_info_get_display_name(info))
+		    || (value = gtk_recent_info_get_short_name(info))) {
+			g_free(place->label);
+			place->label = g_strdup(value);
+		}
+		if ((value = gtk_recent_info_get_description(info))
+		    || (value = uri)) {
+			g_free(place->tooltip);
+			place->tooltip = g_strdup(value);
+		}
+		if ((pixbuf = gtk_recent_info_get_icon(info, 16))) {
+			if (place->pixbuf)
+				g_object_unref(place->pixbuf);
+			place->pixbuf = pixbuf;
+		}
+		if (mime) {
+			g_free(place->mime);
+			place->mime = g_strdup(mime);
+		}
+		time = gtk_recent_info_get_added(info);
+		if (time != -1 && time > place->time)
+			place->time = time;
+		time = gtk_recent_info_get_modified(info);
+		if (time != -1 && time > place->time)
+			place->time = time;
+		time = gtk_recent_info_get_visited(info);
+		if (time != -1 && time > place->time)
+			place->time = time;
+		names = gtk_recent_info_get_applications(info, NULL);
+		for (name = names; name && *name; name++) {
+			const gchar *exec = NULL;
+			guint count = 0;
+			time_t stamp = -1;
+
+			if (!(gtk_recent_info_get_application_info(info, *name, &exec, &count,
+								   &stamp)))
+				continue;
+			if (exec) {
+				g_free(place->cmd);
+				place->cmd = g_strdup(exec);
+			}
+			if (stamp != -1 && stamp > place->time)
+				place->time = stamp;
+			place->count += count;
+		}
+		if (names)
+			g_strfreev(names);
+	}
+	g_list_free_full(items, &manager_free);
+	g_object_unref(mgr);
 	return (list);
 }
 
 static GList *
-get_xml_recent_list(GList *list, const char *filename)
+get_xbel_recent_list(GList *list, const char *file)
 {
+	GBookmarkFile *bookmark;
+	gchar **uris, **uri;
+	GError *error = NULL;
+
+	if (!(bookmark = g_bookmark_file_new())) {
+		EPRINTF("could not obtain bookmark file!\n");
+		return (list);
+	}
+	if (!g_bookmark_file_load_from_file(bookmark, file, &error)) {
+		DPRINTF("could not load bookmark file %s: %s\n", file, error->message);
+		g_error_free(error);
+		error = NULL;
+		g_bookmark_file_free(bookmark);
+		return (list);
+	}
+	DPRINTF("processing xbel file %s\n", file);
+	uris = g_bookmark_file_get_uris(bookmark, NULL);
+	for (uri = uris; uri && *uri; uri++) {
+		Place *place;
+		GList *node;
+		gchar *value, *mime;
+		time_t time;
+		gchar **names, **name;
+
+		DPRINTF("processing xbel uri %s\n", *uri);
+
+#if 0
+		if (g_bookmark_file_get_is_private(bookmark, *uri, NULL)) {
+			DPRINTF("uri is private: %s\n", *uri);
+			continue;
+		}
+#endif
+		if ((mime = g_bookmark_file_get_mime_type(bookmark, *uri, NULL))) {
+			switch (options.include) {
+			case IncludeDefault:
+			case IncludeDocs:
+				if (!strcmp(mime, "application/x-desktop")) {
+					DPRINTF("not including apps\n");
+					continue;
+				}
+				break;
+			case IncludeApps:
+				if (strcmp(mime, "application/x-desktop")) {
+					DPRINTF("not including docs\n");
+					continue;
+				}
+				break;
+			case IncludeBoth:
+				break;
+			}
+		}
+		for (node = list; node; node = node->next)
+			if ((place = node->data) && place->place && !strcmp(place->place, *uri))
+				break;
+
+		if (node) {
+			place = node->data;
+			DPRINTF("using xbel uri %s\n", *uri);
+		} else {
+			DPRINTF("adding xbel uri %s\n", *uri);
+			place = calloc(1, sizeof(*place));
+			place->place = g_strdup(*uri);
+			list = g_list_append(list, place);
+		}
+		if ((value = g_bookmark_file_get_title(bookmark, *uri, NULL))) {
+			g_free(place->label);
+			place->label = value;
+		}
+		if ((value = g_bookmark_file_get_description(bookmark, *uri, NULL))) {
+			g_free(place->tooltip);
+			place->tooltip = value;
+		}
+		value = NULL;
+		if ((g_bookmark_file_get_icon(bookmark, *uri, &value, &mime, &error))) {
+			g_free(place->icon);
+			place->icon = value;
+			DPRINTF("GOT ICON %s\n", value);
+		} else if (error) {
+			DPRINTF("could not get icon for %s: %s\n", *uri, error->message);
+			g_error_free(error);
+			error = NULL;
+		} else {
+			DPRINTF("could not get icon for %s: %s: %s\n", *uri, value, mime);
+		}
+		if (mime) {
+			g_free(place->mime);
+			place->mime = mime;
+		}
+		time = g_bookmark_file_get_added(bookmark, *uri, NULL);
+		if (time != -1 && time > place->time)
+			place->time = time;
+		time = g_bookmark_file_get_modified(bookmark, *uri, NULL);
+		if (time != -1 && time > place->time)
+			place->time = time;
+		time = g_bookmark_file_get_visited(bookmark, *uri, NULL);
+		if (time != -1 && time > place->time)
+			place->time = time;
+		names = g_bookmark_file_get_applications(bookmark, *uri, NULL, NULL);
+		for (name = names; name && *name; name++) {
+			gchar *exec = NULL;
+			guint count = 0;
+			time_t stamp = -1;
+
+			if (!(g_bookmark_file_get_app_info(bookmark, *uri, *name, &exec,
+							   &count, &stamp, NULL)))
+				continue;
+			if (exec) {
+				g_free(place->cmd);
+				place->cmd = exec;
+			}
+			if (stamp != -1 && stamp > place->time)
+				place->time = stamp;
+			place->count += count;
+		}
+		if (names)
+			g_strfreev(names);
+	}
+	if (uris)
+		g_strfreev(uris);
+	return (list);
+}
+
+static GList *
+get_xml_recent_list(GList *list, const char *file)
+{
+	GMarkupParseContext *context;
+	GError *error = NULL;
+	gchar buffer[BUFSIZ];
+	gsize got;
+	FILE *f;
+	int dummy;
+	RecentContext rc = { NULL, NULL };
+	GList *recent;
+
+	if (!(f = fopen(file, "r"))) {
+		EPRINTF("file %s: %s\n", file, strerror(errno));
+		return (list);
+	}
+	DPRINTF("processing xml file %s\n", file);
+	dummy = lockf(fileno(f), F_LOCK, 0);
+	if (!(context = g_markup_parse_context_new(&xml_parser,
+						   G_MARKUP_TREAT_CDATA_AS_TEXT |
+						   G_MARKUP_PREFIX_ERROR_POSITION |
+						   G_MARKUP_IGNORE_QUALIFIED, &rc, NULL))) {
+		EPRINTF("cannot create XML parser\n");
+		dummy = lockf(fileno(f), F_ULOCK, 0);
+		fclose(f);
+		return (list);
+	}
+	while ((got = fread(buffer, 1, BUFSIZ, f)) > 0) {
+		if (!g_markup_parse_context_parse(context, buffer, got, &error)) {
+			EPRINTF("cannot parse buffer: %s\n", error->message);
+			g_error_free(error);
+			error = NULL;
+			g_markup_parse_context_unref(context);
+			dummy = lockf(fileno(f), F_ULOCK, 0);
+			fclose(f);
+			return (list);
+		}
+	}
+	if (!g_markup_parse_context_end_parse(context, &error)) {
+		EPRINTF("could not end parsing: %s\n", error->message);
+		g_error_free(error);
+		error = NULL;
+		g_markup_parse_context_unref(context);
+		dummy = lockf(fileno(f), F_ULOCK, 0);
+		fclose(f);
+		return (list);
+	}
+	g_markup_parse_context_unref(context);
+	dummy = lockf(fileno(f), F_ULOCK, 0);
+	fclose(f);
+	for (recent = rc.recent; recent; recent = recent->next) {
+		RecentItem *item;
+		Place *place;
+		GList *node;
+		char *p;
+
+		if (!(item = recent->data)) {
+			EPRINTF("no data!\n");
+			continue;
+		}
+		DPRINTF("processing xml uri %s\n", item->uri);
+#if 0
+		if (item->private) {
+			DPRINTF("uri is private: %s\n", item->uri);
+			continue;
+		}
+#endif
+		if (item->mime) {
+			switch (options.include) {
+			case IncludeDefault:
+			case IncludeDocs:
+				if (!strcmp(item->mime, "application/x-desktop")) {
+					DPRINTF("not including apps\n");
+					continue;
+				}
+				break;
+			case IncludeApps:
+				if (strcmp(item->mime, "application/x-desktop")) {
+					DPRINTF("not including docs\n");
+					continue;
+				}
+				break;
+			case IncludeBoth:
+				break;
+			}
+		}
+		for (node = list; node; node = node->next)
+			if ((place = node->data) && place->place && !strcmp(place->place, item->uri))
+				break;
+		if (node) {
+			DPRINTF("using xml uri %s\n", item->uri);
+			place = node->data;
+		} else {
+			DPRINTF("adding xml uri %s\n", item->uri);
+			place = calloc(1, sizeof(*place));
+			place->place = g_strdup(item->uri);
+			list = g_list_append(list, place);
+		}
+		if (!place->label) {
+			if ((p = strrchr(item->uri, '/')))
+				p++;
+			else
+				p = item->uri;
+			place->label = g_strdup(p);
+		}
+		if (!place->tooltip)
+			place->tooltip = g_strdup(item->uri);
+		if (item->stamp && item->stamp != -1 && item->stamp > place->time)
+			place->time = item->stamp;
+		if (!place->cmd) {
+			if (!strcmp(item->mime, "application/x-desktop"))
+				place->cmd = g_strdup_printf("xdg-launch '%s'", item->uri);
+			else
+				place->cmd = g_strdup_printf("xdg-open '%s'", item->uri);
+		}
+		if (!place->mime && item->mime)
+			place->mime = g_strdup(item->mime);
+		place->count++;
+	}
+	g_list_free_full(rc.recent, recent_free);
+	(void) dummy;
 	return (list);
 }
 
@@ -608,9 +981,52 @@ get_simple_recent_list(GList *list, const char *filename)
 	return (list);
 }
 
+static gint
+sort_recent(gconstpointer a, gconstpointer b)
+{
+	const Place *A = a;
+	const Place *B = b;
+
+	if (A->time < B->time)
+		return (1);
+	if (A->time > B->time)
+		return (-1);
+	if (A->count < B->count)
+		return (1);
+	if (A->count > B->count)
+		return (-1);
+	return (0);
+}
+
+static gint
+sort_favorite(gconstpointer a, gconstpointer b)
+{
+	const Place *A = a;
+	const Place *B = b;
+
+	if (A->count < B->count)
+		return (1);
+	if (A->count > B->count)
+		return (-1);
+	if (A->time < B->time)
+		return (1);
+	if (A->time > B->time)
+		return (-1);
+	return (0);
+}
+
 static GList *
 do_list_sorting(GList *list)
 {
+	switch (options.sorting) {
+	case SortByDefault:
+	case SortByRecent:
+		list = g_list_sort(list, &sort_recent);
+		break;
+	case SortByFavorite:
+		list = g_list_sort(list, &sort_favorite);
+		break;
+	}
 	return (list);
 }
 
@@ -648,8 +1064,6 @@ popup_menu_new(WnckScreen *scrn)
 {
 	GtkWidget *menu, *item, *image;
 	GtkIconTheme *itheme;
-	GtkIconInfo *info;
-	GdkPixbuf *pixbuf = NULL;
 	gchar *file;
 	GList *list = NULL, *node;
 	Place *place;
@@ -664,59 +1078,174 @@ popup_menu_new(WnckScreen *scrn)
 
 	itheme = gtk_icon_theme_get_default();
 
-	file = g_build_filename(g_get_user_config_dir(), "xde", "recent-applications", NULL);
-	list = get_simple_recent_list(list, file);
-	g_free(file);
+	switch (options.include) {
+	default:
+	case IncludeDefault:
+	case IncludeDocs:
+	case IncludeBoth:
+		file = g_build_filename(g_get_home_dir(), ".recently-used", NULL);
+		list = get_xml_recent_list(list, file);
+		g_free(file);
 
-	file = g_build_filename(g_get_home_dir(), ".recently-used", NULL);
-	list = get_xml_recent_list(list, file);
-	g_free(file);
+		file = g_build_filename(g_get_user_data_dir(), "recently-used", NULL);
+		list = get_xml_recent_list(list, file);
+		g_free(file);
 
-	file = g_build_filename(g_get_user_data_dir(), "recently-used", NULL);
-	list = get_xml_recent_list(list, file);
-	g_free(file);
+		file = g_build_filename(g_get_user_data_dir(), "recently-used.xbel", NULL);
+		list = get_xbel_recent_list(list, file);
+		list = get_gtk2_recent_list(list, file);
+		g_free(file);
+		break;
+	case IncludeApps:
+		break;
+	}
+	switch (options.include) {
+	default:
+	case IncludeDefault:
+	case IncludeDocs:
+		break;
+	case IncludeApps:
+	case IncludeBoth:
+		file =
+		    g_build_filename(g_get_user_config_dir(), "xde", "recent-applications", NULL);
+		list = get_simple_recent_list(list, file);
+		g_free(file);
 
-	file = g_build_filename(g_get_user_data_dir(), "recently-used.xbel", NULL);
-	list = get_xbel_recent_list(list, file);
-	g_free(file);
+		file = g_build_filename(g_get_home_dir(), ".recent-applications", NULL);
+		list = get_xml_recent_list(list, file);
+		g_free(file);
 
-	file = g_build_filename(g_get_home_dir(), ".recent-applications", NULL);
-	list = get_xml_recent_list(list, file);
-	g_free(file);
+		file = g_build_filename(g_get_user_data_dir(), "recent-applications", NULL);
+		list = get_xml_recent_list(list, file);
+		g_free(file);
 
-	file = g_build_filename(g_get_user_data_dir(), "recent-applications", NULL);
-	list = get_xml_recent_list(list, file);
-	g_free(file);
-
-	file = g_build_filename(g_get_user_data_dir(), "recent-applications.xbel", NULL);
-	list = get_xbel_recent_list(list, file);
-	g_free(file);
+		file = g_build_filename(g_get_user_data_dir(), "recent-applications.xbel", NULL);
+		list = get_xbel_recent_list(list, file);
+		list = get_gtk2_recent_list(list, file);
+		g_free(file);
+		break;
+	}
 
 	list = do_list_sorting(list);
 
 	for (node = list; node; node = node->next) {
 		place = node->data;
+		gchar *filename = NULL, *scheme;
+		GDesktopAppInfo *app = NULL;
+		GIcon *gicon = NULL;
+		GdkPixbuf *pixbuf = NULL;
+		GtkIconInfo *info = NULL;
 
+		if ((scheme = g_uri_parse_scheme(place->place)) && !strcmp(scheme, "file")) {
+			g_free(scheme);
+			if (!(filename = g_filename_from_uri(place->place, NULL, NULL)) || access(filename, R_OK)) {
+				DPRINTF("file %s does not exist or is not readable\n", filename);
+				g_free(filename);
+				continue;
+			}
+		}
+
+		DPRINTF("creating uri %s\n", place->place);
 		item = gtk_image_menu_item_new();
 		if (place->label)
 			gtk_menu_item_set_label(GTK_MENU_ITEM(item), place->label);
+		else {
+			char *p;
+
+			if ((p = strrchr(place->place, '/')))
+				p++;
+			else
+				p = place->place;
+			gtk_menu_item_set_label(GTK_MENU_ITEM(item), p);
+		}
 		if (place->icon) {
-			if ((info = gtk_icon_theme_lookup_icon(itheme, place->icon, 16,
-							GTK_ICON_LOOKUP_FORCE_SIZE |
-							GTK_ICON_LOOKUP_GENERIC_FALLBACK))
-					&& (pixbuf = gtk_icon_info_load_icon(info, NULL))
-					&& (image = gtk_image_new_from_pixbuf(pixbuf)))
+			if ((pixbuf = gtk_icon_theme_load_icon(itheme, place->icon, 16,
+							       GTK_ICON_LOOKUP_USE_BUILTIN |
+							       GTK_ICON_LOOKUP_FORCE_SIZE |
+							       GTK_ICON_LOOKUP_GENERIC_FALLBACK,
+							       NULL))
+			    && (image = gtk_image_new_from_pixbuf(pixbuf)))
 				gtk_image_menu_item_set_image(GTK_IMAGE_MENU_ITEM(item), image);
 			if (pixbuf) {
 				g_object_unref(pixbuf);
 				pixbuf = NULL;
 			}
 		}
-		if (place->tooltip)
-			gtk_widget_set_tooltip_text(item, place->tooltip);
+		if (place->pixbuf) {
+			if ((image = gtk_image_new_from_pixbuf(place->pixbuf)))
+				gtk_image_menu_item_set_image(GTK_IMAGE_MENU_ITEM(item), image);
+		}
+		if (place->mime && !strcmp(place->mime, "application/x-desktop")) {
+			if ((app = g_desktop_app_info_new_from_filename(filename))) {
+				if ((gicon = g_app_info_get_icon(G_APP_INFO(app)))) {
+					gchar *icon = g_icon_to_string(gicon);
+
+					DPRINTF("got gicon with name %s\n", icon);
+					if ((info =
+					     gtk_icon_theme_lookup_by_gicon(itheme, gicon, 16,
+									    GTK_ICON_LOOKUP_USE_BUILTIN |
+									    GTK_ICON_LOOKUP_FORCE_SIZE |
+									    GTK_ICON_LOOKUP_GENERIC_FALLBACK))
+					    && (pixbuf = gtk_icon_info_load_icon(info, NULL))
+					    && (image = gtk_image_new_from_pixbuf(pixbuf)))
+						gtk_image_menu_item_set_image(GTK_IMAGE_MENU_ITEM
+									      (item), image);
+					else {
+						DPRINTF("could not get image for gicon %s\n", icon);
+					}
+					if (info) {
+						gtk_icon_info_free(info);
+						info = NULL;
+					}
+					if (pixbuf) {
+						g_object_unref(pixbuf);
+						pixbuf = NULL;
+					}
+					g_free(icon);
+				} else {
+					DPRINTF("cannot get gicon from desktop app %s\n", filename);
+#if 0
+				} else if ((icon = g_desktop_app_info_get_string(app,
+								G_KEY_FILE_DESKTOP_KEY_ICON))) {
+					char *name, *base, *p;
+
+					if (icon[0] == '/' && !access(icon, R_OK)) {
+						DPRINTF("going with full icon path %s\n", icon);
+						name = g_strdup(icon);
+					} else {
+						base = icon;
+						*strchrnul(base, ' ') = '\0';
+						if ((p = strrchr(base, '/')))
+							base = p + 1;
+						if ((p = strrchr(base, '.')))
+							*p = '\0';
+						name = g_strdup(base);
+					}
+					g_free(icon);
+#endif
+				}
+			}
+		}
+		if (options.debug) {
+			gchar *markup;
+
+			markup =
+			    g_markup_printf_escaped("<b>URI:</b> %s\n" "<b>Icon:</b> %s\n"
+						    "<b>Label:</b> %s\n" "<b>Tooltip:</b> %s\n"
+						    "<b>Mime-type:</b> %s\n" "<b>Command:</b> %s\n"
+						    "<b>Time:</b> %s" "<b>Count:</b> %d",
+						    place->place, place->icon, place->label,
+						    place->tooltip, place->mime, place->cmd,
+						    ctime(&place->time), place->count);
+			gtk_widget_set_tooltip_markup(item, markup);
+			g_free(markup);
+		} else {
+			if (place->tooltip)
+				gtk_widget_set_tooltip_text(item, place->tooltip);
+		}
 		if (place->cmd)
 			g_signal_connect(G_OBJECT(item), "activate",
-					G_CALLBACK(xde_entry_activated), g_strdup(place->cmd));
+					 G_CALLBACK(xde_entry_activated), g_strdup(place->cmd));
 		gtk_menu_append(menu, item);
 		gtk_widget_show(item);
 	}
