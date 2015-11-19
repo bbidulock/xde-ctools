@@ -678,8 +678,7 @@ get_gtk2_recent_list(GList *list, const char *file)
 			g_free(place->label);
 			place->label = g_strdup(value);
 		}
-		if ((value = gtk_recent_info_get_description(info))
-		    || (value = uri)) {
+		if ((value = gtk_recent_info_get_description(info))) {
 			g_free(place->tooltip);
 			place->tooltip = g_strdup(value);
 		}
@@ -905,7 +904,6 @@ get_xml_recent_list(GList *list, const char *file)
 		RecentItem *item;
 		Place *place;
 		GList *node;
-		char *p;
 
 		if (!(item = recent->data)) {
 			EPRINTF("no data!\n");
@@ -949,23 +947,8 @@ get_xml_recent_list(GList *list, const char *file)
 			place->place = g_strdup(item->uri);
 			list = g_list_append(list, place);
 		}
-		if (!place->label) {
-			if ((p = strrchr(item->uri, '/')))
-				p++;
-			else
-				p = item->uri;
-			place->label = g_strdup(p);
-		}
-		if (!place->tooltip)
-			place->tooltip = g_strdup(item->uri);
 		if (item->stamp && item->stamp != -1 && item->stamp > place->time)
 			place->time = item->stamp;
-		if (!place->cmd) {
-			if (!strcmp(item->mime, "application/x-desktop"))
-				place->cmd = g_strdup_printf("xdg-launch '%s'", item->uri);
-			else
-				place->cmd = g_strdup_printf("xdg-open '%s'", item->uri);
-		}
 		if (!place->mime && item->mime)
 			place->mime = g_strdup(item->mime);
 		place->count++;
@@ -1059,6 +1042,166 @@ xde_entry_activated(GtkMenuItem *menuitem, gpointer user_data)
 		gtk_main_quit();
 }
 
+GHashTable *mime_icons = NULL;
+GHashTable *mime_subcl = NULL;
+GHashTable *mime_alias = NULL;
+
+void
+get_mime_databases(void)
+{
+	const gchar *const *dirs, *const *dir;
+	const gchar *user;
+	GList *paths = NULL, *path;
+	char *b;
+	int dummy;
+
+	(void) dummy;
+	user = g_get_user_data_dir();
+	DPRINTF("adding path: %s\n", user);
+	paths = g_list_prepend(paths, g_strdup(user));
+	dirs = g_get_system_data_dirs();
+	for (dir = dirs; dir && *dir; dir++) {
+		DPRINTF("adding path: %s\n", *dir);
+		paths = g_list_prepend(paths, g_strdup(*dir));
+	}
+
+	b = calloc(BUFSIZ, sizeof(*b));
+
+	if (mime_icons)
+		g_hash_table_destroy(mime_icons);
+	mime_icons = g_hash_table_new_full(g_str_hash, g_str_equal, g_free, g_free);
+	for (path = paths; path; path = path->next) {
+		gchar *file;
+		FILE *f;
+
+		file = g_build_filename(path->data, "mime", "generic-icons", NULL);
+		if (!(f = fopen(file, "r"))) {
+			DPRINTF("cannot open %s: %s:\n", file, strerror(errno));
+			g_free(file);
+			continue;
+		}
+		DPRINTF("processing %s\n", file);
+		dummy = lockf(fileno(f), F_LOCK, 0);
+		while (fgets(b, BUFSIZ, f)) {
+			char *p;
+
+			if (b[0] == '#')
+				continue;
+			if ((p = strrchr(b, '\n')))
+				*p = '\0';
+			if (!(p = strchr(b, ':')) || !p[1])
+				continue;
+			*p = '\0';
+			p++;
+			/* field 1 is b; field 2 is p */
+			g_hash_table_replace(mime_icons, g_strdup(b), g_strdup(p));
+		}
+		dummy = lockf(fileno(f), F_ULOCK, 0);
+		fclose(f);
+		g_free(file);
+	}
+	for (path = paths; path; path = path->next) {
+		gchar *file;
+		FILE *f;
+
+		file = g_build_filename(path->data, "mime", "icons", NULL);
+		if (!(f = fopen(file, "r"))) {
+			DPRINTF("cannot open %s: %s:\n", file, strerror(errno));
+			g_free(file);
+			continue;
+		}
+		DPRINTF("processing %s\n", file);
+		dummy = lockf(fileno(f), F_LOCK, 0);
+		while (fgets(b, BUFSIZ, f)) {
+			char *p;
+
+			if (b[0] == '#')
+				continue;
+			if ((p = strrchr(b, '\n')))
+				*p = '\0';
+			if (!(p = strchr(b, ':')) || !p[1])
+				continue;
+			*p = '\0';
+			p++;
+			/* field 1 is b; field 2 is p */
+			g_hash_table_replace(mime_icons, g_strdup(b), g_strdup(p));
+		}
+		dummy = lockf(fileno(f), F_ULOCK, 0);
+		fclose(f);
+		g_free(file);
+	}
+
+	if (mime_subcl)
+		g_hash_table_destroy(mime_subcl);
+	mime_subcl = g_hash_table_new_full(g_str_hash, g_str_equal, g_free, g_free);
+	for (path = paths; path; path = path->next) {
+		gchar *file;
+		FILE *f;
+
+		file = g_build_filename(path->data, "mime", "subclasses", NULL);
+		if (!(f = fopen(file, "r"))) {
+			DPRINTF("cannot open %s: %s:\n", file, strerror(errno));
+			g_free(file);
+			continue;
+		}
+		DPRINTF("processing %s\n", file);
+		dummy = lockf(fileno(f), F_LOCK, 0);
+		while (fgets(b, BUFSIZ, f)) {
+			char *p;
+
+			if (b[0] == '#')
+				continue;
+			if ((p = strrchr(b, '\n')))
+				*p = '\0';
+			if (!(p = strchr(b, ' ')) || !p[1])
+				continue;
+			*p = '\0';
+			p++;
+			/* field 1 is b; field 2 is p */
+			g_hash_table_replace(mime_subcl, g_strdup(b), g_strdup(p));
+		}
+		dummy = lockf(fileno(f), F_ULOCK, 0);
+		fclose(f);
+		g_free(file);
+	}
+
+	if (mime_alias)
+		g_hash_table_destroy(mime_alias);
+	mime_alias = g_hash_table_new_full(g_str_hash, g_str_equal, g_free, g_free);
+	for (path = paths; path; path = path->next) {
+		gchar *file;
+		FILE *f;
+
+		file = g_build_filename(path->data, "mime", "aliases", NULL);
+		if (!(f = fopen(file, "r"))) {
+			DPRINTF("cannot open %s: %s:\n", file, strerror(errno));
+			g_free(file);
+			continue;
+		}
+		DPRINTF("processing %s\n", file);
+		dummy = lockf(fileno(f), F_LOCK, 0);
+		while (fgets(b, BUFSIZ, f)) {
+			char *p;
+
+			if (b[0] == '#')
+				continue;
+			if ((p = strrchr(b, '\n')))
+				*p = '\0';
+			if (!(p = strchr(b, ' ')) || !p[1])
+				continue;
+			*p = '\0';
+			p++;
+			/* field 1 is b; field 2 is p */
+			g_hash_table_replace(mime_alias, g_strdup(b), g_strdup(p));
+		}
+		dummy = lockf(fileno(f), F_ULOCK, 0);
+		fclose(f);
+		g_free(file);
+	}
+	g_list_free_full(paths, g_free);
+	free(b);
+}
+
 static GtkWidget *
 popup_menu_new(WnckScreen *scrn)
 {
@@ -1067,6 +1210,8 @@ popup_menu_new(WnckScreen *scrn)
 	gchar *file;
 	GList *list = NULL, *node;
 	Place *place;
+
+	get_mime_databases();
 
 	menu = gtk_menu_new();
 	gtk_menu_set_title(GTK_MENU(menu), "Recent");
@@ -1077,6 +1222,17 @@ popup_menu_new(WnckScreen *scrn)
 #endif
 
 	itheme = gtk_icon_theme_get_default();
+#if 0
+	{
+		gchar **paths = NULL, **path;
+
+		gtk_icon_theme_get_search_path(itheme, &paths, NULL);
+		DPRINTF("default icon search path is:s\n");
+		for (path = paths; path && *path; path++)
+			DPRINTF("\t%s\n", *path);
+		g_strfreev(paths);
+	}
+#endif
 
 	switch (options.include) {
 	default:
@@ -1138,7 +1294,8 @@ popup_menu_new(WnckScreen *scrn)
 
 		if ((scheme = g_uri_parse_scheme(place->place)) && !strcmp(scheme, "file")) {
 			g_free(scheme);
-			if (!(filename = g_filename_from_uri(place->place, NULL, NULL)) || access(filename, R_OK)) {
+			if (!(filename = g_filename_from_uri(place->place, NULL, NULL))
+			    || access(filename, R_OK)) {
 				DPRINTF("file %s does not exist or is not readable\n", filename);
 				g_free(filename);
 				continue;
@@ -1147,6 +1304,18 @@ popup_menu_new(WnckScreen *scrn)
 
 		DPRINTF("creating uri %s\n", place->place);
 		item = gtk_image_menu_item_new();
+
+		if (place->mime && !strcmp(place->mime, "application/x-desktop"))
+			app = g_desktop_app_info_new_from_filename(filename);
+		if (!place->label && app) {
+			const char *label;
+
+			if ((label = g_app_info_get_name(G_APP_INFO(app))) ||
+			    (label = g_app_info_get_display_name(G_APP_INFO(app))) ||
+			    (label = g_desktop_app_info_get_generic_name(app)))
+				place->label = g_strdup(label);
+		}
+
 		if (place->label)
 			gtk_menu_item_set_label(GTK_MENU_ITEM(item), place->label);
 		else {
@@ -1157,6 +1326,27 @@ popup_menu_new(WnckScreen *scrn)
 			else
 				p = place->place;
 			gtk_menu_item_set_label(GTK_MENU_ITEM(item), p);
+		}
+		if (place->mime && !place->icon) {
+			char *icon = NULL, *mime = place->mime;
+
+			while (!icon) {
+				if ((icon = g_hash_table_lookup(mime_icons, place->mime))) {
+					place->icon = g_strdup(icon);
+					break;
+				}
+				if ((mime = g_hash_table_lookup(mime_alias, place->mime))) {
+					g_free(place->mime);
+					place->mime = g_strdup(mime);
+					continue;
+				}
+				if ((mime = g_hash_table_lookup(mime_subcl, place->mime))) {
+					g_free(place->mime);
+					place->mime = g_strdup(mime);
+					continue;
+				}
+				break;
+			}
 		}
 		if (place->icon) {
 			if ((pixbuf = gtk_icon_theme_load_icon(itheme, place->icon, 16,
@@ -1175,56 +1365,83 @@ popup_menu_new(WnckScreen *scrn)
 			if ((image = gtk_image_new_from_pixbuf(place->pixbuf)))
 				gtk_image_menu_item_set_image(GTK_IMAGE_MENU_ITEM(item), image);
 		}
-		if (place->mime && !strcmp(place->mime, "application/x-desktop")) {
-			if ((app = g_desktop_app_info_new_from_filename(filename))) {
-				if ((gicon = g_app_info_get_icon(G_APP_INFO(app)))) {
-					gchar *icon = g_icon_to_string(gicon);
+		if (app) {
+			if ((gicon = g_app_info_get_icon(G_APP_INFO(app)))) {
+				gchar *icon = g_icon_to_string(gicon);
 
-					DPRINTF("got gicon with name %s\n", icon);
-					if ((info =
-					     gtk_icon_theme_lookup_by_gicon(itheme, gicon, 16,
-									    GTK_ICON_LOOKUP_USE_BUILTIN |
-									    GTK_ICON_LOOKUP_FORCE_SIZE |
-									    GTK_ICON_LOOKUP_GENERIC_FALLBACK))
-					    && (pixbuf = gtk_icon_info_load_icon(info, NULL))
-					    && (image = gtk_image_new_from_pixbuf(pixbuf)))
-						gtk_image_menu_item_set_image(GTK_IMAGE_MENU_ITEM
-									      (item), image);
-					else {
-						DPRINTF("could not get image for gicon %s\n", icon);
-					}
-					if (info) {
-						gtk_icon_info_free(info);
-						info = NULL;
-					}
-					if (pixbuf) {
-						g_object_unref(pixbuf);
-						pixbuf = NULL;
-					}
-					g_free(icon);
-				} else {
-					DPRINTF("cannot get gicon from desktop app %s\n", filename);
-#if 0
-				} else if ((icon = g_desktop_app_info_get_string(app,
-								G_KEY_FILE_DESKTOP_KEY_ICON))) {
-					char *name, *base, *p;
-
-					if (icon[0] == '/' && !access(icon, R_OK)) {
-						DPRINTF("going with full icon path %s\n", icon);
-						name = g_strdup(icon);
-					} else {
-						base = icon;
-						*strchrnul(base, ' ') = '\0';
-						if ((p = strrchr(base, '/')))
-							base = p + 1;
-						if ((p = strrchr(base, '.')))
-							*p = '\0';
-						name = g_strdup(base);
-					}
-					g_free(icon);
-#endif
+				DPRINTF("got gicon with name %s\n", icon);
+				if ((info =
+				     gtk_icon_theme_lookup_by_gicon(itheme, gicon, 16,
+								    GTK_ICON_LOOKUP_USE_BUILTIN |
+								    GTK_ICON_LOOKUP_FORCE_SIZE |
+								    GTK_ICON_LOOKUP_GENERIC_FALLBACK))
+				    && (pixbuf = gtk_icon_info_load_icon(info, NULL))
+				    && (image = gtk_image_new_from_pixbuf(pixbuf)))
+					gtk_image_menu_item_set_image(GTK_IMAGE_MENU_ITEM
+								      (item), image);
+				else {
+					DPRINTF("could not get image for gicon %s\n", icon);
 				}
+				if (info) {
+					gtk_icon_info_free(info);
+					info = NULL;
+				}
+				if (pixbuf) {
+					g_object_unref(pixbuf);
+					pixbuf = NULL;
+				}
+				g_free(icon);
+			} else
+				DPRINTF("cannot get gicon from desktop app %s\n", filename);
+#if 0
+			if ((icon =
+			     g_desktop_app_info_get_string(app, G_KEY_FILE_DESKTOP_KEY_ICON))) {
+				char *name, *base, *p;
+
+				if (icon[0] == '/' && !access(icon, R_OK)) {
+					DPRINTF("going with full icon path %s\n", icon);
+					name = g_strdup(icon);
+				} else {
+					base = icon;
+					*strchrnul(base, ' ') = '\0';
+					if ((p = strrchr(base, '/')))
+						base = p + 1;
+					if ((p = strrchr(base, '.')))
+						*p = '\0';
+					name = g_strdup(base);
+				}
+				g_free(icon);
 			}
+#endif
+		}
+		if (!place->tooltip && app) {
+			const char *tooltip;
+
+			if ((tooltip = g_app_info_get_description(G_APP_INFO(app))))
+				place->tooltip = g_strdup(tooltip);
+			else
+				place->tooltip = g_desktop_app_info_get_string(app,
+									       G_KEY_FILE_DESKTOP_KEY_COMMENT);
+		}
+		if (!place->tooltip) {
+			char *tooltip, *p, *r;
+
+			if ((tooltip = g_uri_unescape_string(place->place, "/"))) {
+				r = tooltip;
+				if ((p = strstr(r, "://"))) {
+					r = p + 3;
+					if ((p = strchr(r, '/')))
+						r = p;
+				}
+				place->tooltip = g_strdup(r);
+				g_free(tooltip);
+			}
+		}
+		if (!place->cmd) {
+			if (app)
+				place->cmd = g_strdup_printf("xdg-launch '%s'", place->place);
+			else
+				place->cmd = g_strdup_printf("xdg-open '%s'", place->place);
 		}
 		if (options.debug) {
 			gchar *markup;
