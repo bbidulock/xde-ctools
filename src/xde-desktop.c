@@ -313,6 +313,7 @@ typedef struct {
 	Bool goodwm;			/* is the window manager usable? */
 	GdkWindow *proxy;
 	GtkWidget *popup;
+	GtkWindow *desktop;
 	Bool inside;			/* pointer inside popup */
 	Bool keyboard;			/* have a keyboard grab */
 	Bool pointer;			/* have a pointer grab */
@@ -1344,54 +1345,108 @@ update_window(XdeScreen *xscr, Atom prop)
 }
 
 static void
-init_popup(XdeScreen *xscr)
+init_desktop(XdeScreen *xscr)
 {
-	/* FIXME: write this for menu list. */
-#if 0
-	GtkWidget *popup;
-	GtkWidget *pager;
+	GtkWindow *win;
+	GdkWindow *window;
+	char *geometry;
 
-	DPRINT();
-	pager = wnck_pager_new(xscr->wnck);
-	xscr->popup = popup = gtk_window_new(GTK_WINDOW_POPUP);
-	gtk_widget_add_events(popup, GDK_ALL_EVENTS_MASK);
-	gtk_window_set_focus_on_map(GTK_WINDOW(popup), TRUE);
-	gtk_window_set_type_hint(GTK_WINDOW(popup), GDK_WINDOW_TYPE_HINT_SPLASHSCREEN);
-	gtk_window_stick(GTK_WINDOW(popup));
-	gtk_window_set_keep_above(GTK_WINDOW(popup), TRUE);
-	wnck_pager_set_orientation(WNCK_PAGER(pager), GTK_ORIENTATION_HORIZONTAL);
-	wnck_pager_set_n_rows(WNCK_PAGER(pager), 2);
-	wnck_pager_set_layout_policy(WNCK_PAGER(pager), WNCK_PAGER_LAYOUT_POLICY_AUTOMATIC);
-	wnck_pager_set_display_mode(WNCK_PAGER(pager), WNCK_PAGER_DISPLAY_CONTENT);
-	wnck_pager_set_show_all(WNCK_PAGER(pager), TRUE);
-	wnck_pager_set_shadow_type(WNCK_PAGER(pager), GTK_SHADOW_IN);
-	gtk_container_set_border_width(GTK_CONTAINER(popup), options.border);
-	gtk_container_add(GTK_CONTAINER(popup), GTK_WIDGET(pager));
+	xscr->desktop = win = GTK_WINDOW(gtk_window_new(GTK_WINDOW_TOPLEVEL));
+	gtk_window_set_screen(win, xscr->scrn);
+	gtk_window_set_accept_focus(win, FALSE);
+	gtk_window_set_auto_startup_notification(TRUE);
+	gtk_window_set_decorated(win, FALSE);
+	gtk_window_set_default_size(win, xscr->width - 2, xscr->height - 2);
 
-	gtk_window_set_position(GTK_WINDOW(popup), GTK_WIN_POS_CENTER_ALWAYS);
-	gtk_widget_show(GTK_WIDGET(pager));
-	g_signal_connect(G_OBJECT(popup), "button_press_event",
-			 G_CALLBACK(button_press_event), xscr);
-	g_signal_connect(G_OBJECT(popup), "button_release_event",
-			 G_CALLBACK(button_release_event), xscr);
-	g_signal_connect(G_OBJECT(popup), "enter_notify_event",
-			 G_CALLBACK(enter_notify_event), xscr);
-	g_signal_connect(G_OBJECT(popup), "focus_in_event", G_CALLBACK(focus_in_event), xscr);
-	g_signal_connect(G_OBJECT(popup), "focus_out_event",
-			 G_CALLBACK(focus_out_event), xscr);
-	g_signal_connect(G_OBJECT(popup), "grab_broken_event",
-			 G_CALLBACK(grab_broken_event), xscr);
-	g_signal_connect(G_OBJECT(popup), "grab_focus", G_CALLBACK(grab_focus), xscr);
-	g_signal_connect(G_OBJECT(popup), "key_press_event",
-			 G_CALLBACK(key_press_event), xscr);
-	g_signal_connect(G_OBJECT(popup), "key_release_event",
-			 G_CALLBACK(key_release_event), xscr);
-	g_signal_connect(G_OBJECT(popup), "leave_notify_event",
-			 G_CALLBACK(leave_notify_event), xscr);
-	g_signal_connect(G_OBJECT(popup), "map_event", G_CALLBACK(map_event), xscr);
-	g_signal_connect(G_OBJECT(popup), "realize", G_CALLBACK(widget_realize), xscr);
-	g_signal_connect(G_OBJECT(popup), "scroll_event", G_CALLBACK(scroll_event), xscr);
-#else
+	GdkGeometry hints = {
+		.min_width = xscr->width - 2,
+		.min_height = xscr->height - 2,
+		.max_width = xscr->width - 2,
+		.max_height = xscr->height - 2,
+	};
+	gtk_window_set_geometry_hints(win, GTK_WIDGET(win), &hints,
+				      GDK_HINT_MIN_SIZE | GDK_HINT_MAX_SIZE | GDK_HINT_USER_SIZE);
+
+	gtk_window_set_deletable(win, FALSE);
+	gtk_window_set_focus_on_map(win, FALSE);
+//      gtk_window_set_frame_dimensions(win, 0, 0, 0, 0);
+//      gtk_window_fullscreen(win);
+	gtk_window_set_gravity(win, GDK_GRAVITY_STATIC);
+	gtk_window_set_has_frame(win, FALSE);
+//      gtk_window_set_keep_below(win, TRUE);
+	gtk_window_move(win, 1, 1);
+	gtk_window_set_opacity(win, 1.0);
+	gtk_window_set_position(win, GTK_WIN_POS_CENTER_ALWAYS);
+	gtk_window_set_resizable(win, FALSE);
+	gtk_window_resize(win, xscr->width - 2, xscr->height - 2);
+	gtk_window_set_skip_pager_hint(win, TRUE);
+	gtk_window_set_skip_taskbar_hint(win, TRUE);
+	gtk_window_stick(win);
+	gtk_window_set_type_hint(win, GDK_WINDOW_TYPE_HINT_DESKTOP);
+//      gtk_window_set_app_paintable(win, TRUE);
+	if (!gtk_widget_get_double_buffered(GTK_WIDGET(win)))
+		gtk_widget_set_double_buffered(GTK_WIDGET(win), TRUE);
+	gtk_widget_set_size_request(GTK_WIDGET(win), xscr->width - 2, xscr->height - 2);
+
+	geometry = g_strdup_printf("%dx%d+1+1", xscr->width - 2, xscr->height - 2);
+	gtk_window_parse_geometry(win, geometry);
+	g_free(geometry);
+
+	gtk_widget_add_events(GTK_WIDGET(win),
+			      GDK_BUTTON_PRESS_MASK |
+			      GDK_BUTTON_RELEASE_MASK |
+			      GDK_BUTTON1_MOTION_MASK |
+			      GDK_BUTTON2_MOTION_MASK | GDK_BUTTON3_MOTION_MASK);
+	gtk_widget_realize(GTK_WIDGET(win));
+	window = gtk_widget_get_window(GTK_WIDGET(win));
+	gdk_window_set_override_redirect(window, TRUE);
+	gdk_window_set_back_pixmap(window, NULL, TRUE);
+
+	g_signal_connect(G_OBJECT(win), "button_press_event", G_CALLBACK(button_press_event), xscr);
+	g_signal_connect(G_OBJECT(win), "button_release_event", G_CALLBACK(button_release_event), xscr);
+//	g_signal_connect(G_OBJECT(win), "motion_notify_event", G_CALLBACK(motion_notify_event), xscr);
+//	g_signal_connect(G_OBJECT(win), "expose_event", G_CALLBACK(expose_event), xscr);
+	g_signal_connect(G_OBJECT(win), "scroll_event", G_CALLBACK(scroll_event), xscr);
+
+//	g_signal_connect(G_OBJECT(win), "drag_drop", G_CALLBACK(drag_drop), xscr);
+//	g_signal_connect(G_OBJECT(win), "drag_data_received", G_CALLBACK(drag_data_received), xscr);
+//	g_signal_connect(G_OBJECT(win), "drag_motion", G_CALLBACK(drag_motion), xscr);
+//	g_signal_connect(G_OBJECT(win), "drag_leave", G_CALLBACK(drag_leave), xscr);
+
+//	g_signal_connect(G_OBJECT(win), "enter_notify_event", G_CALLBACK(enter_notify_event), xscr);
+//	g_signal_connect(G_OBJECT(win), "focus_in_event", G_CALLBACK(focus_in_event), xscr);
+//	g_signal_connect(G_OBJECT(win), "focus_out_event", G_CALLBACK(focus_out_event), xscr);
+//	g_signal_connect(G_OBJECT(win), "grab_broken_event", G_CALLBACK(grab_broken_event), xscr);
+//	g_signal_connect(G_OBJECT(win), "grab_focus", G_CALLBACK(grab_focus), xscr);
+	g_signal_connect(G_OBJECT(win), "key_press_event", G_CALLBACK(key_press_event), xscr);
+	g_signal_connect(G_OBJECT(win), "key_release_event", G_CALLBACK(key_release_event), xscr);
+//	g_signal_connect(G_OBJECT(win), "leave_notify_event", G_CALLBACK(leave_notify_event), xscr);
+//	g_signal_connect(G_OBJECT(win), "map_event", G_CALLBACK(map_event), xscr);
+//	g_signal_connect(G_OBJECT(win), "realize", G_CALLBACK(widget_realize), xscr);
+
+	GtkWidget *aln = gtk_alignment_new(0.5, 0.5, 1.0, 1.0);
+	gtk_container_set_border_width(GTK_CONTAINER(win), 0);;;;;
+	gtk_container_add(GTK_CONTAINER(win), aln);
+
+	GtkTable *tab = GTK_TABLE(gtk_table_new(1, 1, TRUE));
+	gtk_table_set_col_spacings(tab, 0);
+	gtk_table_set_row_spacings(tab, 0);
+	gtk_table_set_homogeneous(tab, TRUE);
+#define ICON_WIDE 80
+#define ICON_HIGH 80
+	gtk_widget_set_size_request(GTK_WIDGET(tab), ICON_WIDE, ICON_HIGH);
+//	gtk_widget_set_tooltip_text(GTK_WIDGET(tab), "Click Me!");
+
+	gtk_container_add(GTK_CONTAINER(aln), GTK_WIDGET(tab));
+
+	gtk_widget_show(GTK_WIDGET(tab));
+	gtk_widget_show(GTK_WIDGET(aln));
+	gtk_widget_show(GTK_WIDGET(win));
+
+	gdk_window_lower(window);
+
+
+
 	(void) button_press_event;
 	(void) button_release_event;
 	(void) enter_notify_event;
@@ -1405,7 +1460,6 @@ init_popup(XdeScreen *xscr)
 	(void) map_event;
 	(void) widget_realize;
 	(void) scroll_event;
-#endif
 }
 
 static void
@@ -1620,7 +1674,7 @@ do_run(int argc, char *argv[], Bool replace)
 		gdk_window_add_filter(xscr->root, root_handler, xscr);
 		init_wnck(xscr);
 		init_monitors(xscr);
-		init_popup(xscr);
+		init_desktop(xscr);
 		if (options.proxy)
 			setup_button_proxy(xscr);
 
