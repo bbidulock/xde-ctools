@@ -1,0 +1,264 @@
+=head1 NAME
+
+xde-desktop - a desktop environment for XDE
+
+=head1 SYNOPSIS
+
+B<xde-desktop> [I<OPTIONS>]
+
+=head1 DESCRIPTION
+
+Provides a desktop environment for window managers that do not support
+one and provides a more consistent and rich experience for those that
+do.
+
+Like most desktop environments (typically file managers run in a desktop
+mode), B<xde-desktop> provides clickable icons on the desktop.
+Following the XDG specifications, it places items from the user's
+C<$XDG_DESKTOP_DIR> or F<~/Desktop> directory on the background.  Unlike
+most file managers run in a desktop mode, B<xde-desktop> does not
+involve itself with setting the background image.  That is, the domain
+of L<xde-setbg(1)>.  In general, B<xde-desktop> cooperates with any
+background setting utilities using the root X window property,
+C<_XROOTPMAP_ID>.
+
+B<xde-desktop> can be run stand-alone and does not require the rest of
+the B<XDE> suite to operate properly.  It is written in C<C> and relies
+on L<GTK>.
+
+=head1 OPTIONS
+
+B<xde-desktop> provides a number of options.  None are required for full
+and proper operation.  They are, however, as follows:
+
+=head2 COMMAND OPTIONS
+
+When specified, the following options alter the primary operating mode
+of the program:
+
+=over
+
+=item I<unspecified>
+
+When no command option is specified, the default is to run the desktop
+without replacing an existing instance.
+
+=item B<--editor>, B<-e>
+
+When specified (or when the program is called as B<xde-desktop-edit>),
+launch the desktop configuration settings editor.  This is the default
+when called as B<xde-desktop-edit>.
+
+=item B<--replace>, B<-r>
+
+Run the desktop, but replace a running instance of B<xde-desktop>.
+
+=item B<--restart>, B<-R>
+
+When specified, ask the currently running instance of B<xde-desktop>
+to restart.
+
+=item B<--quit>, B<-q>
+
+When specified, ask the currently running instance of B<xde-desktop> to
+quit.
+
+=item B<--help>, B<-h>
+
+Prints usage information and the current options settings and defaults
+to standard output, then exits.
+
+=item B<--version>, B<-V>
+
+Prints the version of the program and a brief copyright statement to
+standard output, then exits.  Parse the first line with L<awk(1)> to
+obtain just the version number.
+
+=item B<--copying>, B<-C>
+
+Prints the long copying permissions statement to standard output, then
+exits.
+
+=back
+
+=head2 GENERAL OPTIONS
+
+General options do not affect the major operating mode of the program.
+B<xde-desktop> provides the following general options:
+
+=over
+
+=item B<--display>, B<-d> I<DISPLAY>
+
+Specify the display to use (overriding the B<DISPLAY> environment
+variable).  The default is the value of the B<DISPLAY> environment
+variable.
+
+=item B<--screen>, B<-s> I<SCREEN>
+
+Specify the screen number to use.  The default is either specified by
+the B<DISPLAY> environment variable (when that variable specifies a
+screen); otherwise, all screens will be considered.
+
+=item B<--desktop>, B<-e> I<DESKTOP>
+
+Specify the desktop environment (DE) to use, I<DESKTOP>, e.g.
+C<FLUXBOX>, C<BLACKBOX>, C<ICEWM>, etc.  The default value when not
+specified is the value of the C<XDG_CURRENT_DESKTOP> or C<FBXDG_DE>
+environment variable.  See L</ENVIRONMENT>, below.
+
+=back
+
+=head1 ENVIRONMENT
+
+As an XDG compatible application, B<xde-desktop> considers the following
+environment variables when calculating the location of the user's
+configuration file and the default configuration files:
+
+=over
+
+=item C<XDG_CONFIG_HOME>
+
+When unspecified, defaults to F<$HOME/.config> in accordance with XDG
+specifications.  B<xde-desktop> looks for user configuration files in
+F<$XDG_CONFIG_HOME/xde/desktop.ini>.
+
+=item C<XDG_CONFIG_DIRS>
+
+When unspecified, defaults to F</etc/xdg> in accordance with XDG
+specifications.  XDE will prepend the F</etc/xdg/xde> directory to this
+path if it does not already exist in the path.  B<xde-desktop> looks for
+system configuration files in F<@XDG_CONFIG_DIRS/xde/desktop.ini>.
+
+=back
+
+=head1 SIGNALS
+
+B<xde-desktop> intercepts and acts upon the following signals:
+
+=over
+
+=item I<SIGHUP>
+
+When B<xde-desktop> receives a I<SIGHUP> signal, it rereads the
+configuration file.
+
+=item I<SIGTERM>
+
+When B<xde-desktop> receives a I<SIGTERM> signal, it writes its
+configuration file if possible before exiting gracefully.
+
+=back
+
+=head1 CONFIGURATION
+
+When B<xde-desktop> starts, it reads the configuration file located in
+F<$XDG_CONFIG_HOME/xde/desktop.ini> unless the configuration was
+overridden with options on the command line.  If the configuration file
+does not exist, it copies the first file that it finds in
+F<$XDG_CONFIG_DIRS/xde/desktop.ini>.  When no configuration file is
+found at all, it uses default settings and will write the current
+(default) configuration to the configuration file.
+
+All configuration keys can be manipulated using the GUI and it is
+unnecessary to hand-edit the configuration file.  Format of the
+configuration file is subject to change without notice, there should be
+no need to rely upon it anyway.
+
+=head1 BEHAVIOUR
+
+When B<xde-desktop> starts, it creates a window that is the size of the
+desktop and places it below all other windows.  To the user, it appears
+as though it is the root window.  Scroll wheel motions (without
+modifiers) are normally passed to the window manager by passing events
+to the root window.  For some window managers, scroll events are
+intercepted and used to change the desktop.  See L</WINDOW MANAGERS>,
+below.
+
+=head1 WINDOW MANAGERS
+
+B<xde-desktop> supports all EWMH/NetWM 1.5, GNOME/WinWM and ICCCM 2.0
+compliant window managers.  It even supports some plain ICCCM/Motif WMH
+compliant window managers that do not support EWMH/NetWM or GNOME/WinWM
+(such as L<twm(1)> and L<mwm(1)>).  Tested window managers and the
+idiosyncrasies handled for them are as follows:
+
+=over
+
+=item L<fluxbox(1)>
+
+=item L<blackbox(1)>
+
+=item L<openbox(1)>
+
+L<openbox(1)> has a strange idea for changing desktops using scroll
+events.  Scroll events only change desktops within a row of the desktop
+layout.  B<xde-desktop> intercepts scroll events on the desktop and
+makes this consistent with other window managers.
+
+=item L<icewm(1)>
+
+L<icewm(1)> has no idea about changing desktops with scroll events
+unless specifically specified in configuration files.  However,
+recognizing scroll events is not the default configuration for
+L<icewm(1)>.  B<xde-desktop> intercepts scroll events on the desktop and
+makes this consistent with other window managers.
+
+=item L<jwm(1)>
+
+L<jwm(1)> does not consider its own panel when specifying
+C<_NET_WORKAREA>.  I don't know whether I missed some "do not cover
+panel" configuration item or whether it is a bug in L<jwm(1)>.
+Nevertheless, B<xde-desktop> works around this problem by reducing the
+height of the work area by 1/2 of an icon height.
+
+L<jwm(1)> reverses the response to scroll events on the desktop.  It
+moves left when others move right and vise versa.  B<xde-desktop>
+intercepts scroll events on the desktop for this window manager and
+makes this consistent with other window managers.
+
+=item L<pekwm(1)>
+
+L<pekwm(1)> has a strange idea for changing desktops using scroll
+events.  Scroll events only change desktops within a row of the desktop
+layout.  B<xde-desktop> intercepts scroll events on the desktop and
+makes this consistent with other window managers.
+
+=item L<wmaker(1)>
+
+=item L<fvwm(1)>
+
+=item L<afterstep(1)>
+
+=item L<metacity(1)>
+
+=item L<twm(1)>
+
+=item L<mwm(1)>
+
+=back
+
+=head1 HISTORY
+
+I wrote B<xde-desktop> primarily because L<pcmanfm(1)> from the I<LXDE>
+suite would not allow changing desktops with the scroll wheel for any
+window manager other than L<openbox(1)>.  I started using L<idesk(1)>;
+however, it leaks memory when the background pixmap changes and
+eventually turns into a runaway.  I also tried L<fbdesk(1)>, but it was
+not complete.  So, I wrote B<xde-desktop>.  Most of the ideas and
+techniques were taken from the L<rox(1)> desktop: it is too bad that
+L<rox(1)> is not XDG compliant.
+
+The program was originally written in C<perl>, but was later rewritten
+in native C<C>.
+
+=head1 AUTHOR
+
+Brian Bidulock <bidulock@cpan.org>
+
+=head1 SEE ALSO
+
+=cut
+
+# vim: set sw=4 tw=72 nocin spell spelllang=en_ca:
+

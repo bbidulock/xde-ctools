@@ -309,5 +309,4 @@ Brian Bidulock <bidulock@cpan.org>
 
 =cut
 
-# vim: set sw=4 tw=72 spell spelllang=en_ca:
-
+# vim: set sw=4 tw=72 nocin spell spelllang=en_ca:
