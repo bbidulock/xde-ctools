@@ -1,6 +1,6 @@
 /*****************************************************************************
 
- Copyright (c) 2008-2014  Monavacon Limited <http://www.monavacon.com/>
+ Copyright (c) 2008-2015  Monavacon Limited <http://www.monavacon.com/>
  Copyright (c) 2001-2008  OpenSS7 Corporation <http://www.openss7.com/>
  Copyright (c) 1997-2001  Brian F. G. Bidulock <bidulock@openss7.org>
 
@@ -94,6 +94,8 @@
 #include <libsn/sn.h>
 #endif
 #include <X11/SM/SMlib.h>
+#include <gio/gio.h>
+#include <glib.h>
 #include <gdk/gdkx.h>
 #include <gdk-pixbuf/gdk-pixbuf.h>
 #include <gtk/gtk.h>
@@ -110,9 +112,9 @@
 
 #define XPRINTF(args...) do { } while (0)
 #define OPRINTF(args...) do { if (options.output > 1) { \
-	fprintf(stderr, "I: "); \
-	fprintf(stderr, args); \
-	fflush(stderr); } } while (0)
+	fprintf(stdout, "I: "); \
+	fprintf(stdout, args); \
+	fflush(stdout); } } while (0)
 #define DPRINTF(args...) do { if (options.debug) { \
 	fprintf(stderr, "D: %s +%d %s(): ", __FILE__, __LINE__, __func__); \
 	fprintf(stderr, args); \
@@ -149,6 +151,7 @@ static Atom _XA_NET_CURRENT_DESKTOP;
 static Atom _XA_WIN_DESKTOP_BUTTON_PROXY;
 static Atom _XA_WIN_WORKSPACE_COUNT;
 static Atom _XA_WIN_WORKSPACE;
+static Atom _XA_WM_DESKTOP;
 static Atom _XA_XROOTPMAP_ID;
 static Atom _XA_ESETROOT_PMAP_ID;
 
@@ -670,6 +673,28 @@ update_current_desktop(XdeScreen *xscr, Atom prop)
 	XdeMonitor *xmon;
 
 	DPRINT();
+	if (prop == None || prop == _XA_WM_DESKTOP) {
+		if (XGetWindowProperty(dpy, root, _XA_WM_DESKTOP, 0, 64, False,
+				       XA_CARDINAL, &actual, &format, &nitems, &after,
+				       (unsigned char **) &data) == Success &&
+		    format == 32 && actual && nitems >= 1 && data) {
+			if (xscr->current != (int) data[0]) {
+				xscr->current = data[0];
+				changed = True;
+			}
+			x = (xscr->mhaware = (nitems >= xscr->nmon)) ? &i : &j;
+			for (i = 0, xmon = xscr->mons; i < xscr->nmon; i++, xmon++) {
+				if (xmon->current != (int) data[*x]) {
+					xmon->current = data[*x];
+					changed = True;
+				}
+			}
+		}
+		if (data) {
+			XFree(data);
+			data = NULL;
+		}
+	}
 	if (prop == None || prop == _XA_WIN_WORKSPACE) {
 		if (XGetWindowProperty(dpy, root, _XA_WIN_WORKSPACE, 0, 64, False,
 				       XA_CARDINAL, &actual, &format, &nitems, &after,
@@ -1663,6 +1688,7 @@ update_layout(XdeScreen *xscr, Atom prop)
 	int format = 0, num;
 	unsigned long nitems = 0, after = 0;
 	unsigned long *data = NULL;
+	Bool propok = False;
 
 	DPRINT();
 	if (prop == None || prop == _XA_NET_DESKTOP_LAYOUT) {
@@ -1677,6 +1703,7 @@ update_layout(XdeScreen *xscr, Atom prop)
 			XFree(data);
 			data = NULL;
 		}
+		propok = True;
 	}
 	if (prop == None || prop == _XA_WIN_WORKSPACE_COUNT) {
 		if (XGetWindowProperty
@@ -1689,6 +1716,7 @@ update_layout(XdeScreen *xscr, Atom prop)
 			XFree(data);
 			data = NULL;
 		}
+		propok = True;
 	}
 	if (prop == None || prop == _XA_NET_NUMBER_OF_DESKTOPS) {
 		if (XGetWindowProperty
@@ -1701,7 +1729,10 @@ update_layout(XdeScreen *xscr, Atom prop)
 			XFree(data);
 			data = NULL;
 		}
+		propok = True;
 	}
+	if (!propok)
+		EPRINTF("wrong property passed\n");
 
 	if (xscr->desks <= 0)
 		xscr->desks = 1;
@@ -1767,6 +1798,11 @@ event_handler_PropertyNotify(Display *dpy, XEvent *xev, XdeScreen *xscr)
 		update_layout(xscr, xev->xproperty.atom);
 	} else
 	    if (xev->xproperty.atom == _XA_WIN_WORKSPACE
+		&& xev->xproperty.state == PropertyNewValue) {
+		DPRINT();
+		update_current_desktop(xscr, xev->xproperty.atom);
+	} else
+	    if (xev->xproperty.atom == _XA_WM_DESKTOP
 		&& xev->xproperty.state == PropertyNewValue) {
 		DPRINT();
 		update_current_desktop(xscr, xev->xproperty.atom);
@@ -1911,7 +1947,7 @@ laywin_handler(GdkXEvent *xevent, GdkEvent *event, gpointer data)
 	}
 	switch (xev->type) {
 	case SelectionClear:
-		return event_handler_SelectionClear(dpy ,xev, xscr);
+		return event_handler_SelectionClear(dpy, xev, xscr);
 	}
 	EPRINTF("wrong message type for handler %d\n", xev->type);
 	return GDK_FILTER_CONTINUE;
@@ -1929,9 +1965,10 @@ client_handler(GdkXEvent *xevent, GdkEvent *event, gpointer data)
 		return event_handler_ClientMessage(dpy, xev);
 	}
 	EPRINTF("wrong message type for handler %d\n", xev->type);
-	return GDK_FILTER_CONTINUE;
+	return GDK_FILTER_CONTINUE;	/* event not handled, continue processing */
 }
 
+#if 0
 static void
 set_current_desktop(XdeScreen *xscr, int index, Time timestamp)
 {
@@ -1955,6 +1992,7 @@ set_current_desktop(XdeScreen *xscr, int index, Time timestamp)
 
 	XSendEvent(dpy, root, False, SubstructureNotifyMask | SubstructureRedirectMask, &ev);
 }
+#endif
 
 static GdkFilterReturn
 proxy_handler(GdkXEvent *xevent, GdkEvent *event, gpointer data)
@@ -1993,13 +2031,23 @@ proxy_handler(GdkXEvent *xevent, GdkEvent *event, gpointer data)
 		case 4:
 			update_current_desktop(xscr, None);
 			num = (xscr->current - 1 + xscr->desks) % xscr->desks;
+#if 0
 			set_current_desktop(xscr, num, xev->xbutton.time);
+			return GDK_FILTER_REMOVE;
+#else
+			(void) num;
 			break;
+#endif
 		case 5:
 			update_current_desktop(xscr, None);
 			num = (xscr->current + 1 + xscr->desks) % xscr->desks;
+#if 0
 			set_current_desktop(xscr, num, xev->xbutton.time);
+			return GDK_FILTER_REMOVE;
+#else
+			(void) num;
 			break;
+#endif
 		}
 		return GDK_FILTER_CONTINUE;
 	case ButtonRelease:
@@ -2450,8 +2498,6 @@ init_smclient(void)
 static void
 startup(int argc, char *argv[])
 {
-	static const char *suffix = "/.gtkrc-2.0.xde";
-	const char *home;
 	GdkAtom atom;
 	GdkEventMask mask;
 	GdkDisplay *disp;
@@ -2459,16 +2505,10 @@ startup(int argc, char *argv[])
 	GdkWindow *root;
 	Display *dpy;
 	char *file;
-	int len;
 
-	DPRINT();
-	home = getenv("HOME") ? : ".";
-	len = strlen(home) + strlen(suffix) + 1;
-	file = calloc(len, sizeof(*file));
-	strncpy(file, home, len);
-	strncat(file, suffix, len);
+	file = g_strdup_printf("%s/.gtkrc-2.0.xde", g_get_home_dir());
 	gtk_rc_add_default_file(file);
-	free(file);
+	g_free(file);
 
 	init_smclient();
 
@@ -2509,6 +2549,9 @@ startup(int argc, char *argv[])
 	atom = gdk_atom_intern_static_string("_WIN_WORKSPACE");
 	_XA_WIN_WORKSPACE = gdk_x11_atom_to_xatom_for_display(disp, atom);
 
+	atom = gdk_atom_intern_static_string("WM_DESKTOP");
+	_XA_WM_DESKTOP = gdk_x11_atom_to_xatom_for_display(disp, atom);
+
 	atom = gdk_atom_intern_static_string("_XROOTPMAP_ID");
 	_XA_XROOTPMAP_ID = gdk_x11_atom_to_xatom_for_display(disp, atom);
 
@@ -2533,7 +2576,7 @@ copying(int argc, char *argv[])
 --------------------------------------------------------------------------------\n\
 %1$s\n\
 --------------------------------------------------------------------------------\n\
-Copyright (c) 2008-2014  Monavacon Limited <http://www.monavacon.com/>\n\
+Copyright (c) 2008-2015  Monavacon Limited <http://www.monavacon.com/>\n\
 Copyright (c) 2001-2008  OpenSS7 Corporation <http://www.openss7.com/>\n\
 Copyright (c) 1997-2001  Brian F. G. Bidulock <bidulock@openss7.org>\n\
 \n\
@@ -2577,7 +2620,7 @@ version(int argc, char *argv[])
 %1$s (OpenSS7 %2$s) %3$s\n\
 Written by Brian Bidulock.\n\
 \n\
-Copyright (c) 2008, 2009, 2010, 2011, 2012, 2013, 2014  Monavacon Limited.\n\
+Copyright (c) 2008, 2009, 2010, 2011, 2012, 2013, 2014, 2015  Monavacon Limited.\n\
 Copyright (c) 2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008  OpenSS7 Corporation.\n\
 Copyright (c) 1997, 1998, 1999, 2000, 2001  Brian F. G. Bidulock.\n\
 This is free software; see the source for copying conditions.  There is NO\n\
@@ -2675,7 +2718,7 @@ static void
 get_defaults(void)
 {
 	if (!options.display) {
-		EPRINTF("No DISPLAY environment variable or --display option\n");
+		EPRINTF("No DISPLAY environment variable nor --display option\n");
 		exit(EXIT_FAILURE);
 	}
 	if (options.command == CommandDefault)
@@ -2697,6 +2740,7 @@ main(int argc, char *argv[])
 
 	while (1) {
 		int c, val;
+		char *endptr = NULL;
 
 #ifdef _GNU_SOURCE
 		int option_index = 0;
@@ -2720,9 +2764,10 @@ main(int argc, char *argv[])
 		};
 		/* *INDENT-ON* */
 
-		c = getopt_long_only(argc, argv, "d:D::v::bVCH?", long_options, &option_index);
+		c = getopt_long_only(argc, argv, "d:D::v::bVCH?",
+				     long_options, &option_index);
 #else				/* _GNU_SOURCE */
-		c = getopt(argc, argv, "d:D:vhVC?");
+		c = getopt(argc, argv, "d:D:vhVCH?");
 #endif				/* _GNU_SOURCE */
 		if (c == -1) {
 			if (options.debug)
@@ -2763,25 +2808,29 @@ main(int argc, char *argv[])
 			options.saveFile = strdup(optarg);
 			break;
 
-		case 'D':	/* -D, --debug [level] */
+		case 'D':	/* -D, --debug [LEVEL] */
 			if (options.debug)
 				fprintf(stderr, "%s: increasing debug verbosity\n", argv[0]);
 			if (optarg == NULL) {
 				options.debug++;
-			} else {
-				if ((val = strtol(optarg, NULL, 0)) < 0)
-					goto bad_option;
-				options.debug = val;
+				break;
 			}
+			if ((val = strtol(optarg, &endptr, 0)) < 0)
+				goto bad_option;
+			if (endptr && *endptr)
+				goto bad_option;
+			options.debug = val;
 			break;
-		case 'v':	/* -v, --verbose [level] */
+		case 'v':	/* -v, --verbose [LEVEL] */
 			if (options.debug)
 				fprintf(stderr, "%s: increasing output verbosity\n", argv[0]);
 			if (optarg == NULL) {
 				options.output++;
 				break;
 			}
-			if ((val = strtol(optarg, NULL, 0)) < 0)
+			if ((val = strtol(optarg, &endptr, 0)) < 0)
+				goto bad_option;
+			if (endptr && *endptr)
 				goto bad_option;
 			options.output = val;
 			break;
@@ -2814,13 +2863,11 @@ main(int argc, char *argv[])
 					fprintf(stderr, "%s: syntax error near '", argv[0]);
 					while (optind < argc) {
 						fprintf(stderr, "%s", argv[optind++]);
-						fprintf(stderr, "%s",
-							(optind < argc) ? " " : "");
+						fprintf(stderr, "%s", (optind < argc) ? " " : "");
 					}
 					fprintf(stderr, "'\n");
 				} else {
-					fprintf(stderr,
-						"%s: missing option or argument", argv[0]);
+					fprintf(stderr, "%s: missing option or argument", argv[0]);
 					fprintf(stderr, "\n");
 				}
 				fflush(stderr);
@@ -2835,7 +2882,7 @@ main(int argc, char *argv[])
 		fprintf(stderr, "%s: option count = %d\n", argv[0], argc);
 	}
 	if (optind < argc) {
-		fprintf(stderr, "%s: excess non-options arguments near '", argv[0]);
+		fprintf(stderr, "%s: excess non-option arguments near '", argv[0]);
 		while (optind < argc) {
 			fprintf(stderr, "%s", argv[optind++]);
 			fprintf(stderr, "%s", (optind < argc) ? " " : "");
@@ -2847,35 +2894,30 @@ main(int argc, char *argv[])
 	get_defaults();
 	startup(argc, argv);
 	switch (command) {
+	default:
 	case CommandDefault:
 	case CommandRun:
-		if (options.debug)
-			fprintf(stderr, "%s: running a new instance\n", argv[0]);
+		DPRINTF("%s: running a new instance\n", argv[0]);
 		do_run(argc, argv, False);
 		break;
 	case CommandQuit:
-		if (options.debug)
-			fprintf(stderr, "%s: asking existing instance to quit\n", argv[0]);
+		DPRINTF("%s: asking existing instance to quit\n", argv[0]);
 		do_quit(argc, argv);
 		break;
 	case CommandReplace:
-		if (options.debug)
-			fprintf(stderr, "%s: replacing existing instance\n", argv[0]);
+		DPRINTF("%s: replacing existing instance\n", argv[0]);
 		do_run(argc, argv, True);
 		break;
 	case CommandHelp:
-		if (options.debug)
-			fprintf(stderr, "%s: printing help message\n", argv[0]);
+		DPRINTF("%s: printing help message\n", argv[0]);
 		help(argc, argv);
 		break;
 	case CommandVersion:
-		if (options.debug)
-			fprintf(stderr, "%s: printing version message\n", argv[0]);
+		DPRINTF("%s: printing version message\n", argv[0]);
 		version(argc, argv);
 		break;
 	case CommandCopying:
-		if (options.debug)
-			fprintf(stderr, "%s: printing copying message\n", argv[0]);
+		DPRINTF("%s: printing copying message\n", argv[0]);
 		copying(argc, argv);
 		break;
 	}
