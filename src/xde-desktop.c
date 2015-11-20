@@ -294,11 +294,11 @@ typedef struct {
 	WnckScreen *wnck;
 	gint nmon;			/* number of monitors */
 	XdeMonitor *mons;		/* monitors for this screen */
-	GdkPixmap *pixmap;		/* pixmap for entire screen */
+	Pixmap pixmap;			/* current pixmap for entire screen */
 	char *theme;			/* XDE theme name */
 	int nimg;			/* number of images */
 #if 0
-	XdeImage *sources;		/* the images for the theme */
+	XdeImage **sources;		/* the images for the theme */
 #endif
 	Window selwin;			/* selection owner window */
 	Atom atom;			/* selection atom for this screen */
@@ -1344,6 +1344,8 @@ update_window(XdeScreen *xscr, Atom prop)
 {
 }
 
+static void update_root_pixmap(XdeScreen *xscr, Atom prop);
+
 static void
 init_desktop(XdeScreen *xscr)
 {
@@ -1439,6 +1441,8 @@ init_desktop(XdeScreen *xscr)
 
 	gtk_container_add(GTK_CONTAINER(aln), GTK_WIDGET(tab));
 
+	update_root_pixmap(xscr, None);
+
 	gtk_widget_show(GTK_WIDGET(tab));
 	gtk_widget_show(GTK_WIDGET(aln));
 	gtk_widget_show(GTK_WIDGET(win));
@@ -1491,6 +1495,48 @@ update_screen(XdeScreen *xscr)
 static void
 update_root_pixmap(XdeScreen *xscr, Atom prop)
 {
+	Display *dpy = GDK_DISPLAY_XDISPLAY(xscr->disp);
+	Window root = RootWindow(dpy, xscr->index);
+	Atom actual = None;
+	int format = 0;
+	unsigned long nitems = 0, after = 0;
+	unsigned long *data = NULL;
+	Pixmap pmap = None;
+
+	DPRINT();
+	if (prop == None || prop == _XA_ESETROOT_PMAP_ID) {
+		if (XGetWindowProperty
+		    (dpy, root, _XA_ESETROOT_PMAP_ID, 0, 1, False, AnyPropertyType, &actual,
+		     &format, &nitems, &after, (unsigned char **) &data) == Success
+		    && format == 32 && actual && nitems >= 1 && data) {
+			pmap = data[0];
+		}
+		if (data) {
+			XFree(data);
+			data = NULL;
+		}
+	}
+	if (prop == None || prop == _XA_XROOTPMAP_ID) {
+		if (XGetWindowProperty
+		    (dpy, root, _XA_XROOTPMAP_ID, 0, 1, False, AnyPropertyType, &actual,
+		     &format, &nitems, &after, (unsigned char **) &data) == Success
+		    && format == 32 && actual && nitems >= 1 && data) {
+			pmap = data[0];
+		}
+		if (data) {
+			XFree(data);
+			data = NULL;
+		}
+	}
+	if (pmap && xscr->pixmap != pmap) {
+		DPRINTF("root pixmap changed from 0x%08lx to 0x%08lx\n", xscr->pixmap, pmap);
+		xscr->pixmap = pmap;
+		/* Adjust the style of the desktop to use the pixmap specified by
+		   _XROOTPMAP_ID as the background.  Uses GTK+ 2.0 styles to do this.
+		   The root _XROOTPMAP_ID must be retrieved before calling this function
+		   for it to work correctly.  */
+
+	}
 }
 
 static void
