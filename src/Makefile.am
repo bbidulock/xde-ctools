@@ -48,7 +48,7 @@ xde_pager_CFLAGS = $(AM_CFLAGS) $(ICE_CFLAGS) $(SMLIB_CFLAGS)
 xde_pager_LDFLAGS = $(SMLIB_LIBS) $(ICE_LIBS) $(AM_LDFLAGS)
 
 xde_cycle_CPPFLAGS = -DNAME=\"xde-cycle\"
-xde_cycle_SOURCES = xde-cycle.c xde-cycle.h
+xde_cycle_SOURCES = xde-cycle.c
 
 xde_setbg_CPPFLAGS = -DNAME=\"xde-setbg\"
 xde_setbg_SOURCES = xde-setbg.c
