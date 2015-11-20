@@ -3348,6 +3348,7 @@ main(int argc, char *argv[])
 			if (endptr && *endptr)
 				goto bad_option;
 			break;
+
 		case 'w':	/* -w, --which WHICH */
 			if (options.which != UseScreenDefault)
 				goto bad_option;
