@@ -1,6 +1,6 @@
 /*****************************************************************************
 
- Copyright (c) 2008-2014  Monavacon Limited <http://www.monavacon.com/>
+ Copyright (c) 2008-2015  Monavacon Limited <http://www.monavacon.com/>
  Copyright (c) 2001-2008  OpenSS7 Corporation <http://www.openss7.com/>
  Copyright (c) 1997-2001  Brian F. G. Bidulock <bidulock@openss7.org>
 
@@ -42,16 +42,104 @@
 
  *****************************************************************************/
 
-#include "xde-cycle.h"
+#ifdef HAVE_CONFIG_H
+#include "autoconf.h"
+#endif
+
+#ifndef _XOPEN_SOURCE
+#define _XOPEN_SOURCE 600
+#endif
+
+#include <stddef.h>
+#include <stdint.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <stdio.h>
+#include <string.h>
+#include <errno.h>
+#include <sys/types.h>
+#include <ctype.h>
+#include <sys/stat.h>
+#include <sys/select.h>
+#include <sys/time.h>
+#include <sys/ioctl.h>
+#include <sys/wait.h>
+#include <fcntl.h>
+#include <dirent.h>
+#include <time.h>
+#include <signal.h>
+#include <syslog.h>
+#include <sys/utsname.h>
+
+#include <assert.h>
+#include <locale.h>
+#include <stdarg.h>
+#include <strings.h>
+#include <regex.h>
+
+#include <X11/Xatom.h>
+#include <X11/Xlib.h>
+#include <X11/Xproto.h>
+#include <X11/Xutil.h>
+#include <X11/Xresource.h>
+#ifdef XRANDR
+#include <X11/extensions/Xrandr.h>
+#include <X11/extensions/randr.h>
+#endif
+#ifdef XINERAMA
+#include <X11/extensions/Xinerama.h>
+#endif
+#ifdef STARTUP_NOTIFICATION
+#define SN_API_NOT_YET_FROZEN
+#include <libsn/sn.h>
+#endif
+#include <X11/SM/SMlib.h>
+#include <gio/gio.h>
+#include <glib.h>
+#include <gdk/gdkx.h>
+#include <gdk-pixbuf/gdk-pixbuf.h>
+#include <gtk/gtk.h>
+#include <gdk/gdkx.h>
+#include <cairo.h>
+
+#define WNCK_I_KNOW_THIS_IS_UNSTABLE
+#include <libwnck/libwnck.h>
+
+#include <pwd.h>
 
 #ifdef _GNU_SOURCE
 #include <getopt.h>
 #endif
 
-Atom _XA_WM_STATE;
-Atom _XA_XDE_THEME_NAME;
-Atom _XA_GTK_READ_RCFILES;
-Atom _XA_NET_WM_ICON_GEOMETRY;
+#define XPRINTF(args...) do { } while (0)
+#define OPRINTF(args...) do { if (options.output > 1) { \
+	fprintf(stdout, "I: "); \
+	fprintf(stdout, args); \
+	fflush(stdout); } } while (0)
+#define DPRINTF(args...) do { if (options.debug) { \
+	fprintf(stderr, "D: %s +%d %s(): ", __FILE__, __LINE__, __func__); \
+	fprintf(stderr, args); \
+	fflush(stderr); } } while (0)
+#define EPRINTF(args...) do { \
+	fprintf(stderr, "E: %s +%d %s(): ", __FILE__, __LINE__, __func__); \
+	fprintf(stderr, args); \
+	fflush(stderr);   } while (0)
+#define DPRINT() do { if (options.debug) { \
+	fprintf(stderr, "D: %s +%d %s()\n", __FILE__, __LINE__, __func__); \
+	fflush(stderr); } } while (0)
+
+#undef EXIT_SUCCESS
+#undef EXIT_FAILURE
+#undef EXIT_SYNTAXERR
+
+#define EXIT_SUCCESS    0
+#define EXIT_FAILURE    1
+#define EXIT_SYNTAXERR  2
+
+static Atom _XA_WM_STATE;
+static Atom _XA_XDE_THEME_NAME;
+static Atom _XA_GTK_READ_RCFILES;
+static Atom _XA_NET_WM_ICON_GEOMETRY;
 
 typedef enum {
 	UseWindowDefault,		/* default window by button */
@@ -155,7 +243,7 @@ find_specified_screen(GdkDisplay *disp)
   * Either specified with options.screen, or if the DISPLAY environment variable
   * specifies a screen, use that screen; otherwise, return NULL.
   */
-WnckScreen *
+static WnckScreen *
 find_specific_screen(GdkDisplay *disp)
 {
 	WnckScreen *scrn = NULL;
@@ -169,7 +257,7 @@ find_specific_screen(GdkDisplay *disp)
 
 /** @brief find the screen of window with the focus
   */
-WnckScreen *
+static WnckScreen *
 find_focus_screen(GdkDisplay *disp)
 {
 	WnckScreen *scrn = NULL;
@@ -187,7 +275,7 @@ find_focus_screen(GdkDisplay *disp)
 	return (scrn);
 }
 
-WnckScreen *
+static WnckScreen *
 find_pointer_screen(GdkDisplay *disp)
 {
 	WnckScreen *scrn = NULL;
@@ -199,7 +287,7 @@ find_pointer_screen(GdkDisplay *disp)
 	return (scrn);
 }
 
-WnckScreen *
+static WnckScreen *
 find_screen(GdkDisplay *disp)
 {
 	WnckScreen *scrn = NULL;
@@ -534,12 +622,13 @@ position_list(GtkMenu *menu, gint *x, gint *y, gboolean *push_in, gpointer user_
 {
 	WnckWindow *wind = (typeof(wind)) user_data;
 
+	*push_in = FALSE;
+	if (options.button) {
+		position_pointer(menu, wind, x, y);
+		return;
+	}
 	switch (options.where) {
 	case PositionDefault:
-		if (options.button) {
-			position_pointer(menu, wind, x, y);
-			break;
-		}
 		position_center(menu, wind, x, y);
 		break;
 	case PositionPointer:
@@ -557,8 +646,8 @@ position_list(GtkMenu *menu, gint *x, gint *y, gboolean *push_in, gpointer user_
 	}
 }
 
-void
-pop_the_list(int argc, char *argv[])
+static void
+do_popup(int argc, char *argv[])
 {
 	GdkDisplay *disp;
 	WnckScreen *scrn;
@@ -579,7 +668,7 @@ pop_the_list(int argc, char *argv[])
 	}
 }
 
-void
+static void
 reparse(Display *dpy, Window root)
 {
 	XTextProperty xtp = { NULL, };
@@ -590,18 +679,11 @@ reparse(Display *dpy, Window root)
 	if (XGetTextProperty(dpy, root, &xtp, _XA_XDE_THEME_NAME)) {
 		if (Xutf8TextPropertyToTextList(dpy, &xtp, &list, &strings) == Success) {
 			if (strings >= 1) {
-				static const char *prefix = "gtk-theme-name=\"";
-				static const char *suffix = "\"";
 				char *rc_string;
-				int len;
 
-				len = strlen(prefix) + strlen(list[0]) + strlen(suffix) + 1;
-				rc_string = calloc(len, sizeof(*rc_string));
-				strncpy(rc_string, prefix, len);
-				strncat(rc_string, list[0], len);
-				strncat(rc_string, suffix, len);
+				rc_string = g_strdup_printf("gtk-theme-name=\"%s\"", list[0]);
 				gtk_rc_parse_string(rc_string);
-				free(rc_string);
+				g_free(rc_string);
 			}
 			if (list)
 				XFreeStringList(list);
@@ -689,16 +771,14 @@ static GdkFilterReturn
 filter_handler(GdkXEvent * xevent, GdkEvent * event, gpointer data)
 {
 	XEvent *xev = (typeof(xev)) xevent;
-	Display *dpy = (typeof(dpy)) data;
+	Display *dpy = data;
 
 	return handle_event(dpy, xev);
 }
 
-void
+static void
 startup(int argc, char *argv[])
 {
-	static const char *suffix = "/.gtkrc-2.0.xde";
-	const char *home;
 	GdkAtom atom;
 	GdkEventMask mask;
 	GdkDisplay *disp;
@@ -706,15 +786,11 @@ startup(int argc, char *argv[])
 	GdkWindow *root;
 	Display *dpy;
 	char *file;
-	int len, nscr;
+	int nscr;
 
-	home = getenv("HOME") ? : ".";
-	len = strlen(home) + strlen(suffix) + 1;
-	file = calloc(len, sizeof(*file));
-	strncpy(file, home, len);
-	strncat(file, suffix, len);
+	file = g_strdup_printf("%s/.gtkrc-2.0.xde", g_get_home_dir());
 	gtk_rc_add_default_file(file);
-	free(file);
+	g_free(file);
 
 	gtk_init(&argc, &argv);
 
@@ -761,7 +837,7 @@ copying(int argc, char *argv[])
 --------------------------------------------------------------------------------\n\
 %1$s\n\
 --------------------------------------------------------------------------------\n\
-Copyright (c) 2008-2014  Monavacon Limited <http://www.monavacon.com/>\n\
+Copyright (c) 2008-2015  Monavacon Limited <http://www.monavacon.com/>\n\
 Copyright (c) 2001-2008  OpenSS7 Corporation <http://www.openss7.com/>\n\
 Copyright (c) 1997-2001  Brian F. G. Bidulock <bidulock@openss7.org>\n\
 \n\
@@ -805,7 +881,7 @@ version(int argc, char *argv[])
 %1$s (OpenSS7 %2$s) %3$s\n\
 Written by Brian Bidulock.\n\
 \n\
-Copyright (c) 2008, 2009, 2010, 2011, 2012, 2013, 2014  Monavacon Limited.\n\
+Copyright (c) 2008, 2009, 2010, 2011, 2012, 2013, 2014, 2015  Monavacon Limited.\n\
 Copyright (c) 2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008  OpenSS7 Corporation.\n\
 Copyright (c) 1997, 1998, 1999, 2000, 2001  Brian F. G. Bidulock.\n\
 This is free software; see the source for copying conditions.  There is NO\n\
@@ -825,7 +901,7 @@ usage(int argc, char *argv[])
 		return;
 	(void) fprintf(stderr, "\
 Usage:\n\
-    %1$s [options]\n\
+    %1$s [-p|--popup] [options]\n\
     %1$s {-h|--help}\n\
     %1$s {-V|--version}\n\
     %1$s {-C|--copying}\n\
@@ -908,15 +984,16 @@ help(int argc, char *argv[])
 {
 	if (!options.output && !options.debug)
 		return;
+	/* *INDENT-OFF* */
 	(void) fprintf(stdout, "\
 Usage:\n\
-    %1$s [options]\n\
-    %1$s {-h|--help}\n\
+    %1$s [-p|--popup] [options]\n\
+    %1$s {-h|--help} [options]\n\
     %1$s {-V|--version}\n\
     %1$s {-C|--copying}\n\
 Command options:\n\
    [-p, --popup]\n\
-        popup the menu\n\
+        pop up the menu\n\
     -h, --help, -?, --?\n\
         print this usage information and exit\n\
     -V, --version\n\
@@ -969,33 +1046,35 @@ Options:\n\
         specify keys for cycling [default: %20$s]\n\
     -D, --debug [LEVEL]\n\
         increment or set debug LEVEL [default: %2$d]\n\
+        this option may be repeated.\n\
     -v, --verbose [LEVEL]\n\
         increment or set output verbosity LEVEL [default: %3$d]\n\
         this option may be repeated.\n\
 ", argv[0]
-		, options.debug
-		, options.output
-		, options.display
-		, options.screen
-		, options.button
-		, options.timestamp
-		, show_which(options.which)
-		, show_window(options.window)
-		, show_where(options.where)
-		, show_bool(options.cycle)
-		, show_bool(options.hidden)
-		, show_bool(options.minimized)
-		, show_bool(options.monitors)
-		, show_bool(options.workspaces)
-		, show_order(options.order)
-		, show_bool(!options.activate)
-		, show_bool(options.raise)
-		, show_bool(options.restore)
-		, options.keys ?: ""
-	);
+	, options.debug
+	, options.output
+	, options.display
+	, options.screen
+	, options.button
+	, options.timestamp
+	, show_which(options.which)
+	, show_window(options.window)
+	, show_where(options.where)
+	, show_bool(options.cycle)
+	, show_bool(options.hidden)
+	, show_bool(options.minimized)
+	, show_bool(options.monitors)
+	, show_bool(options.workspaces)
+	, show_order(options.order)
+	, show_bool(!options.activate)
+	, show_bool(options.raise)
+	, show_bool(options.restore)
+	, options.keys ?: ""
+);
+	/* *INDENT-ON* */
 }
 
-void
+static void
 set_defaults(void)
 {
 	const char *env;
@@ -1004,14 +1083,14 @@ set_defaults(void)
 		options.display = strdup(env);
 }
 
-void
+static void
 get_defaults(void)
 {
 	const char *p;
 	int n;
 
 	if (!options.display) {
-		EPRINTF("No DISPLAY environment variable or --display option\n");
+		EPRINTF("No DISPLAY environment variable nor --display option\n");
 		exit(EXIT_FAILURE);
 	}
 	if (options.screen < 0 && (p = strrchr(options.display, '.'))
@@ -1019,7 +1098,6 @@ get_defaults(void)
 		options.screen = atoi(p);
 	if (options.command == CommandDefault)
 		options.command = CommandPopup;
-
 }
 
 int
@@ -1033,6 +1111,7 @@ main(int argc, char *argv[])
 
 	while (1) {
 		int c, val, len;
+		char *endptr = NULL;
 
 #ifdef _GNU_SOURCE
 		int option_index = 0;
@@ -1088,7 +1167,9 @@ main(int argc, char *argv[])
 			options.display = strdup(optarg);
 			break;
 		case 's':	/* -s, --screen SCREEN */
-			options.screen = strtoul(optarg, NULL, 0);
+			options.screen = strtoul(optarg, &endptr, 0);
+			if (endptr && *endptr)
+				goto bad_option;
 			break;
 		case 'p':	/* -p, --popup */
 			if (options.command != CommandDefault)
@@ -1098,15 +1179,20 @@ main(int argc, char *argv[])
 			options.command = CommandPopup;
 			break;
 		case 'b':	/* -b, --button BUTTON */
-			options.button = strtoul(optarg, NULL, 0);
+			options.button = strtoul(optarg, &endptr, 0);
+			if (endptr && *endptr)
+				goto bad_option;
 			break;
 		case 'T':	/* -T, --timestamp TIMESTAMP */
-			options.timestamp = strtoul(optarg, NULL, 0);
+			options.timestamp = strtoul(optarg, &endptr, 0);
+			if (endptr && *endptr)
+				goto bad_option;
 			break;
 		case 'w':	/* -w, --which WHICH */
 			if (options.which != UseWindowDefault)
 				goto bad_option;
-			len = strlen(optarg);
+			if (!(len = strlen(optarg)))
+				goto bad_option;
 			if (!strncasecmp("active", optarg, len))
 				options.which = UseWindowActive;
 			else if (!strncasecmp("focused", optarg, len))
@@ -1115,15 +1201,18 @@ main(int argc, char *argv[])
 				options.which = UseWindowPointer;
 			else if (!strncasecmp("select", optarg, len))
 				options.which = UseWindowSelect;
-			else if ((options.window = strtoul(optarg, NULL, 0)))
+			else {
+				options.window = strtoul(optarg, &endptr, 0);
+				if (endptr && *endptr)
+					goto bad_option;
 				options.which = UseWindowSpecified;
-			else
-				goto bad_option;
+			}
 			break;
 		case 'W':	/* -W, --where WHERE */
 			if (options.where != PositionDefault)
 				goto bad_option;
-			len = strlen(optarg);
+			if (!(len = strlen(optarg)))
+				goto bad_option;
 			if (!strncasecmp("pointer", optarg, len))
 				options.where = PositionPointer;
 			else if (!strncasecmp("center", optarg, len))
@@ -1138,7 +1227,9 @@ main(int argc, char *argv[])
 		case 'x':	/* -x, --id WINDOW */
 			if (options.which != UseWindowDefault)
 				goto bad_option;
-			options.window = strtoul(optarg, NULL, 0);
+			options.window = strtoul(optarg, &endptr, 0);
+			if (endptr && *endptr)
+				goto bad_option;
 			if (!options.window)
 				goto bad_option;
 			options.which = UseWindowSpecified;
@@ -1186,25 +1277,29 @@ main(int argc, char *argv[])
 			break;
 
 
-		case 'D':	/* -D, --debug [level] */
+		case 'D':	/* -D, --debug [LEVEL] */
 			if (options.debug)
 				fprintf(stderr, "%s: increasing debug verbosity\n", argv[0]);
 			if (optarg == NULL) {
 				options.debug++;
-			} else {
-				if ((val = strtol(optarg, NULL, 0)) < 0)
-					goto bad_option;
-				options.debug = val;
+				break;
 			}
+			if ((val = strtol(optarg, &endptr, 0)) < 0)
+				goto bad_option;
+			if (endptr && *endptr)
+				goto bad_option;
+			options.debug = val;
 			break;
-		case 'v':	/* -v, --verbose [level] */
+		case 'v':	/* -v, --verbose [LEVEL] */
 			if (options.debug)
 				fprintf(stderr, "%s: increasing output verbosity\n", argv[0]);
 			if (optarg == NULL) {
 				options.output++;
 				break;
 			}
-			if ((val = strtol(optarg, NULL, 0)) < 0)
+			if ((val = strtol(optarg, &endptr, 0)) < 0)
+				goto bad_option;
+			if (endptr && *endptr)
 				goto bad_option;
 			options.output = val;
 			break;
@@ -1237,20 +1332,18 @@ main(int argc, char *argv[])
 					fprintf(stderr, "%s: syntax error near '", argv[0]);
 					while (optind < argc) {
 						fprintf(stderr, "%s", argv[optind++]);
-						fprintf(stderr, "%s",
-							(optind < argc) ? " " : "");
+						fprintf(stderr, "%s", (optind < argc) ? " " : "");
 					}
 					fprintf(stderr, "'\n");
 				} else {
-					fprintf(stderr,
-						"%s: missing option or argument", argv[0]);
+					fprintf(stderr, "%s: missing option or argument", argv[0]);
 					fprintf(stderr, "\n");
 				}
 				fflush(stderr);
 			      bad_usage:
 				usage(argc, argv);
 			}
-			exit(2);
+			exit(EXIT_SYNTAXERR);
 		}
 	}
 	if (options.debug) {
@@ -1258,41 +1351,38 @@ main(int argc, char *argv[])
 		fprintf(stderr, "%s: option count = %d\n", argv[0], argc);
 	}
 	if (optind < argc) {
-		fprintf(stderr, "%s: excess non-options arguments near '", argv[0]);
+		fprintf(stderr, "%s: excess non-option arguments near '", argv[0]);
 		while (optind < argc) {
 			fprintf(stderr, "%s", argv[optind++]);
 			fprintf(stderr, "%s", (optind < argc) ? " " : "");
 		}
 		fprintf(stderr, "'\n");
 		usage(argc, argv);
-		exit(2);
+		exit(EXIT_SYNTAXERR);
 	}
 	get_defaults();
 	startup(argc, argv);
 	switch (command) {
+	default:
 	case CommandDefault:
 	case CommandPopup:
-		if (options.debug)
-			fprintf(stderr, "%s: popping the window list\n", argv[0]);
-		pop_the_list(argc, argv);
+		DPRINTF("%s: popping the menu\n", argv[0]);
+		do_popup(argc, argv);
 		break;
 	case CommandHelp:
-		if (options.debug)
-			fprintf(stderr, "%s: printing help message\n", argv[0]);
+		DPRINTF("%s: printing help message\n", argv[0]);
 		help(argc, argv);
 		break;
 	case CommandVersion:
-		if (options.debug)
-			fprintf(stderr, "%s: printing version message\n", argv[0]);
+		DPRINTF("%s: printing version message\n", argv[0]);
 		version(argc, argv);
 		break;
 	case CommandCopying:
-		if (options.debug)
-			fprintf(stderr, "%s: printing copying message\n", argv[0]);
+		DPRINTF("%s: printing copying message\n", argv[0]);
 		copying(argc, argv);
 		break;
 	}
-	exit(0);
+	exit(EXIT_SUCCESS);
 }
 
 // vim: tw=100 com=sr0\:/**,mb\:*,ex\:*/,sr0\:/*,mb\:*,ex\:*/,b\:TRANS formatoptions+=tcqlor
