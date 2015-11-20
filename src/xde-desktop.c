@@ -135,7 +135,7 @@
 #define EXIT_FAILURE	1
 #define EXIT_SYNTAXERR	2
 
-#define XA_SELECTION_NAME	"_XDE_WINLIST_S%d"
+#define XA_SELECTION_NAME	"_XDE_DESKTOP_S%d"
 
 static int saveArgc;
 static char **saveArgv;
@@ -3190,7 +3190,7 @@ Session Management:\n\
         client id for session management [default: %21$s]\n\
     -restore SAVEFILE\n\
         file in which to save session info [default: %22$s]\n\
-", argv[0]
+", argv[0] 
 	, options.debug
 	, options.output
 	, options.display
@@ -3200,7 +3200,7 @@ Session Management:\n\
 	, show_bool(options.proxy)
 	, options.button
 	, options.timestamp
-	, options.keys ?: "AS+Tab:A+Tab"
+	, options.keys ?: "AC+Left:AC+Right"
 	, show_bool(options.cycle)
 	, show_bool(options.hidden)
 	, show_bool(options.minimized)
@@ -3263,13 +3263,13 @@ main(int argc, char *argv[])
 		int option_index = 0;
 		/* *INDENT-OFF* */
 		static struct option long_options[] = {
-			{"display",		required_argument,	NULL,	'd'},
-			{"screen",		required_argument,	NULL,	's'},
-			{"timeout",		required_argument,	NULL,	't'},
-			{"border",		required_argument,	NULL,	'B'},
-			{"proxy",		no_argument,		NULL,	'p'},
-			{"button",		required_argument,	NULL,	'b'},
-			{"timestamp",		required_argument,	NULL,	'T'},
+			{"display",	required_argument,	NULL,	'd'},
+			{"screen",	required_argument,	NULL,	's'},
+			{"timeout",	required_argument,	NULL,	't'},
+			{"border",	required_argument,	NULL,	'B'},
+			{"proxy",	no_argument,		NULL,	'p'},
+			{"button",	required_argument,	NULL,	'b'},
+			{"timestamp",	required_argument,	NULL,	'T'},
 			{"which",		required_argument,	NULL,	'w'},
 			{"where",		required_argument,	NULL,	'W'},
 
@@ -3284,18 +3284,18 @@ main(int argc, char *argv[])
 			{"restore",		no_argument,		NULL,	'R'},
 			{"key",			optional_argument,	NULL,	'k'},
 
-			{"quit",		no_argument,		NULL,	'q'},
-			{"replace",		no_argument,		NULL,	'r'},
+			{"quit",	no_argument,		NULL,	'q'},
+			{"replace",	no_argument,		NULL,	'r'},
 
-			{"clientId",		required_argument,	NULL,	'8'},
-			{"restore",		required_argument,	NULL,	'9'},
+			{"clientId",	required_argument,	NULL,	'8'},
+			{"restore",	required_argument,	NULL,	'9'},
 
-			{"debug",		optional_argument,	NULL,	'D'},
-			{"verbose",		optional_argument,	NULL,	'v'},
-			{"help",		no_argument,		NULL,	'h'},
-			{"version",		no_argument,		NULL,	'V'},
-			{"copying",		no_argument,		NULL,	'C'},
-			{"?",			no_argument,		NULL,	'H'},
+			{"debug",	optional_argument,	NULL,	'D'},
+			{"verbose",	optional_argument,	NULL,	'v'},
+			{"help",	no_argument,		NULL,	'h'},
+			{"version",	no_argument,		NULL,	'V'},
+			{"copying",	no_argument,		NULL,	'C'},
+			{"?",		no_argument,		NULL,	'H'},
 			{ 0, }
 		};
 		/* *INDENT-ON* */

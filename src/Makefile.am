@@ -4,6 +4,7 @@ AM_LDFLAGS = $(WNCK_LIBS) $(GTK_LIBS) $(GDK_LIBS) $(GIO_UNIX_LIBS) $(CAIRO_LIBS)
 
 bin_PROGRAMS = \
 	xde-app \
+	xde-desktop \
 	xde-dock \
 	xde-run \
 	xde-winmenu \
@@ -18,6 +19,11 @@ bin_PROGRAMS = \
 
 xde_app_CPPFLAGS = -DNAME=\"xde-app\"
 xde_app_SOURCES = xde-app.c xde-app.h
+
+xde_desktop_CPPFLAGS = -DNAME=\"xde-desktop\"
+xde_desktop_SOURCES = xde-desktop.c
+xde_desktop_CFLAGS = $(AM_CFLAGS) $(ICE_CFLAGS) $(SMLIB_CFLAGS)
+xde_desktop_LDFLAGS = $(SMLIB_LIBS) $(ICE_LIBS) $(AM_LDFLAGS)
 
 xde_dock_CPPFLAGS = -DNAME=\"xde-dock\"
 xde_dock_SOURCES = xde-dock.c xde-dock.h
