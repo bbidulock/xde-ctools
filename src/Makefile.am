@@ -17,6 +17,9 @@ bin_PROGRAMS = \
 	xde-wkspmenu \
 	xde-places
 
+EXTRA_PROGRAMS = \
+	xde-clip
+
 xde_app_CPPFLAGS = -DNAME=\"xde-app\"
 xde_app_SOURCES = xde-app.c xde-app.h
 
@@ -27,6 +30,13 @@ xde_desktop_LDFLAGS = $(SMLIB_LIBS) $(ICE_LIBS) $(AM_LDFLAGS)
 
 xde_dock_CPPFLAGS = -DNAME=\"xde-dock\"
 xde_dock_SOURCES = xde-dock.c xde-dock.h
+xde_dock_CFLAGS = $(AM_CFLAGS) $(ICE_CFLAGS) $(SMLIB_CFLAGS)
+xde_dock_LDFLAGS = $(SMLIB_LIBS) $(ICE_LIBS) $(AM_LDFLAGS)
+
+xde_clip_CPPFLAGS = -DNAME=\"xde-clip\"
+xde_clip_SOURCES = xde-clip.c xde-clip.h
+xde_clip_CFLAGS = $(AM_CFLAGS) $(ICE_CFLAGS) $(SMLIB_CFLAGS)
+xde_clip_LDFLAGS = $(SMLIB_LIBS) $(ICE_LIBS) $(AM_LDFLAGS)
 
 xde_run_CPPFLAGS = -DNAME=\"xde-run\"
 xde_run_SOURCES = xde-run.c xde-run.h
@@ -39,8 +49,6 @@ xde_recent_SOURCES = xde-recent.c
 
 xde_winlist_CPPFLAGS = -DNAME=\"xde-winlist\"
 xde_winlist_SOURCES = xde-winlist.c
-xde_winlist_CFLAGS = $(AM_CFLAGS) $(ICE_CFLAGS) $(SMLIB_CFLAGS)
-xde_winlist_LDFLAGS = $(SMLIB_LIBS) $(ICE_LIBS) $(AM_LDFLAGS)
 
 xde_pager_CPPFLAGS = -DNAME=\"xde-pager\"
 xde_pager_SOURCES = xde-pager.c
@@ -49,6 +57,8 @@ xde_pager_LDFLAGS = $(SMLIB_LIBS) $(ICE_LIBS) $(AM_LDFLAGS)
 
 xde_cycle_CPPFLAGS = -DNAME=\"xde-cycle\"
 xde_cycle_SOURCES = xde-cycle.c
+xde_cycle_CFLAGS = $(AM_CFLAGS) $(ICE_CFLAGS) $(SMLIB_CFLAGS)
+xde_cycle_LDFLAGS = $(SMLIB_LIBS) $(ICE_LIBS) $(AM_LDFLAGS)
 
 xde_setbg_CPPFLAGS = -DNAME=\"xde-setbg\"
 xde_setbg_SOURCES = xde-setbg.c
