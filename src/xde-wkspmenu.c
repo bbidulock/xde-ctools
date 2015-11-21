@@ -243,6 +243,26 @@ window_activate(GtkMenuItem *item, gpointer user_data)
 }
 
 void
+add_workspace(GtkMenuItem *item, gpointer user_data)
+{
+	WnckScreen *scrn = user_data;
+	int count;
+
+	if ((count = wnck_screen_get_workspace_count(scrn)) && count < 32)
+		wnck_screen_change_workspace_count(scrn, count + 1);
+}
+
+void
+del_workspace(GtkMenuItem *item, gpointer user_data)
+{
+	WnckScreen *scrn = user_data;
+	int count;
+
+	if ((count = wnck_screen_get_workspace_count(scrn)) && count > 1)
+		wnck_screen_change_workspace_count(scrn, count - 1);
+}
+
+void
 workspace_activate_item(GtkMenuItem *item, gpointer user_data)
 {
 	OPRINTF("Menu item [%s] activated item\n", gtk_menu_item_get_label(GTK_MENU_ITEM(item)));
@@ -484,6 +504,29 @@ popup_menu_new(WnckScreen *scrn)
 			gtk_widget_set_sensitive(item, FALSE);
 #endif
 		}
+	}
+	sep = gtk_separator_menu_item_new();
+	gtk_menu_append(menu, sep);
+	gtk_widget_show(sep);
+	{
+		GtkWidget *item, *icon;
+		int count;
+
+		icon = gtk_image_new_from_icon_name("preferences-desktop-display", GTK_ICON_SIZE_MENU);
+		item = gtk_image_menu_item_new_with_label("Append a workspace");
+		gtk_image_menu_item_set_image(GTK_IMAGE_MENU_ITEM(item), icon);
+		gtk_menu_append(menu, item);
+		gtk_widget_show(item);
+		g_signal_connect(G_OBJECT(item), "activate", G_CALLBACK(add_workspace), scrn);
+		gtk_widget_set_sensitive(item, ((count = wnck_screen_get_workspace_count(scrn)) && count < 32));
+
+		icon = gtk_image_new_from_icon_name("preferences-desktop-display", GTK_ICON_SIZE_MENU);
+		item = gtk_image_menu_item_new_with_label("Remove last workspace");
+		gtk_image_menu_item_set_image(GTK_IMAGE_MENU_ITEM(item), icon);
+		gtk_menu_append(menu, item);
+		gtk_widget_show(item);
+		g_signal_connect(G_OBJECT(item), "activate", G_CALLBACK(del_workspace), scrn);
+		gtk_widget_set_sensitive(item, ((count = wnck_screen_get_workspace_count(scrn)) && count > 1));
 	}
 
 	gtk_widget_show_all(menu);
