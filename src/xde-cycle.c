@@ -177,6 +177,7 @@ typedef enum {
 	PositionPointer,                /* position at pointer */
 	PositionCenter,                 /* center of monitor */
 	PositionTopLeft,                /* top left of work area */
+	PositionBottomRight,		/* bottom right of work area */
 	PositionSpecified,		/* specified position (X geometry) */
 } MenuPosition;
 
@@ -213,12 +214,12 @@ typedef struct {
 		int sign;
 	} x, y;
 	unsigned int w, h;
+	WindowOrder order;
 	Bool cycle;
 	Bool hidden;
 	Bool minimized;
 	Bool monitors;
 	Bool workspaces;
-	WindowOrder order;
 	Bool activate;
 	Bool raise;
 	Bool restore;
@@ -252,12 +253,12 @@ Options options = {
 	,
 	.w = 0,
 	.h = 0,
+	.order = WindowOrderDefault,
 	.cycle = False,
 	.hidden = False,
 	.minimized = False,
 	.monitors = False,
 	.workspaces = False,
-	.order = WindowOrderDefault,
 	.activate = True,
 	.raise = False,
 	.restore = True,
@@ -3351,6 +3352,8 @@ show_where(MenuPosition where)
 		return ("center");
 	case PositionTopLeft:
 		return ("topleft");
+	case PositionBottomRight:
+		return ("bottomright");
 	case PositionSpecified:
 		snprintf(position, sizeof(position), "%ux%u%c%d%c%d", options.w, options.h,
 			 (options.x.sign < 0) ? '-' : '+', options.x.value,
@@ -3403,18 +3406,18 @@ Options:\n\
         use the time, TIMESTAMP, for button/keyboard event [default: %10$lu]\n\
     -k, --keys FORWARD:REVERSE\n\
         specify keys for cycling [default: %11$s]\n\
-    -c, --cycle\n\
-        show a window cycle list [default: %12$s]\n\
-    --hidden\n\
-        list hidden windows as well [default: %13$s]\n\
-    --minimized\n\
-        list minimized windows as well [default: %14$s]\n\
-    --all-monitors\n\
-        list windows on all monitors [deefault: %15$s]\n\
-    --all-workspaces\n\
-        list windows on all workspaces [default: %16$s]\n\
     -O, --order {client|stacking}\n\
-        specify the order of windows [default: %17$s]\n\
+        specify the order of windows [default: %12$s]\n\
+    -c, --cycle\n\
+        show a window cycle list [default: %13$s]\n\
+    --hidden\n\
+        list hidden windows as well [default: %14$s]\n\
+    --minimized\n\
+        list minimized windows as well [default: %15$s]\n\
+    --all-monitors\n\
+        list windows on all monitors [deefault: %16$s]\n\
+    --all-workspaces\n\
+        list windows on all workspaces [default: %17$s]\n\
     -n, --noactivate\n\
         do not activate windows [default: %18$s]\n\
     --raise\n\
@@ -3443,12 +3446,12 @@ Session Management:\n\
 	, options.button
 	, options.timestamp
 	, options.keys ?: "AS+Tab:A+Tab"
+	, show_order(options.order)
 	, show_bool(options.cycle)
 	, show_bool(options.hidden)
 	, show_bool(options.minimized)
 	, show_bool(options.monitors)
 	, show_bool(options.workspaces)
-	, show_order(options.order)
 	, show_bool(!options.activate)
 	, show_bool(options.raise)
 	, show_bool(options.restore)
@@ -3482,7 +3485,6 @@ get_defaults(void)
 		options.screen = atoi(p);
 	if (options.command == CommandDefault)
 		options.command = CommandRun;
-
 }
 
 int
@@ -3515,12 +3517,12 @@ main(int argc, char *argv[])
 			{"which",		required_argument,	NULL,	'w'},
 			{"where",		required_argument,	NULL,	'W'},
 
+			{"order",		optional_argument,	NULL,	'O'},
 			{"cycle",		no_argument,		NULL,	'c'},
 			{"hidden",		no_argument,		NULL,	'1'},
 			{"minimized",		no_argument,		NULL,	'm'},
 			{"all-monitors",	no_argument,		NULL,	'2'},
 			{"all-workspaces",	no_argument,		NULL,	'3'},
-			{"order",		optional_argument,	NULL,	'O'},
 			{"noactivate",		no_argument,		NULL,	'n'},
 			{"raise",		no_argument,		NULL,	'4'},
 			{"restore",		no_argument,		NULL,	'R'},
@@ -3605,7 +3607,7 @@ main(int argc, char *argv[])
 			else if (!strncasecmp("focused", optarg, len))
 				options.which = UseScreenFocused;
 			else if (!strncasecmp("pointer", optarg, len))
-				options.where = UseScreenPointer;
+				options.which = UseScreenPointer;
 			else {
 				options.screen = strtoul(optarg, &endptr, 0);
 				if (endptr && *endptr)
@@ -3624,6 +3626,8 @@ main(int argc, char *argv[])
 				options.where = PositionCenter;
 			else if (!strncasecmp("topleft", optarg, len))
 				options.where = PositionTopLeft;
+			else if (!strncasecmp("bottomright", optarg, len))
+				options.where = PositionBottomRight;
 			else {
 				int mask, x = 0, y = 0;
 				unsigned int w = 0, h = 0;
@@ -3641,6 +3645,19 @@ main(int argc, char *argv[])
 			}
 			break;
 
+		case 'O':	/* -O, --order ORDERTYPE */
+			if (options.order != WindowOrderDefault)
+				goto bad_option;
+			if (!(len = strlen(optarg)))
+				goto bad_option;
+			if (!strncasecmp("client", optarg, len))
+				options.order = WindowOrderClient;
+			else
+			if (!strncasecmp("stacking", optarg, len))
+				options.order = WindowOrderStacking;
+			else
+				goto bad_option;
+			break;
 		case 'c':	/* -c, --cycle */
 			options.cycle = True;
 			break;
@@ -3655,17 +3672,6 @@ main(int argc, char *argv[])
 			break;
 		case '3':	/* --all-workspaces */
 			options.workspaces = True;
-			break;
-		case 'O':	/* -O, --order ORDERTYPE */
-			if (options.order != WindowOrderDefault)
-				goto bad_option;
-			if (!strcasecmp("client", optarg))
-				options.order = WindowOrderClient;
-			else
-			if (!strcasecmp("stacking", optarg))
-				options.order = WindowOrderStacking;
-			else
-				goto bad_option;
 			break;
 		case 'n':	/* -n, --noactivate */
 			options.activate = False;

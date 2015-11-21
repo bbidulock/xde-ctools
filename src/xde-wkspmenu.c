@@ -164,6 +164,7 @@ typedef enum {
 	PositionPointer,                /* position at pointer */
 	PositionCenter,                 /* center of monitor */
 	PositionTopLeft,                /* top left of work area */
+	PositionBottomRight,		/* bottom right of work area */
 	PositionSpecified,		/* specified position (X geometry) */
 } MenuPosition;
 
@@ -174,6 +175,12 @@ typedef enum {
 	CommandVersion,
 	CommandCopying,
 } Command;
+
+typedef enum {
+	WindowOrderDefault,
+	WindowOrderClient,
+	WindowOrderStacking,
+} WindowOrder;
 
 typedef struct {
 	int debug;
@@ -189,6 +196,7 @@ typedef struct {
 		int sign;
 	} x, y;
 	unsigned int w, h;
+	WindowOrder order;
 	Command command;
 } Options;
 
@@ -199,6 +207,7 @@ Options options = {
 	.screen = -1,
 	.button = 0,
 	.timestamp = CurrentTime,
+	.which = UseScreenDefault,
 	.where = PositionDefault,
 	.x = {
 	      .value = 0,
@@ -212,17 +221,9 @@ Options options = {
 	,
 	.w = 0,
 	.h = 0,
+	.order = WindowOrderDefault,
 	.command = CommandDefault,
 };
-
-gboolean
-workspace_button_press(GtkWidget *item, GdkEvent *event, gpointer menu)
-{
-	OPRINTF("Button pressed!\n");
-	gtk_menu_popdown(menu);
-	gtk_main_quit();
-	return TRUE;
-}
 
 void
 workspace_activate(GtkMenuItem *item, gpointer user_data)
@@ -263,24 +264,6 @@ del_workspace(GtkMenuItem *item, gpointer user_data)
 }
 
 void
-workspace_activate_item(GtkMenuItem *item, gpointer user_data)
-{
-	OPRINTF("Menu item [%s] activated item\n", gtk_menu_item_get_label(GTK_MENU_ITEM(item)));
-}
-
-void
-workspace_selected(GtkItem *item, gpointer user_data)
-{
-	OPRINTF("Menu item [%s] selected!\n", gtk_menu_item_get_label(GTK_MENU_ITEM(item)));
-}
-
-void
-workspace_deselected(GtkItem *item, gpointer user_data)
-{
-	OPRINTF("Menu item [%s] deselected!\n", gtk_menu_item_get_label(GTK_MENU_ITEM(item)));
-}
-
-void
 show_child(GtkWidget *child, gpointer user_data)
 {
 	OPRINTF("Type of child %p is %zu\n", child, G_OBJECT_TYPE(child));
@@ -298,7 +281,16 @@ popup_menu_new(WnckScreen *scrn)
 
 	menu = gtk_menu_new();
 	workspaces = wnck_screen_get_workspaces(scrn);
-	windows = wnck_screen_get_windows_stacked(scrn);
+	switch (options.order) {
+	default:
+	case WindowOrderDefault:
+	case WindowOrderClient:
+		windows = wnck_screen_get_windows(scrn);
+		break;
+	case WindowOrderStacking:
+		windows = wnck_screen_get_windows_stacked(scrn);
+		break;
+	}
 	active = wnck_screen_get_active_workspace(scrn);
 	anum = wnck_workspace_get_number(active);
 	{
@@ -432,13 +424,6 @@ popup_menu_new(WnckScreen *scrn)
 			g_signal_connect(G_OBJECT(witem), "activate", G_CALLBACK(window_activate), win);
 			window_count++;
 		}
-#if 0
-		g_signal_connect(G_OBJECT(item), "button-press-event", G_CALLBACK(workspace_button_press), menu);
-		g_signal_connect(G_OBJECT(item), "select", G_CALLBACK(workspace_selected), work);
-		g_signal_connect(G_OBJECT(item), "deselect", G_CALLBACK(workspace_deselected), work);
-		g_signal_connect(G_OBJECT(item), "activate", G_CALLBACK(workspace_activate), work);
-		g_signal_connect(G_OBJECT(item), "activate-item", G_CALLBACK(workspace_activate_item), work);
-#endif
 		if (window_count) {
 			gtk_menu_item_set_submenu(GTK_MENU_ITEM(item), submenu);
 			gtk_widget_show(submenu);
@@ -616,6 +601,7 @@ find_screen(GdkDisplay *disp)
 	case UseScreenSpecified:
 		break;
 	}
+
 	if (!scrn)
 		scrn = wnck_screen_get_default();
 	return (scrn);
@@ -657,11 +643,61 @@ position_center_monitor(GtkMenu *menu, WnckScreen *scrn, gint *x, gint *y)
 static gboolean
 position_topleft_workarea(GtkMenu *menu, WnckScreen *scrn, gint *x, gint *y)
 {
+#if 1
 	WnckWorkspace *wkspc;
 
 	wkspc = wnck_screen_get_active_workspace(scrn);
 	*x = wnck_workspace_get_viewport_x(wkspc);
 	*y = wnck_workspace_get_viewport_y(wkspc);
+#else
+	GdkDisplay *disp;
+	GdkScreen *scr;
+	GdkRectangle rect;
+	gint px, py, nmon;
+
+	DPRINT();
+	disp = gtk_widget_get_display(GTK_WIDGET(menu));
+	gdk_display_get_pointer(disp, &scr, &px, &py, NULL);
+	nmon = gdk_screen_get_monitor_at_point(scr, px, py);
+	gdk_screen_get_monitor_geometry(scr, nmon, &rect);
+
+	*x = rect.x;
+	*y = rect.y;
+#endif
+
+	return TRUE;
+}
+
+static gboolean
+position_bottomright_workarea(GtkMenu *menu, WnckScreen *scrn, gint *x, gint *y)
+{
+#if 1
+	WnckWorkspace *wkspc;
+	GtkRequisition req;
+
+	wkspc = wnck_screen_get_active_workspace(scrn);
+	gtk_widget_get_requisition(GTK_WIDGET(menu), &req);
+	*x = wnck_workspace_get_viewport_x(wkspc) +
+		wnck_workspace_get_width(wkspc) - req.width;
+	*y = wnck_workspace_get_viewport_y(wkspc) +
+		wnck_workspace_get_height(wkspc) - req.height;
+#else
+	GdkDisplay *disp;
+	GdkScreen *scrn;
+	GdkRectangle rect;
+	gint px, py, nmon;
+	GtkRequisition req;
+
+	DPRINT();
+	disp = gtk_widget_get_display(GTK_WIDGET(menu));
+	gdk_display_get_pointer(disp, &scrn, &px, &py, NULL);
+	nmon = gdk_screen_get_monitor_at_point(scrn, px, py);
+	gdk_screen_get_monitor_geometry(scrn, nmon, &rect);
+	gtk_widget_get_requisition(GTK_WIDGET(menu), &req);
+
+	*x = rect.x + rect.width - req.width;
+	*y = rect.y + rect.height - req.height;
+#endif
 
 	return TRUE;
 }
@@ -727,6 +763,9 @@ position_menu(GtkMenu *menu, gint *x, gint *y, gboolean *push_in, gpointer user_
 		break;
 	case PositionTopLeft:
 		position_topleft_workarea(menu, scrn, x, y);
+		break;
+	case PositionBottomRight:
+		position_bottomright_workarea(menu, scrn, x, y);
 		break;
 	case PositionSpecified:
 		position_specified(menu, scrn, x, y);
@@ -1008,6 +1047,20 @@ Usage:\n\
 }
 
 static const char *
+show_order(WindowOrder order)
+{
+	switch (order) {
+	case WindowOrderDefault:
+		return ("default");
+	case WindowOrderClient:
+		return ("client");
+	case WindowOrderStacking:
+		return ("stacking");
+	}
+	return NULL;
+}
+
+static const char *
 show_screen(int snum)
 {
 	static char screen[64] = { 0, };
@@ -1050,6 +1103,8 @@ show_where(MenuPosition where)
 		return ("center");
 	case PositionTopLeft:
 		return ("topleft");
+	case PositionBottomRight:
+		return ("bottomright");
 	case PositionSpecified:
 		snprintf(position, sizeof(position), "%ux%u%c%d%c%d", options.w, options.h,
 			 (options.x.sign < 0) ? '-' : '+', options.x.value,
@@ -1095,12 +1150,14 @@ Options:\n\
         \"focused\"  - the screen with EWMH/NetWM focused client\n\
         \"pointer\"  - the screen with EWMH/NetWM pointer\n\
         \"SCREEN\"   - the specified screen number\n\
-    -W, --where {pointer|center|topleft|POSITION}\n\
+    -W, --where {pointer|center|topleft|GEOMETRY}\n\
         specify where to place the menu [default: %9$s]\n\
         \"pointer\"  - northwest corner under the pointer\n\
         \"center\"   - center of associated monitor\n\
         \"topleft\"  - northwest corner of work area\n\
         POSITION   - postion on screen as X geometry\n\
+    -O, --order {client|stacking}\n\
+        specify the order of windows [default: %10$s]\n\
     -D, --debug [LEVEL]\n\
         increment or set debug LEVEL [default: %2$d]\n\
         this option may be repeated.\n\
@@ -1116,6 +1173,7 @@ Options:\n\
 	, options.timestamp
 	, show_which(options.which)
 	, show_where(options.where)
+	, show_order(options.order)
 );
 	/* *INDENT-ON* */
 }
@@ -1171,6 +1229,7 @@ main(int argc, char *argv[])
 			{"which",		required_argument,	NULL,	'w'},
 			{"where",		required_argument,	NULL,	'W'},
 
+			{"order",		optional_argument,	NULL,	'O'},
 			{"debug",		optional_argument,	NULL,	'D'},
 			{"verbose",		optional_argument,	NULL,	'v'},
 			{"help",		no_argument,		NULL,	'h'},
@@ -1234,7 +1293,7 @@ main(int argc, char *argv[])
 			else if (!strncasecmp("focused", optarg, len))
 				options.which = UseScreenFocused;
 			else if (!strncasecmp("pointer", optarg, len))
-				options.where = UseScreenPointer;
+				options.which = UseScreenPointer;
 			else {
 				options.screen = strtoul(optarg, &endptr, 0);
 				if (endptr && *endptr)
@@ -1253,6 +1312,8 @@ main(int argc, char *argv[])
 				options.where = PositionCenter;
 			else if (!strncasecmp("topleft", optarg, len))
 				options.where = PositionTopLeft;
+			else if (!strncasecmp("bottomright", optarg, len))
+				options.where = PositionBottomRight;
 			else {
 				int mask, x = 0, y = 0;
 				unsigned int w = 0, h = 0;
@@ -1269,6 +1330,20 @@ main(int argc, char *argv[])
 				options.h = h;
 			}
 			break;
+
+		case 'O':	/* -O, --order ORDERTYPE */
+			if (options.order != WindowOrderDefault)
+				goto bad_option;
+			len = strlen(optarg);
+			if (!strncasecmp("client", optarg, len))
+				options.order = WindowOrderClient;
+			else
+			if (!strncasecmp("stacking", optarg, len))
+				options.order = WindowOrderStacking;
+			else
+				goto bad_option;
+			break;
+
 		case 'D':       /* -D, --debug [LEVEL] */
 			if (options.debug)
 				fprintf(stderr, "%s: increasing debug verbosity\n", argv[0]);
