@@ -99,7 +99,6 @@
 #include <gdk/gdkx.h>
 #include <gdk-pixbuf/gdk-pixbuf.h>
 #include <gtk/gtk.h>
-#include <gdk/gdkx.h>
 #include <cairo.h>
 
 #define WNCK_I_KNOW_THIS_IS_UNSTABLE

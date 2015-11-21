@@ -238,6 +238,7 @@ Options options = {
 	.proxy = False,
 	.button = 0,
 	.timestamp = CurrentTime,
+	.which = UseScreenDefault,
 	.where = PositionDefault,
 	.x = {
 	      .value = 0,
@@ -1466,7 +1467,6 @@ update_current_desktop(XdeScreen *xscr, Atom prop)
 					xmon->current = data[*x];
 					changed = True;
 				}
-
 			}
 		}
 		if (data) {
@@ -3365,6 +3365,7 @@ show_order(WindowOrder order)
 	return NULL;
 }
 
+#if 0
 static const char *
 show_screen(int snum)
 {
@@ -3376,7 +3377,7 @@ show_screen(int snum)
 	return (screen);
 }
 
-const char *
+static const char *
 show_which(UseScreen which)
 {
 	switch (which) {
@@ -3394,7 +3395,7 @@ show_which(UseScreen which)
 	return NULL;
 }
 
-const char *
+static const char *
 show_where(MenuPosition where)
 {
 	static char position[128] = { 0, };
@@ -3416,6 +3417,7 @@ show_where(MenuPosition where)
 	}
 	return NULL;
 }
+#endif
 
 static void
 help(int argc, char *argv[])

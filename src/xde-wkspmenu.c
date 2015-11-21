@@ -1135,6 +1135,7 @@ main(int argc, char *argv[])
 				command = CommandPopup;
 			options.command = CommandPopup;
 			break;
+
 		case 'b':       /* -b, --button BUTTON */
 			options.button = strtoul(optarg, &endptr, 0);
 			if (endptr && *endptr)
@@ -1145,6 +1146,7 @@ main(int argc, char *argv[])
 			if (endptr && *endptr)
 				goto bad_option;
 			break;
+
 		case 'w':	/* -w, --which WHICH */
 			if (options.which != UseScreenDefault)
 				goto bad_option;
