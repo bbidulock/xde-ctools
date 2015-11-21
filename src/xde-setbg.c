@@ -172,6 +172,7 @@ typedef struct {
 	int debug;
 	int output;
 	char *display;
+	int screen;
 	unsigned long timeout;
 	unsigned int border;
 	Bool proxy;
@@ -184,6 +185,7 @@ Options options = {
 	.debug = 0,
 	.output = 1,
 	.display = NULL,
+	.screen = -1,
 	.timeout = 1000,
 	.border = 5,
 	.proxy = True,
@@ -438,6 +440,7 @@ get_selection(Bool replace, Window selwin)
 	return (gotone);
 }
 
+#if 1
 static GdkFilterReturn laywin_handler(GdkXEvent *xevent, GdkEvent *event, gpointer data);
 
 static Window
@@ -487,6 +490,7 @@ get_desktop_layout_selection(XdeScreen *xscr)
 	}
 	return (owner);
 }
+#endif
 
 static void
 workspace_destroyed(WnckScreen *wnck, WnckWorkspace *space, gpointer user)
@@ -511,8 +515,6 @@ workspace_created(WnckScreen *wnck, WnckWorkspace *space, gpointer user)
 		exit(EXIT_FAILURE);
 	}
 }
-
-static void setup_button_proxy(XdeScreen *xscr);
 
 static Bool
 good_window_manager(XdeScreen *xscr)
@@ -541,6 +543,8 @@ good_window_manager(XdeScreen *xscr)
 #endif
 	return True;
 }
+
+static void setup_button_proxy(XdeScreen *xscr);
 
 static void
 window_manager_changed(WnckScreen *wnck, gpointer user)
@@ -748,7 +752,7 @@ update_current_desktop(XdeScreen *xscr, Atom prop)
 }
 
 static void
-init_popup(XdeScreen *xscr)
+init_window(XdeScreen *xscr)
 {
 #if 0
 	GtkWidget *popup;
@@ -1030,7 +1034,7 @@ do_run(int argc, char *argv[], Bool replace)
 		gdk_window_add_filter(xscr->root, root_handler, xscr);
 		init_wnck(xscr);
 		init_monitors(xscr);
-		init_popup(xscr);
+		init_window(xscr);
 		if (options.proxy)
 			setup_button_proxy(xscr);
 		update_root_pixmap(xscr, None);
@@ -1755,7 +1759,7 @@ update_layout(XdeScreen *xscr, Atom prop)
 	if (xscr->rows == 0)
 		for (num = xscr->desks; num > 0; xscr->rows++, num -= xscr->cols) ;
 
-	add_deferred_refresh_layout(xscr);
+	add_deferred_refresh_layout(xscr); /* XXX: should be deferred */
 }
 
 static GdkFilterReturn
@@ -1933,6 +1937,7 @@ selwin_handler(GdkXEvent *xevent, GdkEvent *event, gpointer data)
 	return GDK_FILTER_CONTINUE;
 }
 
+#if 1
 static GdkFilterReturn
 laywin_handler(GdkXEvent *xevent, GdkEvent *event, gpointer data)
 {
@@ -1952,6 +1957,7 @@ laywin_handler(GdkXEvent *xevent, GdkEvent *event, gpointer data)
 	EPRINTF("wrong message type for handler %d\n", xev->type);
 	return GDK_FILTER_CONTINUE;
 }
+#endif
 
 static GdkFilterReturn
 client_handler(GdkXEvent *xevent, GdkEvent *event, gpointer data)
@@ -2505,6 +2511,7 @@ startup(int argc, char *argv[])
 	GdkWindow *root;
 	Display *dpy;
 	char *file;
+	int nscr;
 
 	file = g_strdup_printf("%s/.gtkrc-2.0.xde", g_get_home_dir());
 	gtk_rc_add_default_file(file);
@@ -2515,6 +2522,12 @@ startup(int argc, char *argv[])
 	gtk_init(&argc, &argv);
 
 	disp = gdk_display_get_default();
+	nscr = gdk_display_get_n_screens(disp);
+
+	if (options.screen >= 0 && options.screen >= nscr) {
+		EPRINTF("bad screen specified: %d\n", options.screen);
+		exit(EXIT_FAILURE);
+	}
 
 	dpy = GDK_DISPLAY_XDISPLAY(disp);
 
@@ -2682,25 +2695,36 @@ Command options:\n\
         print copying permission and exit\n\
 Options:\n\
     -d, --display DISPLAY\n\
-        specify the X display, DISPLAY, to use [default: %2$s]\n\
+        specify the X display, DISPLAY, to use [default: %4$s]\n\
+    -s, --screen SCREEN\n\
+        specify the screen number, SCREEN, to use [default: %5$d]\n\
     -t, --timeout MILLISECONDS\n\
-        specify timeout when not modifier [default: %3$lu]\n\
-    -b, --border PIXELS\n\
-        border surrounding feedback popup [default: %4$u]\n\
+        specify timeout when not modifier [default: %6$lu]\n\
+    -B, --border PIXELS\n\
+        border surrounding feedback popup [default: %7$u]\n\
     -n, --noproxy\n\
-        do not respond to button proxy [default: %5$s]\n\
+        do not respond to button proxy [default: %8$s]\n\
     -D, --debug [LEVEL]\n\
-        increment or set debug LEVEL [default: %6$d]\n\
-    -v, --verbose [LEVEL]\n\
-        increment or set output verbosity LEVEL [default: %7$d]\n\
+        increment or set debug LEVEL [default: %2$d]\n\
         this option may be repeated.\n\
+    -v, --verbose [LEVEL]\n\
+        increment or set output verbosity LEVEL [default: %3$d]\n\
+        this option may be repeated.\n\
+Session Management:\n\
+    -clientID CLIENTID\n\
+        client id for session management [default: %9$s]\n\
+    -restore SAVEFILE\n\
+        file in which to save session info [default: %10$s]\n\
 ", argv[0] 
+	, options.debug
+	, options.output
 	, options.display
+	, options.screen
 	, options.timeout
 	, options.border
 	, show_bool(options.proxy)
-	, options.debug
-	, options.output
+	, options.clientId
+	, options.saveFile
 );
 	/* *INDENT-ON* */
 }
@@ -2717,10 +2741,16 @@ set_defaults(void)
 static void
 get_defaults(void)
 {
+	const char *p;
+	int n;
+
 	if (!options.display) {
 		EPRINTF("No DISPLAY environment variable nor --display option\n");
 		exit(EXIT_FAILURE);
 	}
+	if (options.screen < 0 && (p = strrchr(options.display, '.'))
+	    && (n = strspn(++p, "0123456789")) && *(p + n) == '\0')
+		options.screen = atoi(p);
 	if (options.command == CommandDefault)
 		options.command = CommandRun;
 
@@ -2747,6 +2777,10 @@ main(int argc, char *argv[])
 		/* *INDENT-OFF* */
 		static struct option long_options[] = {
 			{"display",	required_argument,	NULL,	'd'},
+			{"screen",	required_argument,	NULL,	's'},
+			{"timeout",	required_argument,	NULL,	't'},
+			{"border",	required_argument,	NULL,	'B'},
+			{"noproxy",	no_argument,		NULL,	'n'},
 
 			{"quit",	no_argument,		NULL,	'q'},
 			{"replace",	no_argument,		NULL,	'r'},
@@ -2764,10 +2798,10 @@ main(int argc, char *argv[])
 		};
 		/* *INDENT-ON* */
 
-		c = getopt_long_only(argc, argv, "d:D::v::bVCH?",
+		c = getopt_long_only(argc, argv, "d:s:t:B:nD::v::bVCH?",
 				     long_options, &option_index);
 #else				/* _GNU_SOURCE */
-		c = getopt(argc, argv, "d:D:vhVCH?");
+		c = getopt(argc, argv, "d:s:t:B:nD:vhVCH?");
 #endif				/* _GNU_SOURCE */
 		if (c == -1) {
 			if (options.debug)
@@ -2782,6 +2816,28 @@ main(int argc, char *argv[])
 			setenv("DISPLAY", optarg, TRUE);
 			free(options.display);
 			options.display = strdup(optarg);
+			break;
+		case 's':	/* -s, --screen SCREEN */
+			options.screen = strtoul(optarg, &endptr, 0);
+			if (endptr && *endptr)
+				goto bad_option;
+			break;
+		case 't':	/* -t, --timeout MILLISECONDS */
+			options.timeout = strtoul(optarg, &endptr, 0);
+			if (endptr && *endptr)
+				goto bad_option;
+			if (!options.timeout)
+				goto bad_option;
+			break;
+		case 'B':	/* -B, --border PIXELS */
+			options.border = strtoul(optarg, &endptr, 0);
+			if (endptr && *endptr)
+				goto bad_option;
+			if (options.border > 20)
+				goto bad_option;
+			break;
+		case 'n':	/* -n, --noproxy */
+			options.proxy = False;
 			break;
 
 		case 'q':	/* -q, --quit */
