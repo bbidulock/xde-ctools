@@ -9,11 +9,7 @@ xde-app: works pretty good
 - [ ] I think that it is finished.
 - [ ] convert program to use GtkRecentManager object.
 
-xde-run: works pretty good
-
-- [X] this is a command application launcher similar to xde-app.
-- [ ] I think that it is finished.
-- [ ] convert program to use GtkRecentManager object.
+xde-clip:
 
 xde-cycle: not fully functional yet
 
@@ -21,6 +17,8 @@ xde-cycle: not fully functional yet
 - [ ] this was supposed to put up a window list that could
       be displayed while windows are being cycled much in
       the same fashion as the xde-pager feelback.
+
+xde-desktop:
 
 xde-dock: doesn't work so well yet
 
@@ -38,17 +36,22 @@ xde-keys: not fully functional yet
 
 - [ ] haven't really done that much work yet.
 
-xde-menugen: not fully functional yet
-
-- [ ] need to fill out the functionality from the perl program
-      of the same name
-
-- [ ] need to have the menu run in the background and be invokable
-      from the xde-panel
-
 xde-pager: works pretty good
 
-- [ ] I use this one all the time.  It think that it is finished.
+- [X] I use this one all the time.  It think that it is finished.
+- [ ] Might want to provide a keyboard-only option.
+
+xde-places:
+
+xde-preferred:
+
+xde-recent:
+
+xde-run: works pretty good
+
+- [X] this is a command application launcher similar to xde-app.
+- [ ] I think that it is finished.
+- [ ] convert program to use GtkRecentManager object.
 
 xde-setbg: works really good
 
@@ -62,12 +65,15 @@ xde-winlist: not fully functional yet
 
 xde-winmenu: works pretty good
 
-- [ ] this is a command that can be used to popup a window menu
+- [X] this is a command that can be used to popup a window menu
       for any window.  Note that it uses libwnck++ which is needed
       by many of the programs in this package.  We invoke this
       program from the Alt-Space key sequence to always be able to
       pop a window menu.  ADWM does not have internal menus, so a
       click on the titlebar or menu button uses this program to
       pop the window menu.  It think that it is finished.
+- [X] Works like a charm.  Use it all the time.
+
+xde-wkspmenu: works well
 
 # vim: set ft=asciidoc tw=72 nocin nosi fo+=tcqlorn:
