@@ -308,6 +308,7 @@ popup_menu_new(WnckScreen *scrn)
 		for (window = windows; window; window = window->next) {
 			GdkPixbuf *pixbuf;
 			const char *wname;
+			char *label, *p;
 			WnckWindow *win;
 			GtkWidget *witem, *image;
 
@@ -319,7 +320,22 @@ popup_menu_new(WnckScreen *scrn)
 			if (!wnck_window_is_minimized(win))
 				continue;
 			wname = wnck_window_get_name(win);
-			witem = gtk_image_menu_item_new_with_label(wname);
+			witem = gtk_image_menu_item_new();
+			label = g_strdup(wname);
+			if ((p = strstr(label, " - GVIM")))
+				*p = '\0';
+			if ((p = strstr(label, " - VIM")))
+				*p = '\0';
+			if ((p = strstr(label, " - Mozilla Firefox")))
+				*p = '\0';
+			if (strlen(label) > 44) {
+				strcpy(label + 41, "...");
+				gtk_widget_set_tooltip_text(witem, wname);
+			}
+			p = label;
+			label = g_strdup_printf(" ○ %s", p);
+			g_free(p);
+			gtk_menu_item_set_label(GTK_MENU_ITEM(witem), wname);
 			pixbuf = wnck_window_get_mini_icon(win);
 			if ((image = gtk_image_new_from_pixbuf(pixbuf)))
 				gtk_image_menu_item_set_image(GTK_IMAGE_MENU_ITEM(witem), image);
@@ -387,6 +403,11 @@ popup_menu_new(WnckScreen *scrn)
 
 #if 1
 		icon = gtk_image_new_from_icon_name("preferences-desktop-display", GTK_ICON_SIZE_MENU);
+#if 0
+		p = label;
+		label = g_strdup_printf("%s ——", p);
+		g_free(p);
+#endif
 		title = gtk_image_menu_item_new_with_label(label);
 		gtk_image_menu_item_set_image(GTK_IMAGE_MENU_ITEM(title), icon);
 		gtk_menu_append(submenu, title);
@@ -402,6 +423,7 @@ popup_menu_new(WnckScreen *scrn)
 		for (window = windows; window; window = window->next) {
 			GdkPixbuf *pixbuf;
 			const char *wname;
+			char *label;
 			WnckWindow *win;
 			GtkWidget *witem, *image;
 
@@ -415,7 +437,23 @@ popup_menu_new(WnckScreen *scrn)
 			if (wnck_window_is_minimized(win))
 				continue;
 			wname = wnck_window_get_name(win);
-			witem = gtk_image_menu_item_new_with_label(wname);
+			witem = gtk_image_menu_item_new();
+			label = g_strdup(wname);
+			if ((p = strstr(label, " - GVIM")))
+				*p = '\0';
+			if ((p = strstr(label, " - VIM")))
+				*p = '\0';
+			if ((p = strstr(label, " - Mozilla Firefox")))
+				*p = '\0';
+			if (strlen(label) > 44) {
+				strcpy(label + 41, "...");
+				gtk_widget_set_tooltip_text(witem, wname);
+			}
+			p = label;
+			label = g_strdup_printf(" ● %s", p);
+			g_free(p);
+			gtk_menu_item_set_label(GTK_MENU_ITEM(witem), label);
+			g_free(label);
 			pixbuf = wnck_window_get_mini_icon(win);
 			if ((image = gtk_image_new_from_pixbuf(pixbuf)))
 				gtk_image_menu_item_set_image(GTK_IMAGE_MENU_ITEM(witem), image);

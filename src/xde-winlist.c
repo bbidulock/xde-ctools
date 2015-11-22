@@ -294,11 +294,13 @@ static GtkWidget *
 popup_menu_new(WnckScreen *scrn)
 {
 	GtkWidget *menu, *sep, *icon, *item;
+	GList *workspaces, *workspace;
 	GList *windows, *window;
 	WnckWorkspace *active;
-	int count;
+	int anum, count;
 
 	menu = gtk_menu_new();
+	workspaces = wnck_screen_get_workspaces(scrn);
 	icon = gtk_image_new_from_icon_name("perlpanel-applet-showdesktop", GTK_ICON_SIZE_MENU);
 	item = gtk_image_menu_item_new_with_label("Show Desktop");
 	gtk_image_menu_item_set_image(GTK_IMAGE_MENU_ITEM(item), icon);
@@ -316,43 +318,113 @@ popup_menu_new(WnckScreen *scrn)
 		break;
 	}
 	active = wnck_screen_get_active_workspace(scrn);
-	for (window = windows, count = 0; window; window = window->next, count++) {
-		GtkWidget *image;
-		GdkPixbuf *pixbuf;
+	anum = wnck_workspace_get_number(active);
+	for (workspace = workspaces; workspace; workspace = workspace->next) {
+		int wnum, len;
+		WnckWorkspace *work;
 		const char *name;
-		WnckWindow *win;
-		WnckWindowState state;
+		char *label, *wkname, *p;
 
-		if (!count) {
+		work = workspace->data;
+		wnum = wnck_workspace_get_number(work);
+		if (options.workspaces) {
+			if ((name = wnck_workspace_get_name(work)))
+				wkname = strdup(name);
+			else
+				wkname = g_strdup_printf("Workspace %d", wnum + 1);
+			while ((p = strrchr(wkname, ' ')) && p[1] == '\0')
+				*p = '\0';
+			for (p = wkname; *p == ' '; p++) ;
+			len = strlen(p);
+			if (len < 6 || strspn(p, " 0123456789") == len)
+				label = g_strdup_printf("Workspace %s", p);
+			else
+				label = g_strdup_printf("[%d] %s", wnum + 1, p);
+			g_free(wkname);
+#if 0
+			p = label;
+			label = g_strdup_printf("%s ——", p);
+			g_free(p);
+#endif
+			icon = gtk_image_new_from_icon_name("preferences-desktop-display", GTK_ICON_SIZE_MENU);
+			item = gtk_image_menu_item_new_with_label(label);
+			gtk_image_menu_item_set_image(GTK_IMAGE_MENU_ITEM(item), icon);
+			gtk_menu_append(menu, item);
+			g_free(label);
+			gtk_widget_show(item);
+			g_signal_connect(G_OBJECT(item), "activate", G_CALLBACK(workspace_activate), work);
+		} else if (wnum != anum)
+			continue;
+
+		for (window = windows, count = 0; window; window = window->next, count++) {
+			GtkWidget *image;
+			GdkPixbuf *pixbuf;
+			WnckWindow *win;
+			WnckWindowState state;
+			char *dname;
+			gboolean hidden = FALSE, iconic = FALSE;
+
+			win = window->data;
+			if (!wnck_window_is_on_workspace(win, work))
+				continue;
+			state = wnck_window_get_state(win);
+			if (state & WNCK_WINDOW_STATE_SKIP_TASKLIST)
+				continue;
+			if (state & WNCK_WINDOW_STATE_HIDDEN) {
+				hidden = TRUE;
+				if (!options.hidden)
+					continue;
+			} else if (state & WNCK_WINDOW_STATE_MINIMIZED) {
+				iconic = TRUE;
+				if (!options.minimized)
+					continue;
+			} else {
+				if (!options.normal)
+					continue;
+			}
+			if (!count) {
+				sep = gtk_separator_menu_item_new();
+				gtk_menu_append(menu, sep);
+				gtk_widget_show(sep);
+			}
+			item = gtk_image_menu_item_new();
+			name = wnck_window_get_name(win);
+			dname = g_strdup_printf("%s", name);
+			if ((p = strstr(dname, " - GVIM")))
+				*p = '\0';
+			if ((p = strstr(dname, " - VIM")))
+				*p = '\0';
+			if ((p = strstr(dname, " - Mozilla Firefox")))
+				*p = '\0';
+			if (strlen(dname) > 44) {
+				strcpy(dname + 41, "...");
+				gtk_widget_set_tooltip_text(item, name);
+			}
+			p = dname;
+			if (hidden || iconic) {
+				if (wnck_window_is_shaded(win))
+					dname = g_strdup_printf(" ▬ %s", p);
+				else
+					dname = g_strdup_printf(" ○ %s", p);
+				// dname = g_strdup_printf(" ▼ %s", p);
+			} else
+				dname = g_strdup_printf(" ● %s", p);
+			g_free(p);
+			gtk_menu_item_set_label(GTK_MENU_ITEM(item), dname);
+			g_free(dname);
+			pixbuf = wnck_window_get_mini_icon(win);
+			if ((image = gtk_image_new_from_pixbuf(pixbuf)))
+				gtk_image_menu_item_set_image(GTK_IMAGE_MENU_ITEM(item), image);
+			gtk_menu_append(menu, item);
+			gtk_widget_show(item);
+			g_signal_connect(G_OBJECT(item), "activate", G_CALLBACK(window_activate), win);
+		}
+
+		if (workspace->next) {
 			sep = gtk_separator_menu_item_new();
 			gtk_menu_append(menu, sep);
 			gtk_widget_show(sep);
 		}
-		win = window->data;
-		state = wnck_window_get_state(win);
-		if (!wnck_window_is_on_workspace(win, active))
-			if (!options.workspaces)
-				continue;
-		if (state & WNCK_WINDOW_STATE_SKIP_TASKLIST)
-			continue;
-		if (state & WNCK_WINDOW_STATE_HIDDEN) {
-			if (!options.hidden)
-				continue;
-		} else if (state & WNCK_WINDOW_STATE_MINIMIZED) {
-			if (!options.minimized)
-				continue;
-		} else {
-			if (!options.normal)
-				continue;
-		}
-		name = wnck_window_get_name(win);
-		item = gtk_image_menu_item_new_with_label(name);
-		pixbuf = wnck_window_get_mini_icon(win);
-		if ((image = gtk_image_new_from_pixbuf(pixbuf)))
-			gtk_image_menu_item_set_image(GTK_IMAGE_MENU_ITEM(item), image);
-		gtk_menu_append(menu, item);
-		gtk_widget_show(item);
-		g_signal_connect(G_OBJECT(item), "activate", G_CALLBACK(window_activate), win);
 	}
 	gtk_widget_show_all(menu);
 	return (menu);
