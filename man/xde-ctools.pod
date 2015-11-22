@@ -18,6 +18,11 @@ Provides an XDG compliant application launcher command dialog for
 running freedesktop.org applications as though from the command line
 using a graphical utility.
 
+=item L<xde-clip(1)>
+
+Provides a clip for window managers that do not support one and provides
+a more consistent and rich experience for those that do.
+
 =item L<xde-cycle(1)>
 
 Provides keyboard-based window cycling for window managers that do not
@@ -26,13 +31,19 @@ The window cycling list is a list of windows on the current monitor (or
 multiple monitors) and current workspace (or multiple workspaces) and is
 accessed with a hot key.
 
+=item L<xde-desktop(1)>
+
+Provides a desktop environment for window managers that do not support
+one and provides a more consistent and rich experience for those that
+do.
+
 =item L<xde-dock(1)>
 
 Provides a dock (of WindowMaker dock apps) for window managers that do
 not support one and provides a more consistent and rich experience for
 those that do.
 
-=item L<xde-keys(1)>,
+=item L<xde-keys(1)>
 
 Provides generic key binding management for window managers that do not
 provide key bindings themselves or for those that provide a inferior or
@@ -48,7 +59,17 @@ either a complete menu for a number of well-known window managers, or
 for generating a sub-menu that can be included in the root menu of those
 window managers.
 
-=item L<xde-pager(1)>,
+=item L<xde-menu(1)>
+
+B<xde-menu> is a command-line program that can be used to generate an
+XDG compliant menu in a number of formats to support configuration of
+the root menu for light-weight window managers.
+It is a menu generator, system tray menu, and pop-up menu that
+can be used to both generate XDG compliant menus for a number of popular
+light-weight window managers as well as providing a system tray and
+pop-up menu.
+
+=item L<xde-pager(1)>
 
 Provides desktop cycling feedback for window managers that do not
 provide desktop cycling themselves or for those that provide an inferior
@@ -57,10 +78,27 @@ corresponds to a workspace on the current monitor (or multiple
 monitors).  The feedback popup can also have a desktop selected using
 the mouse.
 
+=item L<xde-places(1)>
+
+Provides a places menu for window managers that do not provide one
+themselves or as a better places menu for those that provide an inferior
+one.  The places menu is a menu of standard desktop locations as well as
+user bookmarked places.  This is not a feedback mechanism, but is a
+pop-up menu that can be used to display special and bookmarked folders.
+
 =item L<xde-preferred(1)>
 
 Provides an XDG preferred applications launcher and preferences dialog
 for setting or running preferred applications.
+
+=item L<xde-recent(1)>
+
+Provides a recent files menu for window managers that do not provide one
+themselves or as a better recent files menu for those that provide an
+inferior one.  The recent files menu is a menus of recent (or favourite)
+files or applications.  This is not a feedback mechanism, but is a
+pop-up menu that can be used to access files or applications similar to
+a file manager or application launcher.
 
 =item L<xde-run(1)>
 
@@ -91,6 +129,15 @@ one.  The window menu is a menu of actions that can be performed against
 a window and is normally accessed with a hot-key, or by clicking on the
 decorative border of a window, or by pressing one or more modifier keys
 and clicking on the window.
+
+=item L<xde-wkspmenu(1)>
+
+Provides a workspace menu for window managers that do not provide one
+themselves or as a better workspace menu for those that provide an
+inferior one.  The workspace menu is a menu of workspaces (now called
+desktops) and windows.  This is not a feedback mechanism (such as
+B<xde-pager(1)> or B<xde-winlist(1)>) but is a pop-up menu that can be
+used to control windows similar to a task bar.
 
 =back
 
