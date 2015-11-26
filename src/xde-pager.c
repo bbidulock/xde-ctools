@@ -3047,6 +3047,8 @@ show_where(MenuPosition where)
 		return ("center");
 	case PositionTopLeft:
 		return ("topleft");
+	case PositionBottomRight:
+		return ("bottomright");
 	case PositionSpecified:
 		snprintf(position, sizeof(position), "%ux%u%c%d%c%d", options.w, options.h,
 			 (options.x.sign < 0) ? '-' : '+', options.x.value,
@@ -3151,7 +3153,6 @@ get_defaults(void)
 		options.screen = atoi(p);
 	if (options.command == CommandDefault)
 		options.command = CommandRun;
-
 }
 
 int

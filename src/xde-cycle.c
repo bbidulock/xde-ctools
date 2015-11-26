@@ -1143,55 +1143,44 @@ active_window_changed(WnckScreen *wnck, WnckWindow *previous, gpointer user)
 }
 
 static void
-application_closed(WnckScreen *wnck, WnckApplication *app, gpointer user)
+application_closed(WnckScreen *wnck, WnckApplication *app, gpointer xscr)
 {
-	/* XXX: might not be necessary */
-
-}
-
-static void
-application_opened(WnckScreen *wnck, WnckApplication *app, gpointer user)
-{
-	XdeScreen *xscr = user;
-	/* XXX: might not be necessary */
 	clients_changed(wnck, xscr);
 }
 
 static void
-class_group_closed(WnckScreen *wnck, WnckClassGroup *class_group, gpointer user)
+application_opened(WnckScreen *wnck, WnckApplication *app, gpointer xscr)
 {
-	XdeScreen *xscr = user;
-	/* XXX: might not be necessary */
 	clients_changed(wnck, xscr);
 }
 
 static void
-class_group_opened(WnckScreen *wnck, WnckClassGroup *class_group, gpointer user)
+class_group_closed(WnckScreen *wnck, WnckClassGroup *class_group, gpointer xscr)
 {
-	XdeScreen *xscr = user;
-	/* XXX: might not be necessary */
 	clients_changed(wnck, xscr);
 }
 
 static void
-window_closed(WnckScreen *wnck, WnckWindow *window, gpointer user)
+class_group_opened(WnckScreen *wnck, WnckClassGroup *class_group, gpointer xscr)
 {
-	XdeScreen *xscr = user;
 	clients_changed(wnck, xscr);
 }
 
 static void
-window_opened(WnckScreen *wnck, WnckWindow *window, gpointer user)
+window_closed(WnckScreen *wnck, WnckWindow *window, gpointer xscr)
 {
-	XdeScreen *xscr = user;
 	clients_changed(wnck, xscr);
 }
 
 static void
-window_stacking_changed(WnckScreen *wnck, gpointer user)
+window_opened(WnckScreen *wnck, WnckWindow *window, gpointer xscr)
 {
-	XdeScreen *xscr = user;
-	/* XXX: might not be necessary */
+	clients_changed(wnck, xscr);
+}
+
+static void
+window_stacking_changed(WnckScreen *wnck, gpointer xscr)
+{
 	clients_changed(wnck, xscr);
 }
 
@@ -1507,6 +1496,12 @@ update_current_desktop(XdeScreen *xscr, Atom prop)
 static void
 update_client_list(XdeScreen *xscr, Atom prop)
 {
+	if (prop == None || prop == _XA_NET_CLIENT_LIST_STACKING) {
+	}
+	if (prop == None || prop == _XA_NET_CLIENT_LIST) {
+	} else
+	if (prop == None || prop == _XA_WIN_CLIENT_LIST) {
+	}
 }
 
 static void
@@ -1839,6 +1834,8 @@ do_run(int argc, char *argv[], Bool replace)
 		update_layout(xscr, None);
 		update_current_desktop(xscr, None);
 		update_theme(xscr, None);
+		update_window(xscr, None);
+		update_client_list(xscr, None);
 	}
 	gtk_main();
 }
