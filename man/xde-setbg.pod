@@ -302,5 +302,5 @@ Brian Bidulock L<mailto:bidulock@openss7.org>.
 
 =cut
 
-# vim: set sw=4 tw=72 nocin:
+# vim: set sw=4 tw=72 nocin spell spelllang=en_ca:
 

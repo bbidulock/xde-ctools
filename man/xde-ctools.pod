@@ -176,4 +176,4 @@ L<xde-winmenu(1)>
 
 =cut
 
-# vim: set sw=4 tw=72 nocin:
+# vim: set sw=4 tw=72 nocin spell spelllang=en_ca:
