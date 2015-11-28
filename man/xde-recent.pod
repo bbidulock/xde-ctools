@@ -273,12 +273,14 @@ their own.  Existing recent files menus associated with panels do not
 support the special features associated with tagging and tiling window
 managers.
 
-=head1 AuTHOR
+=head1 AUTHOR
 
 Brian Bidulock L<mailto:bidulock@openss7.org>.
 
 =head1 SEE ALSO
 
+L<getopt_long_only(3)>,
+L<xde-ctools(1)>
 L<xdg-launcher(1)>,
 L<xde-app(1)>,
 L<xde-places(1)>.

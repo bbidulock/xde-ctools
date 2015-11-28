@@ -205,12 +205,14 @@ variations of L<dwm(1)>) that do not support a places menu of their own.
 Existing workspace menus associated with panels do not support the
 special features associated with tagging and tiling window managers.
 
-=head1 AuTHOR
+=head1 AUTHOR
 
 Brian Bidulock L<mailto:bidulock@openss7.org>.
 
 =head1 SEE ALSO
 
+L<getopt_long_only(3)>,
+L<xde-ctools(1)>
 L<xde-pager(1)>,
 L<xde-winlist(1)>,
 L<xde-keys(1)>.

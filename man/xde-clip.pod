@@ -232,9 +232,12 @@ X session management library support in L<perl(1)>.
 
 =head1 AUTHOR
 
-Brian Bidulock <bidulock@cpan.org>
+Brian Bidulock L<mailto:bidulock@openss7.org>.
 
 =head1 SEE ALSO
+
+L<getopt_long_only(3)>,
+L<xde-ctools(1)>
 
 =cut
 

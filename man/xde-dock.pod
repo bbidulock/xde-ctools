@@ -307,6 +307,9 @@ Brian Bidulock <bidulock@cpan.org>
 
 =head1 SEE ALSO
 
+L<getopt_long_only(3)>,
+L<xde-ctools(1)>
+
 =cut
 
 # vim: set sw=4 tw=72 nocin spell spelllang=en_ca:

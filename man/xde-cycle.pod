@@ -221,6 +221,8 @@ Brian Bidulock L<mailto:bidulock@openss7.org>.
 
 =head1 SEE ALSO
 
+L<getopt_long_only(3)>,
+L<xde-ctools(1)>
 L<xde-keys(1)>
 
 =cut
