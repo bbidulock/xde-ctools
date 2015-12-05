@@ -55,8 +55,8 @@ B<xde-dock> recognizes the following options:
 
 =head2 COMMAND OPTIONS
 
-Command options affect the major operating mode of the program.
-Only one of the following command options should be specified.  When no
+Command options affect the major operating mode of the program.  Only
+one of the following command options should be specified.  When no
 command options is specified, B<xde-dock> will assume that normal
 operation is requested.
 
@@ -84,9 +84,9 @@ B<xde-dock> provides the following general options:
 
 =item B<--verbose>, B<-v> [I<LEVEL>]
 
-Print extra information on standard error while running.  When
-I<LEVEL> is not specified, simply increments the output verbosity;
-otherwise, the output verbosity is set to I<LEVEL>.
+Print extra information on standard error while running.  When I<LEVEL>
+is not specified, simply increments the output verbosity; otherwise, the
+output verbosity is set to I<LEVEL>.
 
 =item B<--debug>, B<-D> [I<LEVEL>]
 
@@ -108,7 +108,7 @@ the debug level is set to I<LEVEL>.
 
 B<xde-dock> supports the full range of window managers supported by the
 L<XDE(3)> suite.  It should work well on stacking, non-virtual root,
-reparenting, EWMH/NetWM compliant window managers; however, not that
+re-parenting, EWMH/NetWM compliant window managers; however, not that
 many window managers have issues in this regard.  Supported window
 managers include:
 
@@ -121,34 +121,34 @@ managers include:
 =item L<afterstep(1)>
 
 L<afterstep(1)> provides  dock for dock applications that it calls the
-I<wharf>.  It provides for configured arrangement of dock apps; however,
-docking is not automatic and specific dock applications must be
+I<wharf>.  It provides for configured arrangement of dock applications;
+however, docking is not automatic and specific dock applications must be
 "swallowed" into the I<wharf>.
 
 L<afterstep(1)> can be started without a I<wharf> by configuration, but
 not by command line option.
 
 B<xde-dock> provides an enhanced docking experience for L<afterstep(1)>,
-by identifying dock apps, unmapping them, and then reparenting them away
-from L<afterstep(1)>.
+by identifying dock applications, unmapping them, and then re-parenting
+them away from L<afterstep(1)>.
 
 =item L<awesome(1)>
 
 =item L<blackbox(1)>
 
 L<blackbox(1)> provides a dock for dock applications that it calls the
-I<slit>.  No arrangement of dock apps is provided (they appear in the
-order in which their windows were mapped), and no mechanism for
-launching dock apps is provided.
+I<slit>.  No arrangement of dock applications is provided (they appear
+in the order in which their windows were mapped), and no mechanism for
+launching dock applications is provided.
 
 L<blackbox(1)> cannot be started nor configured to not provide the
 I<slit>.
 
-B<xde-dock> provides an enhanced docking exprience for L<blackbox(1)>,
-by identifying dock apps, unmapping them, and then reparenting them away
-from the L<blackbox(1)> I<slit>.  B<xde-dock> still respects changes
-made to the L<blackbox(1)> I<slit> configuration so that panel menu
-controls still function.
+B<xde-dock> provides an enhanced docking experience for L<blackbox(1)>,
+by identifying dock applications, unmapping them, and then re-parenting
+them away from the L<blackbox(1)> I<slit>.  B<xde-dock> still respects
+changes made to the L<blackbox(1)> I<slit> configuration so that panel
+menu controls still function.
 
 =item L<ctwm(1)>
 
@@ -165,55 +165,57 @@ controls still function.
 =item L<fluxbox(1)>
 
 L<fluxbox(1)> provides a dock for dock applications that it calls the
-I<slit>.  Only a rudimentary arrangement of dock apps is provided by the
-window manager and no mechanism for launching dock apps is provided.
+I<slit>.  Only a rudimentary arrangement of dock applications is
+provided by the window manager and no mechanism for launching dock
+applications is provided.
 
 L<fluxbox(1)> cannot be started nor configured to not provide the
 I<slit>.
 
 B<xde-dock> provides an enhanced docking experience for L<fluxbox(1)>,
-by identifying dock apps, unmapping them, and then reparenting them away
-from the L<fluxbox(1)> I<slit>.  B<xde-dock> still respects changes made
-to the L<fluxbox(1)> I<slit> configuration so that panel menu controls
-still function.
+by identifying dock applications, unmapping them, and then re-parenting
+them away from the L<fluxbox(1)> I<slit>.  B<xde-dock> still respects
+changes made to the L<fluxbox(1)> I<slit> configuration so that panel
+menu controls still function.
 
 =item L<flwm(1)>
 
 =item L<fvwm(1)>
 
 L<fvwm(1)> provides a dock for dock applications that it calls the
-I<wharf>.  It provides for configured arrangement of dock apps; however,
-docking is not automatic and specific dock applications must be
+I<wharf>.  It provides for configured arrangement of dock applications;
+however, docking is not automatic and specific dock applications must be
 "swallowed" into the I<wharf>.
 
 L<fvwm(1)> can be started without a I<wharf> by configuration, but not
 by command line option.
 
 B<xde-dock> provides an enhanced docking experience for L<fvwm(1)>, by
-identifying dock apps, unmapping them, and then reparenting them away
-from L<fvwm(1)>.
+identifying dock applications, unmapping them, and then re-parenting
+them away from L<fvwm(1)>.
 
 =item L<icewm(1)>
 
 L<icewm(1)> does not provide a dock for dock applications.  When
-launched, dock apps will often appear in their own window because
-L<icewm(1)> does not understand mapping windows in the C<WithdrawnState>:
-it interprets the C<WithdrawnState> as a don't-care state.
+launched, dock applications will often appear in their own window
+because L<icewm(1)> does not understand mapping windows in the
+C<WithdrawnState>: it interprets the C<WithdrawnState> as a don't-care
+state.
 
-B<xde-dock> provides a consistent docking experience for L<icewm(1)>,
-by identifying dock apps, unmapping them, and then reparenting them away
-from the L<icewm(1)>.
+B<xde-dock> provides a consistent docking experience for L<icewm(1)>, by
+identifying dock applications, unmapping them, and then re-parenting
+them away from the L<icewm(1)>.
 
 =item L<jwm(1)>
 
 L<jwm(1)> does not provide a dock for dock applications.  When launched,
-dock apps will often appear in their own window because L<jwm(1)> does
-not understand mapping windows in the C<WithdrawnState> and does not
-display dock applications at all.
+dock applications will often appear in their own window because
+L<jwm(1)> does not understand mapping windows in the C<WithdrawnState>
+and does not display dock applications at all.
 
 B<xde-dock> provides a consistent docking experience for L<jwm(1)>, by
-identifying dock apps, unmapping them, and then reparenting them away
-from the L<jwm(1)>.
+identifying dock applications, unmapping them, and then re-parenting
+them away from the L<jwm(1)>.
 
 =item L<matwm2(1)>
 
@@ -224,45 +226,45 @@ however, understand mapping in the C<WithdrawnState> and does not
 display dock applications at all.
 
 B<xde-dock> provides a consistent docking experience for L<metacity(1)>,
-by identifying dock apps, unmapping them, and then reparenting them away
-from L<metacity(1)>.
+by identifying dock applications, unmapping them, and then re-parenting
+them away from L<metacity(1)>.
 
 =item L<mwm(1)>
 
 =item L<openbox(1)>
 
-L<openbox(1)> provides a dock for dock applicaitons that it calls the
-I<dock>.  No arrangement of dock apps is provided (they appear in the
-order in which their windows were mapped), and no mechanism for
-launching dock apps is provided.
+L<openbox(1)> provides a dock for dock applications that it calls the
+I<dock>.  No arrangement of dock applications is provided (they appear
+in the order in which their windows were mapped), and no mechanism for
+launching dock applications is provided.
 
 L<openbox(1)> cannot be started without the I<dock>, but can be
 configured to not implement the I<dock> for a particular configuration.
 
 B<xde-dock> provides an enhanced docking experience for L<openbox(1)>,
-by identifying dock apps, unmapping them, and then reparenting them away
-from the L<openbox(1)> I<dock>.  B<xde-dock> still respects changes made
-to the L<openbox(1)> I<dock> configuration so that L<obconf(1)> controls
-will still function.
+by identifying dock applications, unmapping them, and then re-parenting
+them away from the L<openbox(1)> I<dock>.  B<xde-dock> still respects
+changes made to the L<openbox(1)> I<dock> configuration so that
+L<obconf(1)> controls will still function.
 
 =item L<pekwm(1)>
 
 L<pekwm(1)> provides a dock for dock applications that it calls the
-I<harbour>.  No arrangement of dock apps is provided (they appear in the
-order in which their windows were mapped), and no mechanism for
-launching dock apps is provided.  L<pekwm(1)> does not handle centering
-of dock apps in tiles the way that others (L<fluxbox(1)>,
-L<blackbox(1)>, L<openbox(1)>) do, and will mess up when a 56x56 dock
-app expects to be centered in a 64x64 tile.
+I<harbour>.  No arrangement of dock applications is provided (they
+appear in the order in which their windows were mapped), and no
+mechanism for launching dock applications is provided.  L<pekwm(1)> does
+not handle centering of dock applications in tiles the way that others
+(L<fluxbox(1)>, L<blackbox(1)>, L<openbox(1)>) do, and will mess up when
+a 56x56 dock app expects to be centered in a 64x64 tile.
 
 L<pekwm(1)> cannot be started nor configured to not provide the
 I<harbour>.
 
 B<xde-dock> provides an enhanced docking experience for L<pekwm(1)>, by
-identifying dock apps, unmapping them, and then reparenting them away
-from the L<pekwm(1)> I<harbour>.  B<xde-dock> still repsects changes
-made to the L<pekwm(1)> I<harbour> configuration so that root menu
-controls still function.
+identifying dock applications, unmapping them, and then re-parenting
+them away from the L<pekwm(1)> I<harbour>.  B<xde-dock> still respects
+changes made to the L<pekwm(1)> I<harbour> configuration so that root
+menu controls still function.
 
 =item L<perlpanel(1)>
 
@@ -279,9 +281,9 @@ controls still function.
 =item L<wmaker(1)>
 
 L<wmaker(1)> provides a dock for dock applications that it calls the
-I<dock>.  It provides for graphical rearrangement of dock apps in the
-dock, has a builtin mechanism for launching dock apps at startup and
-even now has drawers.
+I<dock>.  It provides for graphical rearrangement of dock applications
+in the dock, has a built-in mechanism for launching dock applications at
+startup and even now has drawers.
 
 L<wmaker(1)> can be started without its I<dock> (command line option).
 
