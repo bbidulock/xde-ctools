@@ -147,7 +147,7 @@ the debug level is set to I<LEVEL>.
 
 B<xde-clip> supports the full range of window managers supported by the
 L<XDE(3)> suite.  It should work well on stacking, non-virtual root,
-reparenting, EWMH/NetWM compliant window managers; however, not that
+re-parenting, EWMH/NetWM compliant window managers; however, not that
 many window managers have issues in this regard.  Supported window
 managers include:
 
@@ -168,7 +168,7 @@ I<wharf>; however, it does not directly provide a clip.
 
 L<blackbox(1)> provides a dock for dock applications (in blackbox style)
 that it calls the I<slit>; however, it does not provide a clip.
-L<blackbox(1). provides an internal panel that displays current
+L<blackbox(1)> provides an internal panel that displays current
 applications in the task bar.
 
 =item L<ctwm(1)>
