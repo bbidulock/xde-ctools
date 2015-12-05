@@ -42,10 +42,10 @@ starts.
 
 =back
 
-Rather than simply recreate the experience of the WindowMaker dock using
-a WindowMaker, Blackbox or AfterStep style, B<xde-clip> performs some of
-the functions of a launcher, a panel, and recent/frequent applications
-list.
+Rather than simply recreate the experience of the L<wmaker(1)> dock
+using a L<wmaker(1)>, L<blackbox(1)> or L<afterstep(1)> style,
+B<xde-clip> performs some of the functions of a launcher, a panel, and
+recent/frequent applications list.
 
 =over
 
@@ -166,8 +166,8 @@ I<wharf>; however, it does not directly provide a clip.
 
 =item L<blackbox(1)>
 
-L<blackbox(1)> provides a dock for dock applications (in blackbox style)
-that it calls the I<slit>; however, it does not provide a clip.
+L<blackbox(1)> provides a dock for dock applications (in L<blackbox(1)>
+style) that it calls the I<slit>; however, it does not provide a clip.
 L<blackbox(1)> provides an internal panel that displays current
 applications in the task bar.
 
@@ -185,8 +185,8 @@ applications in the task bar.
 
 =item L<fluxbox(1)>
 
-L<fluxbox(1)> provides a dock for dock applications (in blackbox style)
-that it calls the I<slit>; however, it does not provide a clip.
+L<fluxbox(1)> provides a dock for dock applications (in L<blackbox(1)>
+style) that it calls the I<slit>; however, it does not provide a clip.
 L<fluxbox(1)> provides an internal panel that displays current
 applications in a task bar.
 
@@ -194,9 +194,9 @@ applications in a task bar.
 
 =item L<fvwm(1)>
 
-L<fvwm(1)> provides a dock for dock applications (in AfterStep style)
-that it calls the I<wharf>; however, it does not directly provide a
-clip.
+L<fvwm(1)> provides a dock for dock applications (in L<afterstep(1)>
+style) that it calls the I<wharf>; however, it does not directly provide
+a clip.
 
 =item L<icewm(1)>
 
@@ -222,17 +222,17 @@ windows during window cycling.
 
 =item L<openbox(1)>
 
-L<openbox(1)> provides a dock for dock applications (in blackbox style)
-that it calls the I<dock>; however, it does not provide a clip.
+L<openbox(1)> provides a dock for dock applications (in L<blackbox(1)>
+style) that it calls the I<dock>; however, it does not provide a clip.
 L<openbox(1)> does not provide a panel, but relies on external panel
 programs.
 
 =item L<pekwm(1)>
 
-L<pekwm(1)> provides a dock for dock applications (in blackbox style)
-that it calls the I<harbour>; however, it does not provide a clip.
-L<pekwm(1)> does not provide a panel, but relies on external panel
-programs.
+L<pekwm(1)> provides a dock for dock applications (in L<blackbox(1)>
+style) that it calls the I<harbour>; however, it does not provide a
+clip.  L<pekwm(1)> does not provide a panel, but relies on external
+panel programs.
 
 =item L<spectrwm(1)>
 
@@ -246,7 +246,7 @@ programs.
 
 =item L<wmaker(1)>
 
-L<wmaker(1)> provides a dock for dock applications (in WindowMaker
+L<wmaker(1)> provides a dock for dock applications (in L<wmaker(1)>
 style) that it calls the I<dock>.  It also provides a clip.
 L<wmaker(1)> does not provide a panel, but relies on external panel
 programs.  It will; however, display mini-windows when configured to do
@@ -260,10 +260,10 @@ so.
 
 =head1 HISTORY
 
-I wrote B<xde-clip> because there were many supported window managers
-in the I<XDE> suite that did not support a window maker application
-clip.  Once written, it was apparent that a more rich experience could
-be provided to users of those window managers that do support a clip (or
+I wrote B<xde-clip> because there were many supported window managers in
+the I<XDE> suite that did not support a window maker application clip.
+Once written, it was apparent that a more rich experience could be
+provided to users of those window managers that do support a clip (or
 mini-windows).  B<xde-clip> was originally written in L<perl(1)>, but
 was since ported to a C<C> language program primarily due to the lack of
 X session management library support in L<perl(1)>.
@@ -274,8 +274,7 @@ Brian Bidulock L<mailto:bidulock@openss7.org>.
 
 =head1 SEE ALSO
 
-L<getopt_long_only(3)>,
-L<xde-ctools(1)>
+L<getopt_long_only(3)>, L<xde-ctools(1)>
 
 =cut
 
