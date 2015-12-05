@@ -153,12 +153,16 @@ managers include:
 
 =over
 
-=item L<fluxbox(1)>
+=item L<2bwm(1)>
 
-L<fluxbox(1)> provides a dock for dock applications (in blackbox style)
-that it calls the I<slit>; however, it does not provide a clip.
-L<fluxbox(1)> provides an internal panel that displays current
-applications in a task bar.
+=item L<adwm(1)>
+
+=item L<afterstep(1)>
+
+L<afterstep(1)> provides a dock for dock applications that it calls the
+I<wharf>; however, it does not directly provide a clip.
+
+=item L<awesome(1)>
 
 =item L<blackbox(1)>
 
@@ -167,12 +171,32 @@ that it calls the I<slit>; however, it does not provide a clip.
 L<blackbox(1). provides an internal panel that displays current
 applications in the task bar.
 
-=item L<openbox(1)>
+=item L<ctwm(1)>
 
-L<openbox(1)> provides a dock for dock applications (in blackbox style)
-that it calls the I<dock>; however, it does not provide a clip.
-L<openbox(1)> does not provide a panel, but relies on external panel
-programs.
+=item L<cwm(1)>
+
+=item L<dtwm(1)>
+
+=item L<dwm(1)>
+
+=item L<echinus(1)>
+
+=item L<etwm(1)>
+
+=item L<fluxbox(1)>
+
+L<fluxbox(1)> provides a dock for dock applications (in blackbox style)
+that it calls the I<slit>; however, it does not provide a clip.
+L<fluxbox(1)> provides an internal panel that displays current
+applications in a task bar.
+
+=item L<flwm(1)>
+
+=item L<fvwm(1)>
+
+L<fvwm(1)> provides a dock for dock applications (in AfterStep style)
+that it calls the I<wharf>; however, it does not directly provide a
+clip.
 
 =item L<icewm(1)>
 
@@ -186,12 +210,39 @@ mini-windows when configured to do so.
 L<jwm(1)> provides neither a dock nor a clip. L<jwm(1)> provides an
 internal panel that displays current applications in a task bar.
 
+=item L<matwm2(1)>
+
+=item L<metacity(1)>
+
+L<metacity(1)> provides neither a dock nor a clip.  It does not provide
+a panel, nor does it support mini-windows.  It will display current
+windows during window cycling.
+
+=item L<mwm(1)>
+
+=item L<openbox(1)>
+
+L<openbox(1)> provides a dock for dock applications (in blackbox style)
+that it calls the I<dock>; however, it does not provide a clip.
+L<openbox(1)> does not provide a panel, but relies on external panel
+programs.
+
 =item L<pekwm(1)>
 
 L<pekwm(1)> provides a dock for dock applications (in blackbox style)
 that it calls the I<harbour>; however, it does not provide a clip.
 L<pekwm(1)> does not provide a panel, but relies on external panel
 programs.
+
+=item L<spectrwm(1)>
+
+=item L<twm(1)>
+
+=item L<vtwm(1)>
+
+=item L<waimea(1)>
+
+=item L<wind(1)>
 
 =item L<wmaker(1)>
 
@@ -201,22 +252,9 @@ L<wmaker(1)> does not provide a panel, but relies on external panel
 programs.  It will; however, display mini-windows when configured to do
 so.
 
-=item L<fvwm(1)>
+=item L<wmx(1)>
 
-L<fvwm(1)> provides a dock for dock applications (in AfterStep style)
-that it calls the I<wharf>; however, it does not directly provide a
-clip.
-
-=item L<afterstep(1)>
-
-L<afterstep(1)> provides a dock for dock applications that it calls the
-I<wharf>; however, it does not directly provide a clip.
-
-=item L<metacity(1)>
-
-L<metacity(1)> provides neither a dock nor a clip.  It does not provide
-a panel, nor does it support mini-windows.  It will display current
-windows during window cycling.
+=item L<yeahwm(1)>
 
 =back
 
