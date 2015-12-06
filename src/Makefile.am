@@ -21,7 +21,7 @@ EXTRA_PROGRAMS = \
 	xde-clip
 
 xde_app_CPPFLAGS = -DNAME=\"xde-app\"
-xde_app_SOURCES = xde-app.c xde-app.h
+xde_app_SOURCES = xde-app.c
 
 xde_desktop_CPPFLAGS = -DNAME=\"xde-desktop\"
 xde_desktop_SOURCES = xde-desktop.c
