@@ -25,8 +25,8 @@ B<xde-winmenu> accepts the following options:
 
 =head2 COMMAND OPTIONS
 
-When specified, the following options alter the primary operating mode of
-the program:
+When specified, the following options alter the primary operating mode
+of the program:
 
 =over
 
@@ -49,7 +49,7 @@ number.
 
 =item B<--copying>, B<-C>
 
-Prints the long copying permissions statement and exits.
+Prints the long copying permission statement and exits.
 
 =back
 
@@ -228,18 +228,17 @@ This option may be repeated.
 B<xde-winmenu> currently uses F<libwnck+> or F<libwnck> both to identify
 the window manager and to provide the window actions menu.  The range
 and format of window actions provided by F<libwnck+> is superior to
-F<libwnck>.  This use means that B<xde-winmenu> does not currently
-provide any support for window managers that do not have a modicum of
-compliance to the EWMH/NetWM specifications.  That may change in the
-future.
+F<libwnck>.  This use means that B<xde-winmenu> does not currently provide
+any support for window managers that do not have a modicum of compliance
+to the EWMH/NetWM specifications.  That may change in the future.
 
 =head1 HISTORY
 
 I wrote B<xde-winmenu> primarily for the L<adwm(1)> window manager (and
-variations of L<dwm(1)>) that do not support a window menu of their own.
-Existing window menus associated with panels (and typically provided by
-F<libwnck>) do not support the special features associated with tagging
-and tiling window managers.
+variations of L<dwm(1)>) that do not support a window actions menu of
+their own.  Existing window actions menus associated with panels (and
+typically provided by F<libwnck>) do not support the special features
+associated with tagging and tiling window managers.
 
 =head1 AUTHOR
 

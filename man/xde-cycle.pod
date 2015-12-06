@@ -40,7 +40,7 @@ and exits.
 =item B<--version>, B<-V>
 
 Prints the version of the program and a brief copyright statement and
-exits.  Parts the first line with L<awk(1)> to obtain just the version
+exits.  Parse the first line with L<awk(1)> to obtain just the version
 number.
 
 =item B<--copying>, B<-C>
@@ -214,6 +214,103 @@ Groups the windows in the cycle list.
 =back
 
 =back
+
+=head1 ENVIRONMENT
+
+=head1 SIGNALS
+
+=head1 CONFIGURATION
+
+=head1 BEHAVIOUR
+
+=head1 WINDOW MANAGERS
+
+B<xde-cycle> supports the full range of window managers supported by the
+L<XDE(3)> suite.  It should work well on stacking, non-virtual root,
+re-parenting, EWMH/NetWM compliant window managers; however, not that
+many window managers have issues in this regard.  Supported window
+managers include:
+
+=over
+
+=item L<2bwm(1)>
+
+=item L<adwm(1)>
+
+=item L<afterstep(1)>
+
+=item L<awesome(1)>
+
+=item L<blackbox(1)>
+
+=item L<ctwm(1)>
+
+=item L<cwm(1)>
+
+=item L<dtwm(1)>
+
+=item L<dwm(1)>
+
+=item L<echinus(1)>
+
+=item L<etwm(1)>
+
+=item L<fluxbox(1)>
+
+=item L<flwm(1)>
+
+=item L<fvwm(1)>
+
+=item L<icewm(1)>
+
+=item L<jwm(1)>
+
+=item L<matwm2(1)>
+
+=item L<metacity(1)>
+
+=item L<mwm(1)>
+
+=item L<openbox(1)>
+
+=item L<pekwm(1)>
+
+=item L<perlpanel(1)>
+
+=item L<spectrwm(1)>
+
+=item L<twm(1)>
+
+=item L<vtwm(1)>
+
+=item L<waimea(1)>
+
+=item L<wind(1)>
+
+=item L<wmaker(1)>
+
+=item L<wmx(1)>
+
+=item L<yeahwm(1)>
+
+=back
+
+=head1 USAGE
+
+B<xde-cycle> currently uses F<libwnck+> or F<libwnck> both to identify
+the window manager and to provide the window cycling menu.  The range
+and format of window cycling provided by F<libwnck+> is superior to
+F<libwnck>.  This use means that B<xde-cycle> does not currently provide
+any support for window managers that do not have a modicum of compliance
+to the EWMH/NetWM specifications.  That may change in the future.
+
+=head1 HISTORY
+
+I wrote B<xde-cycel> primarily for the L<adwm(1)> window manager (and
+variations of L<dwm(1)>) that do not support a window cycling menu of
+their own.  Existing window cycling menus associated with panels (and
+typically provided by F<libwnck>) do not support the special features
+associated with tagging and tiling window managers.
 
 =head1 AUTHOR
 

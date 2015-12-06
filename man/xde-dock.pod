@@ -1,3 +1,5 @@
+=pod
+
 =head1 NAME
 
 xde-dock - Window Maker style dock for XDE
