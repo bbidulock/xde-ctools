@@ -103,6 +103,41 @@
 #include <getopt.h>
 #endif
 
+#define XPRINTF(args...) do { } while (0)
+#define OPRINTF(args...) do { if (options.output > 1) { \
+	fprintf(stdout, "I: "); \
+	fprintf(stdout, args); \
+	fflush(stdout); } } while (0)
+#define DPRINTF(args...) do { if (options.debug) { \
+	fprintf(stderr, "D: %s +%d %s(): ", __FILE__, __LINE__, __func__); \
+	fprintf(stderr, args); \
+	fflush(stderr); } } while (0)
+#define EPRINTF(args...) do { \
+	fprintf(stderr, "E: %s +%d %s(): ", __FILE__, __LINE__, __func__); \
+	fprintf(stderr, args); \
+	fflush(stderr);   } while (0)
+#define DPRINT() do { if (options.debug) { \
+	fprintf(stderr, "D: %s +%d %s()\n", __FILE__, __LINE__, __func__); \
+	fflush(stderr); } } while (0)
+
+#undef EXIT_SUCCESS
+#undef EXIT_FAILURE
+#undef EXIT_SYNTAXERR
+
+#define EXIT_SUCCESS	0
+#define EXIT_FAILURE	1
+#define EXIT_SYNTAXERR	2
+
+typedef enum {
+	CommandDefault,
+	CommandRun,
+	CommandQuit,
+	CommandReplace,
+	CommandHelp,
+	CommandVersion,
+	CommandCopying,
+} Command;
+
 const char *program = NAME;
 
 Display *dpy;
@@ -192,12 +227,14 @@ struct Options {
 	DockPosition position;
 	DockDirection direction;
 	DockAppTest test;
+	Command command;
 } options = {
 	.debug = 0,
 	.output = 1,
 	.position = DockPositionEast,
 	.direction = DockDirectionVertical,
 	.test = DockAppTestMine,
+	.command = CommandDefault,
 };
 
 static void
@@ -1519,10 +1556,11 @@ runit(int argc, char *argv[])
 	return (0);
 }
 
-
 int
 main(int argc, char *argv[])
 {
+	Command command = CommandDefault;
+
 	setlocale(LC_ALL, "");
 
 	while (1) {
@@ -1543,11 +1581,11 @@ main(int argc, char *argv[])
 		};
 		/* *INDENT-ON* */
 
-		c = getopt_long_only(argc, argv, "D::v::hVCH?", long_options,
-				     &option_index);
-#else				/* defined _GNU_SOURCE */
-		c = getopt(argc, argv, "DvhVC?");
-#endif				/* defined _GNU_SOURCE */
+		c = getopt_long_only(argc, argv, "D::v::hVCH?",
+				     long_options, &option_index);
+#else				/* _GNU_SOURCE */
+		c = getopt(argc, argv, "D:vhVCH?");
+#endif				/* _GNU_SOURCE */
 		if (c == -1) {
 			if (options.debug)
 				fprintf(stderr, "%s: done options processing\n", argv[0]);
@@ -1557,24 +1595,22 @@ main(int argc, char *argv[])
 		case 0:
 			goto bad_usage;
 
-		case 'D':	/* -D, --debug [level] */
+		case 'D':	/* -D, --debug [LEVEL] */
 			if (options.debug)
-				fprintf(stderr, "%s: increasing debug verbosity\n",
-					argv[0]);
+				fprintf(stderr, "%s: increasing debug verbosity\n", argv[0]);
 			if (optarg == NULL) {
 				options.debug++;
-			} else {
-				if ((val = strtol(optarg, &endptr, 0)) < 0)
-					goto bad_option;
-				if (endptr && *endptr)
-					goto bad_option;
-				options.debug = val;
+				break;
 			}
+			if ((val = strtol(optarg, &endptr, 0)) < 0)
+				goto bad_option;
+			if (endptr && *endptr)
+				goto bad_option;
+			options.debug = val;
 			break;
-		case 'v':	/* -v, --verbose [level] */
+		case 'v':	/* -v, --verbose [LEVEL] */
 			if (options.debug)
-				fprintf(stderr, "%s: increasing output verbosity\n",
-					argv[0]);
+				fprintf(stderr, "%s: increasing output verbosity\n", argv[0]);
 			if (optarg == NULL) {
 				options.output++;
 				break;
@@ -1587,22 +1623,22 @@ main(int argc, char *argv[])
 			break;
 		case 'h':	/* -h, --help */
 		case 'H':	/* -H, --? */
-			if (options.debug)
-				fprintf(stderr, "%s: printing help message\n", argv[0]);
-			help(argc, argv);
-			exit(0);
+			command = CommandHelp;
+			break;
 		case 'V':	/* -V, --version */
-			if (options.debug)
-				fprintf(stderr, "%s: printing version message\n",
-					argv[0]);
-			version(argc, argv);
-			exit(0);
+			if (options.command != CommandDefault)
+				goto bad_option;
+			if (command == CommandDefault)
+				command = CommandVersion;
+			options.command = CommandVersion;
+			break;
 		case 'C':	/* -C, --copying */
-			if (options.debug)
-				fprintf(stderr, "%s: printing copying message\n",
-					argv[0]);
-			copying(argc, argv);
-			exit(0);
+			if (options.command != CommandDefault)
+				goto bad_option;
+			if (command == CommandDefault)
+				command = CommandCopying;
+			options.command = CommandCopying;
+			break;
 		case '?':
 		default:
 		      bad_option:
@@ -1611,23 +1647,21 @@ main(int argc, char *argv[])
 		      bad_nonopt:
 			if (options.output || options.debug) {
 				if (optind < argc) {
-					fprintf(stderr, "%s: syntax error near '",
-						argv[0]);
+					fprintf(stderr, "%s: syntax error near '", argv[0]);
 					while (optind < argc) {
 						fprintf(stderr, "%s", argv[optind++]);
 						fprintf(stderr, "%s", (optind < argc) ? " " : "");
 					}
 					fprintf(stderr, "'\n");
 				} else {
-					fprintf(stderr, "%s: missing option or argument",
-						argv[0]);
+					fprintf(stderr, "%s: missing option or argument", argv[0]);
 					fprintf(stderr, "\n");
 				}
 				fflush(stderr);
 			      bad_usage:
 				usage(argc, argv);
 			}
-			exit(2);
+			exit(EXIT_SYNTAXERR);
 		}
 	}
 	if (options.debug) {
@@ -1635,14 +1669,35 @@ main(int argc, char *argv[])
 		fprintf(stderr, "%s: option count = %d\n", argv[0], argc);
 	}
 	if (optind < argc) {
-		fprintf(stderr, "%s: excess non-options arguments near '", argv[0]);
+		fprintf(stderr, "%s: excess non-option arguments near '", argv[0]);
 		while (optind < argc) {
 			fprintf(stderr, "%s", argv[optind++]);
 			fprintf(stderr, "%s", (optind < argc) ? " " : "");
 		}
 		fprintf(stderr, "'\n");
 		usage(argc, argv);
-		exit(2);
+		exit(EXIT_SYNTAXERR);
 	}
-	exit(runit(argc, argv));
+	switch (command) {
+	default:
+	case CommandDefault:
+	case CommandRun:
+		exit(runit(argc, argv));
+		break;
+	case CommandHelp:
+		DPRINTF("%s: printing help message\n", argv[0]);
+		help(argc, argv);
+		break;
+	case CommandVersion:
+		DPRINTF("%s: printing version message\n", argv[0]);
+		version(argc, argv);
+		break;
+	case CommandCopying:
+		DPRINTF("%s: printing copying message\n", argv[0]);
+		copying(argc, argv);
+		break;
+	}
+	exit(EXIT_SUCCESS);
 }
+
+// vim: tw=100 com=sr0\:/**,mb\:*,ex\:*/,sr0\:/*,mb\:*,ex\:*/,b\:TRANS formatoptions+=tcqlor
