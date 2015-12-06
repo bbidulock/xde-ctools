@@ -94,8 +94,8 @@
 #include <libsn/sn.h>
 #endif
 #include <glib.h>
-#include <gtk/gtk.h>
 #include <gdk/gdkx.h>
+#include <gtk/gtk.h>
 #define WNCK_I_KNOW_THIS_IS_UNSTABLE
 #include <libwnck/libwnck.h>
 
@@ -131,6 +131,7 @@
 
 typedef enum {
 	CommandDefault,
+	CommandRun,
 	CommandHelp,
 	CommandVersion,
 	CommandCopying,
@@ -1535,10 +1536,8 @@ main(int argc, char *argv[])
 			exit(EXIT_SYNTAXERR);
 		}
 	}
-	if (options.debug) {
-		fprintf(stderr, "%s: option index = %d\n", argv[0], optind);
-		fprintf(stderr, "%s: option count = %d\n", argv[0], argc);
-	}
+	DPRINTF("%s: option index = %d\n", argv[0], optind);
+	DPRINTF("%s: option count = %d\n", argv[0], argc);
 	if (optind < argc) {
 		fprintf(stderr, "%s: excess non-option arguments near '", argv[0]);
 		while (optind < argc) {
@@ -1552,6 +1551,7 @@ main(int argc, char *argv[])
 	switch (command) {
 	default:
 	case CommandDefault:
+	case CommandRun:
 	{
 		GList *history = NULL;
 
