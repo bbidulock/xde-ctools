@@ -66,7 +66,7 @@ xde_setbg_CFLAGS = $(AM_CFLAGS) $(ICE_CFLAGS) $(SMLIB_CFLAGS)
 xde_setbg_LDFLAGS = $(SMLIB_LIBS) $(ICE_LIBS) $(AM_LDFLAGS)
 
 xde_keys_CPPFLAGS = -DNAME=\"xde-keys\"
-xde_keys_SOURCES = xde-keys.c xde-keys.h
+xde_keys_SOURCES = xde-keys.c
 
 xde_wkspmenu_CPPFLAGS = -DNAME=\"xde-wkspmenu\"
 xde_wkspmenu_SOURCES = xde-wkspmenu.c
