@@ -1282,29 +1282,30 @@ update_current_desktop(XdeScreen *xscr, Atom prop)
 static void
 init_window(XdeScreen *xscr)
 {
-#if 1
 	GtkWidget *popup;
-	GtkWidget *pager;
 
 	DPRINT();
-	pager = wnck_pager_new(xscr->wnck);
 	xscr->popup = popup = gtk_window_new(GTK_WINDOW_POPUP);
 	gtk_widget_add_events(popup, GDK_ALL_EVENTS_MASK);
 	gtk_window_set_focus_on_map(GTK_WINDOW(popup), TRUE);
 	gtk_window_set_type_hint(GTK_WINDOW(popup), GDK_WINDOW_TYPE_HINT_SPLASHSCREEN);
 	gtk_window_stick(GTK_WINDOW(popup));
 	gtk_window_set_keep_above(GTK_WINDOW(popup), TRUE);
+
+#if 1
+	GtkWidget *pager = wnck_pager_new(xscr->wnck);
 	wnck_pager_set_orientation(WNCK_PAGER(pager), GTK_ORIENTATION_HORIZONTAL);
 	wnck_pager_set_n_rows(WNCK_PAGER(pager), 2);
 	wnck_pager_set_layout_policy(WNCK_PAGER(pager), WNCK_PAGER_LAYOUT_POLICY_AUTOMATIC);
 	wnck_pager_set_display_mode(WNCK_PAGER(pager), WNCK_PAGER_DISPLAY_CONTENT);
 	wnck_pager_set_show_all(WNCK_PAGER(pager), TRUE);
 	wnck_pager_set_shadow_type(WNCK_PAGER(pager), GTK_SHADOW_IN);
-	gtk_container_set_border_width(GTK_CONTAINER(popup), options.border);
 	gtk_container_add(GTK_CONTAINER(popup), GTK_WIDGET(pager));
-
 	gtk_window_set_position(GTK_WINDOW(popup), GTK_WIN_POS_CENTER_ALWAYS);
 	gtk_widget_show(GTK_WIDGET(pager));
+#endif
+	gtk_container_set_border_width(GTK_CONTAINER(popup), options.border);
+
 	g_signal_connect(G_OBJECT(popup), "button_press_event",
 			 G_CALLBACK(button_press_event), xscr);
 	g_signal_connect(G_OBJECT(popup), "button_release_event",
@@ -1326,20 +1327,6 @@ init_window(XdeScreen *xscr)
 	g_signal_connect(G_OBJECT(popup), "map_event", G_CALLBACK(map_event), xscr);
 	g_signal_connect(G_OBJECT(popup), "realize", G_CALLBACK(widget_realize), xscr);
 	g_signal_connect(G_OBJECT(popup), "scroll_event", G_CALLBACK(scroll_event), xscr);
-#endif
-	(void) button_press_event;
-	(void) button_release_event;
-	(void) enter_notify_event;
-	(void) focus_in_event;
-	(void) focus_out_event;
-	(void) grab_broken_event;
-	(void) grab_focus;
-	(void) key_press_event;
-	(void) key_release_event;
-	(void) leave_notify_event;
-	(void) map_event;
-	(void) widget_realize;
-	(void) scroll_event;
 }
 
 static void
