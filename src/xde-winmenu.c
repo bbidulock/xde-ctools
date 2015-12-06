@@ -110,9 +110,9 @@
 
 #define XPRINTF(args...) do { } while (0)
 #define OPRINTF(args...) do { if (options.output > 1) { \
-	fprintf(stderr, "I: "); \
-	fprintf(stderr, args); \
-	fflush(stderr); } } while (0)
+	fprintf(stdout, "I: "); \
+	fprintf(stdout, args); \
+	fflush(stdout); } } while (0)
 #define DPRINTF(args...) do { if (options.debug) { \
 	fprintf(stderr, "D: %s +%d %s(): ", __FILE__, __LINE__, __func__); \
 	fprintf(stderr, args); \
@@ -1095,6 +1095,7 @@ Options:\n\
         \"icongeom\" - above or below icon geometry\n\
     -D, --debug [LEVEL]\n\
         increment or set debug LEVEL [default: %2$d]\n\
+        this option may be repeated.\n\
     -v, --verbose [LEVEL]\n\
         increment or set output verbosity LEVEL [default: %3$d]\n\
         this option may be repeated.\n\
@@ -1128,7 +1129,7 @@ get_defaults(void)
 	int n;
 
 	if (!options.display) {
-		EPRINTF("No DISPLAY environment variable or --display option\n");
+		EPRINTF("No DISPLAY environment variable nor --display option\n");
 		exit(EXIT_FAILURE);
 	}
 	if (options.screen < 0 && (p = strrchr(options.display, '.'))
@@ -1136,7 +1137,6 @@ get_defaults(void)
 		options.screen = atoi(p);
 	if (options.command == CommandDefault)
 		options.command = CommandPopup;
-
 }
 
 int
@@ -1150,6 +1150,7 @@ main(int argc, char *argv[])
 
 	while (1) {
 		int c, val, len;
+		char *endptr = NULL;
 
 #ifdef _GNU_SOURCE
 		int option_index = 0;
@@ -1194,7 +1195,9 @@ main(int argc, char *argv[])
 			options.display = strdup(optarg);
 			break;
 		case 's':	/* -s, --screen SCREEN */
-			options.screen = strtoul(optarg, NULL, 0);
+			options.screen = strtoul(optarg, &endptr, 0);
+			if (endptr && *endptr)
+				goto bad_option;
 			break;
 		case 'p':	/* -p, --popup */
 			if (options.command != CommandDefault)
@@ -1204,11 +1207,16 @@ main(int argc, char *argv[])
 			options.command = CommandPopup;
 			break;
 		case 'b':	/* -b, --button BUTTON */
-			options.button = strtoul(optarg, NULL, 0);
+			options.button = strtoul(optarg, &endptr, 0);
+			if (endptr && *endptr)
+				goto bad_option;
 			break;
 		case 'T':	/* -T, --timestamp TIMESTAMP */
-			options.timestamp = strtoul(optarg, NULL, 0);
+			options.timestamp = strtoul(optarg, &endptr, 0);
+			if (endptr && *endptr)
+				goto bad_option;
 			break;
+
 		case 'w':	/* -w, --which WHICH */
 			if (options.which != UseWindowDefault)
 				goto bad_option;
@@ -1222,10 +1230,12 @@ main(int argc, char *argv[])
 				options.which = UseWindowPointer;
 			else if (!strncasecmp("select", optarg, len))
 				options.which = UseWindowSelect;
-			else if ((options.window = strtoul(optarg, NULL, 0)))
+			else  {
+				options.window = strtoul(optarg, &endptr, 0);
+				if (endptr && *endptr)
+					goto bad_option;
 				options.which = UseWindowSpecified;
-			else
-				goto bad_option;
+			}
 			break;
 		case 'W':	/* -W, --where WHERE */
 			if (options.where != PositionDefault)
@@ -1246,30 +1256,37 @@ main(int argc, char *argv[])
 		case 'x':	/* -x, --id WINDOW */
 			if (options.which != UseWindowDefault)
 				goto bad_option;
-			options.window = strtoul(optarg, NULL, 0);
+			options.window = strtoul(optarg, &endptr, 0);
+			if (endptr && *endptr)
+				goto bad_option;
 			if (!options.window)
 				goto bad_option;
 			options.which = UseWindowSpecified;
 			break;
-		case 'D':	/* -D, --debug [level] */
+
+		case 'D':	/* -D, --debug [LEVEL] */
 			if (options.debug)
 				fprintf(stderr, "%s: increasing debug verbosity\n", argv[0]);
 			if (optarg == NULL) {
 				options.debug++;
-			} else {
-				if ((val = strtol(optarg, NULL, 0)) < 0)
-					goto bad_option;
-				options.debug = val;
+				break;
 			}
+			if ((val = strtol(optarg, &endptr, 0)) < 0)
+				goto bad_option;
+			if (endptr && *endptr)
+				goto bad_option;
+			options.debug = val;
 			break;
-		case 'v':	/* -v, --verbose [level] */
+		case 'v':	/* -v, --verbose [LEVEL] */
 			if (options.debug)
 				fprintf(stderr, "%s: increasing output verbosity\n", argv[0]);
 			if (optarg == NULL) {
 				options.output++;
 				break;
 			}
-			if ((val = strtol(optarg, NULL, 0)) < 0)
+			if ((val = strtol(optarg, &endptr, 0)) < 0)
+				goto bad_option;
+			if (endptr && *endptr)
 				goto bad_option;
 			options.output = val;
 			break;
@@ -1302,13 +1319,11 @@ main(int argc, char *argv[])
 					fprintf(stderr, "%s: syntax error near '", argv[0]);
 					while (optind < argc) {
 						fprintf(stderr, "%s", argv[optind++]);
-						fprintf(stderr, "%s",
-							(optind < argc) ? " " : "");
+						fprintf(stderr, "%s", (optind < argc) ? " " : "");
 					}
 					fprintf(stderr, "'\n");
 				} else {
-					fprintf(stderr,
-						"%s: missing option or argument", argv[0]);
+					fprintf(stderr, "%s: missing option or argument", argv[0]);
 					fprintf(stderr, "\n");
 				}
 				fflush(stderr);
@@ -1323,7 +1338,7 @@ main(int argc, char *argv[])
 		fprintf(stderr, "%s: option count = %d\n", argv[0], argc);
 	}
 	if (optind < argc) {
-		fprintf(stderr, "%s: excess non-options arguments near '", argv[0]);
+		fprintf(stderr, "%s: excess non-option arguments near '", argv[0]);
 		while (optind < argc) {
 			fprintf(stderr, "%s", argv[optind++]);
 			fprintf(stderr, "%s", (optind < argc) ? " " : "");
