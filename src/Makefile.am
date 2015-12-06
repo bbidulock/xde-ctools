@@ -39,7 +39,7 @@ xde_clip_CFLAGS = $(AM_CFLAGS) $(ICE_CFLAGS) $(SMLIB_CFLAGS)
 xde_clip_LDFLAGS = $(SMLIB_LIBS) $(ICE_LIBS) $(AM_LDFLAGS)
 
 xde_run_CPPFLAGS = -DNAME=\"xde-run\"
-xde_run_SOURCES = xde-run.c xde-run.h
+xde_run_SOURCES = xde-run.c
 
 xde_winmenu_CPPFLAGS = -DNAME=\"xde-winmenu\"
 xde_winmenu_SOURCES = xde-winmenu.c
