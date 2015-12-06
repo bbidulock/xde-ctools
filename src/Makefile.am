@@ -29,7 +29,7 @@ xde_desktop_CFLAGS = $(AM_CFLAGS) $(ICE_CFLAGS) $(SMLIB_CFLAGS)
 xde_desktop_LDFLAGS = $(SMLIB_LIBS) $(ICE_LIBS) $(AM_LDFLAGS)
 
 xde_dock_CPPFLAGS = -DNAME=\"xde-dock\"
-xde_dock_SOURCES = xde-dock.c xde-dock.h
+xde_dock_SOURCES = xde-dock.c
 xde_dock_CFLAGS = $(AM_CFLAGS) $(ICE_CFLAGS) $(SMLIB_CFLAGS)
 xde_dock_LDFLAGS = $(SMLIB_LIBS) $(ICE_LIBS) $(AM_LDFLAGS)
 
