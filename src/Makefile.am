@@ -34,7 +34,7 @@ xde_dock_CFLAGS = $(AM_CFLAGS) $(ICE_CFLAGS) $(SMLIB_CFLAGS)
 xde_dock_LDFLAGS = $(SMLIB_LIBS) $(ICE_LIBS) $(AM_LDFLAGS)
 
 xde_clip_CPPFLAGS = -DNAME=\"xde-clip\"
-xde_clip_SOURCES = xde-clip.c xde-clip.h
+xde_clip_SOURCES = xde-clip.c
 xde_clip_CFLAGS = $(AM_CFLAGS) $(ICE_CFLAGS) $(SMLIB_CFLAGS)
 xde_clip_LDFLAGS = $(SMLIB_LIBS) $(ICE_LIBS) $(AM_LDFLAGS)
 
