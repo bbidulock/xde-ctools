@@ -1510,6 +1510,22 @@ update_window(XdeScreen *xscr, Atom prop)
 }
 
 static void
+add_pager(XdeScreen *xscr, GtkWidget *popup)
+{
+	GtkWidget *pager = wnck_pager_new(xscr->wnck);
+
+	wnck_pager_set_orientation(WNCK_PAGER(pager), GTK_ORIENTATION_HORIZONTAL);
+	wnck_pager_set_n_rows(WNCK_PAGER(pager), 2);
+	wnck_pager_set_layout_policy(WNCK_PAGER(pager), WNCK_PAGER_LAYOUT_POLICY_AUTOMATIC);
+	wnck_pager_set_display_mode(WNCK_PAGER(pager), WNCK_PAGER_DISPLAY_CONTENT);
+	wnck_pager_set_show_all(WNCK_PAGER(pager), TRUE);
+	wnck_pager_set_shadow_type(WNCK_PAGER(pager), GTK_SHADOW_IN);
+	gtk_container_add(GTK_CONTAINER(popup), GTK_WIDGET(pager));
+	gtk_window_set_position(GTK_WINDOW(popup), GTK_WIN_POS_CENTER_ALWAYS);
+	gtk_widget_show(GTK_WIDGET(pager));
+}
+
+static void
 init_window(XdeScreen *xscr)
 {
 	GtkWidget *popup;
@@ -1523,16 +1539,9 @@ init_window(XdeScreen *xscr)
 	gtk_window_set_keep_above(GTK_WINDOW(popup), TRUE);
 
 #if 0
-	GtkWidget *pager = wnck_pager_new(xscr->wnck);
-	wnck_pager_set_orientation(WNCK_PAGER(pager), GTK_ORIENTATION_HORIZONTAL);
-	wnck_pager_set_n_rows(WNCK_PAGER(pager), 2);
-	wnck_pager_set_layout_policy(WNCK_PAGER(pager), WNCK_PAGER_LAYOUT_POLICY_AUTOMATIC);
-	wnck_pager_set_display_mode(WNCK_PAGER(pager), WNCK_PAGER_DISPLAY_CONTENT);
-	wnck_pager_set_show_all(WNCK_PAGER(pager), TRUE);
-	wnck_pager_set_shadow_type(WNCK_PAGER(pager), GTK_SHADOW_IN);
-	gtk_container_add(GTK_CONTAINER(popup), GTK_WIDGET(pager));
-	gtk_window_set_position(GTK_WINDOW(popup), GTK_WIN_POS_CENTER_ALWAYS);
-	gtk_widget_show(GTK_WIDGET(pager));
+	add_pager(xscr, popup);
+#else
+	(void) add_pager;
 #endif
 	gtk_container_set_border_width(GTK_CONTAINER(popup), options.border);
 
