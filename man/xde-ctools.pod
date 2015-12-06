@@ -31,12 +31,6 @@ The window cycling list is a list of windows on the current monitor (or
 multiple monitors) and current workspace (or multiple workspaces) and is
 accessed with a hot key.
 
-=item L<xde-desktop(1)>
-
-Provides a desktop environment for window managers that do not support
-one and provides a more consistent and rich experience for those that
-do.
-
 =item L<xde-dock(1)>
 
 Provides a dock (of WindowMaker dock apps) for window managers that do

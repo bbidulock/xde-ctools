@@ -4,7 +4,6 @@ xde_man_files = \
 	xde-clip.man \
 	xde-ctools.man \
 	xde-cycle.man \
-	xde-desktop.man \
 	xde-dock.man \
 	xde-keys.man \
 	xde-pager.man \
@@ -25,7 +24,6 @@ EXTRA_DIST = \
 	xde-clip.pod \
 	xde-ctools.pod \
 	xde-cycle.pod \
-	xde-desktop.pod \
 	xde-dock.pod \
 	xde-keys.pod \
 	xde-pager.pod \
