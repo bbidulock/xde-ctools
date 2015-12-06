@@ -1169,7 +1169,7 @@ run_command(GList **hist)
 	gtk_box_pack_start(GTK_BOX(mbox), GTK_WIDGET(vbox), TRUE, TRUE, 0);
 
 	dialog = gtk_dialog_new();
-	gtk_window_set_title(GTK_WINDOW(dialog), "Run Command");
+	gtk_window_set_title(GTK_WINDOW(dialog), "Run Application");
 	gtk_window_set_position(GTK_WINDOW(dialog), GTK_WIN_POS_CENTER);
 	gtk_window_set_resizable(GTK_WINDOW(dialog), FALSE);
 	gtk_container_set_border_width(GTK_CONTAINER(dialog), 5);
