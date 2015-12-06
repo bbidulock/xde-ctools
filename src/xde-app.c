@@ -99,11 +99,15 @@
 #define WNCK_I_KNOW_THIS_IS_UNSTABLE
 #include <libwnck/libwnck.h>
 
+#ifdef _GNU_SOURCE
+#include <getopt.h>
+#endif
+
 #define XPRINTF(args...) do { } while (0)
 #define OPRINTF(args...) do { if (options.output > 1) { \
-	fprintf(stderr, "I: "); \
-	fprintf(stderr, args); \
-	fflush(stderr); } } while (0)
+	fprintf(stdout, "I: "); \
+	fprintf(stdout, args); \
+	fflush(stdout); } } while (0)
 #define DPRINTF(args...) do { if (options.debug) { \
 	fprintf(stderr, "D: %s +%d %s(): ", __FILE__, __LINE__, __func__); \
 	fprintf(stderr, args); \
@@ -116,17 +120,21 @@
 	fprintf(stderr, "D: %s +%d %s()\n", __FILE__, __LINE__, __func__); \
 	fflush(stderr); } } while (0)
 
+#undef EXIT_SUCCESS
+#undef EXIT_FAILURE
+#undef EXIT_SYNTAXERR
 
-#ifdef _GNU_SOURCE
-#include <getopt.h>
-#endif
+#define EXIT_SUCCESS	0
+#define EXIT_FAILURE	1
+#define EXIT_SYNTAXERR	2
+
 
 typedef enum {
-	COMMAND_DEFAULT = 0,
-	COMMAND_HELP,
-	COMMAND_VERSION,
-	COMMAND_COPYING
-} Commands;
+	CommandDefault,
+	CommandHelp,
+	CommandVersion,
+	CommandCopying,
+} Command;
 
 Display *dpy;
 unsigned int screen;
@@ -145,33 +153,33 @@ GtkWidget *icon;
 int shutting_down;
 
 typedef struct {
-	Commands command;
 	int debug;
 	int output;
 	int recent;
 	char *runhist;
 	char *recapps;
 	int xdg;
+	Command command;
 } Options;
 
 Options options = {
-	.command = COMMAND_DEFAULT,
 	.debug = 0,
 	.output = 1,
 	.recent = 10,
 	.runhist = NULL,
 	.recapps = NULL,
 	.xdg = 1,
+	.command = CommandDefault,
 };
 
 Options defaults = {
-	.command = COMMAND_DEFAULT,
 	.debug = 0,
 	.output = 1,
 	.recent = 10,
 	.runhist = "~/.config/xde/run-history",
 	.recapps = "~/.config/xde/recent-applications",
 	.xdg = 1,
+	.command = CommandDefault,
 };
 
 static void
@@ -1379,6 +1387,8 @@ set_defaults()
 int
 main(int argc, char *argv[])
 {
+	Command command = CommandDefault;
+
 	setlocale(LC_ALL, "");
 
 	set_defaults();
@@ -1407,11 +1417,11 @@ main(int argc, char *argv[])
 		};
 		/* *INDENT-ON* */
 
-		c = getopt_long_only(argc, argv, "bxf:l:a:D::v::hVCH?", long_options,
-				     &option_index);
-#else
+		c = getopt_long_only(argc, argv, "bxf:l:a:D::v::hVCH?",
+				     long_options, &option_index);
+#else				/* _GNU_SOURCE */
 		c = getopt(argc, argv, "bxf:l:a:DvhVCH?");
-#endif
+#endif				/* _GNU_SOURCE */
 		if (c == -1) {
 			if (options.debug)
 				fprintf(stderr, "%s: done options processing\n", argv[0]);
@@ -1455,20 +1465,21 @@ main(int argc, char *argv[])
 			free(options.recapps);
 			options.recapps = strdup(optarg);
 			break;
-		case 'D':	/* -D, --debug [level] */
+
+		case 'D':	/* -D, --debug [LEVEL] */
 			if (options.debug)
 				fprintf(stderr, "%s: increasing debug verbosity\n", argv[0]);
 			if (optarg == NULL) {
 				options.debug++;
-			} else {
-				if ((val = strtol(optarg, &endptr, 0)) < 0)
-					goto bad_option;
-				if (endptr && *endptr)
-					goto bad_option;
-				options.debug = val;
+				break;
 			}
+			if ((val = strtol(optarg, &endptr, 0)) < 0)
+				goto bad_option;
+			if (endptr && *endptr)
+				goto bad_option;
+			options.debug = val;
 			break;
-		case 'v':	/* -v, --verbose [level] */
+		case 'v':	/* -v, --verbose [LEVEL] */
 			if (options.debug)
 				fprintf(stderr, "%s: increasing output verbosity\n", argv[0]);
 			if (optarg == NULL) {
@@ -1483,19 +1494,21 @@ main(int argc, char *argv[])
 			break;
 		case 'h':	/* -h, --help */
 		case 'H':	/* -H, --? */
-			if (options.command != COMMAND_DEFAULT)
-				goto bad_option;
-			options.command = COMMAND_HELP;
+			command = CommandHelp;
 			break;
 		case 'V':	/* -V, --version */
-			if (options.command != COMMAND_DEFAULT)
+			if (options.command != CommandDefault)
 				goto bad_option;
-			options.command = COMMAND_VERSION;
+			if (command == CommandDefault)
+				command = CommandVersion;
+			options.command = CommandVersion;
 			break;
 		case 'C':	/* -C, --copying */
-			if (options.command != COMMAND_DEFAULT)
+			if (options.command != CommandDefault)
 				goto bad_option;
-			options.command = COMMAND_COPYING;
+			if (command == CommandDefault)
+				command = CommandCopying;
+			options.command = CommandCopying;
 			break;
 		case '?':
 		default:
@@ -1519,7 +1532,7 @@ main(int argc, char *argv[])
 			      bad_usage:
 				usage(argc, argv);
 			}
-			exit(2);
+			exit(EXIT_SYNTAXERR);
 		}
 	}
 	if (options.debug) {
@@ -1527,18 +1540,18 @@ main(int argc, char *argv[])
 		fprintf(stderr, "%s: option count = %d\n", argv[0], argc);
 	}
 	if (optind < argc) {
-		fprintf(stderr, "%s: excess non-options arguments near '", argv[0]);
+		fprintf(stderr, "%s: excess non-option arguments near '", argv[0]);
 		while (optind < argc) {
 			fprintf(stderr, "%s", argv[optind++]);
 			fprintf(stderr, "%s", (optind < argc) ? " " : "");
 		}
 		fprintf(stderr, "'\n");
 		usage(argc, argv);
-		exit(2);
+		exit(EXIT_SYNTAXERR);
 	}
-	switch (options.command) {
-	case COMMAND_DEFAULT:
+	switch (command) {
 	default:
+	case CommandDefault:
 	{
 		GList *history = NULL;
 
@@ -1551,21 +1564,20 @@ main(int argc, char *argv[])
 		gtk_main();
 		break;
 	}
-	case COMMAND_HELP:
-		if (options.debug)
-			fprintf(stderr, "%s: printing help message\n", argv[0]);
+	case CommandHelp:
+		DPRINTF("%s: printing help message\n", argv[0]);
 		help(argc, argv);
 		break;
-	case COMMAND_VERSION:
-		if (options.debug)
-			fprintf(stderr, "%s: printing version message\n", argv[0]);
+	case CommandVersion:
+		DPRINTF("%s: printing version message\n", argv[0]);
 		version(argc, argv);
 		break;
-	case COMMAND_COPYING:
-		if (options.debug)
-			fprintf(stderr, "%s: printing copying message\n", argv[0]);
+	case CommandCopying:
+		DPRINTF("%s: printing copying message\n", argv[0]);
 		copying(argc, argv);
 		break;
 	}
-	exit(0);
+	exit(EXIT_SUCCESS);
 }
+
+// vim: tw=100 com=sr0\:/**,mb\:*,ex\:*/,sr0\:/*,mb\:*,ex\:*/,b\:TRANS formatoptions+=tcqlor
