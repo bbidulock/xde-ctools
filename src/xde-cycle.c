@@ -3772,10 +3772,8 @@ main(int argc, char *argv[])
 			exit(EXIT_SYNTAXERR);
 		}
 	}
-	if (options.debug) {
-		fprintf(stderr, "%s: option index = %d\n", argv[0], optind);
-		fprintf(stderr, "%s: option count = %d\n", argv[0], argc);
-	}
+	DPRINTF("%s: option index = %d\n", argv[0], optind);
+	DPRINTF("%s: option count = %d\n", argv[0], argc);
 	if (optind < argc) {
 		fprintf(stderr, "%s: excess non-option arguments near '", argv[0]);
 		while (optind < argc) {

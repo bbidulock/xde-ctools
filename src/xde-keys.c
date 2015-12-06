@@ -93,16 +93,21 @@
 #define SN_API_NOT_YET_FROZEN
 #include <libsn/sn.h>
 #endif
-#include <gtk/gtk.h>
 #include <gdk/gdkx.h>
+#include <gtk/gtk.h>
+
 #define WNCK_I_KNOW_THIS_IS_UNSTABLE
 #include <libwnck/libwnck.h>
 
+#ifdef _GNU_SOURCE
+#include <getopt.h>
+#endif
+
 #define XPRINTF(args...) do { } while (0)
 #define OPRINTF(args...) do { if (options.output > 1) { \
-	fprintf(stderr, "I: "); \
-	fprintf(stderr, args); \
-	fflush(stderr); } } while (0)
+	fprintf(stdout, "I: "); \
+	fprintf(stdout, args); \
+	fflush(stdout); } } while (0)
 #define DPRINTF(args...) do { if (options.debug) { \
 	fprintf(stderr, "D: %s +%d %s(): ", __FILE__, __LINE__, __func__); \
 	fprintf(stderr, args); \
@@ -115,28 +120,34 @@
 	fprintf(stderr, "D: %s +%d %s()\n", __FILE__, __LINE__, __func__); \
 	fflush(stderr); } } while (0)
 
+#undef EXIT_SUCCESS
+#undef EXIT_FAILURE
+#undef EXIT_SYNTAXERR
 
-#ifdef _GNU_SOURCE
-#include <getopt.h>
-#endif
+#define EXIT_SUCCESS	0
+#define EXIT_FAILURE	1
+#define EXIT_SYNTAXERR	2
+
 
 const char *program = NAME;
 
 typedef enum {
 	CommandDefault,
+	CommandRun,
+	CommandQuit,
+	CommandReplace,
+	CommandEdit,
 	CommandHelp,
 	CommandVersion,
 	CommandCopying,
-	CommandReplace,
-	CommandQuit,
-	CommandEdit,
-} CommandType;
+} Command;
+
 
 typedef struct {
 	int output;
 	int debug;
 	Bool dryrun;
-	CommandType command;
+	Command command;
 	Bool replace;
 	char *display;
 	int screen;
@@ -165,7 +176,7 @@ Options options = {
 };
 
 void
-do_run(int argc, char *argv[])
+do_run(int argc, char *argv[], Bool replace)
 {
 }
 
@@ -359,7 +370,7 @@ get_defaults(void)
 int
 main(int argc, char *argv[])
 {
-	CommandType command = CommandDefault;
+	Command command = CommandDefault;
 
 	setlocale(LC_ALL, "");
 
@@ -399,9 +410,10 @@ main(int argc, char *argv[])
 		};
 		/* *INDENT-ON* */
 
-		c = getopt_long_only(argc, argv, "rqed:s:nW:P:F:D::v::hVCH?", long_options, &option_index);
+		c = getopt_long_only(argc, argv, "rqed:s:nW:P:F:D::v::hVCH?",
+				     long_options, &option_index);
 #else				/* _GNU_SOURCE */
-		c = getopt(argc, argv, "rqed:s:nW:P:F:DvhVC?");
+		c = getopt(argc, argv, "rqed:s:nW:P:F:D:vhVCH?");
 #endif				/* _GNU_SOURCE */
 		if (c == -1) {
 			if (options.debug)
@@ -467,28 +479,28 @@ main(int argc, char *argv[])
 		case 'D':	/* -D, --debug [LEVEL] */
 			if (options.debug)
 				fprintf(stderr, "%s: increasing debug verbosity\n", argv[0]);
-			if (optarg == NULL)
+			if (optarg == NULL) {
 				options.debug++;
-			else {
-				if ((val = strtol(optarg, &endptr, 0)) < 0)
-					goto bad_option;
-				if (endptr && *endptr)
-					goto bad_option;
-				options.debug = val;
+				break;
 			}
+			if ((val = strtol(optarg, &endptr, 0)) < 0)
+				goto bad_option;
+			if (endptr && *endptr)
+				goto bad_option;
+			options.debug = val;
 			break;
 		case 'v':	/* -v, --verbose [LEVEL] */
 			if (options.debug)
 				fprintf(stderr, "%s: increasing output verbosity\n", argv[0]);
-			if (optarg == NULL)
+			if (optarg == NULL) {
 				options.output++;
-			else {
-				if ((val = strtol(optarg, &endptr, 0)) < 0)
-					goto bad_option;
-				if (endptr && *endptr)
-					goto bad_option;
-				options.output = val;
+				break;
 			}
+			if ((val = strtol(optarg, &endptr, 0)) < 0)
+				goto bad_option;
+			if (endptr && *endptr)
+				goto bad_option;
+			options.output = val;
 			break;
 		case 'h':	/* -h, --help */
 		case 'H':	/* -H, --? */
@@ -530,35 +542,41 @@ main(int argc, char *argv[])
 			      bad_usage:
 				usage(argc, argv);
 			}
-			exit(2);
+			exit(EXIT_SYNTAXERR);
 		}
 	}
 	DPRINTF("%s: option index = %d\n", argv[0], optind);
 	DPRINTF("%s: option count = %d\n", argv[0], argc);
 	if (optind < argc) {
 		fprintf(stderr, "%s: excess non-option arguments near '", argv[0]);
-		goto bad_nonopt;
+		while (optind < argc) {
+			fprintf(stderr, "%s", argv[optind++]);
+			fprintf(stderr, "%s", (optind < argc) ? " " : "");
+		}
+		fprintf(stderr, "'\n");
+		usage(argc, argv);
+		exit(EXIT_SYNTAXERR);
 	}
 	get_defaults();
 
 	switch (command) {
 	default:
 	case CommandDefault:
-		DPRINTF("%s: running default\n", argv[0]);
-		do_run(argc, argv);
-		exit(EXIT_FAILURE);
-		break;
-	case CommandReplace:
-		DPRINTF("%s: running replace\n", argv[0]);
-		do_run(argc, argv);
-		break;
-	case CommandQuit:
-		DPRINTF("%s: running quit\n", argv[0]);
-		do_quit(argc, argv);
+	case CommandRun:
+		DPRINTF("%s: running a new instance\n", argv[0]);
+		do_run(argc, argv, False);
 		break;
 	case CommandEdit:
 		DPRINTF("%s: running edit\n", argv[0]);
 		do_edit(argc, argv);
+		break;
+	case CommandQuit:
+		DPRINTF("%s: asking existing instance to quit\n", argv[0]);
+		do_quit(argc, argv);
+		break;
+	case CommandReplace:
+		DPRINTF("%s: replacing existing instance\n", argv[0]);
+		do_run(argc, argv, True);
 		break;
 	case CommandHelp:
 		DPRINTF("%s: printing help message\n", argv[0]);
