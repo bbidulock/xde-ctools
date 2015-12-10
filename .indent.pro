@@ -86,6 +86,9 @@
 -TGdkWindow
 -TGdkXEvent
 -TGError
+-TGFile
+-TGFileMonitor
+-TGFileMonitorEvent
 -TGHashTable
 -Tginfo_t
 -Tgint
@@ -110,6 +113,7 @@
 -TGMenuTreeSortKey
 -TGNode
 -Tgpointer
+-TGPtrArray
 -Tgroupview_t
 -Tgsize
 -TGSList
@@ -127,6 +131,7 @@
 -TGtkMenuItem
 -TGtkMenuShell
 -TGtkStatusIcon
+-TGtkTable
 -TGtkTextBuffer
 -TGtkTooltip
 -TGtkTreeIter
@@ -301,6 +306,7 @@
 -TWnckWorkspace
 -Twnode_t
 -TXClientMessageEvent
+-TXdeIcon
 -TXdeMonitor
 -TXdeScreen
 -TXdgContext
