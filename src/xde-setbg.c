@@ -173,8 +173,6 @@ typedef struct {
 	int output;
 	char *display;
 	int screen;
-	unsigned long timeout;
-	unsigned int border;
 	Bool proxy;
 	Command command;
 	char *clientId;
@@ -186,8 +184,6 @@ Options options = {
 	.output = 1,
 	.display = NULL,
 	.screen = -1,
-	.timeout = 1000,
-	.border = 5,
 	.proxy = False,
 	.command = CommandDefault,
 	.clientId = NULL,
@@ -2848,12 +2844,8 @@ Options:\n\
         specify the X display, DISPLAY, to use [default: %4$s]\n\
     -s, --screen SCREEN\n\
         specify the screen number, SCREEN, to use [default: %5$d]\n\
-    -t, --timeout MILLISECONDS\n\
-        specify timeout when not modifier [default: %6$lu]\n\
-    -B, --border PIXELS\n\
-        border surrounding feedback popup [default: %7$u]\n\
     -p, --proxy\n\
-        respond to button proxy [default: %8$s]\n\
+        respond to button proxy [default: %6$s]\n\
     -D, --debug [LEVEL]\n\
         increment or set debug LEVEL [default: %2$d]\n\
         this option may be repeated.\n\
@@ -2862,16 +2854,14 @@ Options:\n\
         this option may be repeated.\n\
 Session Management:\n\
     -clientID CLIENTID\n\
-        client id for session management [default: %9$s]\n\
+        client id for session management [default: %7$s]\n\
     -restore SAVEFILE\n\
-        file in which to save session info [default: %10$s]\n\
+        file in which to save session info [default: %8$s]\n\
 ", argv[0] 
 	, options.debug
 	, options.output
 	, options.display
 	, options.screen
-	, options.timeout
-	, options.border
 	, show_bool(options.proxy)
 	, options.clientId
 	, options.saveFile
@@ -2928,8 +2918,6 @@ main(int argc, char *argv[])
 		static struct option long_options[] = {
 			{"display",	required_argument,	NULL,	'd'},
 			{"screen",	required_argument,	NULL,	's'},
-			{"timeout",	required_argument,	NULL,	't'},
-			{"border",	required_argument,	NULL,	'B'},
 			{"proxy",	no_argument,		NULL,	'p'},
 
 			{"quit",	no_argument,		NULL,	'q'},
@@ -2948,10 +2936,10 @@ main(int argc, char *argv[])
 		};
 		/* *INDENT-ON* */
 
-		c = getopt_long_only(argc, argv, "d:s:t:B:pD::v::bVCH?",
+		c = getopt_long_only(argc, argv, "d:s:pD::v::hVCH?",
 				     long_options, &option_index);
 #else				/* _GNU_SOURCE */
-		c = getopt(argc, argv, "d:s:t:B:pD:vhVCH?");
+		c = getopt(argc, argv, "d:s:pD:vhVCH?");
 #endif				/* _GNU_SOURCE */
 		if (c == -1) {
 			if (options.debug)
@@ -2970,20 +2958,6 @@ main(int argc, char *argv[])
 		case 's':	/* -s, --screen SCREEN */
 			options.screen = strtoul(optarg, &endptr, 0);
 			if (endptr && *endptr)
-				goto bad_option;
-			break;
-		case 't':	/* -t, --timeout MILLISECONDS */
-			options.timeout = strtoul(optarg, &endptr, 0);
-			if (endptr && *endptr)
-				goto bad_option;
-			if (!options.timeout)
-				goto bad_option;
-			break;
-		case 'B':	/* -B, --border PIXELS */
-			options.border = strtoul(optarg, &endptr, 0);
-			if (endptr && *endptr)
-				goto bad_option;
-			if (options.border > 20)
 				goto bad_option;
 			break;
 		case 'p':	/* -p, --proxy */
