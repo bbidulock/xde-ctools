@@ -2,11 +2,11 @@
 
 =head1 NAME
 
-xde-backdrop - background changer for XDE
+xde-setbg - background changer for XDE
 
 =head1 SYNOPSIS
 
-B<xde-backdrop> [I<OPTIONS>]
+B<xde-setbg> [I<OPTIONS>]
 
 =head1 DESCRIPTION
 
@@ -26,29 +26,18 @@ of the program:
 
 =over
 
-=item B<--set>, B<-s>
+=item I<unspecified>
 
-Set the background.  The additional options and arguments are
-interpreted as listed in L</OPTIONS>.
-
-=item B<--edit>, B<-e>
-
-Do not set the background, but, rather, launch the background settings
-editor.  When a current instance of B<xde-setbg> is running, the running
-instance will launch the editor; otherwise, a new B<xde-setbg> daemon
-will be started.
+When no command option is specified, the default is to run the program
+without replacing an existing instance.
 
 =item B<--replace>, B<-r>
 
-Replace a running instance of the program.
+Replace a running instance of the program with a new instance.
 
 =item B<--quit>, B<-q>
 
 Ask a running instance of the program to quit.
-
-=item B<--restart>, B<-r>
-
-Ask a running instance of the program to restart.
 
 =item B<--help>, B<-h>
 
@@ -73,44 +62,26 @@ The following options are general options:
 
 =over
 
-=item B<--grab>, B<-g>
+=item B<--display>, B<-d> I<DISPLAY>
 
-Grab the X Display while setting backgrounds.
+Specify the display to use (overriding the B<DISPLAY> environment
+variable).  The default is the value of the B<DISPLAY> environment
+variable.
 
-=item B<--setroot>, B<-s>
+=item B<--screen>, B<-s> I<SCREEN>
 
-Set the background pixmap on the root window instead of just setting the
-root window pixmap properties.
+Specify the screen number to use when locating the current window and
+workspace.  The default is either specified by the B<DISPLAY>
+environment variable (when that variable specifies a screen); otherwise,
+all screens will be considered.
 
-=item B<--nomonitor>, B<-n>
+=item B<--proxy>, B<-p>
 
-Specifies that B<xde-setbg> should hust set the background(s) and should
-not monitor for changes.  Just use L<hsetroot(1)> or some other
-background setter instead of this option.
-
-=item B<--theme>, B<-t> I<THEME>
-
-Tells B<xde-setbg> which theme or style is currently being used by the
-window manager, overriding automatic detection.
-
-=item B<--delay>, B<-d> I<MILLISECONDS>
-
-Specifies the amount of time in milliesconds to wait after the
-appearance (or change) of a window manager before entering full
-operation.  If set to zero (0), the program will not wait for a window
-manager to appear before entering full operation.  The default is 250
-milliseconds.
-
-Many lightweight window managers will invoke some root command that will
-set the background on startup.  Without this option, the program will
-detect this as though an external root setting utility was used to
-customize the backgrounds.
-
-=item B<--areas>, B<-a>
-
-Normally B<xde-setbg> will only distribute backgrounds over workspaces
-and not work areas.  (Some window managers that support work areas and
-viewports are: L<afterstep(1)>, L<fvwm(1)> and L<vtwm(1)>).
+Normally the program will not translate scroll wheel events received on
+a B<_WIN_DESKTOP_BUTTON_PROXY> window into desktop changes.  This is
+because other programs (such as a desktop) may also be doing so, this
+option causes the program to consider the desktop button proxy.  Do not
+use this option: it interacts badly with L<icewm(1)>.
 
 =item B<--verbose>, B<-v> [I<LEVEL>]
 
@@ -153,11 +124,10 @@ running, it exits unless the B<--replace> options is specified, in which
 case the program replaces the running instance.
 
 On the initial invocation of the program for a given X Display, the
-program will first await the appearance of an X Window manager.  After a
-delay, (configurable with the B<--delay> option), the program will start
-operation.
+program will first await the appearance of a supported window manager.
+When one appears, the program will start operation.
 
-The purpose of waiting until after the window manager to appear is that
+The purpose of waiting until after the window manager appears is that
 most lightweight window managers set the background before or after
 startup.  Waiting a short duration after the window manager startup
 serves to ignore any changes made to the desktop background during
@@ -196,7 +166,7 @@ lightweight window manager and ignores its settings.
 When the program exits gracefully, it writes its configuration out to
 the configuration file, participating in X Session Management when in
 effect.  In addition to the background settings, it writes the current
-desktop or workspace and work area and viewport to the file.  This
+desktop or workspace and work area and view port to the file.  This
 permits it to restore the current desktop or workspace, work area and
 view port on session restart or restoration.
 
@@ -243,13 +213,13 @@ session and they will be applied when the session next starts.
 
 =head1 USAGE
 
-B<xde-backdrop> detects window managers and window manager changes
+B<xde-setbg> detects window managers and window manager changes
 directly and monitors XDE theme changes by monitoring X Window System
 properties that are set by L<xde-style(1)> or L<xde-theme(1)>.
 Workspace changes are detected directly using EWMH/NetWM, GNOME/WinWM or
 OSF/Motif properties and client messages.
 
-Run B<xde-backdrop> in the background or launch it using the supplied
+Run B<xde-setbg> in the background or launch it using the supplied
 XDG autostart file.  The program takes the following steps:
 
 =over
@@ -279,7 +249,7 @@ from most lightweight window managers.
 
 L<fvwm(1)> has the "Backer" module that can perform desktop switching in
 the same fashion as this program; however, it does not store the full
-set of pixmap on the X Display and thus switching between workspaces and
+set of pixmaps on the X Display and thus switching between workspaces and
 work areas is both sluggish and causes screen flashes.  In particular,
 changing desktops rapidly with the scroll wheel is particularly
 unresponsive.
@@ -292,7 +262,7 @@ C<C> language program for speed.
 (Note: this program is not terribly useful for dynamic tiling window
 managers (such as L<awesome(1)>, L<adwm(1)>, L<echinus(1)> or L<xdwm>)
 because the desktop is normally obscured in dynamic tiling window
-managers.  There a utility such as B<xde-pager(1)> is more useful.)
+managers.  Therefore a utility such as B<xde-pager(1)> is more useful.)
 
 =head1 AUTHOR
 
