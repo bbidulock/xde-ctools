@@ -973,7 +973,7 @@ update_root_pixmap(XdeScreen *xscr, Atom prop)
 	if (prop == None || prop == _XA_ESETROOT_PMAP_ID) {
 		if (XGetWindowProperty
 				(dpy, root, _XA_ESETROOT_PMAP_ID, 0, 1, False, AnyPropertyType, &actual,
-				 &format, &nitems, &after, (unsigned char **)&data) == Success
+				 &format, &nitems, &after, (unsigned char **) &data) == Success
 				&& format == 32 && actual && nitems >= 1 && data) {
 			pmap = data[0];
 		}
@@ -985,7 +985,7 @@ update_root_pixmap(XdeScreen *xscr, Atom prop)
 	if (prop == None || prop == _XA_XROOTPMAP_ID) {
 		if (XGetWindowProperty
 				(dpy, root, _XA_XROOTPMAP_ID, 0, 1, False, AnyPropertyType, &actual,
-				 &format, &nitems, &after, (unsigned char **)&data) == Success
+				 &format, &nitems, &after, (unsigned char **) &data) == Success
 				&& format == 32 && actual && nitems >= 1 && data) {
 			pmap = data[0];
 		}
