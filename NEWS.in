@@ -1,11 +1,213 @@
 @PACKAGE@ -- NEWS file.  @DATE@
 
-History of major user-visible changes:
-======================================
+Release @PACKAGE@-@VERSION@
+===========================
 
-Release @PACKAGE@-@VERSION@ released @DATE@
--------------------------------------------
+git shortlog -e -n -w80,6,8 0.1..1.0
 
-This is the initial development release of @PACKAGE@.
+Brian Bidulock <bidulock@openss7.org> (203):
+      update bulid and start manual page
+      working up code
+      full workup from perl version
+      significant workup, rename package
+      working better, steals nicely from blackbox
+      minor correction and it works like a charm with blackbox
+      working a bit better yet
+      still playing with this
+      add new xde-run
+      starting to work
+      works much better now
+      runs very well now
+      added manpages, reverse sorting of run-history file
+      add xde-app and make xde-run workalike
+      working up docs
+      was renamed
+      spelling
+      update dockapp detection logic
+      correct xdg history
+      added xde-winmenu docs
+      doc updates
+      add xde-winmenu to provide window menus using libwnck
+      tweaks to finding focus window and menu position
+      provide arguments for xde-winmenu positioning
+      get theme detection working properly
+      working up xde-winlist
+      add xde-pager and xde-cycle
+      working up xde-pager
+      working up xde-pager
+      xde-pager seems to work pretty good
+      proper geometry and selection handling
+      handle button proxy, better filters
+      updates from testing across window managers
+      final tweaks
+      trying to find bug
+      this was the problem: it core dumps
+      try my first markdown readme
+      doesn't like https
+      try that
+      tweaks
+      application and autostart files, XSM support for pager
+      more .desktop files
+      set orientation and rows
+      working up xde-setbg replacement
+      working up xde-setbg replacement
+      getting there, changes backgrounds correctly
+      handle temporary pixmaps better
+      do not respond to proxy by default
+      synchronize pixmap creation before proceeding
+      more indentation
+      initialize locale
+      started xde-keys
+      working up xde-keys
+      updated keys documentation
+      corrections to desktop layout and names handling
+      begin workup of C-language version of xdg-menugen
+      working up menu xml parser
+      working up menuxml
+      more menuxml workup
+      added ifdefs
+      added manual page
+      added xde-menugen
+      correction
+      working up xde-menugen: compiles
+      working up menugen
+      idling on menugen
+      remove first
+      separate make
+      add missing file
+      back again
+      correct name of xde-cycle in manual page
+      add some todo items
+      more todos
+      add an xde-ctools manual page as per README
+      rationalize xde-app and xde-run, correct manual
+      a bit better subdirectory build
+      update plan of record
+      add xde-recent program just to try things out
+      got it working for recently-used as well as xbel
+      also parse ~/.recently-used for applications
+      some better sorting
+      write out .recently-used file
+      some minor updates before development
+      propagate changes and some reformatting
+      now we can handle desktop xbel files
+      only use one structure and sortable list
+      merge history wherever possible
+      a couple of simplifications
+      building up xde-recent utility
+      corrections for compile
+      full directory search
+      get some information from X11
+      working up menu parsing
+      add in directory and file cache
+      add files by appid
+      handle directory directories and dirids
+      handling more tags
+      logic for rules buildup
+      just build tree for now
+      track move elements
+      handle layout parsing
+      full tree menu parsing
+      handle legacydir as merge
+      prepare for merging
+      stacking parser and relative directories
+      typo in comment
+      prepare for menu merging
+      logic for merging of menu files
+      handling the merge
+      documentation update
+      rationalize a bit
+      add option to pop pager
+      start to fill out xde-winlist a bit
+      rationalize a bit
+      rationalize a bit
+      get rid of common header files
+      removal of unused header files
+      working up glib-based menu
+      add xde-clip docs
+      add xde-menu documentation
+      working up xde-menu documentation
+      add command options to xde-menu.man
+      working up more xde-menu manpage
+      more xde-menu manual page workup
+      working up documentation some more
+      manpage updates
+      more xde-menu option updates
+      updates to xde-menu
+      menu updates
+      sync files
+      sync manpages
+      silent make
+      remove split out xde-menu and xde-menugen programs
+      sync again
+      remove split out files
+      adding workspaces menu
+      starting to work
+      working more
+      size format issue
+      documentation updates mostly
+      working up places menu
+      first working cut of xde-places
+      remove extraneous functions
+      add xde-places manual page
+      some updates to xde-places
+      working up xde-recent
+      add xde-recent manual page
+      rationalize some argument handling
+      workup and rationalization of popups
+      working up xde-recent
+      much better icon and name handling
+      grouping and more apps
+      minor rationalization
+      rationalize to other programs
+      add xde-desktop manual page
+      start xde-desktop port from perl
+      rationalize xde-cycle
+      more xde-cycle
+      working up desktop
+      update pixmaps
+      rationalize desktop program
+      rationalize some more
+      clean up
+      swap programs (they were reversed)
+      make wksp menu look like blackbox
+      better window list menus
+      display things more nicely
+      document new programs
+      remove unnecessary source file
+      remove relocated documentation
+      working on todo list
+      simplify
+      correct some pod footers
+      correct see also lines
+      add clip source files
+      update copyright headers
+      update copyright headers
+      add more wm's to clip manpage
+      spelling
+      spelling
+      more spelling
+      working up xde-cycle
+      factor out pager
+      remove unnecessary headers
+      remove unnecessary headers
+      remove unnecessary headers
+      remove unnecessary headers
+      remove unnecessary headers
+      rationalize headers
+      update options handling
+      better options handling
+      update options handling
+      update option handling
+      update options handling
+      update options processing
+      rationalize xde-app to xde-run
+      change title
+      manual page updates
+      remove xde-desktop to separate package
+      a few more types
+      correct xde-setbg options and manual page
+      remove unused xde-setbg options
+      cosmetics
 
-# vim: set ft=asciidoc tw=72 nocin nosi fo+=tcqlorn:
+
