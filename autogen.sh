@@ -21,15 +21,19 @@ if [ -z "$VERSION" ]; then
 	fi
 fi
 
-sed -r -e "s:AC_INIT\([[]$PACKAGE[]],[[][^]]*[]]:AC_INIT([$PACKAGE],[$VERSION]:
-	   s:AC_REVISION\([[][^]]*[]]\):AC_REVISION([$VERSION]):
-	   s:^DATE=.*$:DATE='$DATE':" \
-	  configure.template >configure.ac
+GTVERSION=`gettext --version|head -1|awk '{print$NF}'|sed -r 's,(^[^\.]*\.[^\.]*\.[^\.]*)\..*$,\1,'`
+
+sed <configure.template >configure.ac -r \
+	-e "s:AC_INIT\([[]$PACKAGE[]],[[][^]]*[]]:AC_INIT([$PACKAGE],[$VERSION]:
+	    s:AC_REVISION\([[][^]]*[]]\):AC_REVISION([$VERSION]):
+	    s:^DATE=.*$:DATE='$DATE':
+	    s:^AM_GNU_GETTEXT_VERSION.*:AM_GNU_GETTEXT_VERSION([$GTVERSION]):"
 
 subst="s:@PACKAGE@:$PACKAGE:g
        s:@VERSION@:$VERSION:g
        s:@DATE@:$DATE:g"
 
+sed -r -e "$subst" README.md.in >README.md
 sed -r -e "$subst" README.in >README
 sed -r -e "$subst" NEWS.in >NEWS
 sed -r -e "$subst" AUTHORS.in >AUTHORS
