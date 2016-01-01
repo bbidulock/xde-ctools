@@ -1,0 +1,19 @@
+=pod
+
+=head1 NAME
+
+xde-wait - wait for desktop resource
+
+=head1 SYNOPSIS
+
+B<xde-wait> [I<OPTIONS>] [-c I<command and arguments>]
+
+=head1 DESCRIPTION
+
+B<xde-wait> is a simple C<C> language program that can be used to wait
+for a window manager, system tray or pager before running a command or
+exiting.
+
+=cut
+
+# vim: set sw=4 tw=72 nocin spell spelllang=en_ca:
