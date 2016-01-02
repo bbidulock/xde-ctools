@@ -106,7 +106,7 @@ milliseconds to wait after the window manager appears before attempting
 to bind keys.  Some ICCCM 2.0 compliant window managers advertise their
 presence (by sending a MANAGER client message) before obtaining additional
 resources such as key bindings.  This delay is intended to permit the
-window manager to obtain its key bindings after it has advertized its
+window manager to obtain its key bindings after it has advertised its
 presence.  The default is 250 milliseconds.
 
 =item B<--profile>, B<-P> I<PROFILE>
@@ -150,7 +150,7 @@ the debug level is set to I<LEVEL>.
 
 Session options are only useful to the session manager and need not be
 specified directly by the user.  When specified, these options will be
-used to restore the profile from a prefious session.
+used to restore the profile from a previous session.
 
 =over
 
@@ -190,7 +190,7 @@ autostart file.  The program takes the following steps:
 Waits for a window manager to appear unless the B<--nowait> option has
 been specified.  Waits the interval specified by the B<--delay> option
 before proceeding. Note that this delay is intended to allow
-autostarting applications to bind keys before B<xde-keys> attempts to
+auto-starting applications to bind keys before B<xde-keys> attempts to
 bind those keys.  (Most applications complain or event fail when they
 cannot bind the proper keys; however, B<xde-keys> is more forgiving and)
 just complains to F<stderr>.)
@@ -572,7 +572,7 @@ key bindings.
 
 L<bbkeys(1)>, although a good basic tool for use with the L<blackbox(1)>
 window manager, has limited capabilities and extensibility.  All other
-external keybinders that were assocaiated with a window manager (such as
+external key binders that were associated with a window manager (such as
 the one for early versions of L<openbox(1)>) have stagnated and
 deteriorated.
 

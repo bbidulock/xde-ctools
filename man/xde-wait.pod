@@ -14,6 +14,165 @@ B<xde-wait> is a simple C<C> language program that can be used to wait
 for a window manager, system tray or pager before running a command or
 exiting.
 
+=head1 OPTIONS
+
+The options that are detailed below are recognized by B<xdg-wait>.
+B<xdg-wait> uses L<getopt_long_only(3)>, so unambiguous abbreviations
+of long options and long options with a single dash are also supported.
+
+=head2 COMMAND OPTIONS
+
+The default is to wait for a desktop resource before exiting.  When any
+of the following options are specified, the command mode changes:
+
+=over
+
+=item B<-c>, B<--command> I<command and arguments>
+
+When specified, this option must be the last option on the command line.
+Options processing stops abruptly at this option and remaining arguments
+are considered to be the command and the command arguments to execute.
+B<xde-wait> will L<fork(3)> and L<execve(3)> the arguments in a similar
+fashion to C<sh -c>.
+
+=item B<-h>, B<--help>
+
+Prints usage information to standard output and exits.
+
+=item B<-V>, B<--version>
+
+Prints detailed version information and exits.
+
+=item B<-C>, B<--copying>
+
+Prints detailed copying permissions and exits.
+
+=back
+
+=head2 GENERAL OPTIONS
+
+The following are more general options:
+
+=over
+
+=item B<--display>, B<-d> I<DISPLAY>
+
+Specify the display to use (overriding the B<DISPLAY> environment
+variable).  The default is the value of the B<DISPLAY> environment
+variable.
+
+=item B<--screen>, B<-s> I<SCREEN>
+
+Only bind to the root window of the specified screen.
+
+=item B<--nowait>, B<-N>
+
+Do not wait for any desktop resource to appear.  The default is to wait
+for a window manager to appear: this option waits for nothing but simply
+backgrounds the command (or returns immediately if no command has been
+specified).
+
+=item B<--window-manager>, B<--manager>, B<-W>
+
+Wait for a window manager to appear.  This is the default.  See
+L<WINDOW MANAGERS> for the detection algorithm.
+
+=item B<--system-tray>, B<--tray>, B<-S>
+
+Wait for a system tray to appear before running the command or exiting.
+
+=item B<--desktop-pager>, B<--pager>, B<-D>
+
+Wait for a desktop pager to appear (or for EWMH/NetWM pager settings to
+be set) before running the command or exiting.
+
+=item B<--delay>, B<-w> I<MILLISECONDS>
+
+The default is to wait indefinitely for a resource to appear before
+continuing.  This option will only wait I<MILLISECONDS> before
+proceeding.
+
+=back
+
+=head2 TOOLWAIT OPTIONS
+
+=over
+
+=item B<--toolwait>, B<-T>
+
+Also wait for the application to launch before exiting.  This option can
+only be specified when B<-c> is also specified.  Normally, B<xde-wait>
+
+=item B<--timeout>, B<-t> I<SECONDS>
+
+=item B<--mappings>
+
+=item B<--withdrawn>
+
+=item B<--pid>
+
+=item B<--wid>
+
+=item B<--noprop>
+
+=back
+
+=head2 CONFIGURATION OPTIONS
+
+=over
+
+=item B<-v>, B<--verbose> [I<LEVEL>]
+
+Print diagnostic information to standard error during operation.  This
+option can be repeated to increase the verbosity of output.  The default
+level is 1.
+
+=item B<-D>, B<--debug> [I<LEVEL>]
+
+Prints debugging information to standard error during operation.  This
+option can be repeated to increase the debugging level.  The default
+level is 0.
+
+=back
+
+=head1 USAGE
+
+The common procedure when starting light-weight window managers is to
+start a shell task in the background that waits for two seconds before
+starting applications like so:
+
+    (
+      sleep 2
+      xtoolwait -withdrawn wmblob
+      xtoolwait -withdrawn wmfire
+      xtoolwait -withdrawn wmcalclock
+    ) &
+    start-fluxbox
+
+This is not optimal and increases the amount of time that it takes for a
+full desktop environment to start.  With B<xde-wait>, you would use the
+following:
+
+    xde-wait -toolwait -withdrawn -c wmblob
+    xde-wait -toolwait -withdrawn -c wmfire
+    xde-wait -toolwait -withdrawn -c wmcalclock
+    start-fluxbox
+
+or using a background process:
+
+    (
+      xde-wait
+      xtoolwait -withdrawn wmblob
+      xtoolwait -withdrawn wmfire
+      xtoolwait -withdrawn wmcalclock
+    ) &
+    start-fluxbox
+
+
+=head1 AUTHOR
+
+Brian Bidulock L<mailto:bidulock@openss7.org>.
+
 =cut
 
 # vim: set sw=4 tw=72 nocin spell spelllang=en_ca:
