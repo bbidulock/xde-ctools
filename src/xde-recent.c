@@ -1242,7 +1242,7 @@ popup_menu_new(WnckScreen *scrn)
 	GtkIconTheme *itheme;
 	gchar *file;
 	GList *list = NULL, *node;
-	Place *place;
+	unsigned int i, max = options.maximum;
 
 	get_mime_databases();
 
@@ -1317,8 +1317,8 @@ popup_menu_new(WnckScreen *scrn)
 
 	list = do_list_sorting(list);
 
-	for (node = list; node; node = node->next) {
-		place = node->data;
+	for (i = 0, node = list; node; node = node->next) {
+		Place *place = node->data;
 		gchar *filename, *appid = NULL;
 		GDesktopAppInfo *app = NULL;
 		GIcon *gicon = NULL;
@@ -1511,6 +1511,8 @@ popup_menu_new(WnckScreen *scrn)
 		if (app)
 			g_object_unref(app);
 		g_free(filename);
+		if (i++ >= max)
+			break;
 	}
 	g_list_free_full(list, &xde_list_free);
 
@@ -2280,10 +2282,10 @@ main(int argc, char *argv[])
 		};
 		/* *INDENT-ON* */
 
-		c = getopt_long_only(argc, argv, "d:s:ptb:T:w:W:i:S:gD::v::hVCH?",
+		c = getopt_long_only(argc, argv, "d:s:ptb:T:w:W:i:S:M:gm:D::v::hVCH?",
 				     long_options, &option_index);
 #else				/* _GNU_SOURCE */
-		c = getopt(argc, argv, "d:s:ptb:T:w:W:i:S:D:vhVCH?");
+		c = getopt(argc, argv, "d:s:ptb:T:w:W:i:S:M:gm:D:vhVCH?");
 #endif				/* _GNU_SOURCE */
 		if (c == -1) {
 			if (options.debug)
@@ -2419,6 +2421,13 @@ main(int argc, char *argv[])
 			break;
 		case 'g':	/* -g, --groups */
 			options.groups = TRUE;
+			break;
+		case 'm':	/* -m, --maximum MAX */
+			if ((val = strtol(optarg, &endptr, 0)) < 0 && val != -1)
+				goto bad_option;
+			if (endptr && *endptr)
+				goto bad_option;
+			options.maximum = val;
 			break;
 
 		case 'D':	/* -D, --debug [LEVEL] */

@@ -288,7 +288,8 @@ default is to disregard groups when sorting.
 =item B<--maximum>, B<-m> I<MAXIMUM>
 
 Specifies that no more than I<MAXIMUM> items are to be placed in a
-single menu or sub-menu.  The default is 50.
+single menu or sub-menu.  The default is 50.  Specify minus one (-1) for
+an unlimited number of entries.
 
 =item B<--verbose>, B<-v> [I<LEVEL>]
 
