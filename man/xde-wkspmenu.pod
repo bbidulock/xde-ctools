@@ -84,6 +84,56 @@ a button.
 
 Provides the X11 server time-stamp of the event that caused the pop-up.
 
+=item B<--which>, B<-w> {B<active>|B<focused>|B<pointer>|I<SCREEN>}
+
+Specifies the screen on which to pop the menu.  The default is to
+determine the which screen based on other options (such as B<--button>
+option).  The option argument can be on of the following:
+
+=over
+
+=item C<active>
+
+The screen containing the active client.
+
+=item C<focused>
+
+The screen containing the window with the keyboard focus (focused
+client).
+
+=item C<pointer>
+
+The screen containing (or closest to) the pointer.
+
+=item I<SCREEN>
+
+A screen number (indexed from zero (0)) specifying the screen on which
+to pop the menu.
+
+=back
+
+When unspecified, (which is the normal case), the default screen
+selection algorithm is as follows:
+
+=over
+
+=item 1.
+
+If B<--button> is specified and non-zero, select the monitor or screen
+containing the pointer.
+
+=item 2.
+
+If B<--button> is not specified or is specified as zero (0), select the
+monitor with the keyboard focus.
+
+=item 3.
+
+If there is no screen with the keyboard focus, select the screen with
+the active window.
+
+=back
+
 =item B<--where>, B<-W> {B<pointer>|B<center>|B<topleft>|I<WHERE>}
 
 Specifies the position for the pop-up menu.  This can be one of the
@@ -142,6 +192,29 @@ Place the menu in the centre of the current monitor or screen.
 Place the menu in the top left corner of the current work area.
 
 =back
+
+=item B<--order>, B<-O> {B<client>|B<stacking>}
+
+Specify the order in which clients are shown, as follows:
+
+=over
+
+=item C<client>
+
+Clients are listed in client order.  This is the same order that is
+presented in the C<_NET_CLIENT_LIST> property on the root window of EWMH
+compliant window managers.
+
+=item C<stacking>
+
+Clients are listed in stacking order.  This is the same order that is
+presented in the C<_NET_CLIENT_LIST_STACKING> property on the root
+window of EWMH compliant window managers.
+
+=back
+
+When unspecified, the default is client order (or whichever order is
+supported when the window manager does not support both).
 
 =item B<--verbose>, B<-v> [I<LEVEL>]
 
