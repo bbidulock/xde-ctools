@@ -33,7 +33,13 @@ of the program:
 Post a pop-up menu.  Depending on the setting of the B<--button> option,
 this will either post the pop-up menu at the current pointer position,
 or centred on the workspace (screen and monitor) to which it
-corresponds.
+corresponds.  See also the B<--where> option.
+
+=item B<--test>, B<-t>
+
+Provide test output.  This was used for testing and development of the
+program and is not terribly useful otherwise.  It outputs a bunch of
+information gathered from recent files on standard output.
 
 =item B<--help>, B<-h>
 
@@ -85,6 +91,56 @@ a button.
 
 Provides the X11 server time-stamp of the event that caused the pop-up.
 
+=item B<--which>, B<-w> {B<active>|B<focused>|B<pointer>|I<SCREEN>}
+
+Specifies the screen on which to pop the menu.  The default is to
+determine the which screen based on other options (such as B<--button>
+option).  The option argument can be on of the following:
+
+=over
+
+=item C<active>
+
+The screen containing the active client.
+
+=item C<focused>
+
+The screen containing the window with the keyboard focus (focused
+client).
+
+=item C<pointer>
+
+The screen containing (or closest to) the pointer.
+
+=item I<SCREEN>
+
+A screen number (indexed from zero (0)) specifying the screen on which
+to pop the menu.
+
+=back
+
+When unspecified, (which is the normal case), the default screen
+selection algorithm is as follows:
+
+=over
+
+=item 1.
+
+If B<--button> is specified and non-zero, select the monitor or screen
+containing the pointer.
+
+=item 2.
+
+If B<--button> is not specified or is specified as zero (0), select the
+monitor with the keyboard focus.
+
+=item 3.
+
+If there is no screen with the keyboard focus, select the screen with
+the active window.
+
+=back
+
 =item B<--where>, B<-W> {B<pointer>|B<center>|B<topleft>|I<WHERE>}
 
 Specifies the position for the pop-up menu.  This can be one of the
@@ -108,8 +164,8 @@ contains (or is closest to the location of) the pointer.
 
 Place the menu in the top-left corner of the work area (excluding panels
 and docks) for the current screen.  The current screen is the screen
-specified by the B<--display> or B<--screen> options, or the screen that
-currently contains the pointer.
+specified by the B<--display>, B<--screen> or B<--which> options, or the
+screen that currently contains the pointer.
 
 =item I<WHERE>
 
@@ -192,10 +248,47 @@ only ones that include frequency of use.)
 
 The default sorting is C<recent>.
 
+=item B<--menus>, B<-m>
+
+Specifies that items are to be organized into sub-menus, as follows:
+
+=over
+
+=item C<none>
+
+Do not organize into sub-menus.  This is the default.
+
+=item C<date>
+
+Organize into sub-menus by the last accessed date.
+
+=item C<freq>
+
+Organize into sub-menus by the frequency of use.
+
+=item C<group>
+
+Organize into sub-menus by the bookmark group.
+
+=item C<content>
+
+Organize into sub-menus by the content (mime) type.
+
+=item C<app>
+
+Organize into sub-menus by the accessing application.
+
+=back
+
 =item B<--groups>, B<-g>
 
 Specifies that items are to be sorted by group.  When unspecified, the
 default is to disregard groups when sorting.
+
+=item B<--maximum>, B<-m> I<MAXIMUM>
+
+Specifies that no more than I<MAXIMUM> items are to be placed in a
+single menu or sub-menu.  The default is 50.
 
 =item B<--verbose>, B<-v> [I<LEVEL>]
 

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
- Copyright (c) 2008-2015  Monavacon Limited <http://www.monavacon.com/>
+ Copyright (c) 2008-2016  Monavacon Limited <http://www.monavacon.com/>
  Copyright (c) 2001-2008  OpenSS7 Corporation <http://www.openss7.com/>
  Copyright (c) 1997-2001  Brian F. G. Bidulock <bidulock@openss7.org>
 
@@ -161,6 +161,7 @@ typedef enum {
 	CommandHelp,
 	CommandVersion,
 	CommandCopying,
+	CommandTest,
 } Command;
 
 typedef enum {
@@ -175,6 +176,16 @@ typedef enum {
 	IncludeApps,			/* applications only */
 	IncludeBoth,			/* both documents and applications */
 } Include;
+
+typedef enum {
+	OrganizeDefault,
+	OrganizeNone,
+	OrganizeDate,
+	OrganizeFreq,
+	OrganizeGroup,
+	OrganizeContent,
+	OrganizeApp,
+} Organize;
 
 typedef struct {
 	int debug;
@@ -192,7 +203,9 @@ typedef struct {
 	unsigned int w, h;
 	Sorting sorting;
 	Include include;
+	Organize menus;
 	gboolean groups;
+	int maximum;
 	char *recently;
 	Command command;
 } Options;
@@ -219,7 +232,9 @@ Options options = {
 	.h = 0,
 	.sorting = SortByDefault,
 	.include = IncludeDefault,
+	.menus = OrganizeDefault,
 	.groups = FALSE,
+	.maximum = 50,
 	.recently = NULL,
 	.command = CommandDefault,
 };
@@ -863,7 +878,7 @@ get_xml_recent_list(GList *list, const char *file)
 	GList *recent;
 
 	if (!(f = fopen(file, "r"))) {
-		EPRINTF("file %s: %s\n", file, strerror(errno));
+		DPRINTF("file %s: %s\n", file, strerror(errno));
 		return (list);
 	}
 	DPRINTF("processing xml file %s\n", file);
@@ -1900,7 +1915,7 @@ copying(int argc, char *argv[])
 --------------------------------------------------------------------------------\n\
 %1$s\n\
 --------------------------------------------------------------------------------\n\
-Copyright (c) 2008-2015  Monavacon Limited <http://www.monavacon.com/>\n\
+Copyright (c) 2008-2016  Monavacon Limited <http://www.monavacon.com/>\n\
 Copyright (c) 2001-2008  OpenSS7 Corporation <http://www.openss7.com/>\n\
 Copyright (c) 1997-2001  Brian F. G. Bidulock <bidulock@openss7.org>\n\
 \n\
@@ -1944,7 +1959,7 @@ version(int argc, char *argv[])
 %1$s (OpenSS7 %2$s) %3$s\n\
 Written by Brian Bidulock.\n\
 \n\
-Copyright (c) 2008, 2009, 2010, 2011, 2012, 2013, 2014, 2015  Monavacon Limited.\n\
+Copyright (c) 2008, 2009, 2010, 2011, 2012, 2013, 2014, 2015, 2016  Monavacon Limited.\n\
 Copyright (c) 2001, 2002, 2003, 2004, 2005, 2006, 2007, 2008  OpenSS7 Corporation.\n\
 Copyright (c) 1997, 1998, 1999, 2000, 2001  Brian F. G. Bidulock.\n\
 This is free software; see the source for copying conditions.  There is NO\n\
@@ -1965,6 +1980,7 @@ usage(int argc, char *argv[])
 	(void) fprintf(stderr, "\
 Usage:\n\
     %1$s [-p|--popup] [options]\n\
+    %1$s {-t|--test} [options]\n\
     %1$s {-h|--help}\n\
     %1$s {-V|--version}\n\
     %1$s {-C|--copying}\n\
@@ -2028,7 +2044,6 @@ show_include(Include include)
 {
 	switch (include) {
 	case IncludeDefault:
-		return ("default");
 	case IncludeDocs:
 		return ("documents");
 	case IncludeApps:
@@ -2044,11 +2059,31 @@ show_sorting(Sorting sorting)
 {
 	switch (sorting) {
 	case SortByDefault:
-		return ("default");
 	case SortByRecent:
 		return ("recent");
 	case SortByFavorite:
 		return ("favorite");
+	}
+	return NULL;
+}
+
+static const char *
+show_menus(Organize organize)
+{
+	switch (organize) {
+	case OrganizeDefault:
+	case OrganizeNone:
+		return ("none");
+	case OrganizeDate:
+		return ("date");
+	case OrganizeFreq:
+		return ("freq");
+	case OrganizeGroup:
+		return ("group");
+	case OrganizeContent:
+		return ("content");
+	case OrganizeApp:
+		return ("app");
 	}
 	return NULL;
 }
@@ -2068,6 +2103,8 @@ Usage:\n\
 Command options:\n\
    [-p, --popup]\n\
         pop up the menu\n\
+    -t, --test\n\
+        test functionality, output diagnostics\n\
     -h, --help, -?, --?\n\
         print this usage information and exit\n\
     -V, --version\n\
@@ -2083,7 +2120,7 @@ Options:\n\
         specify the mouse button number, BUTTON, for popup [default: %6$d]\n\
     -T, --timestamp TIMESTAMP\n\
         use the time, TIMESTAMP, for button/keyboard event [default: %7$lu]\n\
-    -w, --which {active|focused|pointer|select}\n\
+    -w, --which {active|focused|pointer|SCREEN}\n\
         specify the screen for which to pop the menu [default: %8$s]\n\
         \"active\"   - the screen with EWMH/NetWM active client\n\
         \"focused\"  - the screen with EWMH/NetWM focused client\n\
@@ -2100,13 +2137,23 @@ Options:\n\
         \"docs\"     - include only documents\n\
         \"apps\"     - include only applications\n\
         \"both\"     - include both documents and applications\n\
-    -S, --sorting {default|recent|favorite}\n\
+    -S, --sorting {recent|favorite}\n\
         specify how to sort the menu [default: %11$s]\n\
         \"default\"  - the default setting\n\
         \"recent\"   - arrange the most recent item first\n\
         \"favorite\" - arrange the most used item first\n\
+    -M, --menus {default|date|freq|group|content|application}\n\
+        organize items into submenus [default: %12$s]\n\
+        \"default\"  - no submenus\n\
+        \"date\"     - organize into submenus by date\n\
+        \"freq\"     - organize into submenus by frequency\n\
+        \"group\"    - organize into submenus by document group\n\
+        \"content\"  - organize into submenus by content type\n\
+        \"app\"      - organize into submenus by application\n\
     -g, --groups\n\
-        specify whether to sort items by group [default: %12$s]\n\
+        specify whether to sort items by group [default: %13$s]\n\
+    -m, --maximum MAX\n\
+        place no more than MAX items in menu [default: %14$d]\n\
     -D, --debug [LEVEL]\n\
         increment or set debug LEVEL [default: %2$d]\n\
         this option may be repeated.\n\
@@ -2124,7 +2171,9 @@ Options:\n\
 	, show_where(options.where)
 	, show_include(options.include)
 	, show_sorting(options.sorting)
+	, show_menus(options.menus)
 	, options.groups ? "true" : "false"
+	, options.maximum
 );
 	/* *INDENT-ON* */
 }
@@ -2209,6 +2258,7 @@ main(int argc, char *argv[])
 			{"display",		required_argument,	NULL,	'd'},
 			{"screen",		required_argument,	NULL,	's'},
 			{"popup",		no_argument,		NULL,	'p'},
+			{"test",		no_argument,		NULL,	't'},
 			{"button",		required_argument,	NULL,	'b'},
 			{"timestamp",		required_argument,	NULL,	'T'},
 			{"which",		required_argument,	NULL,	'w'},
@@ -2216,7 +2266,9 @@ main(int argc, char *argv[])
 
 			{"include",		required_argument,	NULL,	'i'},
 			{"sorting",		required_argument,	NULL,	'S'},
+			{"menus",		required_argument,	NULL,	'M'},
 			{"groups",		no_argument,		NULL,	'g'},
+			{"maximum",		required_argument,	NULL,	'm'},
 
 			{"debug",		optional_argument,	NULL,	'D'},
 			{"verbose",		optional_argument,	NULL,	'v'},
@@ -2228,10 +2280,10 @@ main(int argc, char *argv[])
 		};
 		/* *INDENT-ON* */
 
-		c = getopt_long_only(argc, argv, "d:s:pb:T:w:W:i:S:gD::v::hVCH?",
+		c = getopt_long_only(argc, argv, "d:s:ptb:T:w:W:i:S:gD::v::hVCH?",
 				     long_options, &option_index);
 #else				/* _GNU_SOURCE */
-		c = getopt(argc, argv, "d:s:pb:T:w:W:i:S:D:vhVCH?");
+		c = getopt(argc, argv, "d:s:ptb:T:w:W:i:S:D:vhVCH?");
 #endif				/* _GNU_SOURCE */
 		if (c == -1) {
 			if (options.debug)
@@ -2258,6 +2310,13 @@ main(int argc, char *argv[])
 			if (command == CommandDefault)
 				command = CommandPopup;
 			options.command = CommandPopup;
+			break;
+		case 't':	/* -t, --test */
+			if (options.command != CommandDefault)
+				goto bad_option;
+			if (command == CommandDefault)
+				command = CommandTest;
+			options.command = CommandTest;
 			break;
 		case 'b':       /* -b, --button BUTTON */
 			options.button = strtoul(optarg, &endptr, 0);
@@ -2336,6 +2395,25 @@ main(int argc, char *argv[])
 				options.sorting = SortByRecent;
 			else if (!strncasecmp("favorite", optarg, len))
 				options.sorting = SortByFavorite;
+			else
+				goto bad_option;
+			break;
+		case 'M':	/* -M, --menus ORGANIZE */
+			if (options.menus != OrganizeDefault)
+				goto bad_option;
+			len = strlen(optarg);
+			if (!strncasecmp("none", optarg, len))
+				options.menus = OrganizeNone;
+			else if (!strncasecmp("date", optarg, len))
+				options.menus = OrganizeDate;
+			else if (!strncasecmp("freq", optarg, len))
+				options.menus = OrganizeFreq;
+			else if (!strncasecmp("group", optarg, len))
+				options.menus = OrganizeGroup;
+			else if (!strncasecmp("content", optarg, len))
+				options.menus = OrganizeContent;
+			else if (!strncasecmp("app", optarg, len))
+				options.menus = OrganizeApp;
 			else
 				goto bad_option;
 			break;
@@ -2431,12 +2509,14 @@ main(int argc, char *argv[])
 	switch (command) {
 	default:
 	case CommandDefault:
-		run_command2(argc, argv);
-		run_command(argc, argv);
-		break;
 	case CommandPopup:
 		DPRINTF("%s: popping the menu\n", argv[0]);
 		do_popup(argc, argv);
+		break;
+	case CommandTest:
+		DPRINTF("%s: running tests\n", argv[0]);
+		run_command2(argc, argv);
+		run_command(argc, argv);
 		break;
 	case CommandHelp:
 		DPRINTF("%s: printing help message\n", argv[0]);
