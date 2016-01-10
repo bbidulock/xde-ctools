@@ -34,6 +34,13 @@ this will either post the pop-up menu at the current pointer position,
 or centred on the workspace (screen and monitor) to which it
 corresponds.
 
+=item B<--xembed>, B<-x> I<WINDOW>
+
+Instead of popping the menu, embed a button with label specified by the
+B<--label> option in the embedding window specified by I<WINDOW>.  The
+button is embedded using the XEMBED protocol.  Pressing the button will
+launch the menu.
+
 =item B<--help>, B<-h>
 
 Prints usage information and the current options settings and defaults
@@ -192,6 +199,11 @@ Place the menu in the centre of the current monitor or screen.
 Place the menu in the top left corner of the current work area.
 
 =back
+
+=item B<--label>, B<-l> I<LABEL>
+
+Provide the label for the menu (and for the button when embedding).
+The default is C<Places>.
 
 =item B<--verbose>, B<-v> [I<LEVEL>]
 

@@ -170,6 +170,7 @@ typedef enum {
 typedef enum {
 	CommandDefault,
 	CommandPopup,
+	CommandXembed,
 	CommandHelp,
 	CommandVersion,
 	CommandCopying,
@@ -189,6 +190,8 @@ typedef struct {
 		int sign;
 	} x, y;
 	unsigned int w, h;
+	Window xid;
+	char *label;
 	Command command;
 } Options;
 
@@ -212,6 +215,8 @@ Options options = {
 	,
 	.w = 0,
 	.h = 0,
+	.xid = None,
+	.label = NULL,
 	.command = CommandDefault,
 };
 
@@ -827,6 +832,62 @@ do_popup(int argc, char *argv[])
 }
 
 static void
+on_button_press(GtkButton *button, gpointer user_data)
+{
+	WnckScreen *scrn;
+	GdkDisplay *disp;
+	GtkWidget *menu;
+
+
+	if (!(disp = gdk_display_get_default())) {
+		EPRINTF("cannot get default display\n");
+		return;
+	}
+	if (!(scrn = find_screen(disp))) {
+		EPRINTF("cannot find screen\n");
+		return;
+	}
+	if (!(menu = popup_menu_new(scrn))) {
+		EPRINTF("cannot get menu\n");
+		return;
+	}
+	gtk_menu_popup(GTK_MENU(menu), NULL, NULL, position_menu, scrn,
+		       options.button, options.timestamp);
+}
+
+
+static void
+do_xembed(int argc, char *argv[])
+{
+	GdkDisplay *disp;
+	WnckScreen *scrn;
+	GtkWidget *plug, *button;
+
+	if (!(disp = gdk_display_get_default())) {
+		EPRINTF("cannot get default display\n");
+		exit(EXIT_FAILURE);
+	}
+	if (!(scrn = find_screen(disp))) {
+		EPRINTF("cannot find screen\n");
+		exit(EXIT_FAILURE);
+	}
+	wnck_screen_force_update(scrn);
+	if (!(plug = gtk_plug_new_for_display(disp, options.xid))) {
+		EPRINTF("cannot create plug\n");
+		exit(EXIT_FAILURE);
+	}
+	if (!(button = gtk_button_new_with_label(options.label))) {
+		EPRINTF("cannot create button\n");
+		exit(EXIT_FAILURE);
+	}
+	g_signal_connect(G_OBJECT(button), "clicked", G_CALLBACK(on_button_press), NULL);
+	gtk_container_add(GTK_CONTAINER(plug), button);
+	gtk_widget_show(button);
+	gtk_widget_show(plug);
+	gtk_main();
+}
+
+static void
 reparse(Display *dpy, Window root)
 {
 	XTextProperty xtp = { NULL, };
@@ -1127,6 +1188,7 @@ help(int argc, char *argv[])
 	(void) fprintf(stdout, "\
 Usage:\n\
     %1$s [-p|--popup] [options]\n\
+    %1$s {-x|--xembed} XID [options]\n\
     %1$s {-h|--help} [options]\n\
     %1$s {-V|--version}\n\
     %1$s {-C|--copying}\n\
@@ -1160,6 +1222,8 @@ Options:\n\
         \"center\"   - center of associated monitor\n\
         \"topleft\"  - northwest corner of work area\n\
         POSITION   - postion on screen as X geometry\n\
+    -l, --label LABEL\n\
+        specify the label for the menu [default: %10$s]\n\
     -D, --debug [LEVEL]\n\
         increment or set debug LEVEL [default: %2$d]\n\
         this option may be repeated.\n\
@@ -1175,6 +1239,7 @@ Options:\n\
 	, options.timestamp
 	, show_which(options.which)
 	, show_where(options.where)
+	, options.label
 );
 	/* *INDENT-ON* */
 }
@@ -1186,6 +1251,7 @@ set_defaults(void)
 
 	if ((env = getenv("DISPLAY")))
 		options.display = strdup(env);
+	options.label = strdup("Places");
 }
 
 static void
@@ -1229,6 +1295,8 @@ main(int argc, char *argv[])
 			{"timestamp",		required_argument,	NULL,	'T'},
 			{"which",		required_argument,	NULL,	'w'},
 			{"where",		required_argument,	NULL,	'W'},
+			{"xembed",		required_argument,	NULL,	'x'},
+			{"label",		required_argument,	NULL,	'l'},
 
 			{"debug",		optional_argument,	NULL,	'D'},
 			{"verbose",		optional_argument,	NULL,	'v'},
@@ -1240,10 +1308,10 @@ main(int argc, char *argv[])
 		};
 		/* *INDENT-ON* */
 
-		c = getopt_long_only(argc, argv, "d:s:pb:T:w:W:D::v::hVCH?",
+		c = getopt_long_only(argc, argv, "d:s:pb:T:w:W:x:l:D::v::hVCH?",
 				long_options, &option_index);
 #else				/* _GNU_SOURCE */
-		c = getopt(argc, argv, "d:s:pb:T:w:W:D:vhVCH?");
+		c = getopt(argc, argv, "d:s:pb:T:w:W:x:l:D:vhVCH?");
 #endif				/* _GNU_SOURCE */
 		if (c == -1) {
 			if (options.debug)
@@ -1325,6 +1393,22 @@ main(int argc, char *argv[])
 				options.w = w;
 				options.h = h;
 			}
+			break;
+		case 'x':       /* -x, --xembed XID */
+			if (options.command != CommandDefault)
+				goto bad_option;
+			if ((val = strtoul(optarg, &endptr, 0)) < 0)
+				goto bad_option;
+			if (endptr && *endptr)
+				goto bad_option;
+			options.xid = val;
+			if (command == CommandDefault)
+				command = CommandXembed;
+			options.command = CommandXembed;
+			break;
+		case 'l':	/* -l, --label LABEL */
+			free(options.label);
+			options.label = strdup(optarg);
 			break;
 		case 'D':       /* -D, --debug [LEVEL] */
 			if (options.debug)
@@ -1417,6 +1501,10 @@ main(int argc, char *argv[])
 	case CommandPopup:
 		DPRINTF("%s: popping the menu\n", argv[0]);
 		do_popup(argc, argv);
+		break;
+	case CommandXembed:
+		DPRINTF("%s: embedding the menu\n", argv[0]);
+		do_xembed(argc, argv);
 		break;
 	case CommandHelp:
 		DPRINTF("%s: printing help message\n", argv[0]);

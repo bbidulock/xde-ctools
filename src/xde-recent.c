@@ -162,6 +162,7 @@ typedef enum {
 	CommandVersion,
 	CommandCopying,
 	CommandTest,
+	CommandStock,
 } Command;
 
 typedef enum {
@@ -586,6 +587,19 @@ run_command(int argc, char *argv[])
 	g_list_foreach(items, items_print, (gpointer) stdout);
 	g_list_free_full(items, &items_free);
 	items = NULL;
+}
+
+void
+do_stock(int argc, char *argv[])
+{
+	GSList *list, *item;
+
+	list = gtk_stock_list_ids();
+	for (item = list; item; item = item->next) {
+		char *id = item->data;
+		fprintf(stdout, "%s\n", id);
+	}
+	exit(EXIT_SUCCESS);
 }
 
 typedef struct {
@@ -2261,6 +2275,7 @@ main(int argc, char *argv[])
 			{"screen",		required_argument,	NULL,	's'},
 			{"popup",		no_argument,		NULL,	'p'},
 			{"test",		no_argument,		NULL,	't'},
+			{"stock",		no_argument,		NULL,	'z'},
 			{"button",		required_argument,	NULL,	'b'},
 			{"timestamp",		required_argument,	NULL,	'T'},
 			{"which",		required_argument,	NULL,	'w'},
@@ -2319,6 +2334,13 @@ main(int argc, char *argv[])
 			if (command == CommandDefault)
 				command = CommandTest;
 			options.command = CommandTest;
+			break;
+		case 'z':	/* -z, --stock */
+			if (options.command != CommandDefault)
+				goto bad_option;
+			if (command == CommandDefault)
+				command = CommandStock;
+			options.command = CommandStock;
 			break;
 		case 'b':       /* -b, --button BUTTON */
 			options.button = strtoul(optarg, &endptr, 0);
@@ -2521,6 +2543,10 @@ main(int argc, char *argv[])
 	case CommandPopup:
 		DPRINTF("%s: popping the menu\n", argv[0]);
 		do_popup(argc, argv);
+		break;
+	case CommandStock:
+		DPRINTF("%s: listing stock images\n", argv[0]);
+		do_stock(argc, argv);
 		break;
 	case CommandTest:
 		DPRINTF("%s: running tests\n", argv[0]);
