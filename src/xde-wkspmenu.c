@@ -1089,7 +1089,6 @@ show_order(WindowOrder order)
 {
 	switch (order) {
 	case WindowOrderDefault:
-		return ("default");
 	case WindowOrderClient:
 		return ("client");
 	case WindowOrderStacking:
@@ -1114,7 +1113,7 @@ show_which(UseScreen which)
 {
 	switch (which) {
 	case UseScreenDefault:
-		return ("default");
+		return ("auto");
 	case UseScreenActive:
 		return ("active");
 	case UseScreenFocused:
@@ -1134,7 +1133,7 @@ show_where(MenuPosition where)
 
 	switch (where) {
 	case PositionDefault:
-		return ("default");
+		return ("auto");
 	case PositionPointer:
 		return ("pointer");
 	case PositionCenter:
@@ -1267,7 +1266,7 @@ main(int argc, char *argv[])
 			{"which",		required_argument,	NULL,	'w'},
 			{"where",		required_argument,	NULL,	'W'},
 
-			{"order",		optional_argument,	NULL,	'O'},
+			{"order",		required_argument,	NULL,	'O'},
 			{"debug",		optional_argument,	NULL,	'D'},
 			{"verbose",		optional_argument,	NULL,	'v'},
 			{"help",		no_argument,		NULL,	'h'},
@@ -1278,10 +1277,10 @@ main(int argc, char *argv[])
 		};
 		/* *INDENT-ON* */
 
-		c = getopt_long_only(argc, argv, "d:s:pb:T:w:W:D::v::hVCH?",
+		c = getopt_long_only(argc, argv, "d:s:pb:T:w:W:O:D::v::hVCH?",
 				     long_options, &option_index);
 #else                           /* _GNU_SOURCE */
-		c = getopt(argc, argv, "d:s:pb:T:w:W:D:vhVCH?");
+		c = getopt(argc, argv, "d:s:pb:T:w:W:O:D:vhVCH?");
 #endif                          /* _GNU_SOURCE */
 		if (c == -1) {
 			if (options.debug)
