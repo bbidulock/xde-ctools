@@ -71,3 +71,5 @@ xde_places_SOURCES = xde-places.c
 
 xde_wait_CPPFLAGS = -DNAME=\"xde-wait\"
 xde_wait_SOURCES = xde-wait.c
+xde_wait_CFLAGS = $(X11_CFLAGS)
+xde_wait_LDFLAGS = $(X11_LIBS)

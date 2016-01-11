@@ -87,13 +87,6 @@
 #include <X11/Xproto.h>
 #include <X11/Xutil.h>
 #include <X11/Xresource.h>
-#ifdef XRANDR
-#include <X11/extensions/Xrandr.h>
-#include <X11/extensions/randr.h>
-#endif
-#ifdef XINERAMA
-#include <X11/extensions/Xinerama.h>
-#endif
 
 #define XPRINTF(args...) do { } while (0)
 #define OPRINTF(args...) do { if (options.output > 1) { \
@@ -1313,6 +1306,7 @@ usage(int argc, char *argv[])
 	(void) fprintf(stderr, "\
 Usage:\n\
     %1$s [-w|--wait] [options] [[-c|--command|--] COMMAND [ARGUMENT [...]]]\n\
+    %1$s {-i|--info} [options] [[-c|--command|--] COMMAND [ARGUMENT [...]]]\n\
     %1$s {-h|--help}\n\
     %1$s {-V|--version}\n\
     %1$s {-C|--copying}\n\
@@ -1365,6 +1359,8 @@ Arguments:\n\
 Command options:\n\
    [-w, --wait]\n\
         wait for desktop resource\n\
+    -i, --info\n\
+        do not wait, just print what would be done [default: %13$s]\n\
     -h, --help, -?, --?\n\
         print this usage information and exit\n\
     -V, --version\n\
@@ -1376,8 +1372,6 @@ Options:\n\
         specify the X display, DISPLAY, to use [default: %4$s]\n\
     -s, --screen SCREEN\n\
         specify the screen number, SCREEN, to use [default: %5$d]\n\
-    -i, --info\n\
-        do not wait, just print what would be done [default: %13$s]\n\
     -N, --nowait\n\
         do not wait for any desktop resource [default: %7$s]\n\
     -W, --manager, --window-manager\n\
