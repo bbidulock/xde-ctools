@@ -147,6 +147,7 @@ typedef struct {
 	char **eargv;
 	int eargc;
 	Bool info;
+	Bool all;
 } Options;
 
 Options options = {
@@ -164,6 +165,7 @@ Options options = {
 	.eargv = NULL,
 	.eargc = 0,
 	.info = False,
+	.all = False,
 };
 
 Display *dpy = NULL;
@@ -913,6 +915,7 @@ wait_for_condition(Window (*until) (void))
 {
 	int xfd;
 	XEvent ev;
+	struct itimerval it;
 
 	PTRACE();
 	signal(SIGHUP, sighandler);
@@ -925,14 +928,20 @@ wait_for_condition(Window (*until) (void))
 	running = True;
 	XSync(dpy, False);
 	xfd = ConnectionNumber(dpy);
-	ualarm(options.delay * 1000, 0);
+	it.it_interval.tv_sec = 0;
+	it.it_interval.tv_usec = 0;
+	it.it_value.tv_sec = options.delay / 1000;
+	it.it_value.tv_usec = (options.delay % 1000) * 1000;
+	setitimer(ITIMER_REAL, &it, NULL);
 	signum = 0;
 	while (running) {
 		struct pollfd pfd = { xfd, POLLIN | POLLHUP | POLLERR, 0 };
 
 		if (signum) {
-			if (signum == SIGALRM)
+			if (signum == SIGALRM) {
+				OPRINTF("waiting for resource timed out!\n");
 				return True;
+			}
 			exit(EXIT_SUCCESS);
 		}
 		if (poll(&pfd, 1, -1) == -1) {
@@ -952,7 +961,7 @@ wait_for_condition(Window (*until) (void))
 			exit(EXIT_FAILURE);
 		}
 		if (pfd.revents & (POLLIN)) {
-			while (XPending(dpy) && running) {
+			while (XPending(dpy) && running && !signum) {
 				XNextEvent(dpy, &ev);
 				handle_event(&ev);
 				if (until())
@@ -1367,6 +1376,8 @@ Options:\n\
         specify the X display, DISPLAY, to use [default: %4$s]\n\
     -s, --screen SCREEN\n\
         specify the screen number, SCREEN, to use [default: %5$d]\n\
+    -i, --info\n\
+        do not wait, just print what would be done [default: %13$s]\n\
     -N, --nowait\n\
         do not wait for any desktop resource [default: %7$s]\n\
     -W, --manager, --window-manager\n\
@@ -1377,6 +1388,8 @@ Options:\n\
         wait for desktop pager before proceeding [default: %10$s]\n\
     -O, --composite, --composite-manager\n\
         wait for composite manager before proceeding [default: %11$s]\n\
+    -A, --all\n\
+        wait for all desktop resource [default: %14$s]\n\
     -t, --delay MILLISECONDS\n\
         only wait MILLISECONDS for desktop resource [default: %12$lu]\n\
     -D, --debug [LEVEL]\n\
@@ -1397,6 +1410,8 @@ Options:\n\
 	, show_bool(options.pager)
 	, show_bool(options.composite)
 	, options.delay
+	, show_bool(options.info)
+	, show_bool(options.all)
 );
 	/* *INDENT-ON* */
 }
@@ -1443,6 +1458,7 @@ main(int argc, char *argv[])
 			{"pager",		no_argument,		NULL,	'P'},
 			{"composite-manager",	no_argument,		NULL,	'O'},
 			{"composite",		no_argument,		NULL,	'O'},
+			{"all",			no_argument,		NULL,	'A'},
 			{"delay",		required_argument,	NULL,	't'},
 
 			{"debug",		optional_argument,	NULL,	'D'},
@@ -1455,10 +1471,10 @@ main(int argc, char *argv[])
 		};
 		/* *INDENT-ON* */
 
-		c = getopt_long_only(argc, argv, "d:s:wciNWSOt:D::v::hVCH?",
+		c = getopt_long_only(argc, argv, "d:s:wciNWSOAt:D::v::hVCH?",
 				     long_options, &option_index);
 #else				/* _GNU_SOURCE */
-		c = getopt(argc, argv, "d:s:wciNWSOt:DvhVCH?");
+		c = getopt(argc, argv, "d:s:wciNWSOAt:DvhVCH?");
 #endif				/* _GNU_SOURCE */
 		if (c == -1 || exec_mode) {
 			DPRINTF("done options processing\n");
@@ -1498,6 +1514,7 @@ main(int argc, char *argv[])
 			options.systray = False;
 			options.pager = False;
 			options.composite = False;
+			options.all = False;
 			break;
 		case 'W':	/* -W, --window-manager, --manager */
 			options.manager = True;
@@ -1514,6 +1531,13 @@ main(int argc, char *argv[])
 		case 'O':	/* -O, --composite-manager, --composite */
 			options.composite = True;
 			options.nowait = False;
+			break;
+		case 'A':	/* -A, --all */
+			options.all = True;
+			options.manager = True;
+			options.systray = True;
+			options.pager = True;
+			options.composite = True;
 			break;
 		case 't':	/* -t, --delay MILLISECONDS */
 			if ((val = strtoul(optarg, &endptr, 0)) < 0)
