@@ -116,16 +116,20 @@
 	fprintf(stdout, args); \
 	fflush(stdout); } } while (0)
 #define DPRINTF(args...) do { if (options.debug) { \
-	fprintf(stderr, "D: %s +%d %s(): ", __FILE__, __LINE__, __func__); \
+	fprintf(stderr, "D: %12s +%4d : %s() : ", __FILE__, __LINE__, __func__); \
 	fprintf(stderr, args); \
 	fflush(stderr); } } while (0)
 #define EPRINTF(args...) do { \
-	fprintf(stderr, "E: %s +%d %s(): ", __FILE__, __LINE__, __func__); \
+	fprintf(stderr, "E: %12s +%4d : %s() : ", __FILE__, __LINE__, __func__); \
 	fprintf(stderr, args); \
 	fflush(stderr);   } while (0)
 #define DPRINT() do { if (options.debug) { \
-	fprintf(stderr, "D: %s +%d %s()\n", __FILE__, __LINE__, __func__); \
+	fprintf(stderr, "D: %12s +%4d : %s()\n", __FILE__, __LINE__, __func__); \
 	fflush(stderr); } } while (0)
+#define PTRACE() do { if (options.debug > 0 || options.output > 2) { \
+	fprintf(stderr, "T: %12s +%4d : %s()\n", __FILE__, __LINE__, __func__); \
+	fflush(stderr); } } while (0)
+
 
 #undef EXIT_SUCCESS
 #undef EXIT_FAILURE
@@ -174,6 +178,12 @@ Options options = {
 	.eargv = NULL,
 	.eargc = 0,
 };
+
+Bool
+wait_for_condition(Window (*until)(void))
+{
+	return False;
+}
 
 static void
 do_wait(int argc, char *argv[])
