@@ -12,7 +12,6 @@ xde_man_files = \
 	xde-recent.man \
 	xde-run.man \
 	xde-setbg.man \
-	xde-wait.man \
 	xde-winlist.man \
 	xde-winmenu.man \
 	xde-wkspmenu.man
@@ -33,7 +32,6 @@ EXTRA_DIST = \
 	xde-recent.pod \
 	xde-run.pod \
 	xde-setbg.pod \
-	xde-wait.pod \
 	xde-winlist.pod \
 	xde-winmenu.pod \
 	xde-wkspmenu.pod
