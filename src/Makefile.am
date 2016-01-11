@@ -14,7 +14,8 @@ bin_PROGRAMS = \
 	xde-setbg \
 	xde-keys \
 	xde-wkspmenu \
-	xde-places
+	xde-places \
+	xde-wait
 
 EXTRA_PROGRAMS = \
 	xde-clip
@@ -68,3 +69,5 @@ xde_wkspmenu_SOURCES = xde-wkspmenu.c
 xde_places_CPPFLAGS = -DNAME=\"xde-places\"
 xde_places_SOURCES = xde-places.c
 
+xde_wait_CPPFLAGS = -DNAME=\"xde-wait\"
+xde_wait_SOURCES = xde-wait.c

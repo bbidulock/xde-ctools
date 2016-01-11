@@ -86,34 +86,16 @@ Wait for a system tray to appear before running the command or exiting.
 Wait for a desktop pager to appear (or for EWMH/NetWM pager settings to
 be set) before running the command or exiting.
 
+=item B<--composite-manager>, B<--composite>, B<-O>
+
+Wait for a compositing manager to appear before running the command or
+exiting.
+
 =item B<--delay>, B<-w> I<MILLISECONDS>
 
 The default is to wait indefinitely for a resource to appear before
 continuing.  This option will only wait I<MILLISECONDS> before
 proceeding.
-
-=back
-
-=head2 TOOLWAIT OPTIONS
-
-=over
-
-=item B<--toolwait>, B<-T>
-
-Also wait for the application to launch before exiting.  This option can
-only be specified when B<-c> is also specified.  Normally, B<xde-wait>
-
-=item B<--timeout>, B<-t> I<SECONDS>
-
-=item B<--mappings>
-
-=item B<--withdrawn>
-
-=item B<--pid>
-
-=item B<--wid>
-
-=item B<--noprop>
 
 =back
 
@@ -152,13 +134,6 @@ starting applications like so:
 This is not optimal and increases the amount of time that it takes for a
 full desktop environment to start.  With B<xde-wait>, you would use the
 following:
-
-    xde-wait -toolwait -withdrawn -c wmblob
-    xde-wait -toolwait -withdrawn -c wmfire
-    xde-wait -toolwait -withdrawn -c wmcalclock
-    start-fluxbox
-
-or using a background process:
 
     (
       xde-wait
