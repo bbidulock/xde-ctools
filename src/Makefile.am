@@ -11,6 +11,7 @@ bin_PROGRAMS = \
 	xde-winlist \
 	xde-pager \
 	xde-cycle \
+	xde-select \
 	xde-setbg \
 	xde-keys \
 	xde-wkspmenu \
@@ -53,6 +54,11 @@ xde_cycle_CPPFLAGS = -DNAME=\"xde-cycle\"
 xde_cycle_SOURCES = xde-cycle.c
 xde_cycle_CFLAGS = $(AM_CFLAGS) $(ICE_CFLAGS) $(SMLIB_CFLAGS)
 xde_cycle_LDFLAGS = $(SMLIB_LIBS) $(ICE_LIBS) $(AM_LDFLAGS)
+
+xde_select_CPPFLAGS = -DNAME=\"xde-select\"
+xde_select_SOURCES = xde-select.c
+xde_select_CFLAGS = $(AM_CFLAGS) $(ICE_CFLAGS) $(SMLIB_CFLAGS)
+xde_select_LDFLAGS = $(SMLIB_LIBS) $(ICE_LIBS) $(AM_LDFLAGS)
 
 xde_setbg_CPPFLAGS = -DNAME=\"xde-setbg\"
 xde_setbg_SOURCES = xde-setbg.c

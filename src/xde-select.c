@@ -135,7 +135,7 @@
 #define EXIT_FAILURE	1
 #define EXIT_SYNTAXERR	2
 
-#define XA_SELECTION_NAME	"_XDE_PAGER_S%d"
+#define XA_SELECTION_NAME	"_XDE_SELECT_S%d"
 #define XA_NET_DESKTOP_LAYOUT	"_NET_DESKTOP_LAYOUT_S%d"
 
 static int saveArgc;
@@ -158,6 +158,29 @@ static Atom _XA_ESETROOT_PMAP_ID;
 // static Atom _XA_WIN_AREA;
 // static Atom _XA_WIN_AREA_COUNT;
 
+static Atom _XA_NET_ACTIVE_WINDOW;
+static Atom _XA_NET_CLIENT_LIST;
+static Atom _XA_NET_CLIENT_LIST_STACKING;
+static Atom _XA_WIN_FOCUS;
+static Atom _XA_WIN_CLIENT_LIST;
+
+typedef enum {
+	UseScreenDefault,               /* default screen by button */
+	UseScreenActive,                /* screen with active window */
+	UseScreenFocused,               /* screen with focused window */
+	UseScreenPointer,               /* screen with pointer */
+	UseScreenSpecified,             /* specified screen */
+} UseScreen;
+
+typedef enum {
+	PositionDefault,                /* default position */
+	PositionPointer,                /* position at pointer */
+	PositionCenter,                 /* center of monitor */
+	PositionTopLeft,                /* top left of work area */
+	PositionBottomRight,		/* bottom right of work area */
+	PositionSpecified,		/* specified position (X geometry) */
+} MenuPosition;
+
 typedef enum {
 	CommandDefault,
 	CommandRun,
@@ -167,6 +190,12 @@ typedef enum {
 	CommandVersion,
 	CommandCopying,
 } Command;
+
+typedef enum {
+	WindowOrderDefault,
+	WindowOrderClient,
+	WindowOrderStacking,
+} WindowOrder;
 
 typedef struct {
 	int debug;
@@ -178,6 +207,22 @@ typedef struct {
 	Bool proxy;
 	int button;
 	Time timestamp;
+	UseScreen which;
+	MenuPosition where;
+	struct {
+		int value;
+		int sign;
+	} x, y;
+	unsigned int w, h;
+	WindowOrder order;
+	Bool cycle;
+	Bool hidden;
+	Bool minimized;
+	Bool monitors;
+	Bool workspaces;
+	Bool activate;
+	Bool raise;
+	Bool restore;
 	char *keys;
 	Command command;
 	char *clientId;
@@ -194,6 +239,29 @@ Options options = {
 	.proxy = False,
 	.button = 0,
 	.timestamp = CurrentTime,
+	.which = UseScreenDefault,
+	.where = PositionDefault,
+	.x = {
+	      .value = 0,
+	      .sign = 1,
+	      }
+	,
+	.y = {
+	      .value = 0,
+	      .sign = 1,
+	      }
+	,
+	.w = 0,
+	.h = 0,
+	.order = WindowOrderDefault,
+	.cycle = False,
+	.hidden = False,
+	.minimized = False,
+	.monitors = False,
+	.workspaces = False,
+	.activate = True,
+	.raise = False,
+	.restore = True,
 	.keys = NULL,
 	.command = CommandDefault,
 	.clientId = NULL,
@@ -970,6 +1038,152 @@ setup_button_proxy(XdeScreen *xscr)
 	}
 }
 
+static void
+windows_changed(WnckScreen *wnck, XdeScreen *xscr)
+{
+	GdkGrabStatus status;
+	GdkDisplay *disp;
+	Display *dpy;
+	Window win;
+
+	if (!xscr) {
+		EPRINTF("xscr is NULL\n");
+		exit(EXIT_FAILURE);
+	}
+	DPRINT();
+	if (!xscr->goodwm)
+		return;
+	disp = gdk_display_get_default();
+	dpy = GDK_DISPLAY_XDISPLAY(disp);
+
+	gdk_display_get_pointer(disp, NULL, NULL, NULL, &xscr->mask);
+	DPRINTF("modifier mask was: 0x%08x\n", xscr->mask);
+
+	stop_popup_timer(xscr);
+	gtk_window_set_position(GTK_WINDOW(xscr->popup), GTK_WIN_POS_CENTER_ALWAYS);
+	gtk_window_present(GTK_WINDOW(xscr->popup));
+	gtk_widget_show_now(GTK_WIDGET(xscr->popup));	/* XXX works for menus? */
+	win = GDK_WINDOW_XID(xscr->popup->window);
+	if (!xscr->pointer) {
+		GdkEventMask mask =
+		    GDK_POINTER_MOTION_MASK |
+		    GDK_POINTER_MOTION_HINT_MASK |
+		    GDK_BUTTON_MOTION_MASK |
+		    GDK_BUTTON_PRESS_MASK |
+		    GDK_BUTTON_RELEASE_MASK | GDK_ENTER_NOTIFY_MASK | GDK_LEAVE_NOTIFY_MASK;
+		DPRINT();
+		XSetInputFocus(dpy, win, RevertToPointerRoot, CurrentTime);
+		status = gdk_pointer_grab(xscr->popup->window, TRUE,
+					  mask, NULL, NULL, GDK_CURRENT_TIME);
+		switch (status) {
+		case GDK_GRAB_SUCCESS:
+			DPRINTF("pointer grabbed\n");
+			xscr->pointer = True;
+			break;
+		case GDK_GRAB_ALREADY_GRABBED:
+			DPRINTF("%s: pointer already grabbed\n", NAME);
+			break;
+		case GDK_GRAB_INVALID_TIME:
+			EPRINTF("%s: pointer grab invalid time\n", NAME);
+			break;
+		case GDK_GRAB_NOT_VIEWABLE:
+			EPRINTF("%s: pointer grab on unviewable window\n", NAME);
+			break;
+		case GDK_GRAB_FROZEN:
+			EPRINTF("%s: pointer grab on frozen pointer\n", NAME);
+			break;
+		}
+	}
+	if (!xscr->keyboard) {
+		XSetInputFocus(dpy, win, RevertToPointerRoot, CurrentTime);
+		status = gdk_keyboard_grab(xscr->popup->window, TRUE, GDK_CURRENT_TIME);
+		switch (status) {
+		case GDK_GRAB_SUCCESS:
+			DPRINTF("keyboard grabbed\n");
+			xscr->keyboard = True;
+			break;
+		case GDK_GRAB_ALREADY_GRABBED:
+			DPRINTF("%s: keyboard already grabbed\n", NAME);
+			break;
+		case GDK_GRAB_INVALID_TIME:
+			EPRINTF("%s: keyboard grab invalid time\n", NAME);
+			break;
+		case GDK_GRAB_NOT_VIEWABLE:
+			EPRINTF("%s: keyboard grab on unviewable window\n", NAME);
+			break;
+		case GDK_GRAB_FROZEN:
+			EPRINTF("%s: keyboard grab on frozen keyboard\n", NAME);
+			break;
+		}
+	}
+	// if (!xscr->keyboard || !xscr->pointer)
+	if (!(xscr->mask & ~(GDK_LOCK_MASK | GDK_BUTTON1_MASK |
+			     GDK_BUTTON2_MASK | GDK_BUTTON3_MASK)))
+		if (!xscr->inside)
+			start_popup_timer(xscr);
+}
+
+static void
+clients_changed(WnckScreen *wnck, XdeScreen *xscr)
+{
+}
+
+static void
+active_window_changed(WnckScreen *wnck, WnckWindow *previous, gpointer user)
+{
+	XdeScreen *xscr = user;
+	WnckWindow *active = wnck_screen_get_active_window(wnck);
+
+	if (!active || !previous) {
+		stop_popup_timer(xscr);
+		drop_popup(xscr);
+		return;
+	}
+	windows_changed(wnck, xscr);
+}
+
+static void
+application_closed(WnckScreen *wnck, WnckApplication *app, gpointer xscr)
+{
+	clients_changed(wnck, xscr);
+}
+
+static void
+application_opened(WnckScreen *wnck, WnckApplication *app, gpointer xscr)
+{
+	clients_changed(wnck, xscr);
+}
+
+static void
+class_group_closed(WnckScreen *wnck, WnckClassGroup *class_group, gpointer xscr)
+{
+	clients_changed(wnck, xscr);
+}
+
+static void
+class_group_opened(WnckScreen *wnck, WnckClassGroup *class_group, gpointer xscr)
+{
+	clients_changed(wnck, xscr);
+}
+
+static void
+window_closed(WnckScreen *wnck, WnckWindow *window, gpointer xscr)
+{
+	clients_changed(wnck, xscr);
+}
+
+static void
+window_opened(WnckScreen *wnck, WnckWindow *window, gpointer xscr)
+{
+	clients_changed(wnck, xscr);
+}
+
+static void
+window_stacking_changed(WnckScreen *wnck, gpointer xscr)
+{
+	clients_changed(wnck, xscr);
+}
+
 /** @brief grab broken event handler
   *
   * Generated when a pointer or keyboard grab is broken.  On X11, this happens
@@ -1280,6 +1494,22 @@ update_current_desktop(XdeScreen *xscr, Atom prop)
 }
 
 static void
+update_client_list(XdeScreen *xscr, Atom prop)
+{
+	if (prop == None || prop == _XA_NET_CLIENT_LIST_STACKING) {
+	}
+	if (prop == None || prop == _XA_NET_CLIENT_LIST) {
+	} else
+	if (prop == None || prop == _XA_WIN_CLIENT_LIST) {
+	}
+}
+
+static void
+update_window(XdeScreen *xscr, Atom prop)
+{
+}
+
+static void
 add_pager(XdeScreen *xscr, GtkWidget *popup)
 {
 	GtkWidget *pager = wnck_pager_new(xscr->wnck);
@@ -1308,7 +1538,7 @@ init_window(XdeScreen *xscr)
 	gtk_window_stick(GTK_WINDOW(popup));
 	gtk_window_set_keep_above(GTK_WINDOW(popup), TRUE);
 
-#if 1
+#if 0
 	add_pager(xscr, popup);
 #else
 	(void) add_pager;
@@ -1522,6 +1752,23 @@ init_wnck(XdeScreen *xscr)
 	g_signal_connect(G_OBJECT(wnck), "active_workspace_changed",
 			 G_CALLBACK(active_workspace_changed), xscr);
 
+	g_signal_connect(G_OBJECT(wnck), "active_window_changed",
+			G_CALLBACK(active_window_changed), xscr);
+	g_signal_connect(G_OBJECT(wnck), "application_closed",
+			G_CALLBACK(application_closed), xscr);
+	g_signal_connect(G_OBJECT(wnck), "application_opened",
+			G_CALLBACK(application_opened), xscr);
+	g_signal_connect(G_OBJECT(wnck), "class_group_closed",
+			G_CALLBACK(class_group_closed), xscr);
+	g_signal_connect(G_OBJECT(wnck), "class_group_opened",
+			G_CALLBACK(class_group_opened), xscr);
+	g_signal_connect(G_OBJECT(wnck), "window_closed",
+			G_CALLBACK(window_closed), xscr);
+	g_signal_connect(G_OBJECT(wnck), "window_opened",
+			G_CALLBACK(window_opened), xscr);
+	g_signal_connect(G_OBJECT(wnck), "window_stacking_changed",
+			G_CALLBACK(window_stacking_changed), xscr);
+
 	wnck_screen_force_update(wnck);
 	window_manager_changed(wnck, xscr);
 }
@@ -1582,6 +1829,8 @@ do_run(int argc, char *argv[], Bool replace)
 		update_layout(xscr, None);
 		update_current_desktop(xscr, None);
 		update_theme(xscr, None);
+		update_window(xscr, None);
+		update_client_list(xscr, None);
 	}
 	gtk_main();
 }
@@ -1765,8 +2014,8 @@ event_handler_PropertyNotify(Display *dpy, XEvent *xev, XdeScreen *xscr)
 			(xev->xproperty.state == PropertyNewValue) ? "NewValue" : "Delete");
 		fprintf(stderr, "<== PropertyNotify:\n");
 	}
-	if (xev->xproperty.atom == _XA_XDE_THEME_NAME
-	    && xev->xproperty.state == PropertyNewValue) {
+	    if (xev->xproperty.atom == _XA_XDE_THEME_NAME
+		&& xev->xproperty.state == PropertyNewValue) {
 		DPRINT();
 		update_theme(xscr, xev->xproperty.atom);
 		return GDK_FILTER_REMOVE;	/* event handled */
@@ -1810,6 +2059,29 @@ event_handler_PropertyNotify(Display *dpy, XEvent *xev, XdeScreen *xscr)
 		&& xev->xproperty.state == PropertyNewValue) {
 		DPRINT();
 		update_root_pixmap(xscr, xev->xproperty.atom);
+	} else
+	    if (xev->xproperty.atom == _XA_NET_ACTIVE_WINDOW
+		&& xev->xproperty.state == PropertyNewValue) {
+		DPRINT();
+		update_window(xscr, xev->xproperty.atom);
+	} else
+	    if (xev->xproperty.atom == _XA_NET_CLIENT_LIST
+		&& xev->xproperty.state == PropertyNewValue) {
+		DPRINT();
+		update_client_list(xscr, xev->xproperty.atom);
+	} else
+	    if (xev->xproperty.atom == _XA_NET_CLIENT_LIST_STACKING
+		&& xev->xproperty.state == PropertyNewValue) {
+		DPRINT();
+		update_client_list(xscr, xev->xproperty.atom);
+	} else if (xev->xproperty.atom == _XA_WIN_FOCUS && xev->xproperty.state == PropertyNewValue) {
+		DPRINT();
+		update_window(xscr, xev->xproperty.atom);
+	} else
+	    if (xev->xproperty.atom == _XA_WIN_CLIENT_LIST
+		&& xev->xproperty.state == PropertyNewValue) {
+		DPRINT();
+		update_client_list(xscr, xev->xproperty.atom);
 	}
 	return GDK_FILTER_CONTINUE;	/* event not handled */
 }
@@ -2305,7 +2577,7 @@ client_handler(GdkXEvent *xevent, GdkEvent *event, gpointer data)
 	return GDK_FILTER_CONTINUE;	/* event not handled, continue processing */
 }
 
-#if 1
+#if 0
 static void
 set_current_desktop(XdeScreen *xscr, int index, Time timestamp)
 {
@@ -2368,7 +2640,7 @@ proxy_handler(GdkXEvent *xevent, GdkEvent *event, gpointer data)
 		case 4:
 			update_current_desktop(xscr, None);
 			num = (xscr->current - 1 + xscr->desks) % xscr->desks;
-#if 1
+#if 0
 			set_current_desktop(xscr, num, xev->xbutton.time);
 			return GDK_FILTER_REMOVE;
 #else
@@ -2378,7 +2650,7 @@ proxy_handler(GdkXEvent *xevent, GdkEvent *event, gpointer data)
 		case 5:
 			update_current_desktop(xscr, None);
 			num = (xscr->current + 1 + xscr->desks) % xscr->desks;
-#if 1
+#if 0
 			set_current_desktop(xscr, num, xev->xbutton.time);
 			return GDK_FILTER_REMOVE;
 #else
@@ -2902,6 +3174,21 @@ startup(int argc, char *argv[])
 	atom = gdk_atom_intern_static_string("ESETROOT_PMAP_ID");
 	_XA_ESETROOT_PMAP_ID = gdk_x11_atom_to_xatom_for_display(disp, atom);
 
+	atom = gdk_atom_intern_static_string("_NET_ACTIVE_WINDOW");
+	_XA_NET_ACTIVE_WINDOW = gdk_x11_atom_to_xatom_for_display(disp, atom);
+
+	atom = gdk_atom_intern_static_string("_NET_CLIENT_LIST");
+	_XA_NET_CLIENT_LIST = gdk_x11_atom_to_xatom_for_display(disp, atom);
+
+	atom = gdk_atom_intern_static_string("_NET_CLIENT_LIST_STACKING");
+	_XA_NET_CLIENT_LIST_STACKING = gdk_x11_atom_to_xatom_for_display(disp, atom);
+
+	atom = gdk_atom_intern_static_string("_WIN_FOCUS");
+	_XA_WIN_FOCUS = gdk_x11_atom_to_xatom_for_display(disp, atom);
+
+	atom = gdk_atom_intern_static_string("_WIN_CLIENT_LIST");
+	_XA_WIN_CLIENT_LIST = gdk_x11_atom_to_xatom_for_display(disp, atom);
+
 	scrn = gdk_display_get_default_screen(disp);
 	root = gdk_screen_get_root_window(scrn);
 	mask = gdk_window_get_events(root);
@@ -2997,6 +3284,20 @@ show_bool(Bool value)
 	if (value)
 		return ("true");
 	return ("false");
+}
+
+static const char *
+show_order(WindowOrder order)
+{
+	switch (order) {
+	case WindowOrderDefault:
+		return ("default");
+	case WindowOrderClient:
+		return ("client");
+	case WindowOrderStacking:
+		return ("stacking");
+	}
+	return NULL;
 }
 
 #if 0
@@ -3097,6 +3398,24 @@ Options:\n\
         use the time, TIMESTAMP, for button/keyboard event [default: %10$lu]\n\
     -k, --keys FORWARD:REVERSE\n\
         specify keys for cycling [default: %11$s]\n\
+    -O, --order {client|stacking}\n\
+        specify the order of windows [default: %12$s]\n\
+    -c, --cycle\n\
+        show a window cycle list [default: %13$s]\n\
+    --hidden\n\
+        list hidden windows as well [default: %14$s]\n\
+    --minimized\n\
+        list minimized windows as well [default: %15$s]\n\
+    --all-monitors\n\
+        list windows on all monitors [deefault: %16$s]\n\
+    --all-workspaces\n\
+        list windows on all workspaces [default: %17$s]\n\
+    -n, --noactivate\n\
+        do not activate windows [default: %18$s]\n\
+    --raise\n\
+        raise windows when selected/cycling [default: %19$s]\n\
+    -R, --restore\n\
+        restore previous windows when cycling [default: %20$s]\n\
     -D, --debug [LEVEL]\n\
         increment or set debug LEVEL [default: %2$d]\n\
         this option may be repeated.\n\
@@ -3105,10 +3424,10 @@ Options:\n\
         this option may be repeated.\n\
 Session Management:\n\
     -clientID CLIENTID\n\
-        client id for session management [default: %12$s]\n\
+        client id for session management [default: %21$s]\n\
     -restore SAVEFILE\n\
-        file in which to save session info [default: %13$s]\n\
-", argv[0] 
+        file in which to save session info [default: %22$s]\n\
+", argv[0]
 	, options.debug
 	, options.output
 	, options.display
@@ -3118,7 +3437,16 @@ Session Management:\n\
 	, show_bool(options.proxy)
 	, options.button
 	, options.timestamp
-	, options.keys ?: "AC+Left:AC+Right"
+	, options.keys ?: "AS+Tab:A+Tab"
+	, show_order(options.order)
+	, show_bool(options.cycle)
+	, show_bool(options.hidden)
+	, show_bool(options.minimized)
+	, show_bool(options.monitors)
+	, show_bool(options.workspaces)
+	, show_bool(!options.activate)
+	, show_bool(options.raise)
+	, show_bool(options.restore)
 	, options.clientId
 	, options.saveFile
 );
@@ -3164,41 +3492,54 @@ main(int argc, char *argv[])
 	saveArgv = argv;
 
 	while (1) {
-		int c, val;
+		int c, val, len;
 		char *endptr = NULL;
 
 #ifdef _GNU_SOURCE
 		int option_index = 0;
 		/* *INDENT-OFF* */
 		static struct option long_options[] = {
-			{"display",	required_argument,	NULL,	'd'},
-			{"screen",	required_argument,	NULL,	's'},
-			{"timeout",	required_argument,	NULL,	't'},
-			{"border",	required_argument,	NULL,	'B'},
-			{"proxy",	no_argument,		NULL,	'p'},
-			{"button",	required_argument,	NULL,	'b'},
-			{"timestamp",	required_argument,	NULL,	'T'},
+			{"display",		required_argument,	NULL,	'd'},
+			{"screen",		required_argument,	NULL,	's'},
+			{"timeout",		required_argument,	NULL,	't'},
+			{"border",		required_argument,	NULL,	'B'},
+			{"proxy",		no_argument,		NULL,	'p'},
+			{"button",		required_argument,	NULL,	'b'},
+			{"timestamp",		required_argument,	NULL,	'T'},
+			{"which",		required_argument,	NULL,	'w'},
+			{"where",		required_argument,	NULL,	'W'},
 
-			{"quit",	no_argument,		NULL,	'q'},
-			{"replace",	no_argument,		NULL,	'r'},
+			{"order",		optional_argument,	NULL,	'O'},
+			{"cycle",		no_argument,		NULL,	'c'},
+			{"hidden",		no_argument,		NULL,	'1'},
+			{"minimized",		no_argument,		NULL,	'm'},
+			{"all-monitors",	no_argument,		NULL,	'2'},
+			{"all-workspaces",	no_argument,		NULL,	'3'},
+			{"noactivate",		no_argument,		NULL,	'n'},
+			{"raise",		no_argument,		NULL,	'4'},
+			{"restore",		no_argument,		NULL,	'R'},
+			{"key",			optional_argument,	NULL,	'k'},
 
-			{"clientId",	required_argument,	NULL,	'8'},
-			{"restore",	required_argument,	NULL,	'9'},
+			{"quit",		no_argument,		NULL,	'q'},
+			{"replace",		no_argument,		NULL,	'r'},
 
-			{"debug",	optional_argument,	NULL,	'D'},
-			{"verbose",	optional_argument,	NULL,	'v'},
-			{"help",	no_argument,		NULL,	'h'},
-			{"version",	no_argument,		NULL,	'V'},
-			{"copying",	no_argument,		NULL,	'C'},
-			{"?",		no_argument,		NULL,	'H'},
+			{"clientId",		required_argument,	NULL,	'8'},
+			{"restore",		required_argument,	NULL,	'9'},
+
+			{"debug",		optional_argument,	NULL,	'D'},
+			{"verbose",		optional_argument,	NULL,	'v'},
+			{"help",		no_argument,		NULL,	'h'},
+			{"version",		no_argument,		NULL,	'V'},
+			{"copying",		no_argument,		NULL,	'C'},
+			{"?",			no_argument,		NULL,	'H'},
 			{ 0, }
 		};
 		/* *INDENT-ON* */
 
-		c = getopt_long_only(argc, argv, "d:s:t:B:pb:T:qrD::v::hVCH?",
+		c = getopt_long_only(argc, argv, "d:s:t:B:pb:T:cmO::nRk::qrD::v::hVCH?",
 				     long_options, &option_index);
 #else				/* _GNU_SOURCE */
-		c = getopt(argc, argv, "d:s:t:B:pb:T:qrD:vhVCH?");
+		c = getopt(argc, argv, "d:s:t:B:pb:T:cmO:nRk:qrD:vhVCH?");
 #endif				/* _GNU_SOURCE */
 		if (c == -1) {
 			if (options.debug)
@@ -3248,6 +3589,91 @@ main(int argc, char *argv[])
 				goto bad_option;
 			break;
 
+		case 'w':	/* -w, --which WHICH */
+			if (options.which != UseScreenDefault)
+				goto bad_option;
+			if (!(len = strlen(optarg)))
+				goto bad_option;
+			if (!strncasecmp("active", optarg, len))
+				options.which = UseScreenActive;
+			else if (!strncasecmp("focused", optarg, len))
+				options.which = UseScreenFocused;
+			else if (!strncasecmp("pointer", optarg, len))
+				options.which = UseScreenPointer;
+			else {
+				options.screen = strtoul(optarg, &endptr, 0);
+				if (endptr && *endptr)
+					goto bad_option;
+				options.which = UseScreenSpecified;
+			}
+			break;
+		case 'W':	/* -W, --where WHERE */
+			if (options.where != PositionDefault)
+				goto bad_option;
+			if (!(len = strlen(optarg)))
+				goto bad_option;
+			if (!strncasecmp("pointer", optarg, len))
+				options.where = PositionPointer;
+			else if (!strncasecmp("center", optarg, len))
+				options.where = PositionCenter;
+			else if (!strncasecmp("topleft", optarg, len))
+				options.where = PositionTopLeft;
+			else if (!strncasecmp("bottomright", optarg, len))
+				options.where = PositionBottomRight;
+			else {
+				int mask, x = 0, y = 0;
+				unsigned int w = 0, h = 0;
+
+				mask = XParseGeometry(optarg, &x, &y, &w, &h);
+				if (!(mask & XValue) || !(mask & YValue))
+					goto bad_option;
+				options.where = PositionSpecified;
+				options.x.value = x;
+				options.x.sign = (mask & XNegative) ? -1 : 1;
+				options.y.value = y;
+				options.y.sign = (mask & YNegative) ? -1 : 1;
+				options.w = w;
+				options.h = h;
+			}
+			break;
+
+		case 'O':	/* -O, --order ORDERTYPE */
+			if (options.order != WindowOrderDefault)
+				goto bad_option;
+			if (!(len = strlen(optarg)))
+				goto bad_option;
+			if (!strncasecmp("client", optarg, len))
+				options.order = WindowOrderClient;
+			else
+			if (!strncasecmp("stacking", optarg, len))
+				options.order = WindowOrderStacking;
+			else
+				goto bad_option;
+			break;
+		case 'c':	/* -c, --cycle */
+			options.cycle = True;
+			break;
+		case '1':	/* --hidden */
+			options.hidden = True;
+			break;
+		case 'm':	/* -m, --minimized */
+			options.minimized = True;
+			break;
+		case '2':	/* --all-monitors */
+			options.monitors = True;
+			break;
+		case '3':	/* --all-workspaces */
+			options.workspaces = True;
+			break;
+		case 'n':	/* -n, --noactivate */
+			options.activate = False;
+			break;
+		case '4':	/* --raise */
+			options.raise = True;
+			break;
+		case 'R':	/* -R, --restore */
+			options.restore = True;
+			break;
 		case 'k':	/* -k, --key [KEY1:KEY2] */
 			free(options.keys);
 			options.keys = strdup(optarg);
