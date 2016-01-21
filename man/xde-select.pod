@@ -2,48 +2,48 @@
 
 =head1 NAME
 
-xde-pager - desktop cycling for XDE
+xde-select - window cycling for XDE
 
 =head1 SYNOPSIS
 
-B<xde-pager> [I<OPTIONS>]
+B<xde-select> [I<OPTIONS>]
 
-=head1 DESCRIPTIONS
+=head1 DESCRIPTION
 
-Provides desktop cycling feedback for window managers that do not
-provide desktop cycling feedback themselves or for those that provide an
-inferior feedback.  The desktop cycling feedback is a pager where each
-cell corresponds to a workspace on the current monitor (or multiple
-monitors).  The feedback pop-up can also have a desktop selected using
+Provides window cycling feedback for window managers that do not provide
+window cycling feedback themselves or for those that provide an inferior
+feedback.  The window cycling feedback is an icon and label that
+corresponds to the active window on the current monitor (or multiple
+monitors).  The feedback pop-up can also have a window selected using
 the mouse.
 
 =head1 OPTIONS
 
-B<xde-pager> accepts the following options:
+B<xde-select> accepts the following options:
 
 =head2 COMMAND OPTIONS
 
 When specified, the following options alter the primary operating mode
-of the program:
+of the program.
 
 =over
 
 =item I<unspecified>
 
-When no command option is specified, the default is to run the pager
+When no command option is specified, the default is to run the selector
 without replacing an existing instance.
 
 =item B<--replace>, B<-r>
 
-Run the pager, but replace a running instance of B<xde-pager>.
+Run the selector, but replace a running instance of B<xde-select>.
 
 =item B<--quit>, B<-q>
 
-Ask a running instance of B<xde-pager> to quit.
+Ask a running instance of B<xde-select> to quit.
 
 =item B<--help>, B<-h>
 
-Prints usage information and the current options settings and defaults
+Prints usage information and the current options setting and defaults
 and exits.
 
 =item B<--version>, B<-V>
@@ -79,35 +79,60 @@ otherwise, all screens will be considered.
 
 =item B<--timeout>, B<-t> I<TIMEOUT>
 
-When cycling the desktops with the mouse or other than a modified
-keystroke, or if a key is pressed that does not result in a desktop
+When cycling the windows with the mouse or other than a modified
+keystroke, or if a key is pressed that does not result in a window
 change, the feedback window will persist for I<TIMEOUT> milliseconds.
 The default is 1000 (or 1 second).
 
 =item B<--border>, B<-B> I<WIDTH>
 
-Places a border around the pager of I<WIDTH> pixels.  The default is 5
+Places a border around the selector of I<WIDTH> pixels.  The default is 5
 pixels.
 
-=item B<--proxy>, B<-p>
+=item B<--where>, B<-W> {B<pointer>|B<center>|B<topleft>|B<icongeom>|I<GEOMETRY>}
 
-Normally the pager will translate scroll wheel events received on a
-B<_WIN_DESKTOP_BUTTON_PROXY> window into desktop changes.  As other
-programs (such as a desktop) may also be doing so, this option causes
-the pager to consider the desktop button proxy.
+Specifies the position for the pop-up menu.  This can be one of the
+following values (case insensitive, may be abbreviated):
 
-=item B<--button>, B<-b> I<BUTTON>
+=over
 
-Specifies the button that was used to invoke the pop-up.  Defaults to
-zero (0).  This should be the button that was used to pop the pager.  A
-window manager that invokes this command in response to a button press
-should release its passive grab on the button before invoking the pager
-so that the popped up menu can grab the button.  A I<BUTTON> of zero (0)
-means that the program was invoked with a key-press instead of a button.
+=item C<pointer>
 
-=item B<--timestamp>, B<-T> I<TIMESTAMP>
+Place the northwest corner of the pop-up under the mouse pointer.  This
+will always succeed.
 
-Provides the X11 server time-stamp of the event that caused the pop-up.
+=item C<center>
+
+Place the menu in the center of the associated window when visible (for
+icon mode) or the center of the current monitor (for other modes).  When
+not visible (minimized or hidden), defaults to C<icongeom> if there is
+an icon geometry defined, otherwise, defaults to the center of the
+monitor on which the window would normally appear.
+
+=item C<topleft>
+
+Please the menu in the top-left corner of the client window (inside any
+decorative border) for icon mode, and the top-left corner of the screen
+for other modes.  When the window is not visible (minimized or hidden),
+defaults to C<icongeom> if there is an icon geometry defined, otherwise,
+defaults to the top-left corner of the monitor on which the window would
+normally appear.
+
+=item C<icongeom>
+
+Place the menu above or below (depending on position) the icon geometry
+area.  This is the area described by the B<_NET_WM_ICON_GEOMETRY>
+property on the associated window.  Note that this is the only location
+that makes sense for a minimized or hidden window.  If there is no
+B<_NET_WM_ICON_GEOMETRY> property, defaults to C<topleft> for the
+window, followed by C<center> for the monitor.
+
+=item I<GEOMETRY>
+
+Specify the exact position at which to place the pop-up.  Any height or
+width in the specified I<GEOMETRY> is advisory.
+
+=back
 
 =item B<--verbose>, B<-v> [I<LEVEL>]
 
@@ -134,7 +159,7 @@ management:
 =item B<-clientId> I<CLIENTID>
 
 Specifies the X Session Management client identifier of the previously
-running session of B<xde-winlist>.
+running session of B<xde-select>.
 
 =item B<-restore> I<SAVEFILE>
 
@@ -145,14 +170,14 @@ session information.
 
 =head1 USAGE
 
-B<xde-pager> currently uses F<libwnck+> or F<libwnck> to detect
-workspace changes and to provide the pager feedback, so the window
+B<xde-select> currently uses B<libwnck+> or F<libwnck> to detect
+active window changes and to provide the window feedback, so the window
 manager must support some modicum of EWMH/NetWM compliance for the
-feedback to be effective.  Eventually I might make F<libwnkc+> support
+feedback to be effective.  Eventually I might make F<libwnck+> support
 GNOME1/WinWM, OSF/Motif and even just ICCCM compliant window managers,
 but, for now, some EWMH/NetWM compliance is needed.
 
-Run B<xde-pager> in the background or launch using the supplied XDG
+Run B<xde-select> in the background or launch using the supplied XDG
 autostart file.  The program takes the following steps:
 
 =over
@@ -160,21 +185,48 @@ autostart file.  The program takes the following steps:
 =item 1.
 
 Waits for a desktop change as signalled by a change to
-B<_NET_CURRENT_DESKTOP> on the root window of any screen.
+B<_NET_ACTIVE_WINDOW> on the root window of any screen.
 
 =item 2.
 
-When the desktop changes, the program grabs the pointer and the
+When the active window changes, the program grabs the pointer and the
 keyboard.  If there is a keyboard modifier down, it displays the
-feedback window and proxies key presses and releases to the root window.  
+feedback window and proxies key presses and releases to the root window.
 When all modifiers are released or when a selection is made or its
 pointer grab is broken, it drops the feedback window and waits for
-another desktop change.
+another window change.
 
 While the feedback pop-up is displayed, the mouse can be used to select
-a desktop.  When selected the window will not drop until the mouse
+a window.  When selected, the window will not drop until the mouse
 leaves the pop-up, a modifier is released, or a key press is made that
-does not result in a desktop change.
+does not result in a window change.
+
+=back
+
+=head2 OPERATING MODES
+
+There are three possible operating modes for B<xde-select>, as follows:
+
+=over
+
+=item 1.
+
+B<xde-select> behaves like L<xde-pager(1)> but only displays the current
+workspace in the pager and only pops up the window when the active
+window changes.  This mode works well with all window managers but is
+not the most attractive.
+
+=item 2.
+
+B<xde-select> behaves like L<wmaker(1)> and provides a marquee of window
+icons for the current desktop.  This mode works with all window managers
+but is not the most attractive.
+
+=item 3.
+
+B<xde-select> behaves in tiling mode and pops up a single icon over the
+active window.  In this mode, the pop-up does not grab the pointer.
+This mode works best with dynamic window managers.
 
 =back
 
@@ -192,21 +244,15 @@ is supported and works well.
 
 =item L<aewm(1)>
 
-L<aewm(1)> does not really support desktops and is, therefore, not
-supported.  (Well, it does.)
+is supported and works well.
 
 =item L<aewm++(1)>
 
-L<aewm++(1)> is barely ICCCM compliant.  It does not really support
-desktops and is, therefore, not supported.
+L<aewm++(1)> is barely ICCCM compliant and is, therefore, not supported.
 
 =item L<afterstep(1)>
 
-L<afterstep(1)> provides both workspaces and view ports (large desktops).
-F<libwnck+> does not support these well, so when B<xde-pager> detects
-that it is running under L<afterstep(1)> it does nothing.  (It has a
-desktop button proxy, but it does not relay scroll wheel events by
-default.)
+is supported and works well.
 
 =item L<awesome(1)>
 
@@ -214,7 +260,9 @@ is supported and works well.
 
 =item L<blackbox(1)>
 
-is supported and works well.
+When running with L<bbkeys(1)>, L<blackbox(1)> has its own window
+cycling feedback.  When running under L<blackbox(1)>, B<xde-select> does
+nothing.
 
 =item L<bspwm(1)>
 
@@ -223,14 +271,14 @@ is supported and works well.
 =item L<ctwm(1)>
 
 L<ctwm(1)> is only GNOME/WinWM compliant and is not yet supported by
-F<libwnck+>.  B<xde-pager> mitigates this to some extent; however, use
+F<libwnck+>.  B<xde-select> mitigates this to some extent; however, use
 L<etwm(1)> instead.
 
 =item L<cwm(1)>
 
 L<cwm(1)> is supported, but it doesn't work that well because L<cwm(1)>
 is not placing B<_NET_WM_STATE> on client windows, so F<libwnck+> cannot
-locate them and will not provide contents in the pager.
+locate them and will not provide contents in the selector.
 
 =item L<dtwm(1)>
 
@@ -251,32 +299,26 @@ is supported and works well.
 
 =item L<failsafewm(1)>
 
-L<failsafewm(1)> has no desktops.
+L<failsafewm(1)> has no active window.
 
 =item L<fluxbox(1)>
 
-is supported and works well.
+L<fluxbox(1)> provides its own window cycling feedback.  When running
+under L<fluxbox(1)>, B<xde-select> does nothing.
 
 =item L<flwm(1)>
 
 L<flwm(1)> supports GNOME/WinWM but not EWMH/NetWM and is not currently
-supported by F<libwnck+>.  B<xde-pager> mitigates this to some extent.
-
-=item L<fvwm(1)>
-
-is supported and works well.  L<fvwm(1)> provides a desktop
-button proxy but it needs the B<--noproxy> option.  Viewports work
-better than on L<afterstep(1)> and behaviour is predictable.
+supported by F<libwnck+>.  B<xde-select> mitigates this to some extent.
 
 =item L<glasswm(1)>
 
 L<glasswm(1)> provides some window control atoms of its own; however,
-B<xde-pager> does not support these at this time.
+B<xde-select> does not support these at this time.
 
 =item L<goomwwm(1)>
 
-L<goomwwm(1)> does not provide workspace cycling feedback of its own.
-L<goomwwm(1)> is supported and should work well.
+is supported and should work well.
 
 =item L<herbstluftwm(1)>
 
@@ -291,18 +333,10 @@ current versions of L<i3(1)>).
 
 =item L<icewm(1)>
 
-L<icewm(1)> provides its own pager on the panel, but does respect
-B<_NET_DESKTOP_LAYOUT> in some versions.  Although a desktop button
-proxy is provided, older versions of L<icewm(1)> will not proxy
-button events sent by the pager.  Use the version at
-L<https://github.com/bbidulock/icewm> for best results.
+L<icewm(1)> has its own window cycling feedback.  When running under
+L<icewm(1)>, B<xde-select> does nothing.
 
 =item L<jwm(1)>
-
-L<jwm(1)> provides its own pager on the panel, but does not respect or
-set B<_NET_DESKTOP_LAYOUT>, and key bindings are confused.
-When B<xde-pager> detects that it is running under L<jwm(1)> it will
-simply do nothing.
 
 =item L<larswm(1)>
 
@@ -314,16 +348,14 @@ is supported and works well.
 
 =item L<metacity(1)>
 
-L<metacity(1)> provides its own competent desktop switching feedback
-pop-up.
-When B<xde-pager> detects that it is running under L<metacity(1)> it
+L<metacity(1)> provides its own competent window switching feedback
+pop-up (and a fancy one too).
+When B<xde-select> detects that it is running under L<metacity(1)> it
 will simply do nothing.
 
 =item L<mvwm(1)>
 
-is supported and works well.  L<mvwm(1)> provides a desktop
-button proxy but it needs the B<--noproxy> option.  View ports work
-better than on L<afterstep(1)> and behaviour is predictable.
+is supported and works well.
 
 =item L<mwm(1)>
 
@@ -332,18 +364,18 @@ desktops.  Is is not supported.
 
 =item L<openbox(1)>
 
-L<openbox(1)> provides its own meager desktop switching feedback pop-up.
-It does respect B<_NET_DESKTOP_LAYOUT> but does not provide any of the
-contents of the desktop.  When both are running it is a little
-confusing, so when B<xde-pager> detects that it is running under
+L<openbox(1)> provides its own meager window switching feedback pop-up.
+It does not respect B<_NET_DESKTOP_LAYOUT> but does not provide any of
+the contents of the desktop.  When both are running it is a little
+confusing, so when B<xde-select> detects that it is running under
 L<openbox(1)> it will simply do nothing.
 
 =item L<pekwm(1)>
 
-L<pekwm(1)> provides its own broken desktop switching feedback pop-up;
+L<pekwm(1)> provides its own broken window switching feedback pop-up;
 however, it does not respect B<_NET_DESKTOP_LAYOUT> and key bindings are
 confused.
-When B<xde-pager> detects that it is running under L<pekwm(1)> it will
+When B<xde-select> detects that it is running under L<pekwm(1)> it will
 simply do nothing.
 
 =item L<spectrwm(1)>
@@ -351,7 +383,7 @@ simply do nothing.
 L<spectrwm(1)> is supported, but it doesn't work that well because, like
 L<cwm(1)>, L<spectrwm(1)> is not placing B<_NET_WM_STATE> on client
 windows, so F<libwnck+> cannot locate them and will not provide contents
-in the pager.  This may have been fixed in more current versions of
+in the selector.  This may have been fixed in more current versions of
 L<spectrwm(1)>.
 
 =item L<twm(1)>
@@ -373,13 +405,13 @@ L<etwm(1)> instead.
 
 =item L<waimea(1)>
 
-is supported; however, waimea defaults to triple-sized large desktops
-in a 2x2 arrangement.  With large virtual desktops F<libwnck+> gets
+is supported; however, waimea defaults to triple-sized large desktops in
+a 2x2 arrangement.  With large virtual desktops L<libwnck+> gets
 confused just as with L<afterstep(1)>.  L<fvwm(1)> must be doing
 something right.  It appears to be B<_NET_DESKTOP_VIEWPORT>, which is
-supposed to be set to the viewport position of each desktop (and isn't).
-Use the waimea at L<https://github.com/bbidulock/waimea> for a corrected
-version.
+supposed to be set to the view port position of each desktop (and
+isn't).  Use the waimea at L<https://github.com/bbidulock/waimea> for a
+corrected version.
 
 =item L<wind(1)>
 
@@ -392,7 +424,9 @@ L<wmx(1)> derivative.
 
 =item L<wmaker(1)>
 
-is supported and works well.
+L<wmaker(1)> provides its own competent window cycling feedback.  When
+B<xde-select> detects that it is running under L<wmaker(1)>, it simply
+does nothing.
 
 =item L<wmii(1)>
 
@@ -410,14 +444,14 @@ L<xdwm(1)> does not support EWMH/NetWM for desktops.
 =item L<yeahwm(1)>
 
 L<yeahwm(1)> does not support EWMH/NetWM and is currently unsupported.
-The pager will simply not do anything while this window manager is
+The selector will simply not do anything while this window manager is
 running.
 
 =back
 
 =head1 ENVIRONMENT
 
-The following environment variables are considered by the program:
+The following environment variables are considered by the program.
 
 =over
 
@@ -436,10 +470,10 @@ directory defaults to the user's home directory.
 =head1 HISTORY
 
 I wrote this program particularly for use with L<adwm(1)> and other
-tiling window managers that provide no feedback for desktop changes and
-do not typically run well with a panel or pager.  It provides workspace
+tiling window managers that provide no feedback for window changes and
+do not typically run will with a panel or pager.  It provides workspace
 change feedback without taking up valuable screen real-estate while the
-workspace is not changing.  Also, when used with F<libwnck+>, the pager
+window is not changing.  Also, when used with F<libwnck+>, the selector
 is multiple-monitor aware and can handle per-monitor tagged workspaces.
 
 =head1 AUTHOR
@@ -449,7 +483,7 @@ Brian Bidulock L<mailto:bidulock@openss7.org>.
 =head1 SEE ALSO
 
 L<getopt_long_only(3)>,
-L<xde-ctools(1)>
+L<xde-ctools(1)>,
 L<xde-keys(1)>
 
 =cut

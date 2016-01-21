@@ -69,7 +69,7 @@ Provides desktop cycling feedback for window managers that do not
 provide desktop cycling themselves or for those that provide an inferior
 feedback.  The desktop cycling feedback is a pager where each cell
 corresponds to a workspace on the current monitor (or multiple
-monitors).  The feedback popup can also have a desktop selected using
+monitors).  The feedback pop-up can also have a desktop selected using
 the mouse.
 
 =item L<xde-places(1)>
@@ -98,6 +98,14 @@ a file manager or application launcher.
 
 Provides a run command dialog for running applications from the command
 line using a graphical utility.
+
+=item L<xde-select(1)>
+
+Provides window cycling feedback for window managers that do not provide
+window cycling themselves or for those that provide an inferior
+feedback.  The window cycling feedback is a selector where each icon
+corresponds to a window on the current workspace.  The feedback pop-up
+can also have a window selected using the mouse.
 
 =item L<xde-setbg(1)>
 
