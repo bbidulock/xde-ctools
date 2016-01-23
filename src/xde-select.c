@@ -624,9 +624,10 @@ good_window_manager(XdeScreen *xscr)
 	/* XXX: awesome(1) is supported and works well. */
 	if (!strcasecmp(xscr->wmname, "awesome"))
 		return True;
-	/* XXX: blackbox(1) is supported and works well. */
+	/* XXX: When running with bbkeys(1), blackbox(1) has its own window cycling
+	   feedback.  WHen running under blackbox(1), xde-cycle does nothing. */
 	if (!strcasecmp(xscr->wmname, "blackbox"))
-		return True;
+		return False;
 	/* XXX: bspwm(1) is supported and works well. */
 	if (!strcasecmp(xscr->wmname, "baspwm"))
 		return True;
@@ -657,9 +658,10 @@ good_window_manager(XdeScreen *xscr)
 	/* XXX: failsafewm(1) has no desktops and is not supported. */
 	if (!strcasecmp(xscr->wmname, "failsafewm"))
 		return False;
-	/* XXX: fluxbox(1) is supported and works well. */
+	/* XXX: fluxbox(1) provides its own window cycling feedback.  When running under
+	   fluxbox(1), xde-cycle does nothing. */
 	if (!strcasecmp(xscr->wmname, "fluxbox"))
-		return True;
+		return False;
 	/* XXX: flwm(1) supports GNOME/WinWM but not EWMH/NetWM and is not currently
 	   supported by libwnck+.  xde-pager mitigates this to some extent. */
 	if (!strcasecmp(xscr->wmname, "flwm"))
@@ -1518,7 +1520,7 @@ add_pager(XdeScreen *xscr, GtkWidget *popup)
 	wnck_pager_set_n_rows(WNCK_PAGER(pager), 2);
 	wnck_pager_set_layout_policy(WNCK_PAGER(pager), WNCK_PAGER_LAYOUT_POLICY_AUTOMATIC);
 	wnck_pager_set_display_mode(WNCK_PAGER(pager), WNCK_PAGER_DISPLAY_CONTENT);
-	wnck_pager_set_show_all(WNCK_PAGER(pager), TRUE);
+	wnck_pager_set_show_all(WNCK_PAGER(pager), FALSE);
 	wnck_pager_set_shadow_type(WNCK_PAGER(pager), GTK_SHADOW_IN);
 	gtk_container_add(GTK_CONTAINER(popup), GTK_WIDGET(pager));
 	gtk_window_set_position(GTK_WINDOW(popup), GTK_WIN_POS_CENTER_ALWAYS);
@@ -1538,7 +1540,7 @@ init_window(XdeScreen *xscr)
 	gtk_window_stick(GTK_WINDOW(popup));
 	gtk_window_set_keep_above(GTK_WINDOW(popup), TRUE);
 
-#if 0
+#if 1
 	add_pager(xscr, popup);
 #else
 	(void) add_pager;
