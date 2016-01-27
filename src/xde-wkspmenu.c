@@ -349,13 +349,9 @@ popup_menu_new(WnckScreen *scrn)
 			gtk_widget_show(submenu);
 			gtk_widget_set_sensitive(item, TRUE);
 		} else {
-#if 0
-			gtk_widget_destroy(submenu);
-#else
 			gtk_menu_item_set_submenu(GTK_MENU_ITEM(item), submenu);
 			gtk_widget_show(submenu);
 			gtk_widget_set_sensitive(item, FALSE);
-#endif
 		}
 	}
 	sep = gtk_separator_menu_item_new();
@@ -467,13 +463,9 @@ popup_menu_new(WnckScreen *scrn)
 			gtk_widget_show(submenu);
 			gtk_widget_set_sensitive(item, TRUE);
 		} else {
-#if 0
-			gtk_widget_destroy(submenu);
-#else
 			gtk_menu_item_set_submenu(GTK_MENU_ITEM(item), submenu);
 			gtk_widget_hide(submenu);
 			gtk_widget_set_sensitive(item, FALSE);
-#endif
 		}
 	}
 	sep = gtk_separator_menu_item_new();
@@ -519,13 +511,9 @@ popup_menu_new(WnckScreen *scrn)
 			gtk_widget_show(submenu);
 			gtk_widget_set_sensitive(item, TRUE);
 		} else {
-#if 0
-			gtk_widget_destroy(submenu);
-#else
 			gtk_menu_item_set_submenu(GTK_MENU_ITEM(item), submenu);
 			gtk_widget_hide(submenu);
 			gtk_widget_set_sensitive(item, FALSE);
-#endif
 		}
 	}
 	sep = gtk_separator_menu_item_new();
