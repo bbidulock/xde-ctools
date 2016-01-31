@@ -1,7 +1,7 @@
 
 ## xde-ctools
 
-Package xde-ctools-1.0.19 was released under GPL license 2016-01-23.
+Package xde-ctools-1.0.20 was released under GPL license 2016-01-26.
 
 This package provides a number of `C`-language tools for working with
 the X Desktop Envionment.  Most of these tools were previously written
@@ -11,7 +11,7 @@ available from perl(1).
 
 ### Release
 
-This is the `xde-ctools-1.0.19` package, released 2016-01-23.  This release,
+This is the `xde-ctools-1.0.20` package, released 2016-01-26.  This release,
 and the latest version, can be obtained from the GitHub repository at
 http://github.com/bbidulock/xde-ctools, using a command such as:
 

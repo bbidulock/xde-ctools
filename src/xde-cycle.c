@@ -1511,6 +1511,7 @@ update_window(XdeScreen *xscr, Atom prop)
 {
 }
 
+#if 0
 static void
 add_pager(XdeScreen *xscr, GtkWidget *popup)
 {
@@ -1526,6 +1527,22 @@ add_pager(XdeScreen *xscr, GtkWidget *popup)
 	gtk_window_set_position(GTK_WINDOW(popup), GTK_WIN_POS_CENTER_ALWAYS);
 	gtk_widget_show(GTK_WIDGET(pager));
 }
+#else
+static void
+add_tasklist(XdeScreen *xscr, GtkWidget *popup)
+{
+	GtkWidget *tasklist = wnck_tasklist_new(xscr->wnck);
+
+	wnck_tasklist_set_grouping(WNCK_TASKLIST(tasklist), WNCK_TASKLIST_NEVER_GROUP);
+	wnck_tasklist_set_include_all_workspaces(WNCK_TASKLIST(tasklist), FALSE);
+	wnck_tasklist_set_switch_workspace_on_unminimize(WNCK_TASKLIST(tasklist), FALSE);
+	wnck_tasklist_set_button_relief(WNCK_TASKLIST(tasklist), GTK_RELIEF_HALF);
+	/* use wnck_tasklist_get_size_hint_list() to size tasklist */
+	gtk_container_add(GTK_CONTAINER(popup), GTK_WIDGET(tasklist));
+	gtk_window_set_position(GTK_WINDOW(popup), GTK_WIN_POS_CENTER_ALWAYS);
+	gtk_widget_show(GTK_WIDGET(tasklist));
+}
+#endif
 
 static void
 init_window(XdeScreen *xscr)
@@ -1540,10 +1557,14 @@ init_window(XdeScreen *xscr)
 	gtk_window_stick(GTK_WINDOW(popup));
 	gtk_window_set_keep_above(GTK_WINDOW(popup), TRUE);
 
+#if 0
 #if 1
 	add_pager(xscr, popup);
 #else
 	(void) add_pager;
+#endif
+#else
+	add_tasklist(xscr, popup);
 #endif
 	gtk_container_set_border_width(GTK_CONTAINER(popup), options.border);
 
