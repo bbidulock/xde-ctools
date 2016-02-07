@@ -1,0 +1,13 @@
+[Desktop Entry]
+Encoding=UTF-8
+Type=Application
+Name=Recent Files
+GenericName=Favorites
+Comment=Menu of recently used files.
+Icon=user-desktop
+TryExec=xde-recent
+Exec=xde-recent -b 1
+Terminal=false
+Categories=XDE;System;Utility;
+StartupNotify=true
+StartupWMClass=xde-recent
