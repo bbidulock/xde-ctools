@@ -1,0 +1,13 @@
+[Desktop Entry]
+Encoding=UTF-8
+Type=Application
+Name=Destop Places
+GenericName=Places
+Comment=Desktop places and bookmarks.
+Icon=user-desktop
+TryExec=xde-places
+Exec=xde-places -b 1
+Terminal=false
+Categories=XDE;System;Utility;
+StartupNotify=true
+StartupWMClass=xde-places

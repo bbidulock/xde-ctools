@@ -8,5 +8,6 @@ dist_applications_DATA = \
 	xde-app.desktop \
 	xde-wkspmenu.desktop \
 	xde-winlist.desktop \
-	xde-winmenu.desktop
+	xde-winmenu.desktop \
+	xde-places.desktop
 
