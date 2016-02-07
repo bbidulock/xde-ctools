@@ -5,5 +5,6 @@ dist_autostart_DATA = \
 dist_applications_DATA = \
 	xde-pager.desktop \
 	xde-run.desktop \
-	xde-app.desktop
+	xde-app.desktop \
+	xde-wkspmenu.desktop
 

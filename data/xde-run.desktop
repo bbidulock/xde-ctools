@@ -8,6 +8,6 @@ Icon=system-run
 TryExec=xde-run
 Exec=xde-run
 Terminal=false
-Categories=System;Utility;
+Categories=XDE;System;Utility;
 StartupNotify=true
 StartupWMClass=xde-run

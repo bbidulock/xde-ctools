@@ -1,0 +1,13 @@
+[Desktop Entry]
+Encoding=UTF-8
+Type=Application
+Name=Workspace Menu
+GenericName=Workspaces
+Comment=A menu of workspaces.
+Icon=preferences-system-windows
+TryExec=xde-wkspmenu
+Exec=xde-wkspmenu -b 1
+Terminal=false
+Categories=XDE;System;Utility;
+StartupNotify=true
+StartupWMClass=xde-wkspmenu
