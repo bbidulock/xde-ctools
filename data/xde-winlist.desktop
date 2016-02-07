@@ -1,0 +1,13 @@
+[Desktop Entry]
+Encoding=UTF-8
+Type=Application
+Name=Window Menu
+GenericName=Windows
+Comment=A menu of windows.
+Icon=preferences-desktop-display
+TryExec=xde-winlist
+Exec=xde-winlist -b 1
+Terminal=false
+Categories=XDE;System;Utility;
+StartupNotify=true
+StartupWMClass=xde-winlist
