@@ -324,6 +324,8 @@ typedef struct {
 	guint deferred_refresh_layout;
 	guint deferred_refresh_desktop;
 	GtkWidget *popup;
+	GtkWidget *pager;
+	GtkWidget *tasks;
 	Bool inside;			/* pointer inside popup */
 	Bool keyboard;			/* have a keyboard grab */
 	Bool pointer;			/* have a pointer grab */
@@ -1526,21 +1528,23 @@ add_pager(XdeScreen *xscr, GtkWidget *popup)
 	gtk_container_add(GTK_CONTAINER(popup), GTK_WIDGET(pager));
 	gtk_window_set_position(GTK_WINDOW(popup), GTK_WIN_POS_CENTER_ALWAYS);
 	gtk_widget_show(GTK_WIDGET(pager));
+	xscr->pager = pager;
 }
 #else
 static void
-add_tasklist(XdeScreen *xscr, GtkWidget *popup)
+add_tasks(XdeScreen *xscr, GtkWidget *popup)
 {
-	GtkWidget *tasklist = wnck_tasklist_new(xscr->wnck);
+	GtkWidget *tasks = wnck_tasklist_new(xscr->wnck);
 
-	wnck_tasklist_set_grouping(WNCK_TASKLIST(tasklist), WNCK_TASKLIST_NEVER_GROUP);
-	wnck_tasklist_set_include_all_workspaces(WNCK_TASKLIST(tasklist), FALSE);
-	wnck_tasklist_set_switch_workspace_on_unminimize(WNCK_TASKLIST(tasklist), FALSE);
-	wnck_tasklist_set_button_relief(WNCK_TASKLIST(tasklist), GTK_RELIEF_HALF);
-	/* use wnck_tasklist_get_size_hint_list() to size tasklist */
-	gtk_container_add(GTK_CONTAINER(popup), GTK_WIDGET(tasklist));
+	wnck_tasklist_set_grouping(WNCK_TASKLIST(tasks), WNCK_TASKLIST_NEVER_GROUP);
+	wnck_tasklist_set_include_all_workspaces(WNCK_TASKLIST(tasks), FALSE);
+	wnck_tasklist_set_switch_workspace_on_unminimize(WNCK_TASKLIST(tasks), FALSE);
+	wnck_tasklist_set_button_relief(WNCK_TASKLIST(tasks), GTK_RELIEF_HALF);
+	/* use wnck_tasklist_get_size_hint_list() to size tasks */
+	gtk_container_add(GTK_CONTAINER(popup), GTK_WIDGET(tasks));
 	gtk_window_set_position(GTK_WINDOW(popup), GTK_WIN_POS_CENTER_ALWAYS);
-	gtk_widget_show(GTK_WIDGET(tasklist));
+	gtk_widget_show(GTK_WIDGET(tasks));
+	xscr->tasks = tasks;
 }
 #endif
 
@@ -1564,7 +1568,7 @@ init_window(XdeScreen *xscr)
 	(void) add_pager;
 #endif
 #else
-	add_tasklist(xscr, popup);
+	add_tasks(xscr, popup);
 #endif
 	gtk_container_set_border_width(GTK_CONTAINER(popup), options.border);
 

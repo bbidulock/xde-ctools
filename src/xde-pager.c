@@ -256,6 +256,8 @@ typedef struct {
 	guint deferred_refresh_layout;
 	guint deferred_refresh_desktop;
 	GtkWidget *popup;
+	GtkWidget *pager;
+	GtkWidget *tasks;
 	Bool inside;			/* pointer inside popup */
 	Bool keyboard;			/* have a keyboard grab */
 	Bool pointer;			/* have a pointer grab */
@@ -1293,6 +1295,7 @@ add_pager(XdeScreen *xscr, GtkWidget *popup)
 	gtk_container_add(GTK_CONTAINER(popup), GTK_WIDGET(pager));
 	gtk_window_set_position(GTK_WINDOW(popup), GTK_WIN_POS_CENTER_ALWAYS);
 	gtk_widget_show(GTK_WIDGET(pager));
+	xscr->pager = pager;
 }
 
 static void
