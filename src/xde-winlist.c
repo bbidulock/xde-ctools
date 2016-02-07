@@ -110,6 +110,9 @@
 #include <getopt.h>
 #endif
 
+#define GTK_EVENT_STOP		TRUE
+#define GTK_EVENT_PROPAGATE	FALSE
+
 #define XPRINTF(args...) do { } while (0)
 #define OPRINTF(args...) do { if (options.output > 1) { \
 	fprintf(stdout, "I: "); \
@@ -263,6 +266,24 @@ window_activate(GtkMenuItem *item, gpointer user_data)
 		wnck_workspace_activate(work, gtk_get_current_event_time());
 	wnck_window_activate(win, gtk_get_current_event_time());
 }
+
+gboolean
+window_menu(GtkWidget *item, GdkEvent *event, gpointer user_data)
+{
+	GdkEventButton *ev = (typeof(ev)) event;
+	WnckWindow *win = user_data;
+	GtkWidget *menu, *parent;
+
+	if (ev->button != 3)
+		return GTK_EVENT_PROPAGATE;
+	menu = wnck_action_menu_new(win);
+	parent = gtk_widget_get_parent(item);
+	/* FIXME: need a menu position function like menu cascading. */
+	gtk_menu_popup(GTK_MENU(menu), parent, item, 
+			NULL, NULL, ev->button, ev->time);
+	return GTK_EVENT_STOP;
+}
+
 
 void
 add_workspace(GtkMenuItem *item, gpointer user_data)
@@ -418,6 +439,7 @@ popup_menu_new(WnckScreen *scrn)
 			gtk_menu_append(menu, item);
 			gtk_widget_show(item);
 			g_signal_connect(G_OBJECT(item), "activate", G_CALLBACK(window_activate), win);
+			g_signal_connect(G_OBJECT(item), "button_press_event", G_CALLBACK(window_menu), win);
 		}
 
 		if (workspace->next) {
