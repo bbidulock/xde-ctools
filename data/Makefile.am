@@ -7,5 +7,6 @@ dist_applications_DATA = \
 	xde-run.desktop \
 	xde-app.desktop \
 	xde-wkspmenu.desktop \
-	xde-winlist.desktop
+	xde-winlist.desktop \
+	xde-winmenu.desktop
 

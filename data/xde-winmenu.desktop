@@ -1,0 +1,13 @@
+[Desktop Entry]
+Encoding=UTF-8
+Type=Application
+Name=Window Operations Menu
+GenericName=Window Menu
+Comment=Window operations for the active window.
+Icon=preferences-desktop-display
+TryExec=xde-winmenu
+Exec=xde-winmenu -b 1 -w active
+Terminal=false
+Categories=XDE;System;Utility;
+StartupNotify=true
+StartupWMClass=xde-winmenu
