@@ -502,22 +502,21 @@ popup_menu_new(WnckScreen *scrn)
 				*p = '\0';
 				need_tooltip = TRUE;
 			}
-#if 0
-			if (strlen(label) > 44) {
-				strcpy(label + 41, "...");
-				need_tooltip = TRUE;
-			}
-#endif
 			p = label;
 			label = g_strdup_printf(" ● %s", p);
 			g_free(p);
 			gtk_menu_item_set_label(GTK_MENU_ITEM(witem), label);
-			if (strlen(label) > 40 && GTK_IS_BIN(witem) && GTK_IS_LABEL(gtk_bin_get_child(GTK_BIN(witem)))) {
-				GtkWidget *child = gtk_bin_get_child(GTK_BIN(witem));
+			if (strlen(label) > 44) {
+				if (GTK_IS_BIN(witem) && GTK_IS_LABEL(gtk_bin_get_child(GTK_BIN(witem)))) {
+					GtkWidget *child = gtk_bin_get_child(GTK_BIN(witem));
 
-				gtk_label_set_ellipsize(GTK_LABEL(child), PANGO_ELLIPSIZE_MIDDLE);
-				gtk_label_set_max_width_chars(GTK_LABEL(child), 40);
-				need_tooltip = TRUE;
+					gtk_label_set_ellipsize(GTK_LABEL(child), PANGO_ELLIPSIZE_MIDDLE);
+					gtk_label_set_max_width_chars(GTK_LABEL(child), 40);
+					need_tooltip = TRUE;
+				} else {
+					strcpy(label + 41, "...");
+					need_tooltip = TRUE;
+				}
 			}
 			g_free(label);
 			if (need_tooltip)
