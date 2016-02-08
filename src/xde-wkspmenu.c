@@ -331,6 +331,7 @@ popup_menu_new(WnckScreen *scrn)
 			char *label, *p;
 			WnckWindow *win;
 			GtkWidget *witem, *image;
+			gboolean need_tooltip = FALSE;
 
 			win = window->data;
 			if (wnck_window_is_skip_tasklist(win))
@@ -342,20 +343,37 @@ popup_menu_new(WnckScreen *scrn)
 			wname = wnck_window_get_name(win);
 			witem = gtk_image_menu_item_new();
 			label = g_strdup(wname);
-			if ((p = strstr(label, " - GVIM")))
+			if ((p = strstr(label, " - GVIM"))) {
 				*p = '\0';
-			if ((p = strstr(label, " - VIM")))
+				need_tooltip = TRUE;
+			}
+			if ((p = strstr(label, " - VIM"))) {
 				*p = '\0';
-			if ((p = strstr(label, " - Mozilla Firefox")))
+				need_tooltip = TRUE;
+			}
+			if ((p = strstr(label, " - Mozilla Firefox"))) {
 				*p = '\0';
-			if (strlen(label) > 44) {
-				strcpy(label + 41, "...");
-				gtk_widget_set_tooltip_text(witem, wname);
+				need_tooltip = TRUE;
 			}
 			p = label;
 			label = g_strdup_printf(" ○ %s", p);
 			g_free(p);
-			gtk_menu_item_set_label(GTK_MENU_ITEM(witem), wname);
+			gtk_menu_item_set_label(GTK_MENU_ITEM(witem), label);
+			if (strlen(label) > 44) {
+				if (GTK_IS_BIN(witem) && GTK_IS_LABEL(gtk_bin_get_child(GTK_BIN(witem)))) {
+					GtkWidget *child = gtk_bin_get_child(GTK_BIN(witem));
+
+					gtk_label_set_ellipsize(GTK_LABEL(child), PANGO_ELLIPSIZE_MIDDLE);
+					gtk_label_set_max_width_chars(GTK_LABEL(child), 40);
+					need_tooltip = TRUE;
+				} else {
+					strcpy(label + 41, "...");
+					need_tooltip = TRUE;
+				}
+			}
+			g_free(label);
+			if (need_tooltip)
+				gtk_widget_set_tooltip_text(witem, wname);
 			pixbuf = wnck_window_get_mini_icon(win);
 			if ((image = gtk_image_new_from_pixbuf(pixbuf)))
 				gtk_image_menu_item_set_image(GTK_IMAGE_MENU_ITEM(witem), image);
