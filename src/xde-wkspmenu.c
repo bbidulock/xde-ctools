@@ -98,6 +98,7 @@
 #include <glib.h>
 #include <gdk/gdkx.h>
 #include <gdk-pixbuf/gdk-pixbuf.h>
+#include <gdk/gdkkeysyms.h>
 #include <gtk/gtk.h>
 #include <cairo.h>
 
@@ -236,6 +237,82 @@ workspace_activate(GtkMenuItem *item, gpointer user_data)
 }
 
 void
+workspace_activate_item(GtkMenuItem *item, gpointer user_data)
+{
+	OPRINTF("Menu item [%s] activate item\n", gtk_menu_item_get_label(GTK_MENU_ITEM(item)));
+	wnck_workspace_activate(user_data, gtk_get_current_event_time());
+}
+
+gboolean
+workspace_button_press(GtkWidget *item, GdkEvent *event, gpointer user_data)
+{
+	GdkEventButton *ev = (typeof(ev)) event;
+
+	OPRINTF("Menu item [%s] button press\n", gtk_menu_item_get_label(GTK_MENU_ITEM(item)));
+	if (ev->button != 1)
+		return GTK_EVENT_PROPAGATE;
+	// workspace_activate(GTK_MENU_ITEM(item), user_data);
+	wnck_workspace_activate(user_data, ev->time);
+	gtk_menu_shell_activate_item(GTK_MENU_SHELL(gtk_widget_get_parent(item)), item, TRUE);
+	return GTK_EVENT_STOP;
+}
+
+WnckWorkspace *selected_workspace = NULL;
+GtkItem *selected_item = NULL;
+
+void
+workspace_select(GtkItem *item, gpointer user_data)
+{
+	OPRINTF("Menu item [%s] selected\n", gtk_menu_item_get_label(GTK_MENU_ITEM(item)));
+	selected_workspace = user_data;
+	selected_item = item;
+}
+
+void
+workspace_deselect(GtkItem *item, gpointer user_data)
+{
+	OPRINTF("Menu item [%s] deselected\n", gtk_menu_item_get_label(GTK_MENU_ITEM(item)));
+	if (selected_workspace == user_data)
+		selected_workspace = NULL;
+	if (selected_item == item)
+		selected_item = NULL;
+}
+
+gboolean
+workspace_key_press(GtkWidget *item, GdkEvent *event, gpointer user_data)
+{
+	GdkEventKey *ev = (typeof(ev)) event;
+
+	OPRINTF("Menu item [%s] key press\n", gtk_menu_item_get_label(GTK_MENU_ITEM(item)));
+	if (ev->keyval != GDK_KEY_Return)
+		return GTK_EVENT_PROPAGATE;
+	// workspace_activate(GTK_MENU_ITEM(item), user_data);
+	wnck_workspace_activate(user_data, ev->time);
+	gtk_menu_shell_activate_item(GTK_MENU_SHELL(gtk_widget_get_parent(item)), item, TRUE);
+	return GTK_EVENT_STOP;
+}
+
+gboolean
+workspace_menu_key_press(GtkWidget *menu, GdkEvent *event, gpointer user_data)
+{
+	GdkEventKey *ev = (typeof(ev)) event;
+	GtkWidget *item;
+
+	OPRINTF("Menu key press\n");
+	item = gtk_container_get_focus_child(GTK_CONTAINER(menu));
+	if (GTK_IS_MENU_ITEM(item))
+		OPRINTF("Menu item [%s] key press\n", gtk_menu_item_get_label(GTK_MENU_ITEM(item)));
+	if (ev->keyval == GDK_KEY_Return) {
+		OPRINTF("Menu key press [Return]\n");
+		if (selected_workspace)
+			wnck_workspace_activate(selected_workspace, ev->time);
+		if (selected_item)
+			gtk_menu_shell_activate_item(GTK_MENU_SHELL(menu), GTK_WIDGET(selected_item), TRUE);
+	}
+	return GTK_EVENT_PROPAGATE;
+}
+
+void
 window_activate(GtkMenuItem *item, gpointer user_data)
 {
 	WnckWindow *win = user_data;
@@ -300,6 +377,7 @@ popup_menu_new(WnckScreen *scrn)
 	int anum;
 
 	menu = gtk_menu_new();
+	g_signal_connect(G_OBJECT(menu), "key_press_event", G_CALLBACK(workspace_menu_key_press), NULL);
 	workspaces = wnck_screen_get_workspaces(scrn);
 	switch (options.order) {
 	default:
@@ -551,6 +629,12 @@ popup_menu_new(WnckScreen *scrn)
 			gtk_menu_item_set_submenu(GTK_MENU_ITEM(item), submenu);
 			gtk_widget_show(submenu);
 			gtk_widget_set_sensitive(item, TRUE);
+			gtk_widget_add_events(item, GDK_ALL_EVENTS_MASK);
+			g_signal_connect(G_OBJECT(item), "button_press_event", G_CALLBACK(workspace_button_press), work);
+			g_signal_connect(G_OBJECT(item), "key_press_event", G_CALLBACK(workspace_key_press), work);
+			g_signal_connect(G_OBJECT(item), "activate-item", G_CALLBACK(workspace_activate_item), work);
+			g_signal_connect(G_OBJECT(item), "select", G_CALLBACK(workspace_select), work);
+			g_signal_connect(G_OBJECT(item), "deselect", G_CALLBACK(workspace_deselect), work);
 		} else {
 			gtk_menu_item_set_submenu(GTK_MENU_ITEM(item), submenu);
 			gtk_widget_hide(submenu);
