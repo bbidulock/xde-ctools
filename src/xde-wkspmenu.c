@@ -429,15 +429,14 @@ popup_menu_new(WnckScreen *scrn)
 		submenu = gtk_menu_new();
 
 #if 1
-		// icon = gtk_image_new_from_icon_name("preferences-desktop-display", GTK_ICON_SIZE_MENU);
+		icon = gtk_image_new_from_icon_name("preferences-desktop-display", GTK_ICON_SIZE_MENU);
 #if 0
 		p = label;
 		label = g_strdup_printf("%s ——", p);
 		g_free(p);
 #endif
-		title = gtk_menu_item_new_with_label(label);
-		// title = gtk_image_menu_item_new_with_label(label);
-		// gtk_image_menu_item_set_image(GTK_IMAGE_MENU_ITEM(title), icon);
+		title = gtk_image_menu_item_new_with_label(label);
+		gtk_image_menu_item_set_image(GTK_IMAGE_MENU_ITEM(title), icon);
 		if (GTK_IS_BIN(title)) {
 			GtkWidget *child;
 
