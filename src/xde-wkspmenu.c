@@ -405,6 +405,16 @@ popup_menu_new(WnckScreen *scrn)
 		icon = gtk_image_new_from_icon_name("preferences-system-windows", GTK_ICON_SIZE_MENU);
 		item = gtk_image_menu_item_new_with_label(label);
 		gtk_image_menu_item_set_image(GTK_IMAGE_MENU_ITEM(item), icon);
+#if 0
+		if (GTK_IS_BIN(item)) {
+			GtkWidget *child;
+
+			child = gtk_bin_get_child(GTK_BIN(item));
+			if (GTK_IS_LABEL(child)) {
+				gtk_misc_set_alignment(GTK_MISC(child), 1.0, 0.5);
+			}
+		}
+#endif
 #else
 		item = gtk_radio_menu_item_new_with_label(group, label);
 		group = gtk_radio_menu_item_get_group(GTK_RADIO_MENU_ITEM(item));
@@ -419,14 +429,33 @@ popup_menu_new(WnckScreen *scrn)
 		submenu = gtk_menu_new();
 
 #if 1
-		icon = gtk_image_new_from_icon_name("preferences-desktop-display", GTK_ICON_SIZE_MENU);
+		// icon = gtk_image_new_from_icon_name("preferences-desktop-display", GTK_ICON_SIZE_MENU);
 #if 0
 		p = label;
 		label = g_strdup_printf("%s ——", p);
 		g_free(p);
 #endif
-		title = gtk_image_menu_item_new_with_label(label);
-		gtk_image_menu_item_set_image(GTK_IMAGE_MENU_ITEM(title), icon);
+		title = gtk_menu_item_new_with_label(label);
+		// title = gtk_image_menu_item_new_with_label(label);
+		// gtk_image_menu_item_set_image(GTK_IMAGE_MENU_ITEM(title), icon);
+		if (GTK_IS_BIN(title)) {
+			GtkWidget *child;
+
+			child = gtk_bin_get_child(GTK_BIN(title));
+			if (GTK_IS_LABEL(child)) {
+				gchar *markup;
+				gint xpad = 0, ypad = 0;
+
+				markup = g_markup_printf_escaped("<b>%s</b>", label);
+				gtk_label_set_markup(GTK_LABEL(child), markup);
+				g_free(markup);
+				gtk_misc_set_alignment(GTK_MISC(child), 0.5, 0.5);
+				gtk_misc_get_padding(GTK_MISC(child), &xpad, &ypad);
+				if (ypad < 3)
+					ypad = 3;
+				gtk_misc_set_padding(GTK_MISC(child), xpad, ypad);
+			}
+		}
 		gtk_menu_append(submenu, title);
 		gtk_widget_show(title);
 		g_signal_connect(G_OBJECT(title), "activate", G_CALLBACK(workspace_activate), work);
@@ -443,6 +472,7 @@ popup_menu_new(WnckScreen *scrn)
 			char *label;
 			WnckWindow *win;
 			GtkWidget *witem, *image;
+			gboolean need_tooltip = FALSE;
 
 			win = window->data;
 			if (!wnck_window_is_on_workspace(win, work))
@@ -456,21 +486,42 @@ popup_menu_new(WnckScreen *scrn)
 			wname = wnck_window_get_name(win);
 			witem = gtk_image_menu_item_new();
 			label = g_strdup(wname);
-			if ((p = strstr(label, " - GVIM")))
+			if ((p = strstr(label, " - GVIM"))) {
 				*p = '\0';
-			if ((p = strstr(label, " - VIM")))
+				need_tooltip = TRUE;
+			}
+			if ((p = strstr(label, " - VIM"))) {
 				*p = '\0';
-			if ((p = strstr(label, " - Mozilla Firefox")))
+				need_tooltip = TRUE;
+			}
+			if ((p = strstr(label, " - Geeqie"))) {
 				*p = '\0';
+				need_tooltip = TRUE;
+			}
+			if ((p = strstr(label, " - Mozilla Firefox"))) {
+				*p = '\0';
+				need_tooltip = TRUE;
+			}
+#if 0
 			if (strlen(label) > 44) {
 				strcpy(label + 41, "...");
-				gtk_widget_set_tooltip_text(witem, wname);
+				need_tooltip = TRUE;
 			}
+#endif
 			p = label;
 			label = g_strdup_printf(" ● %s", p);
 			g_free(p);
 			gtk_menu_item_set_label(GTK_MENU_ITEM(witem), label);
+			if (strlen(label) > 40 && GTK_IS_BIN(witem) && GTK_IS_LABEL(gtk_bin_get_child(GTK_BIN(witem)))) {
+				GtkWidget *child = gtk_bin_get_child(GTK_BIN(witem));
+
+				gtk_label_set_ellipsize(GTK_LABEL(child), PANGO_ELLIPSIZE_MIDDLE);
+				gtk_label_set_max_width_chars(GTK_LABEL(child), 40);
+				need_tooltip = TRUE;
+			}
 			g_free(label);
+			if (need_tooltip)
+				gtk_widget_set_tooltip_text(witem, wname);
 			pixbuf = wnck_window_get_mini_icon(win);
 			if ((image = gtk_image_new_from_pixbuf(pixbuf)))
 				gtk_image_menu_item_set_image(GTK_IMAGE_MENU_ITEM(witem), image);
