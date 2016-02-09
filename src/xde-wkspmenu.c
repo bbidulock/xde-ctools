@@ -379,7 +379,7 @@ window_deselect(GtkItem *item, gpointer user_data)
 		selected_window = NULL;
 	if (selected_witem == item)
 		selected_witem = NULL;
-	// gtk_menu_item_set_submenu(GTK_MENU_ITEM(item), NULL);
+	gtk_menu_item_set_submenu(GTK_MENU_ITEM(item), NULL);
 }
 
 gboolean
@@ -562,10 +562,12 @@ popup_menu_new(WnckScreen *scrn)
 			g_signal_connect(G_OBJECT(witem), "button_press_event", G_CALLBACK(window_menu), win);
 			g_signal_connect(G_OBJECT(witem), "select", G_CALLBACK(window_select), win);
 			g_signal_connect(G_OBJECT(witem), "deselect", G_CALLBACK(window_deselect), win);
+#if 0
 			g_object_set(gtk_widget_get_settings(GTK_WIDGET(witem)),
 					"gtk-menu-popup-delay", (gint) 5000000,
 					"gtk-menu-popdown-delay", (gint) 5000000,
 					NULL);
+#endif
 			window_count++;
 		}
 		gtk_menu_item_set_submenu(GTK_MENU_ITEM(item), submenu);
@@ -735,10 +737,12 @@ popup_menu_new(WnckScreen *scrn)
 			g_signal_connect(G_OBJECT(witem), "button_press_event", G_CALLBACK(window_menu), win);
 			g_signal_connect(G_OBJECT(witem), "select", G_CALLBACK(window_select), win);
 			g_signal_connect(G_OBJECT(witem), "deselect", G_CALLBACK(window_deselect), win);
+#if 0
 			g_object_set(gtk_widget_get_settings(GTK_WIDGET(witem)),
 					"gtk-menu-popup-delay", (gint) 5000000,
 					"gtk-menu-popdown-delay", (gint) 5000000,
 					NULL);
+#endif
 			window_count++;
 		}
 		gtk_menu_item_set_submenu(GTK_MENU_ITEM(item), submenu);
@@ -750,10 +754,12 @@ popup_menu_new(WnckScreen *scrn)
 		g_signal_connect(G_OBJECT(item), "activate_item", G_CALLBACK(workspace_activate_item), work);
 		g_signal_connect(G_OBJECT(item), "select", G_CALLBACK(workspace_select), work);
 		g_signal_connect(G_OBJECT(item), "deselect", G_CALLBACK(workspace_deselect), work);
+#if 0
 		g_object_set(gtk_widget_get_settings(GTK_WIDGET(item)),
 				"gtk-menu-popup-delay", (gint) 5000000,
 				"gtk-menu-popdown-delay", (gint) 5000000,
 				NULL);
+#endif
 	}
 	sep = gtk_separator_menu_item_new();
 	gtk_menu_append(menu, sep);
@@ -797,10 +803,12 @@ popup_menu_new(WnckScreen *scrn)
 			g_signal_connect(G_OBJECT(witem), "button_press_event", G_CALLBACK(window_menu), win);
 			g_signal_connect(G_OBJECT(witem), "select", G_CALLBACK(window_select), win);
 			g_signal_connect(G_OBJECT(witem), "deselect", G_CALLBACK(window_deselect), win);
+#if 0
 			g_object_set(gtk_widget_get_settings(GTK_WIDGET(witem)),
 					"gtk-menu-popup-delay", (gint) 5000000,
 					"gtk-menu-popdown-delay", (gint) 5000000,
 					NULL);
+#endif
 			window_count++;
 		}
 		gtk_menu_item_set_submenu(GTK_MENU_ITEM(item), submenu);
