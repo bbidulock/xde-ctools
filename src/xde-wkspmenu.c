@@ -308,6 +308,7 @@ workspace_menu_key_press(GtkWidget *menu, GdkEvent *event, gpointer user_data)
 			wnck_workspace_activate(selected_workspace, ev->time);
 		if (selected_item)
 			gtk_menu_shell_activate_item(GTK_MENU_SHELL(menu), GTK_WIDGET(selected_item), TRUE);
+		return GTK_EVENT_STOP;
 	}
 	return GTK_EVENT_PROPAGATE;
 }
@@ -332,12 +333,80 @@ window_menu(GtkWidget *item, GdkEvent *event, gpointer user_data)
 
 	if (ev->button != 3)
 		return GTK_EVENT_PROPAGATE;
+#if 0
 	menu = wnck_action_menu_new(win);
 	parent = gtk_widget_get_parent(item);
 	/* FIXME: need a menu position function like menu cascading. */
 	gtk_menu_popup(GTK_MENU(menu), parent, item, 
 			NULL, NULL, ev->button, ev->time);
 	return GTK_EVENT_STOP;
+#else
+	(void) parent;
+	if (!gtk_menu_item_get_submenu(GTK_MENU_ITEM(item))) {
+		menu = wnck_action_menu_new(win);
+		gtk_menu_item_set_submenu(GTK_MENU_ITEM(item), menu);
+	}
+	return GTK_EVENT_PROPAGATE;
+#endif
+}
+
+WnckWindow *selected_window = NULL;
+GtkItem *selected_witem = NULL;
+
+void
+window_select(GtkItem *item, gpointer user_data)
+{
+	OPRINTF("Menu item [%s] selected\n", gtk_menu_item_get_label(GTK_MENU_ITEM(item)));
+	selected_window = user_data;
+	selected_witem = item;
+}
+
+void
+window_deselect(GtkItem *item, gpointer user_data)
+{
+	OPRINTF("Menu item [%s] deselected\n", gtk_menu_item_get_label(GTK_MENU_ITEM(item)));
+	if (selected_window == user_data)
+		selected_window = NULL;
+	if (selected_witem == item)
+		selected_witem = NULL;
+	gtk_menu_item_set_submenu(GTK_MENU_ITEM(item), NULL);
+}
+
+gboolean
+window_key_press(GtkWidget *item, GdkEvent *event, gpointer user_data)
+{
+	GdkEventKey *ev = (typeof(ev)) event;
+	WnckWindow *win = user_data;
+	WnckWorkspace *work;
+
+	OPRINTF("Menu item [%s] key press\n", gtk_menu_item_get_label(GTK_MENU_ITEM(item)));
+	if (ev->keyval != GDK_KEY_Return)
+		return GTK_EVENT_PROPAGATE;
+	work = wnck_window_get_workspace(win);
+	wnck_workspace_activate(work, ev->time);
+	wnck_window_activate(win, ev->time);
+	gtk_menu_shell_activate_item(GTK_MENU_SHELL(gtk_widget_get_parent(item)), item, TRUE);
+	return GTK_EVENT_STOP;
+}
+
+gboolean
+window_menu_key_press(GtkWidget *menu, GdkEvent *event, gpointer user_data)
+{
+	GdkEventKey *ev = (typeof(ev)) event;
+	GtkWidget *item;
+
+	item = gtk_container_get_focus_child(GTK_CONTAINER(menu));
+	if (GTK_IS_MENU_ITEM(item))
+		OPRINTF("Menu item [%s] key press\n", gtk_menu_item_get_label(GTK_MENU_ITEM(item)));
+	if (ev->keyval == GDK_KEY_Return) {
+		OPRINTF("Menu key press [Return]\n");
+		if (selected_window)
+			wnck_window_activate(selected_window, ev->time);
+		if (selected_witem)
+			gtk_menu_shell_activate_item(GTK_MENU_SHELL(menu), GTK_WIDGET(selected_witem), TRUE);
+		return GTK_EVENT_STOP;
+	}
+	return GTK_EVENT_PROPAGATE;
 }
 
 void
@@ -377,7 +446,8 @@ popup_menu_new(WnckScreen *scrn)
 	int anum;
 
 	menu = gtk_menu_new();
-	g_signal_connect(G_OBJECT(menu), "key_press_event", G_CALLBACK(workspace_menu_key_press), NULL);
+	g_signal_connect(G_OBJECT(menu), "key_press_event", G_CALLBACK(workspace_menu_key_press),
+			 NULL);
 	workspaces = wnck_screen_get_workspaces(scrn);
 	switch (options.order) {
 	default:
@@ -394,8 +464,9 @@ popup_menu_new(WnckScreen *scrn)
 	{
 		GtkWidget *item, *submenu, *icon;
 		int window_count = 0;
-		
-		icon = gtk_image_new_from_icon_name("preferences-system-windows", GTK_ICON_SIZE_MENU);
+
+		icon =
+		    gtk_image_new_from_icon_name("preferences-system-windows", GTK_ICON_SIZE_MENU);
 		item = gtk_image_menu_item_new_with_label("Iconified Windows");
 		gtk_image_menu_item_set_image(GTK_IMAGE_MENU_ITEM(item), icon);
 		gtk_menu_append(menu, item);
@@ -438,10 +509,12 @@ popup_menu_new(WnckScreen *scrn)
 			g_free(p);
 			gtk_menu_item_set_label(GTK_MENU_ITEM(witem), label);
 			if (strlen(label) > 44) {
-				if (GTK_IS_BIN(witem) && GTK_IS_LABEL(gtk_bin_get_child(GTK_BIN(witem)))) {
+				if (GTK_IS_BIN(witem)
+				    && GTK_IS_LABEL(gtk_bin_get_child(GTK_BIN(witem)))) {
 					GtkWidget *child = gtk_bin_get_child(GTK_BIN(witem));
 
-					gtk_label_set_ellipsize(GTK_LABEL(child), PANGO_ELLIPSIZE_MIDDLE);
+					gtk_label_set_ellipsize(GTK_LABEL(child),
+								PANGO_ELLIPSIZE_MIDDLE);
 					gtk_label_set_max_width_chars(GTK_LABEL(child), 40);
 					need_tooltip = TRUE;
 				} else {
@@ -457,8 +530,16 @@ popup_menu_new(WnckScreen *scrn)
 				gtk_image_menu_item_set_image(GTK_IMAGE_MENU_ITEM(witem), image);
 			gtk_menu_append(submenu, witem);
 			gtk_widget_show(witem);
-			g_signal_connect(G_OBJECT(witem), "activate", G_CALLBACK(window_activate), win);
-			g_signal_connect(G_OBJECT(witem), "button_press_event", G_CALLBACK(window_menu), win);
+			g_signal_connect(G_OBJECT(witem), "activate", G_CALLBACK(window_activate),
+					 win);
+			g_signal_connect(G_OBJECT(witem), "button_press_event",
+					 G_CALLBACK(window_menu), win);
+			g_signal_connect(G_OBJECT(witem), "select", G_CALLBACK(window_select), win);
+			g_signal_connect(G_OBJECT(witem), "deselect", G_CALLBACK(window_deselect), win);
+			g_object_set(gtk_widget_get_settings(GTK_WIDGET(witem)),
+					"gtk-menu-popup-delay", (gint) 5000000,
+					"gtk-menu-popdown-delay", (gint) 5000000,
+					NULL);
 			window_count++;
 		}
 		if (window_count) {
@@ -498,7 +579,8 @@ popup_menu_new(WnckScreen *scrn)
 #if 1
 		(void) group;
 		(void) anum;
-		icon = gtk_image_new_from_icon_name("preferences-system-windows", GTK_ICON_SIZE_MENU);
+		icon =
+		    gtk_image_new_from_icon_name("preferences-system-windows", GTK_ICON_SIZE_MENU);
 		item = gtk_image_menu_item_new_with_label(label);
 		gtk_image_menu_item_set_image(GTK_IMAGE_MENU_ITEM(item), icon);
 #if 0
@@ -525,7 +607,8 @@ popup_menu_new(WnckScreen *scrn)
 		submenu = gtk_menu_new();
 
 #if 1
-		icon = gtk_image_new_from_icon_name("preferences-desktop-display", GTK_ICON_SIZE_MENU);
+		icon =
+		    gtk_image_new_from_icon_name("preferences-desktop-display", GTK_ICON_SIZE_MENU);
 #if 0
 		p = label;
 		label = g_strdup_printf("%s ——", p);
@@ -554,6 +637,9 @@ popup_menu_new(WnckScreen *scrn)
 		gtk_menu_append(submenu, title);
 		gtk_widget_show(title);
 		g_signal_connect(G_OBJECT(title), "activate", G_CALLBACK(workspace_activate), work);
+		sep = gtk_separator_menu_item_new();
+		gtk_menu_append(submenu, sep);
+		gtk_widget_show(sep);
 		sep = gtk_separator_menu_item_new();
 		gtk_menu_append(submenu, sep);
 		gtk_widget_show(sep);
@@ -602,10 +688,12 @@ popup_menu_new(WnckScreen *scrn)
 			g_free(p);
 			gtk_menu_item_set_label(GTK_MENU_ITEM(witem), label);
 			if (strlen(label) > 44) {
-				if (GTK_IS_BIN(witem) && GTK_IS_LABEL(gtk_bin_get_child(GTK_BIN(witem)))) {
+				if (GTK_IS_BIN(witem)
+				    && GTK_IS_LABEL(gtk_bin_get_child(GTK_BIN(witem)))) {
 					GtkWidget *child = gtk_bin_get_child(GTK_BIN(witem));
 
-					gtk_label_set_ellipsize(GTK_LABEL(child), PANGO_ELLIPSIZE_MIDDLE);
+					gtk_label_set_ellipsize(GTK_LABEL(child),
+								PANGO_ELLIPSIZE_MIDDLE);
 					gtk_label_set_max_width_chars(GTK_LABEL(child), 40);
 					need_tooltip = TRUE;
 				} else {
@@ -621,8 +709,16 @@ popup_menu_new(WnckScreen *scrn)
 				gtk_image_menu_item_set_image(GTK_IMAGE_MENU_ITEM(witem), image);
 			gtk_menu_append(submenu, witem);
 			gtk_widget_show(witem);
-			g_signal_connect(G_OBJECT(witem), "activate", G_CALLBACK(window_activate), win);
-			g_signal_connect(G_OBJECT(witem), "button_press_event", G_CALLBACK(window_menu), win);
+			g_signal_connect(G_OBJECT(witem), "activate", G_CALLBACK(window_activate),
+					 win);
+			g_signal_connect(G_OBJECT(witem), "button_press_event",
+					 G_CALLBACK(window_menu), win);
+			g_signal_connect(G_OBJECT(witem), "select", G_CALLBACK(window_select), win);
+			g_signal_connect(G_OBJECT(witem), "deselect", G_CALLBACK(window_deselect), win);
+			g_object_set(gtk_widget_get_settings(GTK_WIDGET(witem)),
+					"gtk-menu-popup-delay", (gint) 5000000,
+					"gtk-menu-popdown-delay", (gint) 5000000,
+					NULL);
 			window_count++;
 		}
 		if (window_count) {
@@ -630,11 +726,20 @@ popup_menu_new(WnckScreen *scrn)
 			gtk_widget_show(submenu);
 			gtk_widget_set_sensitive(item, TRUE);
 			gtk_widget_add_events(item, GDK_ALL_EVENTS_MASK);
-			g_signal_connect(G_OBJECT(item), "button_press_event", G_CALLBACK(workspace_button_press), work);
-			g_signal_connect(G_OBJECT(item), "key_press_event", G_CALLBACK(workspace_key_press), work);
-			g_signal_connect(G_OBJECT(item), "activate-item", G_CALLBACK(workspace_activate_item), work);
-			g_signal_connect(G_OBJECT(item), "select", G_CALLBACK(workspace_select), work);
-			g_signal_connect(G_OBJECT(item), "deselect", G_CALLBACK(workspace_deselect), work);
+			g_signal_connect(G_OBJECT(item), "button_press_event",
+					 G_CALLBACK(workspace_button_press), work);
+			g_signal_connect(G_OBJECT(item), "key_press_event",
+					 G_CALLBACK(workspace_key_press), work);
+			g_signal_connect(G_OBJECT(item), "activate-item",
+					 G_CALLBACK(workspace_activate_item), work);
+			g_signal_connect(G_OBJECT(item), "select", G_CALLBACK(workspace_select),
+					 work);
+			g_signal_connect(G_OBJECT(item), "deselect", G_CALLBACK(workspace_deselect),
+					 work);
+			g_object_set(gtk_widget_get_settings(GTK_WIDGET(item)),
+					"gtk-menu-popup-delay", (gint) 5000000,
+					"gtk-menu-popdown-delay", (gint) 5000000,
+					NULL);
 		} else {
 			gtk_menu_item_set_submenu(GTK_MENU_ITEM(item), submenu);
 			gtk_widget_hide(submenu);
@@ -647,8 +752,9 @@ popup_menu_new(WnckScreen *scrn)
 	{
 		GtkWidget *item, *submenu, *icon;
 		int window_count = 0;
-		
-		icon = gtk_image_new_from_icon_name("preferences-system-windows", GTK_ICON_SIZE_MENU);
+
+		icon =
+		    gtk_image_new_from_icon_name("preferences-system-windows", GTK_ICON_SIZE_MENU);
 		item = gtk_image_menu_item_new_with_label("All Workspaces");
 		gtk_image_menu_item_set_image(GTK_IMAGE_MENU_ITEM(item), icon);
 		gtk_menu_append(menu, item);
@@ -676,8 +782,16 @@ popup_menu_new(WnckScreen *scrn)
 				gtk_image_menu_item_set_image(GTK_IMAGE_MENU_ITEM(witem), image);
 			gtk_menu_append(submenu, witem);
 			gtk_widget_show(witem);
-			g_signal_connect(G_OBJECT(witem), "activate", G_CALLBACK(window_activate), win);
-			g_signal_connect(G_OBJECT(witem), "button_press_event", G_CALLBACK(window_menu), win);
+			g_signal_connect(G_OBJECT(witem), "activate", G_CALLBACK(window_activate),
+					 win);
+			g_signal_connect(G_OBJECT(witem), "button_press_event",
+					 G_CALLBACK(window_menu), win);
+			g_signal_connect(G_OBJECT(witem), "select", G_CALLBACK(window_select), win);
+			g_signal_connect(G_OBJECT(witem), "deselect", G_CALLBACK(window_deselect), win);
+			g_object_set(gtk_widget_get_settings(GTK_WIDGET(witem)),
+					"gtk-menu-popup-delay", (gint) 5000000,
+					"gtk-menu-popdown-delay", (gint) 5000000,
+					NULL);
 			window_count++;
 		}
 		if (window_count) {
@@ -697,21 +811,27 @@ popup_menu_new(WnckScreen *scrn)
 		GtkWidget *item, *icon;
 		int count;
 
-		icon = gtk_image_new_from_icon_name("preferences-desktop-display", GTK_ICON_SIZE_MENU);
+		icon =
+		    gtk_image_new_from_icon_name("preferences-desktop-display", GTK_ICON_SIZE_MENU);
 		item = gtk_image_menu_item_new_with_label("Append a workspace");
 		gtk_image_menu_item_set_image(GTK_IMAGE_MENU_ITEM(item), icon);
 		gtk_menu_append(menu, item);
 		gtk_widget_show(item);
 		g_signal_connect(G_OBJECT(item), "activate", G_CALLBACK(add_workspace), scrn);
-		gtk_widget_set_sensitive(item, ((count = wnck_screen_get_workspace_count(scrn)) && count < 32));
+		gtk_widget_set_sensitive(item,
+					 ((count = wnck_screen_get_workspace_count(scrn))
+					  && count < 32));
 
-		icon = gtk_image_new_from_icon_name("preferences-desktop-display", GTK_ICON_SIZE_MENU);
+		icon =
+		    gtk_image_new_from_icon_name("preferences-desktop-display", GTK_ICON_SIZE_MENU);
 		item = gtk_image_menu_item_new_with_label("Remove last workspace");
 		gtk_image_menu_item_set_image(GTK_IMAGE_MENU_ITEM(item), icon);
 		gtk_menu_append(menu, item);
 		gtk_widget_show(item);
 		g_signal_connect(G_OBJECT(item), "activate", G_CALLBACK(del_workspace), scrn);
-		gtk_widget_set_sensitive(item, ((count = wnck_screen_get_workspace_count(scrn)) && count > 1));
+		gtk_widget_set_sensitive(item,
+					 ((count = wnck_screen_get_workspace_count(scrn))
+					  && count > 1));
 	}
 
 	gtk_widget_show_all(menu);
