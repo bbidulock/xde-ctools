@@ -612,6 +612,7 @@ popup_menu_new(WnckScreen *scrn)
 		icon = gtk_image_new_from_icon_name("preferences-system-windows", GTK_ICON_SIZE_MENU);
 		item = gtk_image_menu_item_new_with_label(label);
 		gtk_image_menu_item_set_image(GTK_IMAGE_MENU_ITEM(item), icon);
+#if 1
 		if (wnum == anum && GTK_IS_BIN(item)) {
 			GtkWidget *child = gtk_bin_get_child(GTK_BIN(item));
 
@@ -623,6 +624,7 @@ popup_menu_new(WnckScreen *scrn)
 				g_free(markup);
 			}
 		}
+#endif
 #else
 #if 1
 		item = gtk_radio_menu_item_new_with_label(group, label);
@@ -647,7 +649,10 @@ popup_menu_new(WnckScreen *scrn)
 				gchar *markup;
 				gint xpad = 0, ypad = 0;
 
-				markup = g_markup_printf_escaped("<b>%s</b>", label);
+				if (wnum == anum)
+					markup = g_markup_printf_escaped("<b><u>%s</u></b>", label);
+				else
+					markup = g_markup_printf_escaped("<b>%s</b>", label);
 				gtk_label_set_markup(GTK_LABEL(child), markup);
 				g_free(markup);
 				gtk_misc_set_alignment(GTK_MISC(child), 0.5, 0.5);
