@@ -312,11 +312,13 @@ workspace_menu_key_press(GtkWidget *menu, GdkEvent *event, gpointer user_data)
 		OPRINTF("Menu item [%s] key press\n", gtk_menu_item_get_label(GTK_MENU_ITEM(item)));
 	if (ev->keyval == GDK_KEY_Return) {
 		OPRINTF("Menu key press [Return]\n");
-		if (selected_workspace)
+		DPRINTF("Menu key press [Return]\n");
+		if (selected_workspace && selected_item) {
 			wnck_workspace_activate(selected_workspace, ev->time);
-		if (selected_item)
 			gtk_menu_shell_activate_item(GTK_MENU_SHELL(menu), GTK_WIDGET(selected_item), TRUE);
-		return GTK_EVENT_STOP;
+			return GTK_EVENT_STOP;
+		}
+		return GTK_EVENT_PROPAGATE;
 	}
 	return GTK_EVENT_PROPAGATE;
 }
@@ -325,10 +327,11 @@ void
 window_activate(GtkMenuItem *item, gpointer user_data)
 {
 	WnckWindow *win = user_data;
-	WnckWorkspace *work = wnck_window_get_workspace(win);
+	WnckWorkspace *work;
 
 	OPRINTF("Menu item [%s] activated\n", gtk_menu_item_get_label(GTK_MENU_ITEM(item)));
-	wnck_workspace_activate(work, gtk_get_current_event_time());
+	if ((work = wnck_window_get_workspace(win)))
+		wnck_workspace_activate(work, gtk_get_current_event_time());
 	wnck_window_activate(win, gtk_get_current_event_time());
 }
 
@@ -410,12 +413,14 @@ window_menu_key_press(GtkWidget *menu, GdkEvent *event, gpointer user_data)
 		OPRINTF("Menu item [%s] key press\n", gtk_menu_item_get_label(GTK_MENU_ITEM(item)));
 	if (ev->keyval == GDK_KEY_Return || ev->keyval == GDK_KEY_space)  {
 		OPRINTF("Menu key press [Return]\n");
-		if (selected_window)
+		DPRINTF("Menu key press [Return]\n");
+		if (selected_window && selected_witem) {
 			wnck_window_activate(selected_window, ev->time);
-		if (selected_witem)
 			gtk_menu_shell_activate_item(GTK_MENU_SHELL(menu),
 						     GTK_WIDGET(selected_witem), TRUE);
-		return GTK_EVENT_STOP;
+			return GTK_EVENT_STOP;
+		}
+		return GTK_EVENT_PROPAGATE;
 	} else if (ev->keyval == GDK_KEY_Right) {
 		OPRINTF("Menu key press [Right]\n");
 		if (selected_window && selected_witem
@@ -425,6 +430,7 @@ window_menu_key_press(GtkWidget *menu, GdkEvent *event, gpointer user_data)
 			gtk_menu_item_set_submenu(GTK_MENU_ITEM(selected_witem), menu);
 			return GTK_EVENT_PROPAGATE;
 		}
+		return GTK_EVENT_PROPAGATE;
 	} else if (ev->keyval == GDK_KEY_Escape) {
 		OPRINTF("Menu key press [Escape]\n");
 		if (!gtk_menu_get_tearoff_state(GTK_MENU(menu)))
@@ -466,13 +472,12 @@ popup_menu_new(WnckScreen *scrn)
 	GtkWidget *menu, *sep;
 	GList *workspaces, *workspace;
 	GList *windows, *window;
-	GSList *group = NULL;
 	WnckWorkspace *active;
 	int anum;
+	GSList *group = NULL;
 
 	menu = gtk_menu_new();
-	g_signal_connect(G_OBJECT(menu), "key_press_event", G_CALLBACK(workspace_menu_key_press),
-			 NULL);
+	g_signal_connect(G_OBJECT(menu), "key_press_event", G_CALLBACK(workspace_menu_key_press), NULL);
 	g_signal_connect(G_OBJECT(menu), "selection_done", G_CALLBACK(selection_done), NULL);
 	workspaces = wnck_screen_get_workspaces(scrn);
 	switch (options.order) {
@@ -579,16 +584,18 @@ popup_menu_new(WnckScreen *scrn)
 	gtk_widget_show(sep);
 	for (workspace = workspaces; workspace; workspace = workspace->next) {
 		int wnum, len;
-		const char *name;
 		WnckWorkspace *work;
+		const char *name;
 		GtkWidget *item, *submenu, *title, *icon;
 		char *label, *wkname, *p;
 		int window_count = 0;
 
 		work = workspace->data;
 		wnum = wnck_workspace_get_number(work);
-		name = wnck_workspace_get_name(work);
-		wkname = strdup(name);
+		if  ((name = wnck_workspace_get_name(work)))
+			wkname = g_strdup(name);
+		else
+			wkname = g_strdup_printf("Workspace %d", wnum + 1);
 		while ((p = strrchr(wkname, ' ')) && p[1] == '\0')
 			*p = '\0';
 		for (p = wkname; *p == ' '; p++) ;
@@ -597,31 +604,60 @@ popup_menu_new(WnckScreen *scrn)
 			label = g_strdup_printf("Workspace %s", p);
 		else
 			label = g_strdup_printf("[%d] %s", wnum + 1, p);
-		free(wkname);
+		g_free(wkname);
+#if 1
 #if 1
 		(void) group;
 		(void) anum;
-		icon =
-		    gtk_image_new_from_icon_name("preferences-system-windows", GTK_ICON_SIZE_MENU);
+		icon = gtk_image_new_from_icon_name("preferences-system-windows", GTK_ICON_SIZE_MENU);
 		item = gtk_image_menu_item_new_with_label(label);
 		gtk_image_menu_item_set_image(GTK_IMAGE_MENU_ITEM(item), icon);
+		if (wnum == anum && GTK_IS_BIN(item)) {
+			GtkWidget *child = gtk_bin_get_child(GTK_BIN(item));
+
+			if (GTK_IS_LABEL(child)) {
+				gchar *markup;
+
+				markup = g_markup_printf_escaped("<u>%s</u>", label);
+				gtk_label_set_markup(GTK_LABEL(child), markup);
+				g_free(markup);
+			}
+		}
+#else
+#if 1
+		item = gtk_radio_menu_item_new_with_label(group, label);
+		group = gtk_radio_menu_item_get_group(GTK_RADIO_MENU_ITEM(item));
+#else
+		(void) group;
+		item = gtk_check_menu_item_new_with_label(label);
+		gtk_check_menu_item_set_show_toggle(GTK_CHECK_MENU_ITEM(item), TRUE);
+#endif
+		if (wnum == anum) {
+			gtk_check_menu_item_set_active(GTK_CHECK_MENU_ITEM(item), TRUE);
+		} else {
+			gtk_check_menu_item_set_active(GTK_CHECK_MENU_ITEM(item), FALSE);
+		}
+#endif
 #if 0
 		if (GTK_IS_BIN(item)) {
 			GtkWidget *child;
 
 			child = gtk_bin_get_child(GTK_BIN(item));
 			if (GTK_IS_LABEL(child)) {
-				gtk_misc_set_alignment(GTK_MISC(child), 1.0, 0.5);
+				gchar *markup;
+				gint xpad = 0, ypad = 0;
+
+				markup = g_markup_printf_escaped("<b>%s</b>", label);
+				gtk_label_set_markup(GTK_LABEL(child), markup);
+				g_free(markup);
+				gtk_misc_set_alignment(GTK_MISC(child), 0.5, 0.5);
+				gtk_misc_get_padding(GTK_MISC(child), &xpad, &ypad);
+				if (ypad < 3)
+					ypad = 3;
+				gtk_misc_set_padding(GTK_MISC(child), xpad, ypad);
 			}
 		}
 #endif
-#else
-		item = gtk_radio_menu_item_new_with_label(group, label);
-		group = gtk_radio_menu_item_get_group(GTK_RADIO_MENU_ITEM(item));
-		if (wnum == anum)
-			gtk_check_menu_item_set_active(GTK_CHECK_MENU_ITEM(item), TRUE);
-		else
-			gtk_check_menu_item_set_active(GTK_CHECK_MENU_ITEM(item), FALSE);
 #endif
 		gtk_menu_append(menu, item);
 		gtk_widget_show(item);
@@ -631,13 +667,7 @@ popup_menu_new(WnckScreen *scrn)
 		g_signal_connect(G_OBJECT(submenu), "selection_done", G_CALLBACK(selection_done), NULL);
 
 #if 1
-		icon =
-		    gtk_image_new_from_icon_name("preferences-desktop-display", GTK_ICON_SIZE_MENU);
-#if 0
-		p = label;
-		label = g_strdup_printf("%s ——", p);
-		g_free(p);
-#endif
+		icon = gtk_image_new_from_icon_name("preferences-desktop-display", GTK_ICON_SIZE_MENU);
 		title = gtk_image_menu_item_new_with_label(label);
 		gtk_image_menu_item_set_image(GTK_IMAGE_MENU_ITEM(title), icon);
 		if (GTK_IS_BIN(title)) {
@@ -1372,6 +1402,7 @@ show_order(WindowOrder order)
 {
 	switch (order) {
 	case WindowOrderDefault:
+		return ("default");
 	case WindowOrderClient:
 		return ("client");
 	case WindowOrderStacking:
@@ -1396,7 +1427,7 @@ show_which(UseScreen which)
 {
 	switch (which) {
 	case UseScreenDefault:
-		return ("auto");
+		return ("default");
 	case UseScreenActive:
 		return ("active");
 	case UseScreenFocused:
@@ -1416,7 +1447,7 @@ show_where(MenuPosition where)
 
 	switch (where) {
 	case PositionDefault:
-		return ("auto");
+		return ("default");
 	case PositionPointer:
 		return ("pointer");
 	case PositionCenter:
@@ -1464,7 +1495,7 @@ Options:\n\
         specify the mouse button number, BUTTON, for popup [default: %6$d]\n\
     -T, --timestamp TIMESTAMP\n\
         use the time, TIMESTAMP, for button/keyboard event [default: %7$lu]\n\
-    -w, --which {active|focused|pointer|select}\n\
+    -w, --which {active|focused|pointer|SCREEN}\n\
         specify the screen for which to pop the menu [default: %8$s]\n\
         \"active\"   - the screen with EWMH/NetWM active client\n\
         \"focused\"  - the screen with EWMH/NetWM focused client\n\
@@ -1475,7 +1506,7 @@ Options:\n\
         \"pointer\"  - northwest corner under the pointer\n\
         \"center\"   - center of associated monitor\n\
         \"topleft\"  - northwest corner of work area\n\
-        POSITION   - postion on screen as X geometry\n\
+        GEOMETRY   - postion on screen as X geometry\n\
     -O, --order {client|stacking}\n\
         specify the order of windows [default: %10$s]\n\
     -D, --debug [LEVEL]\n\
@@ -1654,7 +1685,8 @@ main(int argc, char *argv[])
 		case 'O':	/* -O, --order ORDERTYPE */
 			if (options.order != WindowOrderDefault)
 				goto bad_option;
-			len = strlen(optarg);
+			if (!(len = strlen(optarg)))
+				goto bad_option;
 			if (!strncasecmp("client", optarg, len))
 				options.order = WindowOrderClient;
 			else
