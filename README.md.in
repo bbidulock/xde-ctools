@@ -3,20 +3,20 @@
 
 Package @PACKAGE@-@VERSION@ was released under GPL license @DATE@.
 
-This package provides a number of `C`-language tools for working with
+This package provides a number of "C"-language tools for working with
 the X Desktop Envionment.  Most of these tools were previously written
 in perl(1) and were part of the xde-tools package.  They have now been
-codified in `C` for speed and to provide access to libraries not
+codified in "C" for speed and to provide access to libraries not
 available from perl(1).
 
 ### Release
 
 This is the `@PACKAGE@-@VERSION@` package, released @DATE@.  This release,
 and the latest version, can be obtained from the GitHub repository at
-http://github.com/bbidulock/@PACKAGE@, using a command such as:
+https://github.com/bbidulock/@PACKAGE@, using a command such as:
 
 ```bash
-git clone http://github.com/bbidulock/@PACKAGE@.git
+git clone https://github.com/bbidulock/@PACKAGE@.git
 ```
 
 Please see the [NEWS](NEWS) file for release notes and history of user visible
@@ -39,7 +39,7 @@ The quickest and easiest way to get @PACKAGE@ up and running is to run
 the following commands:
 
 ```bash
-git clone http://github.com/bbidulock/@PACKAGE@.git @PACKAGE@
+git clone https://github.com/bbidulock/@PACKAGE@.git @PACKAGE@
 cd @PACKAGE@
 ./autogen.sh
 ./configure --prefix=/usr
@@ -62,5 +62,5 @@ Read the manual pages after installation:
 
 ### Issues
 
-Report issues to http://github.com/bbidulock/@PACKAGE@/issues.
+Report issues to https://github.com/bbidulock/@PACKAGE@/issues.
 

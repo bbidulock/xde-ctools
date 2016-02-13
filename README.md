@@ -1,22 +1,22 @@
 
 ## xde-ctools
 
-Package xde-ctools-1.0.34 was released under GPL license 2016-02-08.
+Package xde-ctools-1.0.42 was released under GPL license 2016-02-09.
 
-This package provides a number of `C`-language tools for working with
+This package provides a number of "C"-language tools for working with
 the X Desktop Envionment.  Most of these tools were previously written
 in perl(1) and were part of the xde-tools package.  They have now been
-codified in `C` for speed and to provide access to libraries not
+codified in "C" for speed and to provide access to libraries not
 available from perl(1).
 
 ### Release
 
-This is the `xde-ctools-1.0.34` package, released 2016-02-08.  This release,
+This is the `xde-ctools-1.0.42` package, released 2016-02-09.  This release,
 and the latest version, can be obtained from the GitHub repository at
-http://github.com/bbidulock/xde-ctools, using a command such as:
+https://github.com/bbidulock/xde-ctools, using a command such as:
 
 ```bash
-git clone http://github.com/bbidulock/xde-ctools.git
+git clone https://github.com/bbidulock/xde-ctools.git
 ```
 
 Please see the [NEWS](NEWS) file for release notes and history of user visible
@@ -39,7 +39,7 @@ The quickest and easiest way to get xde-ctools up and running is to run
 the following commands:
 
 ```bash
-git clone http://github.com/bbidulock/xde-ctools.git xde-ctools
+git clone https://github.com/bbidulock/xde-ctools.git xde-ctools
 cd xde-ctools
 ./autogen.sh
 ./configure --prefix=/usr
@@ -62,5 +62,5 @@ Read the manual pages after installation:
 
 ### Issues
 
-Report issues to http://github.com/bbidulock/xde-ctools/issues.
+Report issues to https://github.com/bbidulock/xde-ctools/issues.
 
