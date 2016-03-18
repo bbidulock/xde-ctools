@@ -11,7 +11,10 @@ B<xde-dock> [I<OPTIONS>]
 =head1 DESCRIPTION
 
 Provides a dock for window managers that do not support one and provides
-a more consistent and rich experience for those that do.
+a more consistent and rich experience for those that do.  For window
+manager that provide a dock, provide the ability to start dock
+applications in the order they were specified.  Also, performs X11R6
+session management for dock applications.
 
 =head2 FEATURES
 
@@ -25,7 +28,7 @@ Provides a window-maker-style dock for dock applications.
 
 =item 2.
 
-Provides for themeability of the dock following the XDE theme.
+Provides the ability to theme the dock following the XDE theme.
 
 =item 3.
 
@@ -38,7 +41,7 @@ Permits the removal and reordering of dock applications in the dock.
 
 =item 5.
 
-Provides the ability to autostart dock applications when B<xde-dock>
+Provides the ability to auto-start dock applications when B<xde-dock>
 starts.
 
 =item 6.
@@ -95,6 +98,26 @@ output verbosity is set to I<LEVEL>.
 Print debugging information on standard error while running.  When
 I<LEVEL> is not specified, simply increments the debug level; otherwise,
 the debug level is set to I<LEVEL>.
+
+=back
+
+=head2 SESSSION MANAGEMENT OPTIONS
+
+X session management options are not used by another user other than the
+X11 Session Manager.  The following options are used by X session
+management:
+
+=over
+
+=item B<-clientId> I<CLIENTID>
+
+Specifies the X Session Management client identifier of the previously
+running session of B<xde-dock>.
+
+=item B<-restore> I<SAVEFILE>
+
+Specifies the X Session Management filename of a file to which to save
+session information.
 
 =back
 
