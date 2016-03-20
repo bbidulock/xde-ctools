@@ -121,6 +121,8 @@ session information.
 
 =back
 
+=head1 FILES
+
 =head1 ENVIRONMENT
 
 =head1 SIGNALS
