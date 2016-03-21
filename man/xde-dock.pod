@@ -337,6 +337,12 @@ B<xde-dock> was originally written in L<perl(1)>, but was since ported
 to a C<C> language program primarily due to the lack of X session
 management library support for L<perl(1)>.
 
+Originally XDE used to start window maker dock applications using XDG
+auto-start.  Dock applications were placed in F<.desktop> files in
+F</etc/xdg/autostart>.  While this technique can still be used, it is
+preferred to now use B<xde-dock> to launch the initial window maker
+dock applications.
+
 =head1 AUTHOR
 
 Brian Bidulock <bidulock@cpan.org>
