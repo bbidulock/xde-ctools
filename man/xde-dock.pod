@@ -121,6 +121,10 @@ session information.
 
 =back
 
+=head1 BEHAVIOUR
+
+=head2 IDENTIFYING DOCK APPLICATIONS
+
 =head1 FILES
 
 =head2 CONFIGURATION FILE
@@ -136,15 +140,30 @@ This file is a basic XML formatted file.
 
 B<xde-dock> dock application files are XDG F<.desktop> files that exist
 in a number of directories.  B<xde-dock> searches these directories for
-dock applications when presenting a menu to the user.
+dock applications when presenting a menu to the user.  To identify
+window maker dock applications, B<xde-dock> looks for a F<.desktop> file
+that has C<DockApp> and C<WMAKER> in the C<Categories> field of the
+F<.desktop> file.
 
 =over
 
 =item F<$XDG_DATA_HOME:$XDG_DATA_DIRS/applications>
 
+This is the XDG standard location for applications F<.desktop> entries.
+Files in these directories that have C<DockApp> and C<WMAKER> in the
+C<Categories> field will be considered dock applications.
+
 =item F<$XDG_CONFIG_HOME:$XDG_CONFIG_DIRS/autostart>
 
+This is the XDG standard location for auto-started F<.desktop> entries.
+Files in these directories that have C<DockApp> and C<WMAKER> in the
+C<Categories> field will be considered dock applications.
+
 =item F<$XDG_DATA_HOME:$XDG_DATA_DIRS/dockapps>
+
+This is an additional location (following XDG precedence rules) for dock
+application entries.  Files in these directories are automatically
+considered to be dock applications.
 
 =back
 
@@ -153,8 +172,6 @@ dock applications when presenting a menu to the user.
 =head1 SIGNALS
 
 =head1 CONFIGURATION
-
-=head1 BEHAVIOUR
 
 =head1 WINDOW MANAGERS
 
