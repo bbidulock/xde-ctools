@@ -174,6 +174,50 @@ dock applications to invoke.
 
 =head1 ENVIRONMENT
 
+The following environment variables are examined or set by B<xde-dock>:
+
+=over
+
+=item B<HOME>
+
+Will be used to determine the user's home directory for the purpose of
+calculating the default value for C<XDG_CONFIG_HOME> and
+C<XDG_DATA_HOME>.
+
+=item B<XDG_CONFIG_HOME>
+
+When set, F<$XDG_CONFIG_HOME/autostart> will be examined for F<.desktop>
+files.  The variable defaults to F<$HOME/.config>.
+
+=item B<XDG_CONFIG_DIRS>
+
+When set, F<DIRECTORY/autostart> will be examined for each I<DIRECTORY>
+in the colon separated list of directories contained in
+C<$XDG_CONFIG_DIRS>.  The variable defaults to F</etc/xdg>.
+
+=item B<XDG_DATA_HOME>
+
+When set, F<$XDG_DATA_HOME/{applications,dockapps}> will be examined for
+F<.desktop> files.  The variable defaults to F<$HOME/.local/share>.
+
+=item B<XDG_DATA_DIRS>
+
+When set, F<DIRECTORY/{applications,dockapps}> will be examined for
+F<.desktop> files.  The variable defaults to
+F</usr/local/share:/usr/share>.
+
+=item B<XDG_CURRENT_DESKTOP>
+
+Will be used to determine the active desktop environment for determining
+which dock applications to present for the desktop environment.
+
+=item B<SESSION_MANAGER>
+
+When set, used to connect to the X11R6 session manager and perform
+session management operations.
+
+=back
+
 =head1 SIGNALS
 
 =head1 CONFIGURATION
