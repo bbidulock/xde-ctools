@@ -167,6 +167,11 @@ considered to be dock applications.
 
 =back
 
+Note that, because some dock applications are only usable with certain
+window managers, the C<OnlyShowIn> and C<NotShowIn> fields of the
+corresponding F<.desktop> are also considered which presenting a list of
+dock applications to invoke.
+
 =head1 ENVIRONMENT
 
 =head1 SIGNALS
