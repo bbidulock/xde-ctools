@@ -123,6 +123,13 @@ session information.
 
 =head1 FILES
 
+B<xde-dock> uses a configuration file to store information about the
+dock applications that were or are to be started and the window manager
+in effect when the dock applications where running.  This file format is
+used both for basic configuration for startup of a default session, as
+well as for storing specific X11R6 session information for B<xde-dock>.
+This file is a basic XML formatted file.
+
 =head1 ENVIRONMENT
 
 =head1 SIGNALS
