@@ -236,6 +236,11 @@ managers include:
 
 =item L<adwm(1)>
 
+L<adwm(1)> provides a dock for dock applications that it calls the
+I<dock>.  It provides for configured arrangement of dock applications
+and docking of applications is automatic.  L<adwm(1)> cannot be started
+without a I<dock> by configuration nor by command line option.
+
 =item L<afterstep(1)>
 
 L<afterstep(1)> provides  dock for dock applications that it calls the
