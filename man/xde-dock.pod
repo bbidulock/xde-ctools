@@ -292,6 +292,12 @@ EWMH/NetWM support.
 
 =item L<dtwm(1)>
 
+L<dtwm(1)> does not provide a dock for window maker dock applications.
+It does provide a panel.  It also does not support EWMH/NetWM nor
+WMH/WinWM.  It does support OSF/Motif hints as well as L<dtwm(1)> hints
+and desktops.  It is unlikely that L<dtwm(1)> can support B<xde-dock>
+running as a stand-alone dock.
+
 =item L<dwm(1)>
 
 L<dwm(1)> does not provide a dock.  L<dwm(1)> also does not have much
@@ -384,6 +390,12 @@ by identifying dock applications, unmapping them, and then re-parenting
 them away from L<metacity(1)>.
 
 =item L<mwm(1)>
+
+L<mwm(1)> does not provide a dock for window maker dock applications.
+It also does not support EWMH/NetWM nor WMH/WinWM.  It does support
+OSF/Motif hints, but does not provide desktops like L<dtwm(1)>.  It is
+unlikely that L<mwm(1)> can support B<xde-dock> running as a stand-alone
+dock.
 
 =item L<openbox(1)>
 
