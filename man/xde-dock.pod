@@ -234,6 +234,10 @@ managers include:
 
 =item L<2bwm(1)>
 
+L<2bwm(1)> does not provide a dock for window maker dock applications.
+However, L<2bwm(1)> does provide a good degree of EWMN/NewWM support and
+is capable of supporting B<xde-dock> running as a stand-alone dock.
+
 =item L<adwm(1)>
 
 L<adwm(1)> provides a dock for dock applications that it calls the
