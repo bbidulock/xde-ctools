@@ -300,6 +300,10 @@ EWMH/NetWM support.
 
 =item L<etwm(1)>
 
+L<etwm(1)> does not provide a dock.  L<etwm(1)> does have superior
+EWMH/NetWM support.  B<xde-dock> provides a window maker dock
+application dock for L<etwm(1)>.
+
 =item L<fluxbox(1)>
 
 L<fluxbox(1)> provides a dock for dock applications that it calls the
@@ -317,6 +321,10 @@ changes made to the L<fluxbox(1)> I<slit> configuration so that panel
 menu controls still function.
 
 =item L<flwm(1)>
+
+L<flwm(1)> does not provide a dock.  L<flwm(1)> does not provide
+EWMH/NetWM support and only supports some parts of WMH/WinWM
+specification.
 
 =item L<fvwm(1)>
 
