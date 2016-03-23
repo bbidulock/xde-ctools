@@ -475,6 +475,10 @@ L<wmaker(1)> can be started without its I<dock> (command line option).
 
 =item L<wmx(1)>
 
+L<wmx(1)> does not support a dock for window maker dock applications.
+L<wmx(1)> does provide a good degree of EWMH/NetWM support and is
+capable of supporting B<xde-dock> running as a stand-alone dock.
+
 =item L<yeahwm(1)>
 
 =back
