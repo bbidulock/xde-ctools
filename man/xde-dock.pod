@@ -481,6 +481,11 @@ capable of supporting B<xde-dock> running as a stand-alone dock.
 
 =item L<yeahwm(1)>
 
+L<yeahwm(1)> does not support a dock for window maker dock applications.
+L<yeahwm(1)> also does not support EWMH/NetWM or WMH/WinWM and is
+unlikely to be able to fully support B<xde-dock> running as a
+stand-alone dock.
+
 =back
 
 =head1 HISTORY
