@@ -257,6 +257,9 @@ them away from L<afterstep(1)>.
 
 =item L<awesome(1)>
 
+L<awesome(1)> does not provide a dock.  L<awesome(1)> has good
+EWMH/NetWM support.
+
 =item L<blackbox(1)>
 
 L<blackbox(1)> provides a dock for dock applications that it calls the
@@ -275,13 +278,25 @@ menu controls still function.
 
 =item L<ctwm(1)>
 
+L<ctwm(1)> does not provide a dock.  L<ctwm(1)> also does not have much
+EWMH/NetWM support.
+
 =item L<cwm(1)>
+
+L<cwm(1)> does not provide a dock.  L<cwm(1)> also does not have much
+EWMH/NetWM support.
 
 =item L<dtwm(1)>
 
 =item L<dwm(1)>
 
+L<dwm(1)> does not provide a dock.  L<dwm(1)> also does not have much
+EWMH/NetWM support.
+
 =item L<echinus(1)>
+
+L<echinus(1)> does not provide a dock.  L<echinus(1)> has some
+EWMH/NetWM support.
 
 =item L<etwm(1)>
 
