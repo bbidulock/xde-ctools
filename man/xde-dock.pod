@@ -431,7 +431,17 @@ stand-alone dock.
 
 =item L<twm(1)>
 
+L<twm(1)> does not provide a dock for window maker dock applications.
+It also does not provide EWMH/NetWM or WMH/WinWM support and is likely
+incapable of supporting B<xde-dock> as a stand-alone dock.  Use
+L<etwm(1)> instead.
+
 =item L<vtwm(1)>
+
+L<vtwm(1)> does not provide a dock for window maker dock applications.
+It also does not provide EWMH/NetWM or WMH/WinWM support and is likely
+incapable of supporting B<xde-dock> as a stand-alone dock.  Use
+L<etwm(1)> instead.
 
 =item L<waimea(1)>
 
