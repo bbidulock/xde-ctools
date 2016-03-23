@@ -420,8 +420,6 @@ them away from the L<pekwm(1)> I<harbour>.  B<xde-dock> still respects
 changes made to the L<pekwm(1)> I<harbour> configuration so that root
 menu controls still function.
 
-=item L<perlpanel(1)>
-
 =item L<spectrwm(1)>
 
 L<spectrwm(1)> does not provide a dock for window maker dock
