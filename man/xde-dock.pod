@@ -235,7 +235,7 @@ managers include:
 =item L<2bwm(1)>
 
 L<2bwm(1)> does not provide a dock for window maker dock applications.
-However, L<2bwm(1)> does provide a good degree of EWMN/NewWM support and
+However, L<2bwm(1)> does provide a good degree of EWMN/NetWM support and
 is capable of supporting B<xde-dock> running as a stand-alone dock.
 
 =item L<adwm(1)>
@@ -423,6 +423,11 @@ menu controls still function.
 =item L<perlpanel(1)>
 
 =item L<spectrwm(1)>
+
+L<spectrwm(1)> does not provide a dock for window maker dock
+applications.  However, L<spectrwm(1)> does provide a good degree of
+EWMH/NetWM support and is capable of supporting B<xde-dock> running as a
+stand-alone dock.
 
 =item L<twm(1)>
 
