@@ -426,6 +426,21 @@ menu controls still function.
 
 =item L<waimea(1)>
 
+L<waimea(1)> has a dock of its own for window maker dock applications
+called a I<dockappholder>.  It provides for multiple instances,
+positioning and ordering of dock applications using regular expressions
+in its configuration file.  No mechanism for launching applications is
+provided.
+
+L<waimea(1)> cannot be started nor configured to not provide the (at
+least one) I<dockappholder>.
+
+B<xde-dock> provides an enhanced docking experience for L<waimea(1)>, by
+identifying dock applications, unmapping them, and then re-parenting
+them away from the L<waimea(1)> I<dockappholder>.  B<xde-dock> still
+respects changes made to the L<waimea(1)> I<dockappholder> configuration
+so that panel menu controls still function.
+
 =item L<wind(1)>
 
 L<wind(1)> does not support a dock for window maker dock applications.
