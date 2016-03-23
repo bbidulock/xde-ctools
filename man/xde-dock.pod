@@ -365,6 +365,10 @@ them away from the L<jwm(1)>.
 
 =item L<matwm2(1)>
 
+L<matwm2(1)> does not provide a dock for dock applications.
+L<matwm2(1)> provides good degree of EMWH/NetWM support and is capable
+of supporting B<xde-dock> running as a stand-alone dock.
+
 =item L<metacity(1)>
 
 L<metacity(1)> does not provide a dock for dock applications.  It does,
@@ -423,6 +427,10 @@ menu controls still function.
 =item L<waimea(1)>
 
 =item L<wind(1)>
+
+L<wind(1)> does not support a dock for window maker dock applications.
+L<wind(1)> does provide a good degree of EWMH/NetWM support and is
+capable of supporting B<xde-dock> running as a stand-alone dock.
 
 =item L<wmaker(1)>
 
