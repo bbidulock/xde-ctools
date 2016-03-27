@@ -53,6 +53,8 @@ xde-run: works pretty good
 - [ ] I think that it is finished.
 - [ ] convert program to use GtkRecentManager object.
 
+xde-select:
+
 xde-setbg: works really good
 
 - [ ] this is a multiple backdrop changer that changes backdrop
