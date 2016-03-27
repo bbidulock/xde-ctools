@@ -22,9 +22,10 @@ xde-cycle: not fully functional yet
       be displayed while windows are being cycled much in
       the same fashion as the xde-pager feelback.
 
-xde-desktop:
+xde-desktop: not fully functional yet.
 
 - [X] Move to it's own package.
+- [ ] Move this back into xde-ctools at some point.
 
 xde-dock: doesn't work so well yet
 
