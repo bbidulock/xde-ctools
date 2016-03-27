@@ -62,6 +62,7 @@ xde-preferred: not written yet
 
 - [X] Start documentation (manual page)
 - [ ] Complete documentation (manual page)
+- [ ] Finish writing this command.
 
 xde-recent: works well
 
@@ -75,7 +76,11 @@ xde-run: works pretty good
 - [ ] I think that it is finished.
 - [ ] convert program to use GtkRecentManager object.
 
-xde-select:
+xde-select: not fully functional yet
+
+- [X] Start documentation (manual page)
+- [ ] Complete documentation (manual page)
+- [ ] Finish writing this command.
 
 xde-setbg: works really good
 
