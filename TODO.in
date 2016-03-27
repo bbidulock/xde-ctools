@@ -43,20 +43,25 @@ xde-keys: not fully functional yet
       where a basic set of key definitions that do not rely
       on the window manager internals could be specified in
       a single location
-
 - [ ] haven't really done that much work yet.
 
 xde-pager: works pretty good
 
+- [X] Complete documentation (manual page)
 - [X] I use this one all the time.  It think that it is finished.
 - [ ] Might want to provide a keyboard-only option.
+- [ ] Fix harmful interaction with icewm edge page switcher.
 
 xde-places: works pretty good
 
+- [X] Complete documentation (manual page)
 - [X] I use this one often.  I think that it is finished.
 - [X] Integrate into panel.
 
-xde-preferred:
+xde-preferred: not written yet
+
+- [X] Start documentation (manual page)
+- [ ] Complete documentation (manual page)
 
 xde-recent: works well
 
