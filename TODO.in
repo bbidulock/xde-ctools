@@ -84,11 +84,15 @@ xde-select: not fully functional yet
 
 xde-setbg: works really good
 
+- [X] Start documentation (manual page)
+- [X] Complete documentation (manual page)
 - [ ] this is a multiple backdrop changer that changes backdrop
-      according to a sytle or theme when the desktop changes.
+      according to a style or theme when the desktop changes.
 
-xde-winlist: not fully functional yet
+xde-winlist: works pretty good.
 
+- [X] Start documentation (manual page)
+- [X] Complete documentation (manual page)
 - [ ] the purpose of this program was to display a graphical window
       list a feedback when cycling windows using the keyboard.
 
@@ -104,5 +108,9 @@ xde-winmenu: works pretty good
 - [X] Works like a charm.  Use it all the time.
 
 xde-wkspmenu: works well
+
+- [X] Start documentation (manual page)
+- [X] Complete documentation (manual page)
+- [X] Finish writing this command.
 
 # vim: set ft=asciidoc tw=72 nocin nosi fo+=tcqlorn:
