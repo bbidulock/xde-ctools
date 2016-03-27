@@ -37,6 +37,8 @@ xde-dock: doesn't work so well yet
 
 xde-keys: not fully functional yet
 
+- [X] Start documentation (manual page)
+- [ ] Complete documentation (manual page)
 - [ ] this was supposed to be our own kind of bbkeys thing
       where a basic set of key definitions that do not rely
       on the window manager internals could be specified in
