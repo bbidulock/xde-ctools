@@ -29,6 +29,7 @@ xde-desktop: not fully functional yet.
 
 xde-dock: doesn't work so well yet
 
+- [X] Complete documentation (manual page)
 - [ ] this works a little bit and was kinda based on flipse.
 - [ ] needs work to operate correctly, have configuration,
       and do nice things like autohide the panel and choose
