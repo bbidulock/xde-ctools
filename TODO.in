@@ -9,16 +9,22 @@ xde-app: works pretty good
 - [ ] I think that it is finished.
 - [ ] convert program to use GtkRecentManager object.
 
-xde-clip:
+xde-clip: does not do much yet
+
+- [X] Complete documentation (manual page)
+- [ ] Complete program.
 
 xde-cycle: not fully functional yet
 
+- [X] Complete documentation (manual page)
 - [ ] doesn't really do much yet.
 - [ ] this was supposed to put up a window list that could
       be displayed while windows are being cycled much in
       the same fashion as the xde-pager feelback.
 
 xde-desktop:
+
+- [X] Move to it's own package.
 
 xde-dock: doesn't work so well yet
 
