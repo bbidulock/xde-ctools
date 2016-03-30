@@ -239,9 +239,15 @@ managers include:
 
 =item L<afterstep(1)>
 
+=item L<aewm(1)>
+
+=item L<aewm++(1)>
+
 =item L<awesome(1)>
 
 =item L<blackbox(1)>
+
+=item L<bspwm(1)>
 
 =item L<ctwm(1)>
 
@@ -255,19 +261,33 @@ managers include:
 
 =item L<etwm(1)>
 
+=item L<failsafewm(1)>
+
 =item L<fluxbox(1)>
 
 =item L<flwm(1)>
 
 =item L<fvwm(1)>
 
+=item L<glasswm(1)>
+
+=item L<goomwwm(1)>
+
+=item L<herbstluftwm(1)>
+
+=item L<i3(1)>
+
 =item L<icewm(1)>
 
 =item L<jwm(1)>
 
+=item L<larswm(1)>
+
 =item L<matwm2(1)>
 
 =item L<metacity(1)>
+
+=item L<mvwm(1)>
 
 =item L<mwm(1)>
 
@@ -281,6 +301,10 @@ managers include:
 
 =item L<twm(1)>
 
+=item L<uwm(1)>
+
+=item L<velox(1)>
+
 =item L<vtwm(1)>
 
 =item L<waimea(1)>
@@ -289,7 +313,11 @@ managers include:
 
 =item L<wmaker(1)>
 
+=item L<wmii(1)>
+
 =item L<wmx(1)>
+
+=item L<xdwm(1)>
 
 =item L<yeahwm(1)>
 
