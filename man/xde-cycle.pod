@@ -237,11 +237,11 @@ managers include:
 
 =item L<adwm(1)>
 
-=item L<afterstep(1)>
-
 =item L<aewm(1)>
 
 =item L<aewm++(1)>
+
+=item L<afterstep(1)>
 
 =item L<awesome(1)>
 
@@ -310,6 +310,8 @@ managers include:
 =item L<waimea(1)>
 
 =item L<wind(1)>
+
+=item L<wm2(1)>
 
 =item L<wmaker(1)>
 
