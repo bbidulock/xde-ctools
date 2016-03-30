@@ -155,14 +155,28 @@ managers include:
 
 =item L<2bwm(1)>
 
+Not tested.
+
 =item L<adwm(1)>
+
+Not tested.
 
 =item L<afterstep(1)>
 
 L<afterstep(1)> provides a dock for dock applications that it calls the
 I<wharf>; however, it does not directly provide a clip.
 
+=item L<aewm(1)>
+
+Not tested.
+
+=item L<aewm++(1)>
+
+Not tested.
+
 =item L<awesome(1)>
+
+Not tested.
 
 =item L<blackbox(1)>
 
@@ -171,17 +185,37 @@ style) that it calls the I<slit>; however, it does not provide a clip.
 L<blackbox(1)> provides an internal panel that displays current
 applications in the task bar.
 
+=item L<bspwm(1)>
+
+Not tested.
+
 =item L<ctwm(1)>
+
+Not tested.
 
 =item L<cwm(1)>
 
+Not tested.
+
 =item L<dtwm(1)>
+
+Not tested.
 
 =item L<dwm(1)>
 
+Not tested.
+
 =item L<echinus(1)>
 
+Not tested.
+
 =item L<etwm(1)>
+
+Not tested.
+
+=item L<failsafewm(1)>
+
+Not tested.
 
 =item L<fluxbox(1)>
 
@@ -192,11 +226,29 @@ applications in a task bar.
 
 =item L<flwm(1)>
 
+Not tested.
+
 =item L<fvwm(1)>
 
 L<fvwm(1)> provides a dock for dock applications (in L<afterstep(1)>
 style) that it calls the I<wharf>; however, it does not directly provide
 a clip.
+
+=item L<glasswm(1)>
+
+Not tested.
+
+=item L<goomwwm(1)>
+
+Not tested.
+
+=item L<herbstluftwm(1)>
+
+Not tested.
+
+=item L<i3(1)>
+
+Not tested.
 
 =item L<icewm(1)>
 
@@ -210,7 +262,13 @@ mini-windows when configured to do so.
 L<jwm(1)> provides neither a dock nor a clip. L<jwm(1)> provides an
 internal panel that displays current applications in a task bar.
 
+=item L<larswm(1)>
+
+Not tested.
+
 =item L<matwm2(1)>
+
+Not tested.
 
 =item L<metacity(1)>
 
@@ -218,7 +276,13 @@ L<metacity(1)> provides neither a dock nor a clip.  It does not provide
 a panel, nor does it support mini-windows.  It will display current
 windows during window cycling.
 
+=item L<mvwm(1)>
+
+Not tested.
+
 =item L<mwm(1)>
+
+Not tested.
 
 =item L<openbox(1)>
 
@@ -236,13 +300,31 @@ panel programs.
 
 =item L<spectrwm(1)>
 
+Not tested.
+
 =item L<twm(1)>
+
+Not tested.
+
+=item L<uwm(1)>
+
+Not tested.
+
+=item L<velox(1)>
+
+Not tested.
 
 =item L<vtwm(1)>
 
+Not tested.
+
 =item L<waimea(1)>
 
+Not tested.
+
 =item L<wind(1)>
+
+Not tested.
 
 =item L<wmaker(1)>
 
@@ -252,9 +334,21 @@ L<wmaker(1)> does not provide a panel, but relies on external panel
 programs.  It will; however, display mini-windows when configured to do
 so.
 
+=item L<wmii(1)>
+
+Not tested.
+
 =item L<wmx(1)>
 
+Not tested.
+
+=item L<xdwm(1)>
+
+Not tested.
+
 =item L<yeahwm(1)>
+
+Not tested.
 
 =back
 
