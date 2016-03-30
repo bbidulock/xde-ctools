@@ -245,6 +245,14 @@ I<dock>.  It provides for configured arrangement of dock applications
 and docking of applications is automatic.  L<adwm(1)> cannot be started
 without a I<dock> by configuration nor by command line option.
 
+=item L<aewm(1)>
+
+Not tested.
+
+=item L<aewm++(1)>
+
+Not tested.
+
 =item L<afterstep(1)>
 
 L<afterstep(1)> provides  dock for dock applications that it calls the
@@ -280,6 +288,10 @@ them away from the L<blackbox(1)> I<slit>.  B<xde-dock> still respects
 changes made to the L<blackbox(1)> I<slit> configuration so that panel
 menu controls still function.
 
+=item L<bspwm(1)>
+
+Not tested.
+
 =item L<ctwm(1)>
 
 L<ctwm(1)> does not provide a dock.  L<ctwm(1)> also does not have much
@@ -313,6 +325,10 @@ EWMH/NetWM support.
 L<etwm(1)> does not provide a dock.  L<etwm(1)> does have superior
 EWMH/NetWM support.  B<xde-dock> provides a window maker dock
 application dock for L<etwm(1)>.
+
+=item L<failsafewm(1)>
+
+Not tested.
 
 =item L<fluxbox(1)>
 
@@ -350,6 +366,22 @@ B<xde-dock> provides an enhanced docking experience for L<fvwm(1)>, by
 identifying dock applications, unmapping them, and then re-parenting
 them away from L<fvwm(1)>.
 
+=item L<glasswm(1)>
+
+Not tested.
+
+=item L<goomwwm(1)>
+
+Not tested.
+
+=item L<herbstluftwm(1)>
+
+Not tested.
+
+=item L<i3(1)>
+
+Not tested.
+
 =item L<icewm(1)>
 
 L<icewm(1)> does not provide a dock for dock applications.  When
@@ -373,6 +405,10 @@ B<xde-dock> provides a consistent docking experience for L<jwm(1)>, by
 identifying dock applications, unmapping them, and then re-parenting
 them away from the L<jwm(1)>.
 
+=item L<larswm(1)>
+
+Not tested.
+
 =item L<matwm2(1)>
 
 L<matwm2(1)> does not provide a dock for dock applications.
@@ -388,6 +424,10 @@ display dock applications at all.
 B<xde-dock> provides a consistent docking experience for L<metacity(1)>,
 by identifying dock applications, unmapping them, and then re-parenting
 them away from L<metacity(1)>.
+
+=item L<mvwm(1)>
+
+Not tested.
 
 =item L<mwm(1)>
 
@@ -446,6 +486,14 @@ It also does not provide EWMH/NetWM or WMH/WinWM support and is likely
 incapable of supporting B<xde-dock> as a stand-alone dock.  Use
 L<etwm(1)> instead.
 
+=item L<uwm(1)>
+
+Not tested.
+
+=item L<velox(1)>
+
+Not tested.
+
 =item L<vtwm(1)>
 
 L<vtwm(1)> does not provide a dock for window maker dock applications.
@@ -476,6 +524,10 @@ L<wind(1)> does not support a dock for window maker dock applications.
 L<wind(1)> does provide a good degree of EWMH/NetWM support and is
 capable of supporting B<xde-dock> running as a stand-alone dock.
 
+=item L<wm2(1)>
+
+Not tested.
+
 =item L<wmaker(1)>
 
 L<wmaker(1)> provides a dock for dock applications that it calls the
@@ -485,11 +537,19 @@ startup and even now has drawers.
 
 L<wmaker(1)> can be started without its I<dock> (command line option).
 
+=item L<wmii(1)>
+
+Not tested.
+
 =item L<wmx(1)>
 
 L<wmx(1)> does not support a dock for window maker dock applications.
 L<wmx(1)> does provide a good degree of EWMH/NetWM support and is
 capable of supporting B<xde-dock> running as a stand-alone dock.
+
+=item L<xdwm(1)>
+
+Not tested.
 
 =item L<yeahwm(1)>
 
