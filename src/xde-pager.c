@@ -2990,6 +2990,8 @@ usage(int argc, char *argv[])
 	(void) fprintf(stderr, "\
 Usage:\n\
     %1$s [options]\n\
+    %1$s {-r|--replace} [options]\n\
+    %1$s {-q|--quit} [options]\n\
     %1$s {-h|--help}\n\
     %1$s {-V|--version}\n\
     %1$s {-C|--copying}\n\
