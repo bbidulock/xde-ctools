@@ -74,7 +74,7 @@ variable.
 
 Specify the screen number to use when locating the current window and
 workspace.  The default is either specified by the B<DISPLAY>
-environment variable (which that variable specifies a screen);
+environment variable (when that variable specifies a screen);
 otherwise, all screens will be considered.
 
 =item B<--timeout>, B<-t> I<TIMEOUT>
