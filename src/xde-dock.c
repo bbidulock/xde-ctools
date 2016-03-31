@@ -354,6 +354,8 @@ usage(int argc, char *argv[])
 	(void) fprintf(stderr, "\
 Usage:\n\
     %1$s [options]\n\
+    %1$s {-r|--replace} [options]\n\
+    %1$s {-q|--quit} [options]\n\
     %1$s {-h|--help}\n\
     %1$s {-V|--version}\n\
     %1$s {-C|--copying}\n\
@@ -365,13 +367,20 @@ help(int argc, char *argv[])
 {
 	if (!options.output && !options.debug)
 		return;
+	/* *INDENT-OFF* */
 	(void) fprintf(stdout, "\
 Usage:\n\
     %1$s [options]\n\
+    %1$s {-r|--replace} [options]\n\
+    %1$s {-q|--quit} [options]\n\
     %1$s {-h|--help}\n\
     %1$s {-V|--version}\n\
     %1$s {-C|--copying}\n\
 Command options:\n\
+    -r, --replace\n\
+        replace a running instance\n\
+    -q, --quit\n\
+        ask a running instance to quit\n\
     -h, --help, -?, --?\n\
         print this usage information and exit\n\
     -V, --version\n\
@@ -379,12 +388,30 @@ Command options:\n\
     -C, --copying\n\
         print copying permission and exit\n\
 Options:\n\
+    -d, --display DISPLAY\n\
+        specify the X display, DISPLAY, to use [default: %4$s]\n\
+    -s, --screen SCREEN\n\
+        specify the screen number, SCREEN, to use [default: %5$d]\n\
     -D, --debug [LEVEL]\n\
-        increment or set debug LEVEL [default: 0]\n\
-    -v, --verbose [LEVEL]\n\
-        increment or set output verbosity LEVEL [default: 1]\n\
+        increment or set debug LEVEL [default: %2$d]\n\
         this option may be repeated.\n\
-", argv[0]);
+    -v, --verbose [LEVEL]\n\
+        increment or set output verbosity LEVEL [default: %3$d]\n\
+        this option may be repeated.\n\
+Session Management:\n\
+    -clientID CLIENTID\n\
+        client id for session management [default: %6$s]\n\
+    -restore SAVEFILE\n\
+        file in which to save session info [default: %7$s]\n\
+", argv[0]
+	, options.debug
+	, options.output
+	, options.display
+	, options.screen
+	, options.clientId
+	, options.saveFile
+);
+	/* *INDENT-ON* */
 }
 
 void
@@ -2632,7 +2659,6 @@ startup(int argc, char *argv[])
 	g_unix_signal_add(SIGINT, on_int_signal, NULL);
 	g_unix_signal_add(SIGHUP, on_hup_signal, NULL);
 	g_unix_signal_add(SIGTERM, on_term_signal, NULL);
-	g_unix_signal_add(SIGQUIT, on_quit_signal, NULL);
 
 	disp = gdk_display_get_default();
 	nscr = gdk_display_get_n_screens(disp);
@@ -2659,12 +2685,40 @@ startup(int argc, char *argv[])
 
 }
 
+static void
+set_defaults(void)
+{
+	const char *env;
+
+	if ((env = getenv("DISPLAY")))
+		options.display = strdup(env);
+}
+
+static void
+get_defaults(void)
+{
+	const char *p;
+	int n;
+
+	if (!options.display) {
+		EPRINTF("No DISPLAY environment variable nor --display option\n");
+		exit(EXIT_FAILURE);
+	}
+	if (options.screen < 0 && (p = strrchr(options.display, '.'))
+	    && (n = strspn(++p, "0123456789")) && *(p + n) == '\0')
+		options.screen = atoi(p);
+	if (options.command == CommandDefault)
+		options.command = CommandRun;
+}
+
 int
 main(int argc, char *argv[])
 {
 	Command command = CommandDefault;
 
 	setlocale(LC_ALL, "");
+
+	set_defaults();
 
 	saveArgc = argc;
 	saveArgv = argv;
@@ -2825,6 +2879,7 @@ main(int argc, char *argv[])
 		usage(argc, argv);
 		exit(EXIT_SYNTAXERR);
 	}
+	get_defaults();
 	startup(argc, argv);
 	switch (command) {
 	default:
