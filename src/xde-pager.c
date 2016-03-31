@@ -562,7 +562,7 @@ good_window_manager(XdeScreen *xscr)
 	if (!strcasecmp(xscr->wmname, "blackbox"))
 		return True;
 	/* XXX: bspwm(1) is supported and works well. */
-	if (!strcasecmp(xscr->wmname, "baspwm"))
+	if (!strcasecmp(xscr->wmname, "bspwm"))
 		return True;
 	/* XXX: ctwm(1) is only GNOME/WinWM compliant and is not yet supported by
 	   libwnck+.  Use etwm(1) instead.  xde-pager mitigates this somewhat, so it is
@@ -1659,7 +1659,7 @@ update_theme(XdeScreen *xscr, Atom prop)
 	}
 	if (changed) {
 		DPRINTF("New theme is %s\n", xscr->theme);
-		/* FIXME: do somthing more about it. */
+		/* FIXME: do something more about it. */
 	}
 }
 
@@ -1824,8 +1824,10 @@ event_handler_ClientMessage(Display *dpy, XEvent *xev)
 	int s, nscr = ScreenCount(dpy);
 
 	for (s = 0; s < nscr; s++)
-		if (xev->xclient.window == RootWindow(dpy, s))
+		if (xev->xclient.window == RootWindow(dpy, s)) {
 			xscr = screens + s;
+			break;
+		}
 
 	DPRINT();
 	if (options.debug > 1) {
