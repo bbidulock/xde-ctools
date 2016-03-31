@@ -603,6 +603,8 @@ on_plug_removed(GtkSocket * s, gpointer data)
 		gtk_widget_destroy(GTK_WIDGET(c->ebox));
 		c->ebox = NULL;
 		c->swallowed = False;
+		c->dock = NULL;
+		d->clients = g_list_remove(d->clients, c);
 		d->napps -= 1;
 		if (c->plugged && c->retries++ < 5) {
 			if (c->plugged == c->wind.window) {
