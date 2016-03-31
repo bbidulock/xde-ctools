@@ -69,14 +69,35 @@ B<xde-dock> provides the following command options:
 
 =over
 
+=item I<unspecified>
+
+When no command option is specified, the default is to run B<xde-dock>
+without replacing an existing instance.
+
+=item B<--replace>, B<-r>
+
+Replace a running instance of B<xde-dock> with the current instance.
+This will not generate an error if no instance was running before the
+command was issued.
+
 =item B<--quit>, B<-q>
 
 Ask a running instance of B<xde-dock> to quit.
 
 =item B<--help>, B<-h>
 
-Print usage information to standard error containing current defaults
-and exit.
+Print usage information and the current options settings and defaults
+and exits.
+
+=item B<--version>, B<-V>
+
+Prints the version of the program and a brief copyright statement and
+exits.  Parse the first line with L<awk(1)> to obtain just the version
+number.
+
+=item B<--copying>, B<-C>
+
+Prints the long copying permission statement and exits.
 
 =back
 
@@ -86,6 +107,18 @@ General options do not affect the major operating mode of the program.
 B<xde-dock> provides the following general options:
 
 =over
+
+=item B<--display>, B<-d> I<DISPLAY>
+
+Specify the display to use (overriding the B<DISPLAY> environment
+variable).  The default is the value of the B<DISPLAY> environment
+variable.
+
+=item B<--screen>, B<-s> I<SCREEN>
+
+Specify the screen number to use when allocating the dock.  The default
+is specified by the B<DISPLAY> environment variable (when that variable
+specifies a screen); otherwise, all screens will be considered.
 
 =item B<--verbose>, B<-v> [I<LEVEL>]
 
@@ -215,6 +248,13 @@ which dock applications to present for the desktop environment.
 
 When set, used to connect to the X11R6 session manager and perform
 session management operations.
+Specifies the list of transport connections on which to contact the
+session manager.
+
+=item B<SM_SAVE_DIR>
+
+Specifies the directory in which to save session files.  When unset, the
+directory defaults to the user's home directory.
 
 =back
 
