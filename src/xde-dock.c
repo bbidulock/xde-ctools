@@ -1272,6 +1272,7 @@ create_dock(XdeScreen *xscr)
 
 	dock = calloc(1, sizeof(*dock));
 	xscr->docks = g_list_append(xscr->docks, dock);
+	dock->xscr = xscr;
 	/* FIXME: we should wait for a window manager before creating the dock */
 	dock->save = XCreateSimpleWindow(dpy, root, -1, -1, 1, 1, 0, black, black);
 	dock->dock = gtk_window_new(GTK_WINDOW_TOPLEVEL);
@@ -2223,9 +2224,9 @@ do_run(int argc, char *argv[], Bool replace)
 		xscr->width = gdk_screen_get_width(xscr->scrn);
 		xscr->height = gdk_screen_get_height(xscr->scrn);
 		gdk_window_add_filter(xscr->root, root_handler, xscr);
-		init_wnck(xscr);
 		init_monitors(xscr);
 		create_dock(xscr);
+		init_wnck(xscr);
 		update_theme(xscr, None);
 	}
 	gtk_main();
