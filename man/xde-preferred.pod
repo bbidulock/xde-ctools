@@ -85,6 +85,25 @@ assumed.  The type may also be chosen by executing F<xde-preferred-I<type>>,
 where I<type> is the type of application to launch.  All options after
 C<--> are passed directly to the application.
 
+=item B<--list>, B<-L> I<TYPE>
+
+List the application identifiers of the applications which claims to
+support content or application type, I<TYPE>, whether exactly, or by
+sub-classing.  The default application is listed first, followed by the
+recommended application and the remaining applications.
+
+=item B<--default>, B<-d> I<TYPE>
+
+List the application identifier of the default application for content
+or application type, I<TYPE>.  If no default has been set for the type,
+nothing is listed.
+
+=item B<--recommended>, B<-r> I<TYPE>
+
+List the application identifier of the recommended (last used)
+application for content or application type, I<TYPE>.  If no recommended
+or last used application exists for the type, nothing is listed.
+
 =item B<--set>, B<-s> [I<TYPE> I<APPID>]
 
 Sets the preferred application type, I<TYPE>, to the application
