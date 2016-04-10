@@ -436,6 +436,10 @@ main(int argc, char *argv[])
 			if (command == CommandDefault)
 				command = CommandListAll;
 			options.command = CommandListAll;
+			if (optarg) {
+				free(options.type);
+				options.type = strdup(optarg);
+			}
 			break;
 		case 'u':	/* -u, --default [TYPE] */
 			if (options.command != CommandDefault)
@@ -443,6 +447,10 @@ main(int argc, char *argv[])
 			if (command == CommandDefault)
 				command = CommandListDefault;
 			options.command = CommandListDefault;
+			if (optarg) {
+				free(options.type);
+				options.type = strdup(optarg);
+			}
 			break;
 		case 'r':	/* -r, --recommended [TYPE] */
 			if (options.command != CommandDefault)
@@ -450,6 +458,10 @@ main(int argc, char *argv[])
 			if (command == CommandDefault)
 				command = CommandListLast;
 			options.command = CommandListLast;
+			if (optarg) {
+				free(options.type);
+				options.type = strdup(optarg);
+			}
 			break;
 		case 'S':	/* -S, --set [TYPE APPID] */
 			if (options.command != CommandDefault)
@@ -457,6 +469,10 @@ main(int argc, char *argv[])
 			if (command == CommandDefault)
 				command = CommandSet;
 			options.command = CommandSet;
+			if (optarg) {
+				free(options.type);
+				options.type = strdup(optarg);
+			}
 			break;
 		case 'e':	/* -e, --edit */
 			if (options.command != CommandDefault)
@@ -549,7 +565,7 @@ main(int argc, char *argv[])
 	DPRINTF("%s: option index = %d\n", argv[0], optind);
 	DPRINTF("%s: option count = %d\n", argv[0], argc);
 	if (optind < argc) {
-		if (command != CommandLaunch) {
+		if (command != CommandLaunch && command != CommandSet) {
 			EPRINTF("%s: excess non-option arguments near '", argv[0]);
 			while (optind < argc) {
 				fprintf(stderr, "%s", argv[optind++]);
