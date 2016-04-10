@@ -316,11 +316,27 @@ Options:\n\
 void
 set_defaults(void)
 {
+	const char *env;
+
+	if ((env = getenv("DISPLAY")))
+		options.display = strdup(env);
 }
 
 void
 get_defaults(void)
 {
+	const char *p;
+	int n;
+
+	if (!options.display) {
+		EPRINTF("No DISPLAY environment variable nor --display option\n");
+		exit(EXIT_FAILURE);
+	}
+	if (options.screen < 0 && (p = strrchr(options.display, '.'))
+	    && (n = strspn(++p, "012345689")) && *(p + n) == '\0')
+		options.screen = atoi(p);
+	if (options.command == CommandDefault)
+		options.command = CommandLaunch;
 }
 
 void
