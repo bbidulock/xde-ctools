@@ -142,9 +142,7 @@
 typedef enum {
 	CommandDefault,
 	CommandLaunch,
-	CommandListAll,
-	CommandListDefault,
-	CommandListLast,
+	CommandList,
 	CommandSet,
 	CommandEdit,
 	CommandHelp,
@@ -152,14 +150,24 @@ typedef enum {
 	CommandCopying,
 } Command;
 
+typedef enum {
+	WhichDefault,
+	WhichRecommend,
+	WhichAll,
+} Which;
+
 typedef struct {
 	int debug;
 	int output;
 	char *display;
 	int screen;
 	Command command;
+	Which which;
 	char *type;
+	char *kind;
+	char *category;
 	char *appid;
+	GList *types;
 } Options;
 
 Options options = {
@@ -168,8 +176,12 @@ Options options = {
 	.display = NULL,
 	.screen = -1,
 	.command = CommandDefault,
+	.which = WhichDefault,
 	.type = NULL,
+	.kind = NULL,
+	.category = NULL,
 	.appid = NULL,
+	.types = NULL,
 };
 
 static void
@@ -257,6 +269,20 @@ Usage:\n\
 ", argv[0]);
 }
 
+const char *
+show_which(Which which)
+{
+	switch (which) {
+	case WhichDefault:
+		return ("default");
+	case WhichRecommend:
+		return ("recommend");
+	case WhichAll:
+		return ("all");
+	}
+	return ("???");
+}
+
 static void
 help(int argc, char *argv[])
 {
@@ -298,6 +324,14 @@ Options:\n\
         specify the X display, DISPLAY, to use [default: %4$s]\n\
     -s, --screen SCREEN\n\
         specify the screen number, SCREEN, to use [default: %5$d]\n\
+    -w, --which {default|recommend|all}\n\
+        specify which applications to list or set [default %6$s]\n\
+    -k, --kind KIND\n\
+        specify the kind of application [default: %7$s]\n\
+    -t, --type TYPE[,TYPE]\n\
+        specify the content types [default: %8$s]\n\
+    -g, --category CATEGORY[;CATEGORY]\n\
+        specify the categories [default: %9$s]\n\
     -D, --debug [LEVEL]\n\
         increment or set debug LEVEL [default: %2$d]\n\
         this option may be repeated.\n\
@@ -309,6 +343,10 @@ Options:\n\
 	, options.output
 	, options.display
 	, options.screen
+	, show_which(options.which)
+	, options.kind
+	, options.type
+	, options.category
 );
 	/* *INDENT-ON* */
 }
@@ -346,53 +384,138 @@ check_type(int argc, char *argv[])
 
 	if ((t = options.type)) {
 		if ((p = strchr(options.type, '/'))) {
+			options.types = g_list_append(options.types, t);
 			/* the type is a content-type */
-		} else if (!strcasecmp(t, "browser")) {
-		} else if (!strcasecmp(t, "terminal")) {
-		} else if (!strcasecmp(t, "filemanager")) {
-		} else if (!strcasecmp(t, "texteditor")) {
-		} else if (!strcasecmp(t, "imageviewer")) {
-		} else if (!strcasecmp(t, "pdfviewer")) {
+		} else if (!strcasecmp(t, "calendar")		|| !strcmp(t, "Calendar")) {
+			options.types = g_list_append(options.types, "text/calendar");
+		} else if (!strcasecmp(t, "addressbook")	|| !strcmp(t, "ContactManager")) {
+			options.types = g_list_append(options.types, "text/x-vcard");
+		} else if (!strcasecmp(t, "dictionary")		|| !strcmp(t, "Dictionary")) {
+		} else if (!strcasecmp(t, "mailer")		|| !strcmp(t, "Email")) {
+			options.types = g_list_append(options.types, "application/mbox");
+			options.types = g_list_append(options.types, "message/rfc822");
+			options.types = g_list_append(options.types, "x-scheme-handler/mailto");
+		} else if (					   !strcmp(t, "Presentation")) {
+			options.types = g_list_append(options.types, "application/vnd.oasis.opendocument.presentation");
+			options.types = g_list_append(options.types, "application/mspowerpoint");
+			options.types = g_list_append(options.types, "application/vnd.ms-powerpoint");
+			options.types = g_list_append(options.types, "application/vnd.sun.xml.impress");
+			options.types = g_list_append(options.types, "application/vnd.openxmlformats-officedocument.presetnationml.presentation");
+			options.types = g_list_append(options.types, "application/vnd.ms-powerpoint.slideshow.macroEnabled.12");
+			options.types = g_list_append(options.types, "application/vnd.ms-powerpoint.presentation.macroEnabled.12");
+		} else if (					   !strcmp(t, "Spreadsheet")) {
+			options.types = g_list_append(options.types, "application/vnd.oasis.opendocument.spreadsheet");
+			options.types = g_list_append(options.types, "application/vnd.sun.xml.calc");
+			options.types = g_list_append(options.types, "application/msexcel");
+			options.types = g_list_append(options.types, "application/vnd.ms-excel");
+			options.types = g_list_append(options.types, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+			options.types = g_list_append(options.types, "application/csv");
+			options.types = g_list_append(options.types, "application/excel");
+			options.types = g_list_append(options.types, "application/tab-separated-values");
+			options.types = g_list_append(options.types, "application/vnd.lotus-1-2-3");
+			options.types = g_list_append(options.types, "application/x-dbase");
+			options.types = g_list_append(options.types, "application/x-dos_ms_excel");
+			options.types = g_list_append(options.types, "application/x-excel");
+			options.types = g_list_append(options.types, "application/x-msexcel");
+			options.types = g_list_append(options.types, "application/x-ms-excel");
+			options.types = g_list_append(options.types, "application/x-quattropro");
+			options.types = g_list_append(options.types, "application/x-123");
+			options.types = g_list_append(options.types, "text/comma-separated-values");
+			options.types = g_list_append(options.types, "text/tab-separated-values");
+			options.types = g_list_append(options.types, "text/x-comma-separated-values");
+			options.types = g_list_append(options.types, "text/x-csv");
+			options.types = g_list_append(options.types, "application/vnd.oasis.opendocument.spreadsheet-flat-xml");
+		} else if (					   !strcmp(t, "WordProcessor")) {
+			options.types = g_list_append(options.types, "application/vnd.oasis.opendocument.text-template");
+			options.types = g_list_append(options.types, "application/vnd.oasis.opendocument.text-web");
+			options.types = g_list_append(options.types, "application/vnd.oasis.opendocument.text-master");
+			options.types = g_list_append(options.types, "application/vnd.sun.xml.writer");
+			options.types = g_list_append(options.types, "application/vnd.sun.xml.writer.template");
+			options.types = g_list_append(options.types, "application/vnd.sun.xml.writer.global");
+			options.types = g_list_append(options.types, "application/msword");
+			options.types = g_list_append(options.types, "application/vnd.ms-word");
+			options.types = g_list_append(options.types, "application/vnd.wordperfect");
+			options.types = g_list_append(options.types, "application/wordperfect");
+			options.types = g_list_append(options.types, "application/vnd.lotus-wordpro");
+			options.types = g_list_append(options.types, "application/vnd.openxmlformats-officedocument.wordprocessingml.document");
+			options.types = g_list_append(options.types, "application/vnd.ms-word.document.macroenabled.12");
+			options.types = g_list_append(options.types, "application/vnd.openxmlformats-officedocument.wordprocessingml.template");
+			options.types = g_list_append(options.types, "application/vnd.ms-word.template.macroenabled.12");
+			options.types = g_list_append(options.types, "application/vnd.ms-works");
+			options.types = g_list_append(options.types, "application/vnd.stardivision.write-global");
+			options.types = g_list_append(options.types, "application/x-extension-text");
+			options.types = g_list_append(options.types, "application/x-t602");
+			options.types = g_list_append(options.types, "text/plain");
+			options.types = g_list_append(options.types, "application/vnd.oasis.opendocument.text-flat-xml");
+			options.types = g_list_append(options.types, "application/x-fictionbook+xml");
+			options.types = g_list_append(options.types, "application/macwriteii");
+			options.types = g_list_append(options.types, "application/x-aportisdoc");
+			options.types = g_list_append(options.types, "application/prs.plucker");
+			options.types = g_list_append(options.types, "application/vnd.palm");
+			options.types = g_list_append(options.types, "application/carisworks");
+		} else if (!strcasecmp(t, "imageviewer")	|| !strcmp(t, "2DGraphics")) {
+			options.types = g_list_append(options.types, "image/gif");
+			options.types = g_list_append(options.types, "image/jpeg");
+			options.types = g_list_append(options.types, "image/jpg");
+			options.types = g_list_append(options.types, "image/pjpeg");
+			options.types = g_list_append(options.types, "image/png");
+			options.types = g_list_append(options.types, "image/tiff");
+			options.types = g_list_append(options.types, "image/x-bmp");
+			options.types = g_list_append(options.types, "image/x-pcx");
+			options.types = g_list_append(options.types, "image/x-png");
+			options.types = g_list_append(options.types, "image/x-portable-anymap");
+			options.types = g_list_append(options.types, "image/x-portable-bitmap");
+			options.types = g_list_append(options.types, "image/x-portable-graymap");
+			options.types = g_list_append(options.types, "image/x-portable-pixmap");
+			options.types = g_list_append(options.types, "image/x-tga");
+			options.types = g_list_append(options.types, "image/x-xbitmap");
+		} else if (!strcasecmp(t, "pdfviewer")		|| !strcmp(t, "Viewer")) {
+			options.types = g_list_append(options.types, "application/pdf");
+		} else if (					   !strcmp(t, "Printing")) {
+		} else if (					   !strcmp(t, "PackageManager")) {
+			options.types = g_list_append(options.types, "application/x-rpm");
+			options.types = g_list_append(options.types, "application/x-urpmi");
+			options.types = g_list_append(options.types, "application/x-urpmi-media");
+			options.types = g_list_append(options.types, "application/x-deb");
+			options.types = g_list_append(options.types, "application/x-debian-package");
+		} else if (!strcasecmp(t, "chat")		|| !strcmp(t, "IRCClient")) {
+		} else if (					   !strcmp(t, "Feed")) {
+			options.types = g_list_append(options.types, "application/rss+xml");
+		} else if (					   !strcmp(t, "FileTransfer")) {
+			options.types = g_list_append(options.types, "application/x-bittorrent");
+		} else if (					   !strcmp(t, "News")) {
+		} else if (					   !strcmp(t, "RemoteAccess")) {
+			options.types = g_list_append(options.types, "application/x-remote-connection");
+			options.types = g_list_append(options.types, "x-scheme-handler/vnc");
+		} else if (!strcasecmp(t, "phone")		|| !strcmp(t, "Telephony")) {
+		} else if (!strcasecmp(t, "conference")		|| !strcmp(t, "VideoConference")) {
+		} else if (!strcasecmp(t, "browser")		|| !strcmp(t, "WebBrowser")) {
+			options.types = g_list_append(options.types, "application/xxx");
+			options.types = g_list_append(options.types, "application/xxx");
+			options.types = g_list_append(options.types, "application/xxx");
+			options.types = g_list_append(options.types, "application/xxx");
+			options.types = g_list_append(options.types, "application/xxx");
+			options.types = g_list_append(options.types, "application/xxx");
+			options.types = g_list_append(options.types, "application/xxx");
+			options.types = g_list_append(options.types, "application/xxx");
+			options.types = g_list_append(options.types, "application/xxx");
+			options.types = g_list_append(options.types, "application/xxx");
+			options.types = g_list_append(options.types, "application/xxx");
+		} else if (!strcasecmp(t, "audiomixer")		|| !strcmp(t, "Mixer")) {
+		} else if (!strcasecmp(t, "audioplayer")	|| !strcmp(t, "Player")) {
+		} else if (!strcasecmp(t, "movieplayer")	|| !strcmp(t, "Player")) {
+		} else if (					   !strcmp(t, "Recorder")) {
+		} else if (					   !strcmp(t, "Archiving")) {
+		} else if (					   !strcmp(t, "DiscBurining")) {
+		} else if (!strcasecmp(t, "filemanager")	|| !strcmp(t, "FileManager")) {
+		} else if (!strcasecmp(t, "terminal")		|| !strcmp(t, "TerminalEmulator")) {
+		} else if (					   !strcmp(t, "Monitor")) {
+		} else if (!strcasecmp(t, "calculator")		|| !strcmp(t, "Calculator")) {
+		} else if (!strcasecmp(t, "clock")		|| !strcmp(t, "Clock")) {
+		} else if (!strcasecmp(t, "texteditor")		|| !strcmp(t, "TextEditor")) {
+		} else if (					   !strcmp(t, "Documentation")) {
 		} else if (!strcasecmp(t, "screensaver")) {
-		} else if (!strcasecmp(t, "audioplayer")) {
-		} else if (!strcasecmp(t, "movieplayer")) {
-		} else if (!strcasecmp(t, "mailer")) {
-		} else if (!strcasecmp(t, "calendar")) {
-		} else if (!strcasecmp(t, "audiomixer")) {
-		} else if (!strcasecmp(t, "chat")) {
-		} else if (!strcasecmp(t, "phone")) {
 		} else if (!strcasecmp(t, "screenshot")) {
-		} else if (!strcmp(t, "Calendar")) {
-		} else if (!strcmp(t, "ContactManager")) {
-		} else if (!strcmp(t, "Dictionary")) {
-		} else if (!strcmp(t, "Email")) {
-		} else if (!strcmp(t, "Presentation")) {
-		} else if (!strcmp(t, "Spreadsheet")) {
-		} else if (!strcmp(t, "WordProcessor")) {
-		} else if (!strcmp(t, "2DGraphics")) {
-		} else if (!strcmp(t, "Viewer")) {
-		} else if (!strcmp(t, "Printing")) {
-		} else if (!strcmp(t, "PackageManager")) {
-		} else if (!strcmp(t, "IRCClient")) {
-		} else if (!strcmp(t, "Feed")) {
-		} else if (!strcmp(t, "FileTransfer")) {
-		} else if (!strcmp(t, "News")) {
-		} else if (!strcmp(t, "RemoteAccess")) {
-		} else if (!strcmp(t, "Telephony")) {
-		} else if (!strcmp(t, "VideoConference")) {
-		} else if (!strcmp(t, "WebBrowser")) {
-		} else if (!strcmp(t, "Mixer")) {
-		} else if (!strcmp(t, "Player")) {
-		} else if (!strcmp(t, "Recorder")) {
-		} else if (!strcmp(t, "DiscBurining")) {
-		} else if (!strcmp(t, "Archiving")) {
-		} else if (!strcmp(t, "FileManager")) {
-		} else if (!strcmp(t, "TerminalEmulator")) {
-		} else if (!strcmp(t, "Monitor")) {
-		} else if (!strcmp(t, "Calculator")) {
-		} else if (!strcmp(t, "Clock")) {
-		} else if (!strcmp(t, "TextEditor")) {
-		} else if (!strcmp(t, "Documentation")) {
 		} else {
 			EPRINTF("%s: unrecognized type %s\n", argv[0], t);
 			exit(EXIT_SYNTAXERR);
@@ -414,17 +537,7 @@ do_launch(int argc, char *argv[])
 }
 
 void
-do_listall(int argc, char *argv[])
-{
-}
-
-void
-do_listdef(int argc, char *argv[])
-{
-}
-
-void
-do_listlast(int argc, char *argv[])
+do_list(int argc, char *argv[])
 {
 }
 
@@ -454,15 +567,17 @@ main(int argc, char *argv[])
 		int option_index = 0;
 		/* *INDENT-OFF* */
 		static struct option long_options[] = {
-			{"launch",	optional_argument,	NULL,	'l'},
-			{"list",	optional_argument,	NULL,	'L'},
-			{"default",	optional_argument,	NULL,	'u'},
-			{"recommended",	optional_argument,	NULL,	'r'},
-			{"set",		optional_argument,	NULL,	'S'},
+			{"launch",	no_argument,		NULL,	'l'},
+			{"list",	no_argument,		NULL,	'L'},
+			{"set",		no_argument,		NULL,	'S'},
 			{"edit",	no_argument,		NULL,	'e'},
 
 			{"display",	required_argument,	NULL,	'd'},
 			{"screen",	required_argument,	NULL,	's'},
+			{"which",	required_argument,	NULL,	'w'},
+			{"kind",	required_argument,	NULL,	'k'},
+			{"type",	required_argument,	NULL,	't'},
+			{"category",	required_argument,	NULL,	'g'},
 
 			{"debug",	optional_argument,	NULL,	'D'},
 			{"verbose",	optional_argument,	NULL,	'v'},
@@ -474,10 +589,10 @@ main(int argc, char *argv[])
 		};
 		/* *INDENT-ON* */
 
-		c = getopt_long_only(argc, argv, "l::L::u::r::S::ed:s:D::v::hVCH?",
+		c = getopt_long_only(argc, argv, "lLSed:s:w:k:t:g:D::v::hVCH?",
 				     long_options, &option_index);
 #else				/* _GNU_SOURCE */
-		c = getopt(argc, argv, "lLurSed:s:DvhVCH?");
+		c = getopt(argc, argv, "lLSed:s:w:k:t:g:DvhVCH?");
 #endif				/* _GNU_SOURCE */
 		if (c == -1) {
 			DPRINTF("%s: done options processing\n", argv[0]);
@@ -498,36 +613,8 @@ main(int argc, char *argv[])
 			if (options.command != CommandDefault)
 				goto bad_option;
 			if (command == CommandDefault)
-				command = CommandListAll;
-			options.command = CommandListAll;
-			if (optarg) {
-				free(options.type);
-				options.type = strdup(optarg);
-			} else if (argv[optind] && argv[optind][0] != '-') {
-				free(options.type);
-				options.type = strdup(argv[optind++]);
-			}
-			break;
-		case 'u':	/* -u, --default [TYPE] */
-			if (options.command != CommandDefault)
-				goto bad_option;
-			if (command == CommandDefault)
-				command = CommandListDefault;
-			options.command = CommandListDefault;
-			if (optarg) {
-				free(options.type);
-				options.type = strdup(optarg);
-			} else if (argv[optind] && argv[optind][0] != '-') {
-				free(options.type);
-				options.type = strdup(argv[optind++]);
-			}
-			break;
-		case 'r':	/* -r, --recommended [TYPE] */
-			if (options.command != CommandDefault)
-				goto bad_option;
-			if (command == CommandDefault)
-				command = CommandListLast;
-			options.command = CommandListLast;
+				command = CommandList;
+			options.command = CommandList;
 			if (optarg) {
 				free(options.type);
 				options.type = strdup(optarg);
@@ -567,6 +654,73 @@ main(int argc, char *argv[])
 			options.screen = strtoul(optarg, &endptr, 0);
 			if (endptr && *endptr)
 				goto bad_option;
+			break;
+		case 'w':	/* -w, --which {default|recommend|all} */
+			if (!strncasecmp(optarg, "default", strlen(optarg))) {
+				options.which = WhichDefault;
+			} else
+			if (!strncasecmp(optarg, "recommend", strlen(optarg))) {
+				options.which = WhichRecommend;
+			} else
+			if (!strncasecmp(optarg, "all", strlen(optarg))) {
+				options.which = WhichAll;
+			} else
+				goto bad_option;
+			break;
+		case 'k':
+			free(options.kind);
+			options.kind = NULL;
+			if (!strcasecmp(optarg, "browser")) {
+			} else
+			if (!strcasecmp(optarg, "browser")) {
+			} else
+			if (!strcasecmp(optarg, "browser")) {
+			} else
+			if (!strcasecmp(optarg, "browser")) {
+			} else
+			if (!strcasecmp(optarg, "browser")) {
+			} else
+			if (!strcasecmp(optarg, "browser")) {
+			} else
+			if (!strcasecmp(optarg, "browser")) {
+			} else
+			if (!strcasecmp(optarg, "browser")) {
+			} else
+			if (!strcasecmp(optarg, "browser")) {
+			} else
+			if (!strcasecmp(optarg, "browser")) {
+			} else
+			if (!strcasecmp(optarg, "browser")) {
+			} else
+			if (!strcasecmp(optarg, "browser")) {
+			} else
+			if (!strcasecmp(optarg, "browser")) {
+			} else
+			if (!strcasecmp(optarg, "browser")) {
+			} else
+			if (!strcasecmp(optarg, "browser")) {
+			} else
+			if (!strcasecmp(optarg, "browser")) {
+			} else
+			if (!strcasecmp(optarg, "browser")) {
+			} else
+			if (!strcasecmp(optarg, "browser")) {
+			} else
+			if (!strcasecmp(optarg, "browser")) {
+			} else
+			if (!strcasecmp(optarg, "browser")) {
+			} else
+			if (!strcasecmp(optarg, "browser")) {
+			} else
+				goto bad_option;
+			break;
+		case 't':
+			free(options.type);
+			options.type = strdup(optarg);
+			break;
+		case 'g':
+			free(options.category);
+			options.category = strdup(optarg);
 			break;
 
 		case 'D':       /* -D, --debug [LEVEL] */
@@ -662,17 +816,9 @@ main(int argc, char *argv[])
 		DPRINTF("%s: launching application for type\n", argv[0]);
 		do_launch(argc, argv);
 		break;
-	case CommandListAll:
+	case CommandList:
 		DPRINTF("%s: listing all applications for type\n", argv[0]);
-		do_listall(argc, argv);
-		break;
-	case CommandListDefault:
-		DPRINTF("%s: listing default applications for type\n", argv[0]);
-		do_listdef(argc, argv);
-		break;
-	case CommandListLast:
-		DPRINTF("%s: listing last applications for type\n", argv[0]);
-		do_listlast(argc, argv);
+		do_list(argc, argv);
 		break;
 	case CommandSet:
 		DPRINTF("%s: setting application for type\n", argv[0]);
