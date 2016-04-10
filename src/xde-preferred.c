@@ -153,8 +153,45 @@ typedef enum {
 typedef enum {
 	WhichDefault,
 	WhichRecommend,
+	WhichOther,
 	WhichAll,
 } Which;
+
+typedef enum {
+	KindDefault,
+	KindTerminalEmulator,
+	KindWebBrowser,
+	KindMailReader,
+	KindFileManager,
+	KindTextEditor,
+	KindScreenSaver,
+	KindAudioMixer,
+	KindAudioPlayer,
+	KindVideoPlayer,
+	KindCalculator,
+	KindNone,
+} Kind;
+
+typedef struct {
+	const char *kind;
+	const char *category;
+	const char *type;
+} KindSpec;
+
+KindSpec kinds[] = {
+	[KindDefault]			= { "default",		NULL,			NULL			},
+	[KindTerminalEmulator]		= { "terminal",		"TerminalEmulator",	NULL			},
+	[KindWebBrowser]		= { "browser",		"WebBrowser",		"text/html"		},
+	[KindMailReader]		= { "mailer",		"MailReader",		"message/rfc822"	},
+	[KindFileManager]		= { "filemanager",	"FileManager",		"inode/directory"	},
+	[KindTextEditor]		= { "editor",		"TextEditor",		"text/plain"		},
+	[KindScreenSaver]		= { "screensaver",	"ScreenSaver",		NULL			},
+	[KindAudioMixer]		= { "mixer",		"AudioMixer",		NULL			},
+	[KindAudioPlayer]		= { "player",		"AudioPlayer",		NULL			},
+	[KindVideoPlayer]		= { "movie",		"VideoPlayer",		NULL			},
+	[KindCalculator]		= { "calculator",	"Calculator",		NULL			},
+	[KindNone]			= { NULL,		NULL,			NULL			}
+};
 
 typedef struct {
 	int debug;
@@ -163,9 +200,9 @@ typedef struct {
 	int screen;
 	Command command;
 	Which which;
-	char *type;
-	char *kind;
+	Kind kind;
 	char *category;
+	char *type;
 	char *appid;
 	GList *types;
 } Options;
@@ -177,9 +214,9 @@ Options options = {
 	.screen = -1,
 	.command = CommandDefault,
 	.which = WhichDefault,
-	.type = NULL,
-	.kind = NULL,
+	.kind = KindDefault,
 	.category = NULL,
+	.type = NULL,
 	.appid = NULL,
 	.types = NULL,
 };
@@ -258,11 +295,9 @@ usage(int argc, char *argv[])
 	(void) fprintf(stderr, "\
 Usage:\n\
     %1$s [-l|--launch] [OPTIONS] [TYPE] -- [APP_OPTIONS]\n\
-    %1$s {-L|--list} [TYPE]\n\
-    %1$s {-u|--default} [TYPE]\n\
-    %1$s {-r|--recommended} [TYPE]\n\
-    %1$s {-S|--set} [TYPE APPID]\n\
-    %1$s {-e|--edit} [OPTION]\n\
+    %1$s {-L|--list} [OPTIONS]\n\
+    %1$s {-S|--set} [OPTIONS] -- APPID\n\
+    %1$s {-e|--edit} [OPTIONS]\n\
     %1$s {-h|--help}\n\
     %1$s {-V|--version}\n\
     %1$s {-C|--copying}\n\
@@ -277,10 +312,45 @@ show_which(Which which)
 		return ("default");
 	case WhichRecommend:
 		return ("recommend");
+	case WhichOther:
+		return ("other");
 	case WhichAll:
 		return ("all");
 	}
 	return ("???");
+}
+
+const char *
+show_kind(Kind kind)
+{
+	switch (kind) {
+	case KindDefault:
+		return ("default");
+	case KindTerminalEmulator:
+		return ("terminal");
+	case KindWebBrowser:
+		return ("browser");
+	case KindMailReader:
+		return ("mailer");
+	case KindFileManager:
+		return ("filemanager");
+	case KindTextEditor:
+		return ("editor");
+	case KindScreenSaver:
+		return ("screensaver");
+	case KindAudioMixer:
+		return ("mixder");
+	case KindAudioPlayer:
+		return ("player");
+	case KindVideoPlayer:
+		return ("movie");
+	case KindCalculator:
+		return ("calculator");
+	case KindNone:
+		return NULL;
+	default:
+		return ("???");
+	}
 }
 
 static void
@@ -291,26 +361,20 @@ help(int argc, char *argv[])
 	/* *INDENT-OFF* */
 	(void) fprintf(stdout, "\
 Usage:\n\
-    %1$s [-l|--launch] [OPTIONS] [TYPE] -- [APP_OPTIONS]\n\
-    %1$s {-L|--list} [TYPE]\n\
-    %1$s {-u|--default} [TYPE]\n\
-    %1$s {-r|--recommended} [TYPE]\n\
-    %1$s {-S|--set} [TYPE APPID]\n\
-    %1$s {-e|--edit} [OPTION]\n\
-    %1$s {-h|--help} [OPTION]\n\
+    %1$s [-l|--launch] [OPTIONS] -- [APP_OPTIONS]\n\
+    %1$s {-L|--list} [OPTIONS]\n\
+    %1$s {-S|--set} [OPTIONS] -- APPID\n\
+    %1$s {-e|--edit} [OPTIONS]\n\
+    %1$s {-h|--help} [OPTIONS]\n\
     %1$s {-V|--version}\n\
     %1$s {-C|--copying}\n\
 Command options:\n\
-   [-l, --launch] [OPTIONS] [TYPE] -- [APP_OPTIONS]\n\
-        launch the application for the specified type with options\n\
-    -L, --list [TYPE]\n\
-        list applications for the specified type (or all types)\n\
-    -u, --default [TYPE]\n\
-        list default application for type (or all types)\n\
-    -r, --recommended [TYPE]\n\
-        list recommended application for type (or all types)\n\
-    -S, --set [TYPE APPID]\n\
-        set the application for type (or for all types)\n\
+   [-l, --launch] -- [APP_OPTIONS]\n\
+        launch the application for specified type with options\n\
+    -L, --list\n\
+        list applications for specified types\n\
+    -S, --set -- APPID\n\
+        set the application for specified types\n\
     -e, --edit\n\
         launch graphical editor for editing types\n\
     -h, --help, -?, --?\n\
@@ -324,8 +388,8 @@ Options:\n\
         specify the X display, DISPLAY, to use [default: %4$s]\n\
     -s, --screen SCREEN\n\
         specify the screen number, SCREEN, to use [default: %5$d]\n\
-    -w, --which {default|recommend|all}\n\
-        specify which applications to list or set [default %6$s]\n\
+    -w, --which {default|recommend|other|all}\n\
+        specify which applications to list or set [default: %6$s]\n\
     -k, --kind KIND\n\
         specify the kind of application [default: %7$s]\n\
     -t, --type TYPE[,TYPE]\n\
@@ -344,7 +408,7 @@ Options:\n\
 	, options.display
 	, options.screen
 	, show_which(options.which)
-	, options.kind
+	, show_kind(options.kind)
 	, options.type
 	, options.category
 );
@@ -358,6 +422,9 @@ set_defaults(void)
 
 	if ((env = getenv("DISPLAY")))
 		options.display = strdup(env);
+	options.kind = KindDefault;
+	options.type = strdup("text/html");
+	options.category = strdup("WebBrowser");
 }
 
 void
@@ -539,6 +606,10 @@ do_launch(int argc, char *argv[])
 void
 do_list(int argc, char *argv[])
 {
+	if (!options.type && !options.category) {
+		EPRINTF("%s: must specify content type or category\n", argv[0]);
+		exit(EXIT_SYNTAXERR);
+	}
 }
 
 void
@@ -560,7 +631,7 @@ main(int argc, char *argv[])
 	set_defaults();
 
 	while (1) {
-		int c, val;
+		int c, val, k;
 		char *endptr = NULL;
 
 #ifdef _GNU_SOURCE
@@ -602,40 +673,26 @@ main(int argc, char *argv[])
 		case 0:
 			goto bad_usage;
 
-		case 'l':	/* -l, --launch [TYPE] -- [APP_OPTIONS] */
+		case 'l':	/* -l, --launch -- [APP_OPTIONS] */
 			if (options.command != CommandDefault)
 				goto bad_option;
 			if (command == CommandDefault)
 				command = CommandLaunch;
 			options.command = CommandLaunch;
 			break;
-		case 'L':	/* -L, --list [TYPE] */
+		case 'L':	/* -L, --list */
 			if (options.command != CommandDefault)
 				goto bad_option;
 			if (command == CommandDefault)
 				command = CommandList;
 			options.command = CommandList;
-			if (optarg) {
-				free(options.type);
-				options.type = strdup(optarg);
-			} else if (argv[optind] && argv[optind][0] != '-') {
-				free(options.type);
-				options.type = strdup(argv[optind++]);
-			}
 			break;
-		case 'S':	/* -S, --set [TYPE APPID] */
+		case 'S':	/* -S, --set -- APPID */
 			if (options.command != CommandDefault)
 				goto bad_option;
 			if (command == CommandDefault)
 				command = CommandSet;
 			options.command = CommandSet;
-			if (optarg) {
-				free(options.type);
-				options.type = strdup(optarg);
-			} else if (argv[optind] && argv[optind][0] != '-') {
-				free(options.type);
-				options.type = strdup(argv[optind++]);
-			}
 			break;
 		case 'e':	/* -e, --edit */
 			if (options.command != CommandDefault)
@@ -662,65 +719,74 @@ main(int argc, char *argv[])
 			if (!strncasecmp(optarg, "recommend", strlen(optarg))) {
 				options.which = WhichRecommend;
 			} else
+			if (!strncasecmp(optarg, "other", strlen(optarg))) {
+				options.which = WhichOther;
+			} else
 			if (!strncasecmp(optarg, "all", strlen(optarg))) {
 				options.which = WhichAll;
 			} else
 				goto bad_option;
 			break;
 		case 'k':
-			free(options.kind);
-			options.kind = NULL;
-			if (!strcasecmp(optarg, "browser")) {
-			} else
-			if (!strcasecmp(optarg, "browser")) {
-			} else
-			if (!strcasecmp(optarg, "browser")) {
-			} else
-			if (!strcasecmp(optarg, "browser")) {
-			} else
-			if (!strcasecmp(optarg, "browser")) {
-			} else
-			if (!strcasecmp(optarg, "browser")) {
-			} else
-			if (!strcasecmp(optarg, "browser")) {
-			} else
-			if (!strcasecmp(optarg, "browser")) {
-			} else
-			if (!strcasecmp(optarg, "browser")) {
-			} else
-			if (!strcasecmp(optarg, "browser")) {
-			} else
-			if (!strcasecmp(optarg, "browser")) {
-			} else
-			if (!strcasecmp(optarg, "browser")) {
-			} else
-			if (!strcasecmp(optarg, "browser")) {
-			} else
-			if (!strcasecmp(optarg, "browser")) {
-			} else
-			if (!strcasecmp(optarg, "browser")) {
-			} else
-			if (!strcasecmp(optarg, "browser")) {
-			} else
-			if (!strcasecmp(optarg, "browser")) {
-			} else
-			if (!strcasecmp(optarg, "browser")) {
-			} else
-			if (!strcasecmp(optarg, "browser")) {
-			} else
-			if (!strcasecmp(optarg, "browser")) {
-			} else
-			if (!strcasecmp(optarg, "browser")) {
-			} else
+			for (k = 0; kinds[k].kind; k++) {
+				if (!strncasecmp(optarg, kinds[k].kind, strlen(optarg))) {
+					options.kind = k;
+					free(options.type);
+					options.type = NULL;
+					if (kinds[k].type)
+						options.type = strdup(kinds[k].type);
+					free(options.category);
+					options.category = NULL;
+					if (kinds[k].category)
+						options.category = strdup(kinds[k].category);
+					break;
+				}
+			}
+			if (!kinds[k].kind)
 				goto bad_option;
 			break;
 		case 't':
 			free(options.type);
 			options.type = strdup(optarg);
+			if (options.kind == KindDefault) {
+				for (k = 0; kinds[k].kind; k++) {
+					if (kinds[k].type && !strcasecmp(kinds[k].type, options.type)) {
+						options.kind = k;
+						free(options.category);
+						options.category = NULL;
+						if (kinds[k].category)
+							options.category = strdup(kinds[k].category);
+						break;
+					}
+				}
+				if (!kinds[k].kind) {
+					options.kind = KindNone;
+					free(options.category);
+					options.category = NULL;
+				}
+			}
 			break;
 		case 'g':
 			free(options.category);
 			options.category = strdup(optarg);
+			if (options.kind == KindDefault) {
+				for (k = 0; kinds[k].kind; k++) {
+					if (kinds[k].category && !strcasecmp(kinds[k].category, options.category)) {
+						options.kind = k;
+						free(options.type);
+						options.type = NULL;
+						if (kinds[k].type)
+							options.type = strdup(kinds[k].type);
+						break;
+
+					}
+				}
+				if (!kinds[k].kind) {
+					options.kind = KindNone;
+					free(options.type);
+					options.type = NULL;
+				}
+			}
 			break;
 
 		case 'D':       /* -D, --debug [LEVEL] */
@@ -807,7 +873,7 @@ main(int argc, char *argv[])
 		}
 	}
 	get_defaults();
-	check_type(argc, argv);
+	// check_type(argc, argv);
 	startup(argc, argv);
 	switch (command) {
 	default:
