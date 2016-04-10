@@ -15,7 +15,8 @@ bin_PROGRAMS = \
 	xde-setbg \
 	xde-keys \
 	xde-wkspmenu \
-	xde-places
+	xde-places \
+	xde-preferred
 
 EXTRA_PROGRAMS = \
 	xde-clip
@@ -73,3 +74,7 @@ xde_wkspmenu_SOURCES = xde-wkspmenu.c
 
 xde_places_CPPFLAGS = -DNAME=\"xde-places\"
 xde_places_SOURCES = xde-places.c
+
+xde_preferred_CPPFLAGS = -DNAME=\"xde-preferred\"
+xde_preferred_SOURCES = xde-preferred.c
+
