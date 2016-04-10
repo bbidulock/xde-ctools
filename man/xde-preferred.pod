@@ -79,7 +79,7 @@ B<xde-launch> provides the following command options:
 
 =item [B<--launch>, B<-l>] [I<TYPE>] -- [I<APP_OPTIONS>]
 
-Launches the preffered application of type, I<TYPE> (see
+Launches the preferred application of type, I<TYPE> (see
 L</APPLICATION TYPES>).  When I<TYPE> is not specified, C<terminal> is
 assumed.  The type may also be chosen by executing F<xde-preferred-I<type>>,
 where I<type> is the type of application to launch.  All options after
