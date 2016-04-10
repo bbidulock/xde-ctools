@@ -340,6 +340,70 @@ get_defaults(void)
 }
 
 void
+check_type(int argc, char *argv[])
+{
+	char *t, *p;
+
+	if ((t = options.type)) {
+		if ((p = strchr(options.type, '/'))) {
+			/* the type is a content-type */
+		} else if (!strcasecmp(t, "browser")) {
+		} else if (!strcasecmp(t, "terminal")) {
+		} else if (!strcasecmp(t, "filemanager")) {
+		} else if (!strcasecmp(t, "texteditor")) {
+		} else if (!strcasecmp(t, "imageviewer")) {
+		} else if (!strcasecmp(t, "pdfviewer")) {
+		} else if (!strcasecmp(t, "screensaver")) {
+		} else if (!strcasecmp(t, "audioplayer")) {
+		} else if (!strcasecmp(t, "movieplayer")) {
+		} else if (!strcasecmp(t, "mailer")) {
+		} else if (!strcasecmp(t, "calendar")) {
+		} else if (!strcasecmp(t, "audiomixer")) {
+		} else if (!strcasecmp(t, "chat")) {
+		} else if (!strcasecmp(t, "phone")) {
+		} else if (!strcasecmp(t, "screenshot")) {
+		} else if (!strcmp(t, "Calendar")) {
+		} else if (!strcmp(t, "ContactManager")) {
+		} else if (!strcmp(t, "Dictionary")) {
+		} else if (!strcmp(t, "Email")) {
+		} else if (!strcmp(t, "Presentation")) {
+		} else if (!strcmp(t, "Spreadsheet")) {
+		} else if (!strcmp(t, "WordProcessor")) {
+		} else if (!strcmp(t, "2DGraphics")) {
+		} else if (!strcmp(t, "Viewer")) {
+		} else if (!strcmp(t, "Printing")) {
+		} else if (!strcmp(t, "PackageManager")) {
+		} else if (!strcmp(t, "IRCClient")) {
+		} else if (!strcmp(t, "Feed")) {
+		} else if (!strcmp(t, "FileTransfer")) {
+		} else if (!strcmp(t, "News")) {
+		} else if (!strcmp(t, "RemoteAccess")) {
+		} else if (!strcmp(t, "Telephony")) {
+		} else if (!strcmp(t, "VideoConference")) {
+		} else if (!strcmp(t, "WebBrowser")) {
+		} else if (!strcmp(t, "Mixer")) {
+		} else if (!strcmp(t, "Player")) {
+		} else if (!strcmp(t, "Recorder")) {
+		} else if (!strcmp(t, "DiscBurining")) {
+		} else if (!strcmp(t, "Archiving")) {
+		} else if (!strcmp(t, "FileManager")) {
+		} else if (!strcmp(t, "TerminalEmulator")) {
+		} else if (!strcmp(t, "Monitor")) {
+		} else if (!strcmp(t, "Calculator")) {
+		} else if (!strcmp(t, "Clock")) {
+		} else if (!strcmp(t, "TextEditor")) {
+		} else if (!strcmp(t, "Documentation")) {
+		} else {
+			EPRINTF("%s: unrecognized type %s\n", argv[0], t);
+			exit(EXIT_SYNTAXERR);
+		}
+	} else if (options.command != CommandLaunch && options.command != CommandSet) {
+		EPRINTF("%s: need application type\n", argv[0]);
+		exit(EXIT_SYNTAXERR);
+	}
+}
+
+void
 startup(int argc, char *argv[])
 {
 }
@@ -439,6 +503,9 @@ main(int argc, char *argv[])
 			if (optarg) {
 				free(options.type);
 				options.type = strdup(optarg);
+			} else if (argv[optind] && argv[optind][0] != '-') {
+				free(options.type);
+				options.type = strdup(argv[optind++]);
 			}
 			break;
 		case 'u':	/* -u, --default [TYPE] */
@@ -450,6 +517,9 @@ main(int argc, char *argv[])
 			if (optarg) {
 				free(options.type);
 				options.type = strdup(optarg);
+			} else if (argv[optind] && argv[optind][0] != '-') {
+				free(options.type);
+				options.type = strdup(argv[optind++]);
 			}
 			break;
 		case 'r':	/* -r, --recommended [TYPE] */
@@ -461,6 +531,9 @@ main(int argc, char *argv[])
 			if (optarg) {
 				free(options.type);
 				options.type = strdup(optarg);
+			} else if (argv[optind] && argv[optind][0] != '-') {
+				free(options.type);
+				options.type = strdup(argv[optind++]);
 			}
 			break;
 		case 'S':	/* -S, --set [TYPE APPID] */
@@ -472,6 +545,9 @@ main(int argc, char *argv[])
 			if (optarg) {
 				free(options.type);
 				options.type = strdup(optarg);
+			} else if (argv[optind] && argv[optind][0] != '-') {
+				free(options.type);
+				options.type = strdup(argv[optind++]);
 			}
 			break;
 		case 'e':	/* -e, --edit */
@@ -577,6 +653,7 @@ main(int argc, char *argv[])
 		}
 	}
 	get_defaults();
+	check_type(argc, argv);
 	startup(argc, argv);
 	switch (command) {
 	default:
