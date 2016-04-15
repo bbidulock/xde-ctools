@@ -1,0 +1,38 @@
+=pod
+
+=head1 NAME
+
+xde-open - opens a file or URL in the user's preferred application
+
+=head1 SYNOPSIS
+
+B<xde-open> [I<OPTIONS>] {I<FILE>|I<URL>}
+
+=head1 DESCRIPTION
+
+B<xde-open> is a C<C>-language program that can be used to launch
+default or preferred desktop applications to open a file or URL.
+
+=head1 ARGUMENTS
+
+The program accepts the following arguments:
+
+=over
+
+=back
+
+=head1 AUTHOR
+
+Brian Bidulock L<mailto:bidulock@openss7.org>.
+
+=head1 SEE ALSO
+
+L<getopt_long_only(3)>,
+L<xdg-settings(1)>,
+L<xdg-open(1)>,
+L<xdg-launch(1)>,
+L<xde-launch(1)>.
+
+=cut
+
+# vim: set sw=4 tw=72 nocin spell spelllang=en_ca:
