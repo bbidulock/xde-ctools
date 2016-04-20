@@ -817,8 +817,8 @@ something_changed(WnckScreen *wnck, XdeScreen *xscr)
 {
 	GdkGrabStatus status;
 	GdkDisplay *disp;
-	Display *dpy;
-	Window win;
+	// Display *dpy;
+	// Window win;
 
 	if (!xscr) {
 		EPRINTF("xscr is NULL\n");
@@ -828,7 +828,7 @@ something_changed(WnckScreen *wnck, XdeScreen *xscr)
 	if (!xscr->goodwm)
 		return;
 	disp = gdk_display_get_default();
-	dpy = GDK_DISPLAY_XDISPLAY(disp);
+	// dpy = GDK_DISPLAY_XDISPLAY(disp);
 
 	gdk_display_get_pointer(disp, NULL, NULL, NULL, &xscr->mask);
 	DPRINTF("modifier mask was: 0x%08x\n", xscr->mask);
@@ -837,7 +837,7 @@ something_changed(WnckScreen *wnck, XdeScreen *xscr)
 	gtk_window_set_position(GTK_WINDOW(xscr->popup), GTK_WIN_POS_CENTER_ALWAYS);
 	gtk_window_present(GTK_WINDOW(xscr->popup));
 	gtk_widget_show_now(GTK_WIDGET(xscr->popup));
-	win = GDK_WINDOW_XID(xscr->popup->window);
+	// win = GDK_WINDOW_XID(xscr->popup->window);
 	if (!xscr->pointer) {
 		GdkEventMask mask =
 		    GDK_POINTER_MOTION_MASK |
@@ -846,7 +846,7 @@ something_changed(WnckScreen *wnck, XdeScreen *xscr)
 		    GDK_BUTTON_PRESS_MASK |
 		    GDK_BUTTON_RELEASE_MASK | GDK_ENTER_NOTIFY_MASK | GDK_LEAVE_NOTIFY_MASK;
 		DPRINT();
-		XSetInputFocus(dpy, win, RevertToPointerRoot, CurrentTime);
+		// XSetInputFocus(dpy, win, RevertToPointerRoot, CurrentTime);
 		status = gdk_pointer_grab(xscr->popup->window, TRUE,
 					  mask, NULL, NULL, GDK_CURRENT_TIME);
 		switch (status) {
@@ -869,7 +869,7 @@ something_changed(WnckScreen *wnck, XdeScreen *xscr)
 		}
 	}
 	if (!xscr->keyboard) {
-		XSetInputFocus(dpy, win, RevertToPointerRoot, CurrentTime);
+		// XSetInputFocus(dpy, win, RevertToPointerRoot, CurrentTime);
 		status = gdk_keyboard_grab(xscr->popup->window, TRUE, GDK_CURRENT_TIME);
 		switch (status) {
 		case GDK_GRAB_SUCCESS:
@@ -1032,6 +1032,9 @@ widget_realize(GtkWidget *popup, gpointer user)
 	}
 	DPRINT();
 	gdk_window_add_filter(popup->window, popup_handler, xscr);
+	gdk_window_set_override_redirect(popup->window, TRUE);
+	gdk_window_set_accept_focus(popup->window, FALSE);
+	gdk_window_set_focus_on_map(popup->window, FALSE);
 }
 
 static gboolean
@@ -1306,7 +1309,11 @@ init_window(XdeScreen *xscr)
 	DPRINT();
 	xscr->popup = popup = gtk_window_new(GTK_WINDOW_POPUP);
 	gtk_widget_add_events(popup, GDK_ALL_EVENTS_MASK);
-	gtk_window_set_focus_on_map(GTK_WINDOW(popup), TRUE);
+	/* don't want the window accepting focus: it messes up the window manager's
+	   setting of focus after the desktop has changed... */
+	gtk_window_set_accept_focus(GTK_WINDOW(popup), FALSE);
+	/* no, don't want it acceptin focus when it is mapped either */
+	gtk_window_set_focus_on_map(GTK_WINDOW(popup), FALSE);
 	gtk_window_set_type_hint(GTK_WINDOW(popup), GDK_WINDOW_TYPE_HINT_SPLASHSCREEN);
 	gtk_window_stick(GTK_WINDOW(popup));
 	gtk_window_set_keep_above(GTK_WINDOW(popup), TRUE);
@@ -1325,15 +1332,11 @@ init_window(XdeScreen *xscr)
 	g_signal_connect(G_OBJECT(popup), "enter_notify_event",
 			 G_CALLBACK(enter_notify_event), xscr);
 	g_signal_connect(G_OBJECT(popup), "focus_in_event", G_CALLBACK(focus_in_event), xscr);
-	g_signal_connect(G_OBJECT(popup), "focus_out_event",
-			 G_CALLBACK(focus_out_event), xscr);
-	g_signal_connect(G_OBJECT(popup), "grab_broken_event",
-			 G_CALLBACK(grab_broken_event), xscr);
+	g_signal_connect(G_OBJECT(popup), "focus_out_event", G_CALLBACK(focus_out_event), xscr);
+	g_signal_connect(G_OBJECT(popup), "grab_broken_event", G_CALLBACK(grab_broken_event), xscr);
 	g_signal_connect(G_OBJECT(popup), "grab_focus", G_CALLBACK(grab_focus), xscr);
-	g_signal_connect(G_OBJECT(popup), "key_press_event",
-			 G_CALLBACK(key_press_event), xscr);
-	g_signal_connect(G_OBJECT(popup), "key_release_event",
-			 G_CALLBACK(key_release_event), xscr);
+	g_signal_connect(G_OBJECT(popup), "key_press_event", G_CALLBACK(key_press_event), xscr);
+	g_signal_connect(G_OBJECT(popup), "key_release_event", G_CALLBACK(key_release_event), xscr);
 	g_signal_connect(G_OBJECT(popup), "leave_notify_event",
 			 G_CALLBACK(leave_notify_event), xscr);
 	g_signal_connect(G_OBJECT(popup), "map_event", G_CALLBACK(map_event), xscr);
