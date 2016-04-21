@@ -817,8 +817,6 @@ something_changed(WnckScreen *wnck, XdeScreen *xscr)
 {
 	GdkGrabStatus status;
 	GdkDisplay *disp;
-	// Display *dpy;
-	// Window win;
 
 	if (!xscr) {
 		EPRINTF("xscr is NULL\n");
@@ -828,7 +826,6 @@ something_changed(WnckScreen *wnck, XdeScreen *xscr)
 	if (!xscr->goodwm)
 		return;
 	disp = gdk_display_get_default();
-	// dpy = GDK_DISPLAY_XDISPLAY(disp);
 
 	gdk_display_get_pointer(disp, NULL, NULL, NULL, &xscr->mask);
 	DPRINTF("modifier mask was: 0x%08x\n", xscr->mask);
@@ -837,7 +834,6 @@ something_changed(WnckScreen *wnck, XdeScreen *xscr)
 	gtk_window_set_position(GTK_WINDOW(xscr->popup), GTK_WIN_POS_CENTER_ALWAYS);
 	gtk_window_present(GTK_WINDOW(xscr->popup));
 	gtk_widget_show_now(GTK_WIDGET(xscr->popup));
-	// win = GDK_WINDOW_XID(xscr->popup->window);
 	if (!xscr->pointer) {
 		GdkEventMask mask =
 		    GDK_POINTER_MOTION_MASK |
@@ -846,7 +842,6 @@ something_changed(WnckScreen *wnck, XdeScreen *xscr)
 		    GDK_BUTTON_PRESS_MASK |
 		    GDK_BUTTON_RELEASE_MASK | GDK_ENTER_NOTIFY_MASK | GDK_LEAVE_NOTIFY_MASK;
 		DPRINT();
-		// XSetInputFocus(dpy, win, RevertToPointerRoot, CurrentTime);
 		status = gdk_pointer_grab(xscr->popup->window, TRUE,
 					  mask, NULL, NULL, GDK_CURRENT_TIME);
 		switch (status) {
@@ -869,7 +864,6 @@ something_changed(WnckScreen *wnck, XdeScreen *xscr)
 		}
 	}
 	if (!xscr->keyboard) {
-		// XSetInputFocus(dpy, win, RevertToPointerRoot, CurrentTime);
 		status = gdk_keyboard_grab(xscr->popup->window, TRUE, GDK_CURRENT_TIME);
 		switch (status) {
 		case GDK_GRAB_SUCCESS:
@@ -890,7 +884,6 @@ something_changed(WnckScreen *wnck, XdeScreen *xscr)
 			break;
 		}
 	}
-	// if (!xscr->keyboard || !xscr->pointer)
 	if (!(xscr->mask & ~(GDK_LOCK_MASK | GDK_BUTTON1_MASK |
 			     GDK_BUTTON2_MASK | GDK_BUTTON3_MASK)))
 		if (!xscr->inside)
