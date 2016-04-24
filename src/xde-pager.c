@@ -790,13 +790,19 @@ release_grabs(XdeScreen *xscr)
 {
 	DPRINT();
 	if (xscr->pointer) {
+#if 0
+		/* will be broken when window unmaps */
 		DPRINTF("ungrabbing pointer\n");
 		gdk_display_pointer_ungrab(xscr->disp, GDK_CURRENT_TIME);
+#endif
 		xscr->pointer = False;
 	}
 	if (xscr->keyboard) {
+#if 0
+		/* will be broken when window unmaps */
 		DPRINTF("ungrabbing keyboard\n");
 		gdk_display_keyboard_ungrab(xscr->disp, GDK_CURRENT_TIME);
+#endif
 		xscr->keyboard = False;
 	}
 }
@@ -1068,9 +1074,13 @@ enter_notify_event(GtkWidget *widget, GdkEvent *event, gpointer user)
 		exit(EXIT_FAILURE);
 	}
 	DPRINT();
+#if 1
 	(void) xscr;
-	// stop_popup_timer(xscr);
-	// xscr->inside = True;
+#else
+	/* currently done by event handler, but considering grab */
+	stop_popup_timer(xscr);
+	xscr->inside = True;
+#endif
 	return FALSE;
 }
 
@@ -1157,9 +1167,13 @@ leave_notify_event(GtkWidget *widget, GdkEvent *event, gpointer user)
 		exit(EXIT_FAILURE);
 	}
 	DPRINT();
+#if 1
 	(void) xscr;
-	// start_popup_timer(xscr);
-	// xscr->inside = False;
+#else
+	/* currently done by event handler, but considering grab */
+	start_popup_timer(xscr);
+	xscr->inside = False;
+#endif
 	return FALSE;
 }
 
@@ -1318,20 +1332,16 @@ init_window(XdeScreen *xscr)
 #endif
 	gtk_container_set_border_width(GTK_CONTAINER(popup), options.border);
 
-	g_signal_connect(G_OBJECT(popup), "button_press_event",
-			 G_CALLBACK(button_press_event), xscr);
-	g_signal_connect(G_OBJECT(popup), "button_release_event",
-			 G_CALLBACK(button_release_event), xscr);
-	g_signal_connect(G_OBJECT(popup), "enter_notify_event",
-			 G_CALLBACK(enter_notify_event), xscr);
+	g_signal_connect(G_OBJECT(popup), "button_press_event", G_CALLBACK(button_press_event), xscr);
+	g_signal_connect(G_OBJECT(popup), "button_release_event", G_CALLBACK(button_release_event), xscr);
+	g_signal_connect(G_OBJECT(popup), "enter_notify_event", G_CALLBACK(enter_notify_event), xscr);
 	g_signal_connect(G_OBJECT(popup), "focus_in_event", G_CALLBACK(focus_in_event), xscr);
 	g_signal_connect(G_OBJECT(popup), "focus_out_event", G_CALLBACK(focus_out_event), xscr);
 	g_signal_connect(G_OBJECT(popup), "grab_broken_event", G_CALLBACK(grab_broken_event), xscr);
 	g_signal_connect(G_OBJECT(popup), "grab_focus", G_CALLBACK(grab_focus), xscr);
 	g_signal_connect(G_OBJECT(popup), "key_press_event", G_CALLBACK(key_press_event), xscr);
 	g_signal_connect(G_OBJECT(popup), "key_release_event", G_CALLBACK(key_release_event), xscr);
-	g_signal_connect(G_OBJECT(popup), "leave_notify_event",
-			 G_CALLBACK(leave_notify_event), xscr);
+	g_signal_connect(G_OBJECT(popup), "leave_notify_event", G_CALLBACK(leave_notify_event), xscr);
 	g_signal_connect(G_OBJECT(popup), "map_event", G_CALLBACK(map_event), xscr);
 	g_signal_connect(G_OBJECT(popup), "realize", G_CALLBACK(widget_realize), xscr);
 	g_signal_connect(G_OBJECT(popup), "scroll_event", G_CALLBACK(scroll_event), xscr);
