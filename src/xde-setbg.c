@@ -941,6 +941,8 @@ static void
 create_monitor(XdeScreen *xscr, XdeMonitor *mon, int m)
 {
 	memset(mon, 0, sizeof(*mon));
+	mon->index = m;
+	gdk_screen_get_monitor_geometry(xscr->scrn, m, &mon->geom);
 }
 
 static void
@@ -953,9 +955,17 @@ update_monitor(XdeScreen *xscr, XdeMonitor *mon, int m)
 {
 }
 
+static void update_root_pixmap(XdeScreen *xscr, Atom prop);
+static void update_layout(XdeScreen *xscr, Atom prop);
+static void update_theme(XdeScreen *xscr, Atom prop);
+
 static void
 update_screen(XdeScreen *xscr)
 {
+	update_root_pixmap(xscr, None);
+	update_layout(xscr, None);
+	update_current_desktop(xscr, None);
+	update_theme(xscr, None);
 }
 
 static void
@@ -1118,8 +1128,6 @@ init_wnck(XdeScreen *xscr)
 
 static GdkFilterReturn selwin_handler(GdkXEvent *xevent, GdkEvent *event, gpointer data);
 static GdkFilterReturn root_handler(GdkXEvent *xevent, GdkEvent *event, gpointer data);
-static void update_layout(XdeScreen *xscr, Atom prop);
-static void update_theme(XdeScreen *xscr, Atom prop);
 
 static void
 do_run(int argc, char *argv[], Bool replace)
