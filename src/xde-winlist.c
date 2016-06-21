@@ -258,6 +258,13 @@ selection_done(GtkMenuShell *menushell, gpointer user_data)
 }
 
 void
+showdesk_activate(GtkMenuItem *item, gpointer user_data)
+{
+	OPRINTF("Menu item [%s] activated\n", gtk_menu_item_get_label(GTK_MENU_ITEM(item)));
+	wnck_screen_toggle_showing_desktop(user_data, !wnck_screen_get_showing_desktop(user_data));
+}
+
+void
 workspace_activate(GtkMenuItem *item, gpointer user_data)
 {
 	OPRINTF("Menu item [%s] activated\n", gtk_menu_item_get_label(GTK_MENU_ITEM(item)));
@@ -506,11 +513,18 @@ popup_menu_new(WnckScreen *scrn)
 	g_signal_connect(G_OBJECT(menu), "key_press_event", G_CALLBACK(window_menu_key_press), NULL);
 	g_signal_connect(G_OBJECT(menu), "selection_done", G_CALLBACK(selection_done), NULL);
 	workspaces = wnck_screen_get_workspaces(scrn);
-	icon = gtk_image_new_from_icon_name("perlpanel-applet-showdesktop", GTK_ICON_SIZE_MENU);
-	item = gtk_image_menu_item_new_with_label("Show Desktop");
+	if (wnck_screen_get_showing_desktop(scrn)) {
+		/* might want a different icon here */
+		icon = gtk_image_new_from_icon_name("view-restore", GTK_ICON_SIZE_MENU);
+		item = gtk_image_menu_item_new_with_label("Restore Desktop");
+	} else {
+		icon = gtk_image_new_from_icon_name("perlpanel-applet-showdesktop", GTK_ICON_SIZE_MENU);
+		item = gtk_image_menu_item_new_with_label("Show Desktop");
+	}
 	gtk_image_menu_item_set_image(GTK_IMAGE_MENU_ITEM(item), icon);
 	gtk_menu_append(menu, item);
 	gtk_widget_show(item);
+	g_signal_connect(G_OBJECT(item), "activate", G_CALLBACK(showdesk_activate), scrn);
 
 	switch (options.order) {
 	default:
