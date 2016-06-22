@@ -1470,6 +1470,8 @@ refresh_screen(XdeScreen *xscr, GdkScreen *scrn)
 	update_screen(xscr);
 }
 
+static void refresh_layout(XdeScreen *xscr);
+
 /** @brief monitors changed
   *
   * The number and/or size of monitors belonging to a screen have changed.  This
@@ -1480,6 +1482,7 @@ static void
 on_monitors_changed(GdkScreen *scrn, gpointer xscr)
 {
 	refresh_screen(xscr, scrn);
+	refresh_layout(xscr);
 }
 
 /** @brief screen size changed
@@ -1492,6 +1495,7 @@ static void
 on_size_changed(GdkScreen *scrn, gpointer xscr)
 {
 	refresh_screen(xscr, scrn);
+	refresh_layout(xscr);
 }
 
 static void
@@ -1680,6 +1684,7 @@ refresh_layout(XdeScreen *xscr)
 	hmax = (xscr->height * 8) / 10;
 	for (f = 10; w > wmax * f || h > hmax * f; f++) ;
 	gtk_window_set_default_size(GTK_WINDOW(xscr->popup), w / f, h / f);
+	gtk_widget_set_size_request(GTK_WIDGET(xscr->popup), w / f, h / f);
 }
 
 static void
