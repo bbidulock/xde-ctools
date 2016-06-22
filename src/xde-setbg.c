@@ -1078,6 +1078,7 @@ on_monitors_changed(GdkScreen *scrn, gpointer user_data)
 
 	wnck_screen_force_update(xscr->wnck);
 	refresh_screen(xscr, scrn);
+	refresh_layout(xscr);
 	read_theme(xscr);
 }
 
@@ -1094,6 +1095,7 @@ on_size_changed(GdkScreen *scrn, gpointer user_data)
 
 	wnck_screen_force_update(xscr->wnck);
 	refresh_screen(xscr, scrn);
+	refresh_layout(xscr);
 	read_theme(xscr);
 }
 
