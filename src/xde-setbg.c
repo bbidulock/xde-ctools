@@ -1061,6 +1061,8 @@ refresh_screen(XdeScreen *xscr, GdkScreen *scrn)
 	update_screen(xscr);
 }
 
+static void read_theme(XdeScreen *xscr);
+
 /** @brief monitors changed
   *
   * The number and/or size of monitors belonging to a screen have changed.  This
@@ -1071,6 +1073,7 @@ static void
 on_monitors_changed(GdkScreen *scrn, gpointer xscr)
 {
 	refresh_screen(xscr, scrn);
+	read_theme(xscr);
 }
 
 /** @brief screen size changed
@@ -1083,6 +1086,7 @@ static void
 on_size_changed(GdkScreen *scrn, gpointer xscr)
 {
 	refresh_screen(xscr, scrn);
+	read_theme(xscr);
 }
 
 static void
