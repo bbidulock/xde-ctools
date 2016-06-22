@@ -1028,6 +1028,7 @@ refresh_screen(XdeScreen *xscr, GdkScreen *scrn)
 	}
 	width = gdk_screen_get_width(scrn);
 	height = gdk_screen_get_height(scrn);
+	DPRINTF("Screen %d dimensions are %dx%d\n", index, width, height);
 	if (xscr->width != width || xscr->height != height) {
 		DPRINTF("Screen %d dimensions changed %dx%d -> %dx%d\n", index,
 			xscr->width, xscr->height, width, height);
@@ -1070,8 +1071,11 @@ static void read_theme(XdeScreen *xscr);
   * and adjust the necessary parameters.
   */
 static void
-on_monitors_changed(GdkScreen *scrn, gpointer xscr)
+on_monitors_changed(GdkScreen *scrn, gpointer user_data)
 {
+	XdeScreen *xscr = user_data;
+
+	wnck_screen_force_update(xscr->wnck);
 	refresh_screen(xscr, scrn);
 	read_theme(xscr);
 }
@@ -1083,8 +1087,11 @@ on_monitors_changed(GdkScreen *scrn, gpointer xscr)
   * and adjust the necessary parameters.
   */
 static void
-on_size_changed(GdkScreen *scrn, gpointer xscr)
+on_size_changed(GdkScreen *scrn, gpointer user_data)
 {
+	XdeScreen *xscr = user_data;
+
+	wnck_screen_force_update(xscr->wnck);
 	refresh_screen(xscr, scrn);
 	read_theme(xscr);
 }
