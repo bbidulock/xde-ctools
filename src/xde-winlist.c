@@ -345,10 +345,10 @@ workspace_menu_key_press(GtkWidget *menu, GdkEvent *event, gpointer user_data)
 		OPRINTF("No selected workspace!\n");
 		return GTK_EVENT_PROPAGATE;
 	}
-	if (ev->keyval == GDK_KEY_Return) {
+	if (ev->keyval == GDK_KEY_Return || ev->keyval == GDK_KEY_space) {
 		OPRINTF("Menu key press [Return]\n");
 		wnck_workspace_activate(work, ev->time);
-		gtk_menu_shell_activate_item(GTK_MENU_SHELL(menu), GTK_WIDGET(item), TRUE);
+		gtk_menu_shell_activate_item(GTK_MENU_SHELL(menu), item, TRUE);
 		return GTK_EVENT_STOP;
 	}
 	return GTK_EVENT_PROPAGATE;

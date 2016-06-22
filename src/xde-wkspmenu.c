@@ -318,10 +318,10 @@ workspace_menu_key_press(GtkWidget *menu, GdkEvent *event, gpointer user_data)
 		OPRINTF("No selected workspace!\n");
 		return GTK_EVENT_PROPAGATE;
 	}
-	if (ev->keyval == GDK_KEY_Return) {
+	if (ev->keyval == GDK_KEY_Return || ev->keyval == GDK_KEY_space) {
 		OPRINTF("Menu key press [Return]\n");
 		wnck_workspace_activate(work, ev->time);
-		gtk_menu_shell_activate_item(GTK_MENU_SHELL(menu), GTK_WIDGET(item), TRUE);
+		gtk_menu_shell_activate_item(GTK_MENU_SHELL(menu), item, TRUE);
 		return GTK_EVENT_STOP;
 	}
 	return GTK_EVENT_PROPAGATE;
@@ -715,21 +715,27 @@ popup_menu_new(WnckScreen *scrn)
 
 		for (window = windows; window; window = window->next) {
 			GdkPixbuf *pixbuf;
+			WnckWindowState state;
 			const char *wname;
 			char *dname;
 			WnckWindow *win;
 			GtkWidget *witem, *image;
+			gboolean hidden = FALSE, iconic = FALSE;
 			gboolean need_tooltip = FALSE;
 
 			win = window->data;
 			if (!wnck_window_is_on_workspace(win, work))
 				continue;
-			if (wnck_window_is_skip_tasklist(win))
+			state = wnck_window_get_state(win);
+			if (state & WNCK_WINDOW_STATE_SKIP_TASKLIST)
 				continue;
 			if (wnck_window_is_pinned(win))
 				continue;
-			if (wnck_window_is_minimized(win))
-				continue;
+			if (state & WNCK_WINDOW_STATE_HIDDEN) {
+				hidden = TRUE;
+			} else if (state & WNCK_WINDOW_STATE_MINIMIZED) {
+				iconic = TRUE;
+			}
 			wname = wnck_window_get_name(win);
 			witem = gtk_image_menu_item_new();
 			dname = g_strdup(wname);
@@ -750,7 +756,14 @@ popup_menu_new(WnckScreen *scrn)
 				need_tooltip = TRUE;
 			}
 			p = dname;
-			dname = g_strdup_printf(" ● %s", p);
+			if (hidden || iconic) {
+				if (wnck_window_is_shaded(win))
+					dname = g_strdup_printf(" ▬ %s", p);
+				else
+					dname = g_strdup_printf(" ○ %s", p);
+				// dname = g_strdup_printf(" ▼ %s", p);
+			} else
+				dname = g_strdup_printf(" ● %s", p);
 			g_free(p);
 			gtk_menu_item_set_label(GTK_MENU_ITEM(witem), dname);
 			if (strlen(dname) > 44) {
@@ -1596,6 +1609,7 @@ main(int argc, char *argv[])
 			{"where",		required_argument,	NULL,	'W'},
 
 			{"order",		required_argument,	NULL,	'O'},
+
 			{"debug",		optional_argument,	NULL,	'D'},
 			{"verbose",		optional_argument,	NULL,	'v'},
 			{"help",		no_argument,		NULL,	'h'},
