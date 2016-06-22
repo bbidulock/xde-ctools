@@ -1366,6 +1366,7 @@ delete_monitor(XdeScreen *xscr, XdeMonitor *mon, int m)
 static void
 update_monitor(XdeScreen *xscr, XdeMonitor *mon, int m)
 {
+	gdk_screen_get_monitor_geometry(xscr->scrn, m, &mon->geom);
 }
 
 static void
