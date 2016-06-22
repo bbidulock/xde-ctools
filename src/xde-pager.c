@@ -1479,8 +1479,11 @@ static void refresh_layout(XdeScreen *xscr);
   * and adjust the necessary parameters.
   */
 static void
-on_monitors_changed(GdkScreen *scrn, gpointer xscr)
+on_monitors_changed(GdkScreen *scrn, gpointer user_data)
 {
+	XdeScreen *xscr = user_data;
+
+	wnck_screen_force_update(xscr->wnck);
 	refresh_screen(xscr, scrn);
 	refresh_layout(xscr);
 }
@@ -1492,8 +1495,11 @@ on_monitors_changed(GdkScreen *scrn, gpointer xscr)
   * and adjust the necessary parameters.
   */
 static void
-on_size_changed(GdkScreen *scrn, gpointer xscr)
+on_size_changed(GdkScreen *scrn, gpointer user_data)
 {
+	XdeScreen *xscr = user_data;
+
+	wnck_screen_force_update(xscr->wnck);
 	refresh_screen(xscr, scrn);
 	refresh_layout(xscr);
 }
