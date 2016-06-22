@@ -1014,8 +1014,14 @@ do_popup(int argc, char *argv[])
 		EPRINTF("cannot get menu\n");
 		exit(EXIT_FAILURE);
 	}
+#if 0
+	/* mucks up dynamic cascading menus launched with pointer */
 	gtk_menu_popup(GTK_MENU(menu), NULL, NULL, position_menu, scrn,
 		       options.button, options.timestamp);
+#else
+	gtk_menu_popup(GTK_MENU(menu), NULL, NULL, position_menu, scrn,
+		       0, options.timestamp);
+#endif
 	gtk_main();
 }
 
