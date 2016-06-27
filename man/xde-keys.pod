@@ -115,7 +115,7 @@ Specify a profile name to use.  Normally the profile name is derived
 from the name of the window manager running; however, when the
 B<--nowait> option is used and B<xde-keys> is started before the window
 manager, it cannot determine the specific profile for the window
-manager.
+manager until it appears.
 
 =item B<--file>, B<-f> I<FILENAME>
 
@@ -347,161 +347,318 @@ The possible I<E<lt>commandE<gt>> values and arguments are as follows:
 
 =over
 
-=item activate-window-menu
+=item B<activate-window-menu>
 
-=item begin-move
+Pop the window menu.  B<xde-keys> does not provide a window menu of its
+own, but invokes L<xde-winlist(1)>.
 
-=item begin-resize
+=item B<begin-move>
 
-=item close
+Starts a keyboard move.  Once the keyboard move has begun, the arrow
+keys (or hjkl keys) are used to move the window.  The escape key or
+enter key can be used to complete the move.
 
-=item cycle-group
+=item B<begin-resize>
 
-=item cycle-group-backward
+Starts a keyboard resize.  Once the keyboard resize has begun, the arrow
+keys (or hjkl keys) are used to resize the window.  The escape key or
+enter key can be used to complete the resize.
 
-=item cycle-panels
+=item B<close>
 
-=item cycle-panels-backward
+Closes the active window.
 
-=item cycle-windows
+=item B<cycle-group>
 
-=item cycle-windows-backward
+Cycles forward through the group of widows to which the active group
+belongs.
 
-=item lower
+=item B<cycle-group-backward>
 
-=item maximize-horizontally
+Cycles backward through the group of windows to which the active group
+belongs.
 
-=item maximize
+=item B<cycle-panels>
 
-=item maximize-vertically
+Cycle the selection through the available panels and docks in the
+forward direction.
 
-=item minimize
+=item B<cycle-panels-backward>
 
-=item move-to-center
+Cycle the selection through the available panels and docks in the
+reverse direction.
 
-=item move-to-corner-ne
+=item B<cycle-windows>
 
-=item move-to-corner-nw
+Cycle through the windows on the current desktop in the forward
+direction.
 
-=item move-to-corner-se
+=item B<cycle-windows-backward>
 
-=item move-to-corner-sw
+Cycle through the windows on the current desktop in the reverse
+direction.
 
-=item move-to-side-e
+=item B<lower>
 
-=item move-to-side-n
+Lower the currently active window.
 
-=item move-to-side-s
+=item B<maximize-horizontally>
 
-=item move-to-side-w
+Maximize the currently active window in the horizontal direction. 
 
-=item move-to-workspace-10
+=item B<maximize>
 
-=item move-to-workspace-11
+Maximize the currently active window in the both the vertical and
+horizontal directions.
 
-=item move-to-workspace-12
+=item B<maximize-vertically>
 
-=item move-to-workspace-1
+Maximize the currently active window in the vertical direction. 
 
-=item move-to-workspace-2
+=item B<minimize>
 
-=item move-to-workspace-3
+Minimize (iconify) the active window.
 
-=item move-to-workspace-4
+=item B<move-to-center>
 
-=item move-to-workspace-5
+Move the active window to the centre of the screen.
 
-=item move-to-workspace-6
+=item B<move-to-corner-ne>
 
-=item move-to-workspace-7
+Move the active window to the NE corner of the screen.
 
-=item move-to-workspace-8
+=item B<move-to-corner-nw>
 
-=item move-to-workspace-9
+Move the active window to the NW corner of the screen.
 
-=item move-to-workspace-down
+=item B<move-to-corner-se>
 
-=item move-to-workspace-left
+Move the active window to the SE corner of the screen.
 
-=item move-to-workspace-right
+=item B<move-to-corner-sw>
 
-=item move-to-workspace-up
+Move the active window to the SW corner of the screen.
 
-=item panel-main-menu
+=item B<move-to-side-e>
 
-=item panel-run-dialog
+Move the active window to the E side of the screen.
 
-=item raise-or-lower
+=item B<move-to-side-n>
 
-=item raise
+Move the active window to the N side of the screen.
 
-=item set-spew-mark
+=item B<move-to-side-s>
 
-=item show-desktop
+Move the active window to the S side of the screen.
 
-=item switch-applications
+=item B<move-to-side-w>
 
-=item switch-applications-backward
+Move the active window to the W side of the screen.
 
-=item switch-group
+=item B<move-to-workspace-1>
 
-=item switch-group-backward
+Move the active window to workspace #1 (if it exists).
 
-=item switch-input-source
+=item B<move-to-workspace-2>
 
-=item switch-input-source-backward
+Move the active window to workspace #2 (if it exists).
 
-=item switch-panels
+=item B<move-to-workspace-3>
 
-=item switch-panels-backward
+Move the active window to workspace #3 (if it exists).
 
-=item switch-to-workspace-10
+=item B<move-to-workspace-4>
 
-=item switch-to-workspace-11
+Move the active window to workspace #4 (if it exists).
 
-=item switch-to-workspace-12
+=item B<move-to-workspace-5>
 
-=item switch-to-workspace-1
+Move the active window to workspace #5 (if it exists).
 
-=item switch-to-workspace-2
+=item B<move-to-workspace-6>
 
-=item switch-to-workspace-3
+Move the active window to workspace #6 (if it exists).
 
-=item switch-to-workspace-4
+=item B<move-to-workspace-7>
 
-=item switch-to-workspace-5
+Move the active window to workspace #7 (if it exists).
 
-=item switch-to-workspace-6
+=item B<move-to-workspace-8>
 
-=item switch-to-workspace-7
+Move the active window to workspace #8 (if it exists).
 
-=item switch-to-workspace-8
+=item B<move-to-workspace-9>
 
-=item switch-to-workspace-9
+Move the active window to workspace #9 (if it exists).
 
-=item switch-to-workspace-down
+=item B<move-to-workspace-10>
 
-=item switch-to-workspace-left
+Move the active window to workspace #10 (if it exists).
 
-=item switch-to-workspace-right
+=item B<move-to-workspace-11>
 
-=item switch-to-workspace-up
+Move the active window to workspace #11 (if it exists).
 
-=item switch-windows
+=item B<move-to-workspace-12>
 
-=item switch-windows-backward
+Move the active window to workspace #12 (if it exists).
 
-=item toggle-above
+=item B<move-to-workspace-down>
 
-=item toggle-fullscreen
+Move the active window to the workspace below the current workspace (if
+it exists).
 
-=item toggle-maximized
+=item B<move-to-workspace-left>
 
-=item toggle-on-all-workspaces
+Move the active window to the workspace to the left of the current
+workspace (if it exists).
 
-=item toggle-shaded
+=item B<move-to-workspace-right>
 
-=item unmaximize
+Move the active window to the workspace to the right of the current
+workspace (if it exists).
+
+=item B<move-to-workspace-up>
+
+Move the active window to the workspace above the current workspace (if
+it exists).
+
+=item B<panel-main-menu>
+
+Pop the main menu from the panel.  B<xde-keys> does not provide a panel
+main menu of its own, but invokes L<xde-menu(1)> instead.
+
+=item B<panel-run-dialog>
+
+Pop an execution dialog from the panel.  B<xde-keys> does not provide an
+execution dialog of its own, but invokes L<xde-run(1)> or L<xde-app(1)>
+instead.
+
+=item B<raise-or-lower>
+
+If the active window is above any other window on the stack, lower it to
+the bottom; below any other window on the stack; raise it.
+
+=item B<raise>
+
+Raise the active window to the top of the stack.
+
+=item B<set-spew-mark>
+
+???????? I have no idea at the moment ????????
+
+=item B<show-desktop>
+
+Place the window manager into showing the desktop mode (if not already
+in that mode); otherwise, cease the showing the desktop mode.
+
+=item B<switch-applications>
+
+=item B<switch-applications-backward>
+
+=item B<switch-group>
+
+=item B<switch-group-backward>
+
+=item B<switch-input-source>
+
+=item B<switch-input-source-backward>
+
+=item B<switch-panels>
+
+=item B<switch-panels-backward>
+
+=item B<switch-to-workspace-1>
+
+Change to workspace #1 (if it exits).
+
+=item B<switch-to-workspace-2>
+
+Change to workspace #2 (if it exits).
+
+=item B<switch-to-workspace-3>
+
+Change to workspace #3 (if it exits).
+
+=item B<switch-to-workspace-4>
+
+Change to workspace #4 (if it exits).
+
+=item B<switch-to-workspace-5>
+
+Change to workspace #5 (if it exits).
+
+=item B<switch-to-workspace-6>
+
+Change to workspace #6 (if it exits).
+
+=item B<switch-to-workspace-7>
+
+Change to workspace #7 (if it exits).
+
+=item B<switch-to-workspace-8>
+
+Change to workspace #8 (if it exits).
+
+=item B<switch-to-workspace-9>
+
+Change to workspace #9 (if it exits).
+
+=item B<switch-to-workspace-10>
+
+Change to workspace #10 (if it exits).
+
+=item B<switch-to-workspace-11>
+
+Change to workspace #11 (if it exits).
+
+=item B<switch-to-workspace-12>
+
+Change to workspace #12 (if it exits).
+
+=item B<switch-to-workspace-down>
+
+Change to the workspace below the current workspace (if it exits).
+
+=item B<switch-to-workspace-left>
+
+Change to the workspace to the left of the current workspace (if it exits).
+
+=item B<switch-to-workspace-right>
+
+Change to the workspace to the right of the current workspace (if it exits).
+
+=item B<switch-to-workspace-up>
+
+Change to the workspace above the current workspace (if it exits).
+
+=item B<switch-windows>
+
+=item B<switch-windows-backward>
+
+=item B<toggle-above>
+
+Toggle whether the active window is placed above other windows.
+
+=item B<toggle-fullscreen>
+
+Toggle whether the active window is full-screen or not.
+
+=item B<toggle-maximized>
+
+Toggle whether the active window is maximized or not.
+
+=item B<toggle-on-all-workspaces>
+
+Toggle whether the active window is shown on all workspaces or just one.
+
+=item B<toggle-shaded>
+
+Toggle whether the active window is shaded or not.
+
+=item B<unmaximize>
+
+Restore the active window to its normal size and position.
 
 =back
 
@@ -509,13 +666,19 @@ The following are from F<org.gnome.mutter.keybindings>:
 
 =over
 
-=item tab-popup-cancel
+=item B<tab-popup-cancel>
 
-=item tab-popup-select
+=item B<tab-popup-select>
 
-=item toggle-tiled-left
+=item B<toggle-tiled-left>
 
-=item toggle-tiled-right
+Toggle whether the window is shown tiled on the right (right-half
+maximized).
+
+=item B<toggle-tiled-right>
+
+Toggle whether the window is shown tiled on the left (left-half
+maximized).
 
 =back
 
@@ -523,23 +686,40 @@ Not listed under F<org.gnome>
 
 =over
 
-=item execute-terminal
+=item B<execute-terminal>
 
-=item hide-menus
+Launch a terminal.  B<xde-keys> does not have a terminal program of its
+own, so it just executes L<xde-preferred-terminal(1)>.
 
-=item kill
+=item B<hide-menus>
 
-=item mouse-group
+=item B<kill>
 
-=item mouse-lower
+Kills the active window.
 
-=item mouse-move
+=item B<mouse-group>
 
-=item mouse-resize
+This is actually a mouse binding.
 
-=item mouse-tab
+=item B<mouse-lower>
 
-=item mouse-viewport
+This is actually a mouse binding.
+
+=item B<mouse-move>
+
+This is actually a mouse binding.
+
+=item B<mouse-resize>
+
+This is actually a mouse binding.
+
+=item B<mouse-tab>
+
+This is actually a mouse binding.
+
+=item B<mouse-viewport>
+
+This is actually a mouse binding.
 
 =back
 

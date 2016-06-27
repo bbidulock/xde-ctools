@@ -5,7 +5,7 @@ adwm -- notes file.  2014-02-10
 === GNOME Metactiy/Mutter ===
 
 .org.gnome.desktop.wm.preferences:
-[width="100%",options="header"]
+[width="100%",options="header",cols="m,m,m,m,m,d"]
 |===
 |Function			|ADWM Option		|gnome (mutter/metacity)	|fluxbox	|waimea		|Description
 |action-double-click-titlebar	|			|toggle-maximize		|shade		|toggle-shade	|
@@ -31,7 +31,7 @@ adwm -- notes file.  2014-02-10
 |===
 
 .org.gnome.desktop.wm.keybings:
-[width="100%",options="header"]
+[width="100%",options="header",cols="m,m,m,d"]
 |===
 |Function			|ADWM Function		|gnome (mutter/metacity)	|Description
 |activate-window-menu		|spawn xde-winmenu	|A-Space			|Activate the window menu
@@ -117,7 +117,7 @@ adwm -- notes file.  2014-02-10
 ==== Mutter ====
 
 .org.gnome.mutter:
-[width="100%",options="header"]
+[width="100%",options="header",cols="m,m,m,d"]
 |===
 |Function			|ADWM Option		|mutter		|Description
 |attach-modal-dialogs		|			|false		|
@@ -132,7 +132,7 @@ adwm -- notes file.  2014-02-10
 |===
 
 .org.gnome.mutter.keybindings:
-[width="100%",options="header"]
+[width="100%",options="header",cols="m,m,m,d"]
 |===
 |Function			|ADWM Function		|mutter default		|Description
 |tab-popup-cancel		|			|			|Cancel tab popup
@@ -144,7 +144,7 @@ adwm -- notes file.  2014-02-10
 ==== Metacity ====
 
 .org.gnome.metacity:
-[width="100%",options="header"]
+[width="100%",options="header",cols="m,m,m,d"]
 |===
 |Function			|ADWM Option		|metacity		|Description
 |compositing-manager		|			|true			|
@@ -152,7 +152,7 @@ adwm -- notes file.  2014-02-10
 |===
 
 .not listed under org.gnome
-[width="100%",options="header"]
+[width="100%",options="header",cols="m,m,m,m,m,d"]
 |===
 |Function			|icewm		|fluxbox	|waimea		|blackbox	|Description
 |execute-terminal		|		|A-F1		|AC-Return	|A-F1		|
@@ -171,7 +171,7 @@ adwm -- notes file.  2014-02-10
 Fluxbox permits mutliple keys to be bound to the same key action.
 
 .Fluxbox Key Bindings
-[width="100%",options="header"]
+[width="100%",options="header",cols="m,m,m,m,d"]
 |===
 |Function Name				|ADWM Function		|Fluxbox Default	|XDE Default		|Description
 |AddWorkspace				|appendtag		|			|			|
@@ -329,7 +329,7 @@ Fluxbox permits mutliple keys to be bound to the same key action.
 Blackbox (bbkeys(1)) allows multiple keys to be bound to the same action.
 
 .Blackbox Key Options
-[width="100%",options="header"]
+[width="100%",options="header",cols="m,m,m,m,d"]
 |===
 |Option Name				|ADWM Option		|BBKeys Default		|XDE Default		|Description
 |stylefile				|			|			|			|
@@ -349,7 +349,7 @@ Blackbox (bbkeys(1)) allows multiple keys to be bound to the same action.
 |===
 
 .Blackbox Key Bindings
-[width="100%",options="header"]
+[width="100%",options="header",cols="m,m,m,m,d"]
 |===
 |Function Name				|ADWM Function		|BBKeys Default		|XDE Default		|Description
 |chain					|--			|--			|--			|chain keys
@@ -446,7 +446,7 @@ It is rather amazing how few default keybindins openbox has.  Perhaps it
 is because openbox used to use a separate keybinder like bbkeys.
 
 .openbox Key Bindings
-[width="100%",options="header"]
+[width="100%",options="header",cols="m,m,m,m,d"]
 |===
 |Action Name			|ADWM Action		|openbox Default	|LXDE Default		|Description
 |MaximizeFull			|max			|A-F10			|			|
@@ -577,7 +577,7 @@ is because openbox used to use a separate keybinder like bbkeys.
 === PekWM ===
 
 .PekWM Key Bindings
-[width="100%",options="header"]
+[width="100%",options="header",cols="m,m,m,m,d"]
 |===
 |Action Name			|ADWM Action		|Default		|XDE Default		|Description
 |Focus				|			|			|			|
@@ -738,7 +738,7 @@ is because openbox used to use a separate keybinder like bbkeys.
 |===
 
 .PekWM Key Bindings Move or Resize
-[width="100%",options="header"]
+[width="100%",options="header",cols="m,m,m,m,d"]
 |===
 |Action Name			|ADWM Action		|Default		|XDE Default		|Description
 |MoveHorizontal +1		|			|S-Right		|			|
@@ -767,13 +767,13 @@ is because openbox used to use a separate keybinder like bbkeys.
 WindowMaker does not allow multiple keys to be bound to the same action (unless is is an execute action).
 
 .WindowMaker Key Binding Options
-[width="100%",options="header"]
+[width="100%",options="header",cols="m,m,m,m,d"]
 |===
 |Option Name			|ADWM Option		|Default		|XDE Default		|Description
 |===
 
 .WindowMaker Key Bindings
-[width="100%",options="header"]
+[width="100%",options="header",cols="m,m,m,m,d"]
 |===
 |Key name			|ADWM Function		|Default		|XDE Default		|Description
 |BHMaximizeKey			|maxto S		|			|			|maximize active window bottom half
@@ -865,7 +865,7 @@ An example is KeyWinNext and KeySysSwitchNext.
 It appears that IceWM tries to be the most consistent with Windows95 key bindings.
 
 .IceWM Options
-[width="100%",options="header"]
+[width="100%",options="header",cols="m,m,m,m,d"]
 |===
 |Option Name			|ADWM Option		|IceWM Default		|XDE Default		|Description
 |ClickToFocus			|			|			|			|Focus windows by clicking
@@ -919,7 +919,7 @@ It appears that IceWM tries to be the most consistent with Windows95 key binding
 |===
 
 .IceWM Mouse Binding Options
-[width="100%",options="header"]
+[width="100%",options="header",cols="m,m,m,m,d"]
 |===
 |Option Name			|ADWM Option		|IceWM Default		|XDE Default		|Description
 |FocusOnClickClient		|			|			|			|Focus window when client area clicked
@@ -952,7 +952,7 @@ It appears that IceWM tries to be the most consistent with Windows95 key binding
 |===
 
 .IceWM Key Binding Options
-[width="100%",options="header"]
+[width="100%",options="header",cols="m,m,m,m,d"]
 |===
 |Option Name			|ADWM Option		|IceWM Default		|XDE Default		|Description
 |Win95Keys			|			|			|			|Support win95 keyboard keys (Penguin/Meta/Win_L,R shows menu)
@@ -965,96 +965,96 @@ It appears that IceWM tries to be the most consistent with Windows95 key binding
 |===
 
 .IceWM Key Bindings
-[width="100%",options="header"]
+[width="100%",options="header",cols="m,m,m,m,d"]
 |===
 |Key Name			|ADWM Function		|IceWM Default		|XDE Default		|Description
-|`KeyWinRaise`			|raise			|A-F1			|A-F1			|raise focused window
-|`KeyWinOccupyAll`		|togglesticky		|A-F2			|A-F2			|stick focused window
-|`KeyWinLower`			|lower			|A-F3			|A-F3			|lower focused window
-|`KeyWinClose`			|killclient		|A-F4			|A-F4			|close focused window
-|`KeyWinKill`			|			|			|			|kill focused window
-|`KeyWinRestore`		|togglemax 0		|A-F5			|A-F5			|restore (unmaximize) focused window
-|`KeyWinNext`			|activate +1		|A-F6			|A-F6			|next window in focus order
-|`KeyWinPrev`			|activate -1		|AS-F6			|AS-F6			|prev window in focus order
-|`KeyWinMove`			|begmove		|A-F7			|A-F7			|begin move on focused window
-|`KeyWinSize`			|begsize		|A-F8			|A-F8			|begin reize on focused window
-|`KeyWinMinimize`		|iconify		|A-F9			|A-F9			|
-|`KeyWinMaximize`		|togglemax		|A-F10			|A-F10			|
-|`KeyWinMaximizeVert`		|togglemaxv		|AS-F10			|AS-F10			|
-|`KeyWinMaximizeHoriz`		|togglemaxh		|			|			|
-|`KeyWinFullscreen`		|togglefull		|A-F11			|A-F11			|
-|`KeyWinHide`			|hide			|AS-F12			|AS-F12			|
-|`KeyWinRollup`			|toggleshade 1		|A-F12			|A-F12			|
-|`KeyWinArrangeN`		|moveto N		|AC-KP_8		|AC-KP_8		|move window center N to monitor center N
-|`KeyWinArrangeNE`		|moveto NE		|AC-KP_9		|AC-KP_9		|move window NE corner to monitor NE corner
-|`KeyWinArrangeE`		|moveto E		|AC-KP_6		|AC-KP_6		|move window center E to monitor center E
-|`KeyWinArrangeSE`		|moveto SE		|AC-KP_3		|AC-KP_3		|move window SE corner to monitor SE corner
-|`KeyWinArrangeS`		|moveto S		|AC-KP_2		|AC-KP_2		|move window center S to monitor center S
-|`KeyWinArrangeSW`		|moveto SW		|AC-KP_1		|AC-KP_1		|move window SW corner to monitor SW corner
-|`KeyWinArrangeW`		|moveto W		|AC-KP_4		|AC-KP_4		|move window center W to moniotr center W
-|`KeyWinArrangeNW`		|moveto NW		|AC-KP_7		|AC-KP_7		|move window NW corner to monitor NW corner
-|`KeyWinArrangeC`		|moveto C		|AC-KP_5		|AC-KP_5		|move window center to monitor center
-|`KeyWinSnapMoveN`		|snapto N		|ACS-KP_8		|ACS-KP_8		|move window N to next S edge or monitor N
-|`KeyWinSnapMoveNE`		|snapto NE		|ACS-KP_9		|ACS-KP_9		|combination of N and E
-|`KeyWinSnapMoveE`		|snapto E		|ACS-KP_6		|ACS-KP_6		|move window E to next W edge or monitor E
-|`KeyWinSnapMoveSE`		|snapto SE		|ACS-KP_3		|ACS-KP_3		|combination of S and E
-|`KeyWinSnapMoveS`		|snapto S		|ACS-KP_2		|ACS-KP_2		|move window S to next N edge or monitor S
-|`KeyWinSnapMoveSW`		|snapto SW		|ACS-KP_1		|ACS-KP_1		|combination of S and W
-|`KeyWinSnapMoveW`		|snapto W		|ACS-KP_4		|ACS-KP_4		|move window W to next E edge or monitor W
-|`KeyWinSnapMoveNW`		|snapto NW		|ACS-KP_7		|ACS-KP_7		|combination of N and W
-|`KeyWinSmartPlace`		|			|ACS-KP_5		|ACS-KP_5		|
-|`KeySysSwitchNext`		|window +1		|A-Tab			|A-Tab			|next window in focus order with system switch dialog
-|`KeySysSwitchLast`		|window -1		|AS-Tab			|AS-Tab			|prev window in focus order with system switch dialog
-|`KeySysWinNext`		|focus +1		|A-Esc			|A-Esc			|next window in focus order without system switch dialog
-|`KeySysWinPrev`		|focus -1		|AS-Esc			|AS-Esc			|prev window in focus order without system switch dialog
-|`KeySysWinMenu`		|			|S-Esc			|S-Esc			|
-|`KeySysDialog`			|			|AC-Del			|AC-Del			|
-|`KeySysMenu`			|			|C-Esc			|C-Esc			|
-|`KeySysWindowList`		|			|AC-Esc			|AC-Esc			|
-|`KeySysWinListMenu`		|			|			|			|
-|`KeySysRun`			|spawn xde-run		|AC-r			|AC-r			|
-|`KeySysAddressBar`		|			|AC-Space		|AC-Space		|
-|`KeyWinMenu`			|			|A-Space		|A-Space		|
-|`KeySysWorkspacePrev`		|view -1		|AC-Left		|AC-Left		|
-|`KeySysWorkspaceNext`		|view +1		|AC-Right		|AC-Right		|
-|`KeySysWorkspaceLast`		|view L			|AC-Down		|AC-Down		|
-|`KeySysWorkspacePrevTakeWin`	|taketo -1		|ACS-Left		|ACS-Left		|
-|`KeySysWorkspaceNextTakeWin`	|taketo +1		|ACS-Right		|ACS-Right		|
-|`KeySysWorkspaceLastTakeWin`	|taketo L		|ACS-Down		|ACS-Down		|
-|`KeySysWorkspace1`		|view 1			|AC-1			|AC-1			|
-|`KeySysWorkspace2`		|view 2			|AC-2			|AC-2			|
-|`KeySysWorkspace3`		|view 3			|AC-3			|AC-3			|
-|`KeySysWorkspace4`		|view 4			|AC-4			|AC-4			|
-|`KeySysWorkspace5`		|view 5			|AC-5			|AC-5			|
-|`KeySysWorkspace6`		|view 6			|AC-6			|AC-6			|
-|`KeySysWorkspace7`		|view 7			|AC-7			|AC-7			|
-|`KeySysWorkspace8`		|view 8			|AC-8			|AC-8			|
-|`KeySysWorkspace9`		|view 9			|AC-9			|AC-9			|
-|`KeySysWorkspace10`		|view 10		|AC-0			|AC-0			|
-|`KeySysWorkspace11`		|view 11		|AC-bracketleft		|AC-bracketleft		|
-|`KeySysWorkspace12`		|view 12		|AC-bracketright	|AC-bracketright	|
-|`KeySysWorkspace1TakeWin`	|taketo 1		|ACS-1			|ACS-1			|
-|`KeySysWorkspace2TakeWin`	|taketo 2		|ACS-2			|ACS-2			|
-|`KeySysWorkspace3TakeWin`	|taketo 3		|ACS-3			|ACS-3			|
-|`KeySysWorkspace4TakeWin`	|taketo 4		|ACS-4			|ACS-4			|
-|`KeySysWorkspace5TakeWin`	|taketo 5		|ACS-5			|ACS-5			|
-|`KeySysWorkspace6TakeWin`	|taketo 6		|ACS-6			|ACS-6			|
-|`KeySysWorkspace7TakeWin`	|taketo 7		|ACS-7			|ACS-7			|
-|`KeySysWorkspace8TakeWin`	|taketo 8		|ACS-8			|ACS-8			|
-|`KeySysWorkspace9TakeWin`	|taketo 9		|ACS-9			|ACS-9			|
-|`KeySysWorkspace10TakeWin`	|taketo 10		|ACS-0			|ACS-0			|
-|`KeySysWorkspace11TakeWin`	|taketo 11		|ACS-bracketleft	|ACS-bracketleft	|
-|`KeySysWorkspace12TakeWin`	|taketo 12		|ACS-bracketright	|ACS-bracketright	|
-|`KeySysTileVertical`		|			|AS-F2			|AS-F2			|
-|`KeySysTileHorizontal`		|			|AS-F3			|AS-F3			|
-|`KeySysCascade`		|			|AS-F4			|AS-F4			|
-|`KeySysArrange`		|			|AS-F5			|AS-F5			|
-|`KeySysArrangeIcons`		|			|AS-F8			|AS-F8			|
-|`KeySysMinimizeAll`		|iconify *		|AS-F9			|AS-F9			|
-|`KeySysHideAll`		|hide *			|AS-F11			|AS-F11			|
-|`KeySysUndoArrange`		|			|AS-F7			|AS-F7			|
-|`KeySysShowDesktop`		|toggleshowing		|AC-d			|AC-d			|
-|`KeySysCollapseTaskBar`	|			|AC-h			|AC-h			|
+|KeyWinRaise			|raise			|A-F1			|A-F1			|raise focused window
+|KeyWinOccupyAll		|togglesticky		|A-F2			|A-F2			|stick focused window
+|KeyWinLower			|lower			|A-F3			|A-F3			|lower focused window
+|KeyWinClose			|killclient		|A-F4			|A-F4			|close focused window
+|KeyWinKill			|			|			|			|kill focused window
+|KeyWinRestore			|togglemax 0		|A-F5			|A-F5			|restore (unmaximize) focused window
+|KeyWinNext			|activate +1		|A-F6			|A-F6			|next window in focus order
+|KeyWinPrev			|activate -1		|AS-F6			|AS-F6			|prev window in focus order
+|KeyWinMove			|begmove		|A-F7			|A-F7			|begin move on focused window
+|KeyWinSize			|begsize		|A-F8			|A-F8			|begin reize on focused window
+|KeyWinMinimize			|iconify		|A-F9			|A-F9			|
+|KeyWinMaximize			|togglemax		|A-F10			|A-F10			|
+|KeyWinMaximizeVert		|togglemaxv		|AS-F10			|AS-F10			|
+|KeyWinMaximizeHoriz		|togglemaxh		|			|			|
+|KeyWinFullscreen		|togglefull		|A-F11			|A-F11			|
+|KeyWinHide			|hide			|AS-F12			|AS-F12			|
+|KeyWinRollup			|toggleshade 1		|A-F12			|A-F12			|
+|KeyWinArrangeN			|moveto N		|AC-KP_8		|AC-KP_8		|move window center N to monitor center N
+|KeyWinArrangeNE		|moveto NE		|AC-KP_9		|AC-KP_9		|move window NE corner to monitor NE corner
+|KeyWinArrangeE			|moveto E		|AC-KP_6		|AC-KP_6		|move window center E to monitor center E
+|KeyWinArrangeSE		|moveto SE		|AC-KP_3		|AC-KP_3		|move window SE corner to monitor SE corner
+|KeyWinArrangeS			|moveto S		|AC-KP_2		|AC-KP_2		|move window center S to monitor center S
+|KeyWinArrangeSW		|moveto SW		|AC-KP_1		|AC-KP_1		|move window SW corner to monitor SW corner
+|KeyWinArrangeW			|moveto W		|AC-KP_4		|AC-KP_4		|move window center W to moniotr center W
+|KeyWinArrangeNW		|moveto NW		|AC-KP_7		|AC-KP_7		|move window NW corner to monitor NW corner
+|KeyWinArrangeC			|moveto C		|AC-KP_5		|AC-KP_5		|move window center to monitor center
+|KeyWinSnapMoveN		|snapto N		|ACS-KP_8		|ACS-KP_8		|move window N to next S edge or monitor N
+|KeyWinSnapMoveNE		|snapto NE		|ACS-KP_9		|ACS-KP_9		|combination of N and E
+|KeyWinSnapMoveE		|snapto E		|ACS-KP_6		|ACS-KP_6		|move window E to next W edge or monitor E
+|KeyWinSnapMoveSE		|snapto SE		|ACS-KP_3		|ACS-KP_3		|combination of S and E
+|KeyWinSnapMoveS		|snapto S		|ACS-KP_2		|ACS-KP_2		|move window S to next N edge or monitor S
+|KeyWinSnapMoveSW		|snapto SW		|ACS-KP_1		|ACS-KP_1		|combination of S and W
+|KeyWinSnapMoveW		|snapto W		|ACS-KP_4		|ACS-KP_4		|move window W to next E edge or monitor W
+|KeyWinSnapMoveNW		|snapto NW		|ACS-KP_7		|ACS-KP_7		|combination of N and W
+|KeyWinSmartPlace		|			|ACS-KP_5		|ACS-KP_5		|
+|KeySysSwitchNext		|window +1		|A-Tab			|A-Tab			|next window in focus order with system switch dialog
+|KeySysSwitchLast		|window -1		|AS-Tab			|AS-Tab			|prev window in focus order with system switch dialog
+|KeySysWinNext			|focus +1		|A-Esc			|A-Esc			|next window in focus order without system switch dialog
+|KeySysWinPrev			|focus -1		|AS-Esc			|AS-Esc			|prev window in focus order without system switch dialog
+|KeySysWinMenu			|			|S-Esc			|S-Esc			|
+|KeySysDialog			|			|AC-Del			|AC-Del			|
+|KeySysMenu			|			|C-Esc			|C-Esc			|
+|KeySysWindowList		|			|AC-Esc			|AC-Esc			|
+|KeySysWinListMenu		|			|			|			|
+|KeySysRun			|spawn xde-run		|AC-r			|AC-r			|
+|KeySysAddressBar		|			|AC-Space		|AC-Space		|
+|KeyWinMenu			|			|A-Space		|A-Space		|
+|KeySysWorkspacePrev		|view -1		|AC-Left		|AC-Left		|
+|KeySysWorkspaceNext		|view +1		|AC-Right		|AC-Right		|
+|KeySysWorkspaceLast		|view L			|AC-Down		|AC-Down		|
+|KeySysWorkspacePrevTakeWin	|taketo -1		|ACS-Left		|ACS-Left		|
+|KeySysWorkspaceNextTakeWin	|taketo +1		|ACS-Right		|ACS-Right		|
+|KeySysWorkspaceLastTakeWin	|taketo L		|ACS-Down		|ACS-Down		|
+|KeySysWorkspace1		|view 1			|AC-1			|AC-1			|
+|KeySysWorkspace2		|view 2			|AC-2			|AC-2			|
+|KeySysWorkspace3		|view 3			|AC-3			|AC-3			|
+|KeySysWorkspace4		|view 4			|AC-4			|AC-4			|
+|KeySysWorkspace5		|view 5			|AC-5			|AC-5			|
+|KeySysWorkspace6		|view 6			|AC-6			|AC-6			|
+|KeySysWorkspace7		|view 7			|AC-7			|AC-7			|
+|KeySysWorkspace8		|view 8			|AC-8			|AC-8			|
+|KeySysWorkspace9		|view 9			|AC-9			|AC-9			|
+|KeySysWorkspace10		|view 10		|AC-0			|AC-0			|
+|KeySysWorkspace11		|view 11		|AC-bracketleft		|AC-bracketleft		|
+|KeySysWorkspace12		|view 12		|AC-bracketright	|AC-bracketright	|
+|KeySysWorkspace1TakeWin	|taketo 1		|ACS-1			|ACS-1			|
+|KeySysWorkspace2TakeWin	|taketo 2		|ACS-2			|ACS-2			|
+|KeySysWorkspace3TakeWin	|taketo 3		|ACS-3			|ACS-3			|
+|KeySysWorkspace4TakeWin	|taketo 4		|ACS-4			|ACS-4			|
+|KeySysWorkspace5TakeWin	|taketo 5		|ACS-5			|ACS-5			|
+|KeySysWorkspace6TakeWin	|taketo 6		|ACS-6			|ACS-6			|
+|KeySysWorkspace7TakeWin	|taketo 7		|ACS-7			|ACS-7			|
+|KeySysWorkspace8TakeWin	|taketo 8		|ACS-8			|ACS-8			|
+|KeySysWorkspace9TakeWin	|taketo 9		|ACS-9			|ACS-9			|
+|KeySysWorkspace10TakeWin	|taketo 10		|ACS-0			|ACS-0			|
+|KeySysWorkspace11TakeWin	|taketo 11		|ACS-bracketleft	|ACS-bracketleft	|
+|KeySysWorkspace12TakeWin	|taketo 12		|ACS-bracketright	|ACS-bracketright	|
+|KeySysTileVertical		|			|AS-F2			|AS-F2			|
+|KeySysTileHorizontal		|			|AS-F3			|AS-F3			|
+|KeySysCascade			|			|AS-F4			|AS-F4			|
+|KeySysArrange			|			|AS-F5			|AS-F5			|
+|KeySysArrangeIcons		|			|AS-F8			|AS-F8			|
+|KeySysMinimizeAll		|iconify *		|AS-F9			|AS-F9			|
+|KeySysHideAll			|hide *			|AS-F11			|AS-F11			|
+|KeySysUndoArrange		|			|AS-F7			|AS-F7			|
+|KeySysShowDesktop		|toggleshowing		|AC-d			|AC-d			|
+|KeySysCollapseTaskBar		|			|AC-h			|AC-h			|
 |===
 
 
@@ -1078,7 +1078,7 @@ the current desktop while switching, the former two pairs do not.
 === DWM Variants ===
 
 .DWM Variant Key Bindings
-[width="100%",options="header"]
+[width="100%",options="header",cols="m,m,m,m,d"]
 |===
 |Function Name		|ADWM Function		|dwm			|xdwm			|Description
 |			|spawn st/uxterm	|AS-Return		|AS-Return		|Spawn a terminal
@@ -1136,7 +1136,7 @@ the current desktop while switching, the former two pairs do not.
 ==== echinus ====
 
 .echinus Key Bindings
-[width="100%",options="header"]
+[width="100%",options="header",cols="m,m,m,m,d"]
 |===
 |Function Name			|ADWM Function		|echinus Default	|XDE Default		|Description
 |focusnext			|focusnext		|A-j			|A-j			|Focus next window
@@ -1178,7 +1178,7 @@ the current desktop while switching, the former two pairs do not.
 ==== velox ====
 
 .velox Key Bindings
-[width="100%",options="header"]
+[width="100%",options="header",cols="m,m,m,d"]
 |===
 |Function Name			|ADWM Function		|velox Default		|Description
 |focus_next			|focusnext		|W-j			|
@@ -1227,7 +1227,7 @@ the current desktop while switching, the former two pairs do not.
 ==== awesome ====
 
 .awesome Key Bindings
-[width="100%",options="header"]
+[width="100%",options="header",cols="m,m,m,d"]
 |===
 |Function Name		|ADWM Function		|awesome Default	|Description
 |			|restart		|WC-r			|Restart awesome
@@ -1301,7 +1301,7 @@ the current desktop while switching, the former two pairs do not.
 |			|toggletag 9		|WCS-9			|Toggle tag 1 on client
 |===
 
-==== spectrwm/scrotwm =====
+==== spectrwm/scrotwm ====
 
 There are some conflicts between spectrwm/scrotwm key bindings and other
 dwm variants.  There is also some conflict between common floating
@@ -1320,7 +1320,7 @@ does, however, have some advanced functions worth emulating.  These are:
 The window movement and resize are not so necessary.
 
 .spectrwm Key Bindings
-[width="100%",options="header"]
+[width="100%",options="header",cols="m,m,m,d"]
 |===
 |Function Name		|ADWM Function		|spectrwm Default	|Description
 |term			|spawn xde-term		|WS-Return		|Spawn a new terminal
@@ -1390,13 +1390,13 @@ The purpose of ADWM key binding defaults is to provide as wide a
 coverage of other defaults as possible.
 
 .Key Bindings by Function
-[width="100%",options="header"]
+[width="100%",options="header",cols="m,m,m,m,m,m,m,m,m,m,m,m,m,m,m,d"]
 |===
 |ADWM Function		|ADWM		|GNOME		|Fluxbox	|Blackbox	|WindowMaker	|Openbox/LXDE	|IceWM		|PekWM		|dwm		|xdwm		|Echinus	|Spectrwm	|velox		|awesome	|Notes
 |===
 
 .Key Bindings by Key Sequence
-[width="100%",options="header"]
+[width="100%",options="header",cols="m,m,m,m,m,m,m,m,m,m,m,m,m,m,m,d"]
 |===
 |Key Sequence		|ADWM		|GNOME		|Fluxbox	|Blackbox	|WindowMaker	|Openbox/LXDE	|IceWM		|PekWM		|dwm		|xdwm		|Echinus	|Spectrwm	|velox		|awesome	|Notes
 |F11			|winlist	|		|		|		|winlist	|		|		|		|		|		|		|		|		|		|
@@ -1818,6 +1818,206 @@ coverage of other defaults as possible.
 
 2.	Openbox version of A-F10 togglemax is not really toggle.
 
+== XF86 Special Keys ==
+
+The following special keys are provided by XF86 extensions.  These are
+special keys on the keyboard, sometimes accessible with a function key
+combination.
+
+.XF86 Special Keys
+[width="100%",options="header",cols="m,m,d"]
+|===
+|XF86 special key symbol	|ADWM			|Description
+|XF86MonBrightnessUp		|spawn xbrightness +4096/xbacklight -inc 5|Monitor/panel brightness (backlight intensity)
+|XF86MonBrightnessDown		|spawn xbrightness -4096/xbacklight -dec 5|Monitor/panel brightness (backlight intensity)
+|XF86KbdLightOnOff		|			|Keyboards may be lit
+|XF86KbdBrightnessUp		|			|Keyboards may be lit
+|XF86KbdBrightnessDown		|			|Keyboards may be lit
+3*e|Keys found on some "Internet" keyboards.
+|XF86Standby			|			|System into standby mode
+|XF86AudioLowerVolume		|spawn mocp --volume -5	|Volume control down
+|XF86AudioMute			|spawn mocp --volume 0	|Mute sound from the system
+|XF86AudioRaiseVolume		|spawn mocp --volume +5	|Volume control up
+|XF86AudioPlay			|spawn mocp --play	|Start playing of audio >
+|XF86AudioStop			|spawn mocp --stop	|Stop playing audio
+|XF86AudioPrev			|spawn mocp --previous	|Previous track
+|XF86AudioNext			|spawn mocp --next	|Next track
+|XF86HomePage			|			|Display user's home page
+|XF86Mail			|spawn xdg-launch xde-preferred-email|Invoke user's mail program
+|XF86Start			|spawn xde-app		|Start application
+|XF86Search			|			|Search
+|XF86AudioRecord		|			|Record audio application
+3*e|These are sometimes found on PDA's (e.g. Palm, PocketPC or elsewhere)
+|XF86Calculator			|spawn xdg-launch xde-preferred-calculator|Invoke calculator program
+|XF86Memo			|			|Invoke Memo taking program
+|XF86ToDoList			|			|Invoke To Do List program
+|XF86Calendar			|spawn xdg-launch xde-preferred-calendar			|Invoke Calendar program
+|XF86PowerDown			|			|Deep sleep the system
+|XF86ContrastAdjust		|			|Adjust screen contrast
+|XF86RockerUp			|			|Rocker switches exist up
+|XF86RockerDown			|			|and down
+|XF86RockerEnter		|			|and let you press them
+3*e|Some more "Internet" keyboard symbols
+|XF86Back			|			|Like back on a browser
+|XF86Forward			|			|Like forward on a browser
+|XF86Stop			|			|Stop current operation
+|XF86Refresh			|			|Refresh the page
+|XF86PowerOff			|			|Power off system entirely
+|XF86WakeUp			|			|Wake up system from sleep
+|XF86Eject			|spawn gksudo eject	|Eject device (e.g. DVD)
+|XF86ScreenSaver		|spawn xdg-launch xde-preferred-screensaver|Invoke screensaver
+|XF86WWW			|spawn xdg-launch xde-preferred-webbrowser|Invoke web browser
+|XF86Sleep			|			|Put system to sleep
+|XF86Favorites			|spawn xdg-launch xde-places|Show favorite locations
+|XF86AudioPause			|spawn mocp --toggle-pause|Pause audio playing
+|XF86AudioMedia			|spawn xdg-launch mocp	|Launch media collection app
+|XF86MyComputer			|spawn xdg-launch xde-preferred-filemanager computer://|Display "My Computer" window
+|XF86VendorHome			|spawn xdg-launch xde-preferred-webbrowser http://www.unexicon.com/|Display vendor home web site
+|XF86LightBulb			|			|Light bulb keys exist
+|XF86Shop			|			|Display shopping web site
+|XF86History			|			|Show history of web surfing
+|XF86OpenURL			|			|Open selected URL
+|XF86AddFavorite		|			|Add URL to favorites list
+|XF86HotLinks			|			|Show "hot" links
+|XF86BrightnessAdjust		|			|Invoke brightness adj. UI
+|XF86Finance			|			|Display financial site
+|XF86Community			|			|Display user's community
+|XF86AudioRewind		|spawn mocp --seek 0	|"rewind" audio track
+|XF86BackForward		|			|???
+|XF86Launch0			|			|Launch Application
+|XF86Launch1			|			|Launch Application
+|XF86Launch2			|			|Launch Application
+|XF86Launch3			|			|Launch Application
+|XF86Launch4			|			|Launch Application
+|XF86Launch5			|			|Launch Application
+|XF86Launch6			|			|Launch Application
+|XF86Launch7			|			|Launch Application
+|XF86Launch8			|			|Launch Application
+|XF86Launch9			|			|Launch Application
+|XF86LaunchA			|			|Launch Application
+|XF86LaunchB			|			|Launch Application
+|XF86LaunchC			|			|Launch Application
+|XF86LaunchD			|			|Launch Application
+|XF86LaunchE			|			|Launch Application
+|XF86LaunchF			|			|Launch Application
+3*e|
+|XF86ApplicationLeft		|			|switch to application, left
+|XF86ApplicationRight		|			|switch to application, right
+|XF86Book			|			|Launch bookreader
+|XF86CD				|spawn xdg-launch xde-preferred-cdplayer|Launch CD/DVD player
+|XF86Calculater			|spawn xdg-launch xde-preferred-calculator|Launch Calculater
+|XF86Clear			|			|Clear window, screen
+|XF86Close			|			|Close window
+|XF86Copy			|			|Copy selection
+|XF86Cut			|			|Cut selection
+|XF86Display			|			|Output switch key
+|XF86DOS			|			|Launch DOS (emulation)
+|XF86Documents			|spawn sh -c 'xdg-launch xde-preferred-filemanager "$(xdg-user-dir DOCUMENTS)"'|Open documents window
+|XF86Excel			|spawn xdg-launch xde-preferred-spreadsheet|Launch spread sheet
+|XF86Explorer			|spawn xdg-launch xde-preferred-filemanager|Launch file explorer
+|XF86Game			|			|Launch game
+|XF86Go				|			|Go to URL
+|XF86iTouch			|			|Logitch iTouch- don't use
+|XF86LogOff			|spawn xdg-launch xde-logout|Log off system
+|XF86Market			|			|??
+|XF86Meeting			|			|enter meeting in calendar
+|XF86MenuKB			|			|distingush keyboard from PB
+|XF86MenuPB			|			|distinuish PB from keyboard
+|XF86MySites			|			|Favourites
+|XF86New			|			|New (folder, document...
+|XF86News			|			|News
+|XF86OfficeHome			|spawn xdg-launch xde-preferred-officesuite|Office home (old Staroffice)
+|XF86Open			|			|Open
+|XF86Option			|			|??
+|XF86Paste			|			|Paste
+|XF86Phone			|spawn xdg-launch xde-preferred-telephony|Launch phone; dial number
+|XF86Q				|			|Compaq's Q - don't use
+|XF86Reply			|			|Reply e.g., mail
+|XF86Reload			|			|Reload web page, file, etc.
+|XF86RotateWindows		|spawn xde-rotate|Rotate windows e.g. xrandr
+|XF86RotationPB			|			|don't use
+|XF86RotationKB			|			|don't use
+|XF86Save			|			|Save (file, document, state
+|XF86ScrollUp			|			|Scroll window/contents up
+|XF86ScrollDown			|			|Scrool window/contentd down
+|XF86ScrollClick		|			|Use XKB mousekeys instead
+|XF86Send			|			|Send mail, file, object
+|XF86Spell			|			|Spell checker
+|XF86SplitScreen		|			|Split window or screen
+|XF86Support			|			|Get support (??)
+|XF86TaskPane			|spawn xdg-launch xde-tasks|Show tasks
+|XF86Terminal			|			|Launch terminal emulator
+|XF86Tools			|			|toolbox of desktop/app.
+|XF86Travel			|			|??
+|XF86UserPB			|			|??
+|XF86User1KB			|			|??
+|XF86User2KB			|			|??
+|XF86Video			|spawn xdg-launch xde-preferred-videoplayer|Launch video player
+|XF86WheelButton		|			|button from a mouse wheel
+|XF86Word			|spawn xdg-launch xde-preferred-wordprocessor|Launch word processor
+|XF86Xfer			|			|
+|XF86ZoomIn			|			|zoom in view, map, etc.
+|XF86ZoomOut			|			|zoom out view, map, etc.
+3*e|
+|XF86Away			|			|mark yourself as away
+|XF86Messenger			|			|as in instant messaging
+|XF86WebCam			|			|Launch web camera app.
+|XF86MailForward		|			|Forward in mail
+|XF86Pictures			|spawn xdg-launch xde-preferred-viewer|Show pictures
+|XF86Music			|spawn xdg-launch mocp	|Launch music application
+3*e|
+|XF86Battery			|			|Display battery information
+|XF86Bluetooth			|			|Enable/disable Bluetooth
+|XF86WLAN			|			|Enable/disable WLAN
+|XF86UWB			|			|Enable/disable UWB
+3*e|
+|XF86AudioForward		|			|fast-forward audio track
+|XF86AudioRepeat		|spawn mocp --toggle repeat||toggle repeat mode
+|XF86AudioRandomPlay		|spawn mocp --toggle shuffle|toggle shuffle mode
+|XF86Subtitle			|			|cycle through subtitle
+|XF86AudioCycleTrack		|spawn mocp --toggle autonext|cycle through audio tracks
+|XF86CycleAngle			|			|cycle through angles
+|XF86FrameBack			|			|video: go one frame back
+|XF86FrameForward		|			|video: go one frame forward
+|XF86Time			|			|display, or shows an entry for time seeking
+|XF86Select			|			|Select button on joypads and remotes
+|XF86View			|			|Show a view options/properties
+|XF86TopMenu			|			|Go to a top-level menu in a video
+3*e|
+|XF86Red			|			|Red button
+|XF86Green			|			|Green button
+|XF86Yellow			|			|Yellow button
+|XF86Blue			|			|Blue button
+3*e|
+|XF86Suspend			|spawn xde-power --suspend|Sleep to RAM
+|XF86Hibernate			|spawn xde-power --hibernate|Sleep to disk
+|XF86TouchpadToggle		|			|Toggle between touchpad/trackstick
+|XF86TouchpadOn			|			|The touchpad got switched on
+|XF86TouchpadOff		|			|The touchpad got switched off
+3*e|
+|XF86AudioMicMute		|			|Mute the Mic from the system
+3*e|Keys for special action keys (hot keys)
+3*e|Virtual terminals on some operating systems
+|XF86Switch_VT_1		|spawn chvt 1		|
+|XF86Switch_VT_2		|spawn chvt 2		|
+|XF86Switch_VT_3		|spawn chvt 3		|
+|XF86Switch_VT_4		|spawn chvt 4		|
+|XF86Switch_VT_5		|spawn chvt 5		|
+|XF86Switch_VT_6		|spawn chvt 6		|
+|XF86Switch_VT_7		|spawn chvt 7		|
+|XF86Switch_VT_8		|spawn chvt 8		|
+|XF86Switch_VT_9		|spawn chvt 9		|
+|XF86Switch_VT_10		|spawn chvt 10		|
+|XF86Switch_VT_11		|spawn chvt 11		|
+|XF86Switch_VT_12		|spawn chvt 12		|
+3*e|
+|XF86Ungrab			|			|force ungrab
+|XF86ClearGrab			|			|kill application with grab
+|XF86Next_VMode			|			|next video mode available
+|XF86Prev_VMode			|			|prev. video mode available
+|XF86LogWindowTree		|			|print window tree to log
+|XF86LogGrabInfo		|			|print all active grabs to log
+|===
 
 # vim: set ft=asciidoc tw=72 nocin nosi fo+=tcqlorn:
 
