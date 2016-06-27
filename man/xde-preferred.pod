@@ -85,6 +85,10 @@ assumed.  The type may also be chosen by executing F<xde-preferred-I<type>>,
 where I<type> is the type of application to launch.  All options after
 C<--> are passed directly to the application.
 
+B<xde-preferred> uses L<xdg-launch(1)> (when available) to launch the
+application with startup notification.  It does not provide startup
+notification support of its own.
+
 =item B<--list>, B<-L> I<TYPE>
 
 List the application identifiers of the applications which claims to
@@ -190,7 +194,497 @@ This option may be repeated.
 
 =back
 
-=head1 APPLICATIONS
+=head1 APPLICATION TYPES
+
+B<xde-preferred> recognizes application types specified either as XDG
+categories or a XDG mime types (content types).  Although any XDG
+category or mime type can be supplied, the some categories are
+frequently used.  The frequently used categories have F<.desktop> entry
+files installed that reference default icons for these common
+applications.
+
+=over
+
+=item C<WebBrowser>
+
+=item C<TerminalEmulator>
+
+=item C<FileManager>
+
+=item C<TextEditor>
+
+=item C<2DGraphics>
+
+=item C<Viewer>
+
+=item C<ScreenSaver>
+
+=item C<AudioPlayer>
+
+=item C<Mixer>
+
+=item C<VideoPlayer>
+
+=item C<Calculator>
+
+=item C<Calendar>
+
+=item C<Spreadsheet>
+
+=item C<WordProcessor>
+
+=item C<ContactManager>
+
+=item C<RemoteAccess>
+
+=item C<Clock>
+
+=back
+
+There are also some additional categories that may be useful.  These
+categories do not have F<.desktop> files installed, but can still be
+invoked directly.
+
+=over
+
+=item C<Archiving>
+
+=item C<Dictionary>
+
+=item C<DiscBurning>
+
+=item C<Documentation>
+
+=item C<Feed>
+
+=item C<FileTransfer>
+
+=item C<IRCClient>
+
+=item C<Monitor>
+
+=item C<News>
+
+=item C<PackageManager>
+
+=item C<Printing>
+
+=item C<Recorder>
+
+=item C<Telephony>
+
+=item C<VideoConference>
+
+=back
+
+=head2 XDG CATEGORIES
+
+Following is a list of all XDG menu specification categories.  Not all
+categories are eligible for a preferred application.  Preferred
+applications are only applicable to categories with general purpose
+applications that are interchangeable (or can be substituted as
+alternatives).
+
+=over
+
+=item C<Building;Development>
+
+A tool to build applications.  This category does not include IDEs or
+debuggers.  These tools are typically specific to a language and not
+general purpose at all.  There are no common mime types supported across
+typical applications in this category.
+
+=item C<Debugger;Development>
+
+A tool to debug applications.
+
+=item C<IDE;Development>
+
+An integrated development environment (IDE) application.
+
+=item C<GUIDesigner;Development>
+
+A graphical user interface (GUI) designer application.
+
+=item C<Profiling;Development>
+
+A profiling tool.
+
+=item C<RevisionControl;Development>
+
+An application like CVS or subversion.
+
+=item C<Translation;Development>
+
+A translation tool.
+
+=item C<Calendar;Office>
+
+A calendar application.  Almost all calendar applications can handle
+ical (F<text/calendar>) file formats.  This category is eligible for a
+preferred selection as almost all applications in this category support
+the same file formats.
+
+=item C<ContactManager;Office>
+
+A contact manager application; for example, an address book.  Almost all
+contact manager applications can handle vcard (F<text/x-vcard>) and ldif
+(F<>) file
+formats.  This category is eligible for a preferred selection as almost
+all applications in this category support the same file formats.
+
+=item C<Database;Office>
+
+=item C<Database;Development>
+
+=item C<Database;AudioVideo>
+
+=item C<Dictionary;Office>
+
+=item C<Dictionary;TextTools>
+
+=item C<Chart;Office>
+
+=item C<Email;Office>
+
+=item C<Email;Network>
+
+=item C<Finance;Office>
+
+=item C<FlowChart;Office>
+
+=item C<PDA;Office>
+
+=item C<ProjectManagement;Office>
+
+=item C<ProjectManagement;Development>
+
+=item C<Presentation;Office>
+
+=item C<Spreadsheet;Office>
+
+=item C<WordProcessor;Office>
+
+=item C<2DGraphics;Graphics>
+
+=item C<VectorGraphics;2DGraphics;Graphics>
+
+=item C<RasterGraphics;2DGraphics;Graphics>
+
+=item C<3DGraphics;Graphics>
+
+=item C<Scanning;Graphics>
+
+=item C<OCR;Scanning;Graphics>
+
+=item C<Photography;Graphics>
+
+=item C<Photography;Office>
+
+=item C<Publishing;Graphics>
+
+=item C<Publishing;Office>
+
+=item C<Viewer;Graphics>
+
+=item C<Viewer;Office>
+
+=item C<TextTools;Utility>
+
+=item C<DesktopSettings;Settings>
+
+=item C<HardwareSettings;Settings>
+
+=item C<Printing;HardwareSettings;Settings>
+
+=item C<PackageManager;Settings>
+
+=item C<Dialup;Network>
+
+=item C<InstantMessaging;Network>
+
+=item C<Chat;Network>
+
+=item C<IRCClient;Network>
+
+=item C<Feed;Network>
+
+=item C<FileTransfer;Network>
+
+=item C<HamRadio;Network>
+
+=item C<HamRadio;Audio>
+
+=item C<News;Network>
+
+=item C<P2P;Network>
+
+=item C<RemoteAccess;Network>
+
+=item C<Telephony;Network>
+
+=item C<TelephonyTools;Utility>
+
+=item C<VideoConference;Network>
+
+=item C<WebBrowser;Network>
+
+=item C<WebDevelopment;Network>
+
+=item C<WebDevelopment;Development>
+
+=item C<Midi;AudioVideo;Audio>
+
+=item C<Mixer;AudioVideo;Audio>
+
+=item C<Sequencer;AudioVideo;Audio>
+
+=item C<Tuner;AudioVideo;Audio>
+
+=item C<TV;AudioVideo;Audio>
+
+=item C<AudioVideoEditing;Audio>
+
+=item C<AudioVideoEditing;Video>
+
+=item C<AudioVideoEditing;AudioVideo>
+
+=item C<DiscBurning;AudioVideo>
+
+=item C<ActionGame;Game>
+
+=item C<AdventureGame;Game>
+
+=item C<ArcadeGame;Game>
+
+=item C<BoardGame;Game>
+
+=item C<BlocksGame;Game>
+
+=item C<CardGame;Game>
+
+=item C<KidsGame;Game>
+
+=item C<LogicGame;Game>
+
+=item C<RolePlaying;Game>
+
+=item C<Shooter;Game>
+
+=item C<Simulation;Game>
+
+=item C<SportsGame;Game>
+
+=item C<StrategyGame;Game>
+
+=item C<Art;Education>
+
+=item C<Art;Science>
+
+=item C<Construction;Education>
+
+=item C<Construction;Science>
+
+=item C<Music;AudioVideo>
+
+=item C<Music;Education>
+
+=item C<Languages;Education>
+
+=item C<Languages;Science>
+
+=item C<ArtificialIntelligence;Education>
+
+=item C<ArtificialIntelligence;Science>
+
+=item C<Astronomy;Education>
+
+=item C<Astronomy;Science>
+
+=item C<Biology;Education>
+
+=item C<Biology;Science>
+
+=item C<Chemistry;Education>
+
+=item C<Chemistry;Science>
+
+=item C<ComputerScience;Education>
+
+=item C<ComputerScience;Science>
+
+=item C<DataVisualization;Education>
+
+=item C<DataVisualization;Science>
+
+=item C<Economy;Education>
+
+=item C<Economy;Science>
+
+=item C<Electricity;Education>
+
+=item C<Electricity;Science>
+
+=item C<Geography;Education>
+
+=item C<Geography;Science>
+
+=item C<Geology;Education>
+
+=item C<Geology;Science>
+
+=item C<Geoscience;Education>
+
+=item C<Geoscience;Science>
+
+=item C<History;Education>
+
+=item C<History;Science>
+
+=item C<Humanities;Education>
+
+=item C<Humanities;Science>
+
+=item C<ImageProcessing;Education>
+
+=item C<ImageProcessing;Science>
+
+=item C<Literature;Education>
+
+=item C<Literature;Science>
+
+=item C<Maps;Education>
+
+=item C<Maps;Science>
+
+=item C<Maps;Utility>
+
+=item C<Math;Education>
+
+=item C<Math;Science>
+
+=item C<NumericalAnalysis;Math;Education>
+
+=item C<NumericalAnalysis;Math;Science>
+
+=item C<MedicalSoftware;Education>
+
+=item C<MedicalSoftware;Science>
+
+=item C<Physics;Education>
+
+=item C<Physics;Science>
+
+=item C<Robotics;Education>
+
+=item C<Robotics;Science>
+
+=item C<Spirituality;Education>
+
+=item C<Spirituality;Science>
+
+=item C<Spirituality;Utility>
+
+=item C<Sports;Education>
+
+=item C<Sports;Science>
+
+=item C<ParallelComputing;ComputerScience;Education>
+
+=item C<ParallelComputing;ComputerScience;Science>
+
+=item C<Amusement>
+
+=item C<Archiving;Utility>
+
+=item C<Compression;Archiving;Utility>
+
+=item C<Electronics>
+
+=item C<Emulator;System>
+
+=item C<Emulator;Game>
+
+=item C<Engineering>
+
+=item C<FileTools;Utility>
+
+=item C<FileTools;System>
+
+=item C<FileManager;FileTools;System>
+
+=item C<TerminalEmulator;System>
+
+=item C<Filesystem;System>
+
+=item C<Monitor;System>
+
+=item C<Monitor;Network>
+
+=item C<Security;System>
+
+=item C<Security;Settings>
+
+=item C<Accessibility;Settings>
+
+=item C<Accessibility;Utility>
+
+=item C<Calculator;Utility>
+
+=item C<Clock;Utility>
+
+=item C<TextEditor;Utility>
+
+=item C<Documentation>
+
+=item C<Adult>
+
+=item C<Core>
+
+=item C<KDE;Qt>
+
+=item C<GNOME;GTK>
+
+=item C<XFCE;GTK>
+
+=item C<GTK>
+
+=item C<Qt>
+
+=item C<Motif>
+
+=item C<Java>
+
+=item C<ConsoleOnly>
+
+=item C<Screensaver>
+
+A screen saver (launching this desktop entry category should activate
+the screen saver).
+
+=item C<TrayIcon>
+
+An application that is primarily an icon for the system tray or
+notification area (applications that open a normal window and just
+happen to have a tray icon as sell should not list this category).
+
+=item C<Applet>
+
+An applet that will run inside a panel or another such application,
+likely desktop specific.
+
+=item C<Shell>
+
+A shell (an actual specific shell such as C<bash> or C<tcsh>, not a
+C<TerminalEmulator>).
+
+=item C<DockApp>
+
+A window maker dock application.
+
+=over
+
+=back
 
 =head2 CATEGORIES
 
@@ -462,30 +956,6 @@ F<x-scheme-handler/ghelp>
 F<x-scheme-handler/help>
 F<x-scheme-handler/info>
 F<x-scheme-handler/man>
-
-=back
-
-=head2 APPLICATION TYPES
-
-=over
-
-=item C<browser>
-
-=item C<terminal>
-
-=item C<filemanager>
-
-=item C<texteditor>
-
-=item C<imageviewer>
-
-=item C<pdfviewer>
-
-=item C<screensaver>
-
-=item C<audioplayer>
-
-=item C<movieplayer>
 
 =back
 
