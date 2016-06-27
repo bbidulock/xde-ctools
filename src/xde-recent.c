@@ -209,6 +209,7 @@ typedef struct {
 	int maximum;
 	char *recently;
 	Command command;
+	Bool tooltips;
 } Options;
 
 Options options = {
@@ -238,6 +239,7 @@ Options options = {
 	.maximum = 50,
 	.recently = NULL,
 	.command = CommandDefault,
+	.tooltips = False,
 };
 
 GList *items = NULL;
@@ -1500,7 +1502,7 @@ popup_menu_new(WnckScreen *scrn)
 			else
 				place->cmd = g_strdup_printf("xdg-open '%s'", place->place);
 		}
-		if (options.debug) {
+		if (options.debug || options.tooltips) {
 			gchar *markup;
 
 			markup =
@@ -1525,7 +1527,7 @@ popup_menu_new(WnckScreen *scrn)
 		if (app)
 			g_object_unref(app);
 		g_free(filename);
-		if (i++ >= max)
+		if (max && i++ >= max)
 			break;
 	}
 	g_list_free_full(list, &xde_list_free);
@@ -2286,6 +2288,7 @@ main(int argc, char *argv[])
 			{"menus",		required_argument,	NULL,	'M'},
 			{"groups",		no_argument,		NULL,	'g'},
 			{"maximum",		required_argument,	NULL,	'm'},
+			{"tooltips",		no_argument,		NULL,	'P'},
 
 			{"debug",		optional_argument,	NULL,	'D'},
 			{"verbose",		optional_argument,	NULL,	'v'},
@@ -2297,10 +2300,10 @@ main(int argc, char *argv[])
 		};
 		/* *INDENT-ON* */
 
-		c = getopt_long_only(argc, argv, "d:s:ptb:T:w:W:i:S:M:gm:D::v::hVCH?",
+		c = getopt_long_only(argc, argv, "d:s:ptb:T:w:W:i:S:M:gm:PD::v::hVCH?",
 				     long_options, &option_index);
 #else				/* _GNU_SOURCE */
-		c = getopt(argc, argv, "d:s:ptb:T:w:W:i:S:M:gm:D:vhVCH?");
+		c = getopt(argc, argv, "d:s:ptb:T:w:W:i:S:M:gm:PD:vhVCH?");
 #endif				/* _GNU_SOURCE */
 		if (c == -1) {
 			if (options.debug)
@@ -2450,6 +2453,9 @@ main(int argc, char *argv[])
 			if (endptr && *endptr)
 				goto bad_option;
 			options.maximum = val;
+			break;
+		case 'P':	/* -P, --tooltips */
+			options.tooltips = True;
 			break;
 
 		case 'D':	/* -D, --debug [LEVEL] */
