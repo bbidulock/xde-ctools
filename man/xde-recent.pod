@@ -369,7 +369,8 @@ managers.
 
 =head1 AUTHOR
 
-Brian Bidulock L<mailto:bidulock@openss7.org>.
+Brian Bidulock L<mailto:bidulock@openss7.org>,
+L<https://github.com/bbidulock>.
 
 =head1 SEE ALSO
 

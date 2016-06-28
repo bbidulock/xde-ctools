@@ -17,7 +17,8 @@ xde_man_files = \
 	xde-winmenu.man \
 	xde-wkspmenu.man \
 	xde-open.man \
-	xde-launch.man
+	xde-launch.man \
+	xde-monitor.man
 
 nodist_man1_MANS = $(xde_man_files)
 CLEANFILES = $(xde_man_files)
@@ -40,7 +41,8 @@ EXTRA_DIST = \
 	xde-winmenu.pod \
 	xde-wkspmenu.pod \
 	xde-open.pod \
-	xde-launch.pod
+	xde-launch.pod \
+	xde-monitor.pod
 
 SUFFIXES = .man .pod
 

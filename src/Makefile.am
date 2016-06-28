@@ -16,7 +16,8 @@ bin_PROGRAMS = \
 	xde-keys \
 	xde-wkspmenu \
 	xde-places \
-	xde-preferred
+	xde-preferred \
+	xde-monitor
 
 EXTRA_PROGRAMS = \
 	xde-clip
@@ -77,4 +78,9 @@ xde_places_SOURCES = xde-places.c
 
 xde_preferred_CPPFLAGS = -DNAME=\"xde-preferred\"
 xde_preferred_SOURCES = xde-preferred.c
+
+xde_monitor_CPPFLAGS = -DNAME=\"xde-monitor\"
+xde_monitor_CFLAGS = $(AM_CFLAGS) $(NOTIFY_CFLAGS)
+xde_monitor_SOURCES = xde-monitor.c
+xde_monitor_LDADD = $(NOTIFY_LIBS)
 

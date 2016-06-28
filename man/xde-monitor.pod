@@ -1,0 +1,308 @@
+=pod
+
+=head1 NAME
+
+xde-monitor - startup notification monitor
+
+=head1 SYNOPSIS
+
+B<xde-monitor> [I<OPTIONS>]
+
+=head1 DESCRIPTION
+
+B<xde-monitor> is a C<C> language program that monitors for startup
+notification messages on screens of an X Display and provides launch
+notification feedback by displaying an icon tile.  When used in
+conjunction with L<xdg-launch(1)>, it can also detect and report defects
+in F<.desktop> entry files.
+
+=head1 OPTIONS
+
+The options that are detailed below are recognized by B<xde-monitor>.
+B<xde-monitor> uses L<getopt_long_only(3)>, so unambiguous abbreviations
+of long options and long options with a single dash are also supported.
+
+B<xde-monitor> supports the following options:
+
+=head2 COMMAND OPTIONS
+
+The default when no command option is specified is to start
+B<xde-monitor> in the foreground with output sent to standard error.
+
+=over
+
+=item [B<-m, --monitor>]
+
+Run as a monitoring process.  This is the default when no other command
+option is specified.  It is an error if an instance of B<xde-monitor> is
+already running and the program will exit with an error code and
+diagnostic.
+
+=item B<-r, --replace>
+
+Replace a running instance of the program with this one (if one is
+indeed running).  It is not an error if no instance is currently
+running, in which case this option has the same effect as B<--monitor>.
+
+=item B<-q, --quit>
+
+Ask a running instance of the program to quit (if one is indeed
+running).  It is not an error if no instance is currently running.
+
+=item B<-h, --help>
+
+Prints usage information and the current options settings and defaults
+to standard output, then exits.
+
+=item B<-V, --version>
+
+Prints the version of the program and a brief copyright statement to
+standard output, then exits.  Parse the first line with L<awk(1)> to
+obtain just the version number.
+
+=item B<-C, --copying>
+
+Prints the long copying permissions statement to standard output, then
+exits.
+
+=back
+
+=head2 GENERAL OPTIONS
+
+In addition to command options, B<xde-monitor> accepts the following
+general options:
+
+=over
+
+=item B<-g, --guard> I<TIMEOUT>
+
+Specifies the amount of time, I<TIMEOUT>, in milliseconds that
+B<xde-monitor> will wait for a desktop application to complete before
+determining that it is never going to send a startup notification
+completion message.  The default is 15000 milliseconds (15 seconds).
+
+=item B<-p, --persist> I<TIMEOUT>
+
+Startup notification completion can be swift and immediate when launched
+applications support startup notification completion.  In this case, the
+feedback display might not even appear on the screen, and sufficient
+feedback that the application has started might not be given to the
+user.  This option specifies the minimum amount of time, I<TIMEOUT>, in
+milliseconds, that the launch feedback panel will remain shown
+regardless of whether startup notification completion has occurred.  The
+default is 1000 milliseconds (1 second).
+
+=item B<--verbose>, B<-v> [I<LEVEL>]
+
+Increases or sets the output verbosity level to I<LEVEL>.  The default
+level is C<1>.  Normal output is printed to standard output.  This
+option may be repeated.
+
+=item B<--debug>, B<-D> [I<LEVEL>]
+
+Increases or sets the debugging verbosity level to I<LEVEL>.  The
+default level is C<0>.  Debugging output is printed to standard error.
+This option may be repeated.
+
+=back
+
+=head1 USAGE
+
+The primary purpose of the B<xde-monitor> program is to expose visually
+the information flow between launcher, launchee and window manager
+according to the startup notification protocol.  Also, its purpose is to
+check that the coding of C<StartupNotify> and C<StartupWMClass> fields
+of desktop entry files is correct.  To perform this function correctly,
+B<xde-monitor> must be started in the same environment as the launcher.
+
+=head1 BEHAVIOR
+
+B<xde-monitor> monitors the communication between launcher, launchee and
+window manager according to the startup notification protocol and also
+monitors the actions taken and reported as supported by the window
+manager.  When C<APPID> information is present in the startup
+notification C<new> or C<change> messages, B<xde-monitor> also checks
+the desktop file corresponding to the startup notification sequence to
+determine whether appropriate information has been provided in the
+desktop entry file that is consistent with the behavior of the launched
+application.  To perform these functions, B<xde-monitor> takes the
+following steps:
+
+=over
+
+=item 1.
+
+=item 2.
+
+=item 3.
+
+=back
+
+B<xde-monitor> examines the following fields in the startup notification
+C<new:> and C<change:> messages:
+
+=over
+
+=item C<LAUNCHER=>
+
+Provides the name of the program that launched the staring application.
+Examined to determine the specific launcher that was used to launch the
+application and work around potential defects or deficiencies in
+specific launchers.
+
+=item C<LAUNCHEE=>
+
+Provides the name of the program being launched.  This is often either
+the name of the application identifier of a desktop file, or the name of
+the binary program being launched.
+
+=item C<SEQUENCE=>
+
+Provides a sequence number identifying a unique launch instance
+corresponding to the launcher.  The combination of launcher, launchee
+and sequence should provided a unique identifier for the launch
+instance.
+
+=item C<ID=>
+
+Provide a unique identifier of the launch instance.  This identifier is
+also placed in the B<DESKTOP_STARTUP_ID> environment variable of the
+launched process.  It is also placed in the B<_NET_STARTUP_ID> property
+on the leader window of a application that creates windows.  Examined
+for comparison against the B<DESKTOP_STARTUP_ID> of processes along with
+the B<_NET_STARTUP_ID> property on windows.
+
+=item C<NAME=>
+
+=item C<ICON=>
+
+Provides the name of the icon used to represent the application.
+Examined to determine the icon to display in startup notification
+feedback.  If an C<APPLICATION_ID> field is specified, the icon to
+display can also be taken from the C<Icon> field in the desktop entry
+file.  When a leader window can be identified (by B<_NET_PID> or
+B<_NET_STARTUP_ID> properties), the icon associated with the window can
+also be used.
+
+=item C<BIN=>
+
+=item C<DESCRIPTION=>
+
+=item C<WMCLASS=>
+
+=item C<SILENT=>
+
+=item C<APPLICATION_ID=>
+
+=item C<DESKTOP=>
+
+=item C<SCREEN=>
+
+=item C<MONITOR=>
+
+=item C<TIMESTAMP=>
+
+=item C<PID=>
+
+=item C<HOSTNAME=>
+
+=item C<COMMAND=>
+
+=item C<ACTION=>
+
+=item C<FILE=>
+
+=item C<URL=>
+
+=back
+
+=head1 ENVIRONMENT
+
+The following environment variables are examined by B<xde-monitor>, both
+in its own environment as well as in the environments of monitored
+processes:
+
+=over
+
+=item B<DISPLAY>
+
+Used by B<xde-monitor> to determine the X display and default screen on
+which it has been invoked.  Also used to determine whether processes in
+the environment belong to the same display and default screen.
+
+=item B<DESKTOP_STARTUP_ID>
+
+Use by B<xde-monitor> at program startup to determine whether it itself
+has been launched with startup notification.  The B<DESKTOP_STARTUP_ID>
+is removed from the environment in this case and a startup notification
+C<remove:> message is issued to complete its own startup.
+
+B<xde-monitor> also monitors for this environment variable in processes
+to which it has access to match appearing processes with startup
+notification.  A client that properly supports desktop startup
+notification will remove this environment variable from its environment
+at startup.  One that ignores the environment variable will not remove
+it.
+
+=item B<LANG>
+
+Use by B<xde-monitor> at program startup to determine the language to
+use to select the language for C<Name>, C<GenericName> and C<Comment>
+fields from the desktop entry file.
+
+=item B<HOME>
+
+Use by B<xde-monitor> to determine the user's home directory.
+
+=item B<XDG_CURRENT_DESKTOP>
+
+Use to determine the suitability of launching from a desktop entry file
+when an C<APPID> is provided in the startup notification sequence.
+
+=item B<XDG_DATA_HOME>
+
+Used by B<xde-monitor> to determine the user's XDG data directory.  This
+defaults to F<$HOME/.local/share>.  The F<applications> sub-directory
+under this directory is the first searched to locate desktop entry
+files.  See the L<XDG Desktop Entry> file specification for more
+information.
+
+=item B<XDG_DATA_DIRS>
+
+Use by B<xde-monitor> to determine the system XDG data directories.
+This defaults to F</usr/local/share:/usr/share>.  The F<applications>
+sub-directory under these directories are searched in order to locate
+desktop entry files.  See the L<XDG Desktop Entry> specification for
+more information.
+
+=item B<XDG_CONFIG_HOME>
+
+Used to determine the user's configuration home directory for locating
+autostart desktop entry files.  Autostart desktop entry files reside in
+the F<autostart> sub-directory of this directory.
+
+=item B<XDG_CONFIG_DIRS>
+
+Used to determine the system configuration directories for locating
+autostart desktop entry files.  Autostart desktop entry files reside in
+an F<autostart> sub-directory of these directories.
+
+=back
+
+=head1 BUGS
+
+B<xde-monitor> has no known bugs.  Please report bugs to the source code
+repository at L<https://github.com/bbidulock/xde-ctools/issues>.
+
+=head1 SEE ALSO
+
+L<xdg-launch(1)>.
+
+=head1 AUTHOR
+
+Brian Bidulock L<mailto:bidulock@openss7.org>,
+L<https://github.com/bbidulock>.
+
+=cut
+
+# vim: set sw=4 tw=72 nocin spell spelllang=en_ca:
