@@ -76,6 +76,7 @@
 #include <stdarg.h>
 #include <strings.h>
 #include <regex.h>
+#include <wordexp.h>
 
 #include <X11/Xatom.h>
 #include <X11/Xlib.h>
@@ -357,24 +358,52 @@ void
 xde_entry_activated(GtkMenuItem *menuitem, gpointer user_data)
 {
 	GtkWidget *menu;
-	char *cmd, *exec;
+	char *cmd;
 
 	if ((cmd = user_data)) {
 		pid_t pid;
+		wordexp_t we = { 0, };
+		int status;
 
-		exec = g_strdup_printf("%s &", cmd);
+		if ((status = wordexp(cmd, &we, 0)) != 0 || we.we_wordc < 1) {
+			switch(status) {
+			case WRDE_BADCHAR:
+				EPRINTF("adwm: bad character in command string: %s\n", cmd);
+				break;
+			case WRDE_BADVAL:
+				EPRINTF("adwm: undefined variable substitution in command string: %s\n", cmd);
+				break;
+			case WRDE_CMDSUB:
+				EPRINTF("adwm: command substitution in command string: %s\n", cmd);
+				break;
+			case WRDE_NOSPACE:
+				EPRINTF("adwm: out of memory processing command string: %s\n", cmd);
+				break;
+			case WRDE_SYNTAX:
+				EPRINTF("adwm: syntax error in command string: %s\n", cmd);
+				break;
+			default:
+				EPRINTF("adwm: unknown error processing command string: %s\n", cmd);
+				break;
+			}
+			wordfree(&we); /* necessary ??? */
+			return;
+		}
 		if ((pid = fork()) == -1) {
 			/* error */
 			EPRINTF("%s: %s\n", NAME, strerror(errno));
+			wordfree(&we);
 			exit(EXIT_FAILURE);
 			return;
 		} else if (pid == 0) {
 			/* we are the child */
-			execl("/bin/sh", "sh", "-c", exec, NULL);
-			exit(EXIT_FAILURE);
+			setsid();
+			execvp(we.we_wordv[0], we.we_wordv);
+			wordfree(&we);
+			exit(127);
 			return;
 		}
-		g_free(exec);
+		wordfree(&we);
 		/* we are the parent */
 	}
 	if (!(menu = gtk_widget_get_parent(GTK_WIDGET(menuitem))) ||
