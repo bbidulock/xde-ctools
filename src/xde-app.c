@@ -299,7 +299,18 @@ Options:\n\
     -v, --verbose [LEVEL]\n\
         increment or set output verbosity LEVEL [default: %3$d]\n\
         this option may be repeated.\n\
-", argv[0], options.debug, options.output, options.runhist, options.recent, options.recapps, options.xdg ? "true" : "false", options.xdg ? "false" : "true", options.xdg ? options.recapps : options.runhist);
+", argv[0]
+/* *INDENT-OFF* */
+	, options.debug
+	, options.output
+	, options.runhist
+	, options.recent
+	, options.recapps
+	, options.xdg ? "true" : "false"
+	, options.xdg ? "false" : "true"
+	, options.xdg ? options.recapps : options.runhist
+/* *INDENT-ON* */
+);
 }
 
 typedef struct {
@@ -1169,7 +1180,7 @@ run_command(GList **hist)
 	gtk_box_pack_start(GTK_BOX(mbox), GTK_WIDGET(vbox), TRUE, TRUE, 0);
 
 	dialog = gtk_dialog_new();
-	gtk_window_set_title(GTK_WINDOW(dialog), "Run Application");
+	gtk_window_set_title(GTK_WINDOW(dialog), options.xdg ? "Run Application" : "Run Command");
 	gtk_window_set_position(GTK_WINDOW(dialog), GTK_WIN_POS_CENTER);
 	gtk_window_set_resizable(GTK_WINDOW(dialog), FALSE);
 	gtk_container_set_border_width(GTK_CONTAINER(dialog), 5);
