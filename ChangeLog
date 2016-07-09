@@ -1,5 +1,46 @@
 # created with git log --stat=76 -M -C|fmt -sct -w80
 
+commit d2c8aa067ea4bf9725cad9b4b7ad58da641ae554
+Author: Brian Bidulock <bidulock@openss7.org>
+Date:   Sat Jul 9 16:11:38 2016 -0600
+
+    major rework of xde-monitor
+
+ src/xde-monitor.c | 4054 +++++++++++++++++++++++++++++--------------------
+ 1 file changed, 2389 insertions(+), 1665 deletions(-)
+
+commit ad0b541fdb5ff0ac046d52ff59815046d57e4867
+Author: Brian Bidulock <bidulock@openss7.org>
+Date:   Sat Jul 9 16:11:07 2016 -0600
+
+    minor formatting
+
+ src/xde-app.c | 15 +++++++++++++--
+ src/xde-run.c | 15 +++++++++++++--
+ 2 files changed, 26 insertions(+), 4 deletions(-)
+
+commit 214431731e207c94fa334b467698fdc8dee231f2
+Author: Brian Bidulock <bidulock@openss7.org>
+Date:   Sat Jul 9 16:10:02 2016 -0600
+
+    simplify distribution
+
+ .gitignore                         |   22 +-
+ AUTHORS                            |    3 +
+ ChangeLog                          | 3398 ++++++++++++++++++++++++++++++++
+ Makefile.am                        |   81 +-
+ NEWS.in => NEWS                    |   60 +-
+ README.in                          |   70 -
+ README.md                          |    4 +-
+ THANKS.in => THANKS                |    2 +-
+ TODO.in => TODO                    |    2 +-
+ autogen.sh                         |   55 +-
+ configure.template => configure.ac |    6 +-
+ dist.sh                            |    9 +
+ gennews.sh                         |   34 +
+ rebuild.sh                         |    4 +-
+ 14 files changed, 3587 insertions(+), 163 deletions(-)
+
 commit 2ba87bf43e6c8d6a59fd9fc577ab42cb04c3fe61
 Author: Brian Bidulock <bidulock@openss7.org>
 Date:   Sat Jul 2 13:15:22 2016 -0600
