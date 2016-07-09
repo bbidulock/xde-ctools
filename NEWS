@@ -1,11 +1,38 @@
-@PACKAGE@ -- NEWS file.  @DATE@
+xde-ctools -- history of user-visible changes.  2016-07-02
 
-Release @PACKAGE@-@VERSION@
-===========================
+Release xde-ctools-1.2.21 released 2016-07-02
+---------------------------------------------
 
-git shortlog -e -n -w80,6,8 1.1..1.2
+git shortlog -e -n -w80,6,8 1.2...HEAD
+Brian Bidulock <bidulock@openss7.org> (21):
+      do something when the screen updates
+      get showing desktop working
+      reread theme on size change
+      display windows by state
+      refresh layout on resize
+      force wnck update on screen change
+      force update for setbg too
+      always update monitor geometry
+      more updates on screen change
+      do not use button when popping
+      Revert "do not use button when popping"
+      do not use button when popping
+      update keys documentation
+      add KEYS.html to distribution
+      update preferred docs
+      a few tweaks
+      add launch monitor program
+      tweaks to xde-monitor
+      make xde-monitor more consistent with xdg-launch
+      big working of startup notification monitoring
+      do word expansion on launch command
 
-Brian Bidulock <bidulock@openss7.org> (28):
+
+Release xde-ctools-1.2 released 2016-05-17
+------------------------------------------
+
+git shortlog -e -n -w80,6,8 1.1...1.2
+Brian Bidulock <bidulock@openss7.org> (30):
       document more window managers
       document more window managers
       document more window managers
@@ -34,10 +61,14 @@ Brian Bidulock <bidulock@openss7.org> (28):
       do not take input focus
       no focus works better
       tweak
+      update release files
+      update date
 
 
-git shortlog -e -n -w80,6,8 1.0..1.1
+Release xde-ctools-1.1 released 2016-03-27
+------------------------------------------
 
+git shortlog -e -n -w80,6,8 1.0...1.1
 Brian Bidulock <bidulock@openss7.org> (75):
       make README.md too
       manual page for xde-wait
@@ -116,9 +147,11 @@ Brian Bidulock <bidulock@openss7.org> (75):
       update release files
 
 
-git shortlog -e -n -w80,6,8 0.1..1.0
+Release xde-ctools-1.0 released 2015-12-18
+------------------------------------------
 
-Brian Bidulock <bidulock@openss7.org> (203):
+git shortlog -e -n -w80,6,8 0.1...1.0
+Brian Bidulock <bidulock@openss7.org> (207):
       update bulid and start manual page
       working up code
       full workup from perl version
@@ -322,5 +355,16 @@ Brian Bidulock <bidulock@openss7.org> (203):
       correct xde-setbg options and manual page
       remove unused xde-setbg options
       cosmetics
+      add source for README.md
+      update NEWS file for release
+      update autogen for better release
+      update README.md for release
 
+
+Release xde-ctools-0.1 released 2014-05-30
+------------------------------------------
+
+git shortlog -e -n -w80,6,8 0.1
+Brian Bidulock <bidulock@openss7.org> (1):
+      initial commit
 
