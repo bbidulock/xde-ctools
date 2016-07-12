@@ -1,4 +1,76 @@
-# created with git log --stat=76 -M -C|fmt -sct -w80
+# created with git log --stat=76 -M -C -300|fmt -sct -w80
+
+commit c6c515c217b4253bbc5ebfc36e2925cd378f4b6a
+Author: Brian Bidulock <bidulock@openss7.org>
+Date:   Tue Jul 12 06:23:04 2016 -0600
+
+    move xde-setbg .desktop files here from xde-session
+
+ data/Makefile.am       |  4 +++-
+ data/xde-setbg.desktop | 23 +++++++++++++++++++++++
+ 2 files changed, 26 insertions(+), 1 deletion(-)
+
+commit 344de56227735532d62d363e0ef1df77700f0ee7
+Author: Brian Bidulock <bidulock@openss7.org>
+Date:   Tue Jul 12 05:51:01 2016 -0600
+
+    added xde-input to ctools
+
+    - xde-input was in xde-session package but did not
+      really belong there
+
+    - this commit moves it to the xde-ctools package
+
+ .gitignore             |    1 +
+ configure.ac           |    7 +-
+ data/Makefile.am       |   10 +-
+ data/xde-input.desktop |  135 ++
+ man/Makefile.am        |   18 +-
+ man/xde-input.pod      |  392 ++++
+ src/Makefile.am        |   86 +-
+ src/xde-input.c        | 5249 ++++++++++++++++++++++++++++++++++++++++++++
+ 8 files changed, 5843 insertions(+), 55 deletions(-)
+
+commit 5d560c5fecfc794a348d42a6ab76ce1003cb4cb6
+Author: Brian Bidulock <bidulock@openss7.org>
+Date:   Sun Jul 10 02:46:45 2016 -0600
+
+    limit changelog
+
+ Makefile.am | 12 ++++++------
+ 1 file changed, 6 insertions(+), 6 deletions(-)
+
+commit f2031822574f7e247ba245dfa3881d32efe5ae03
+Author: Brian Bidulock <bidulock@openss7.org>
+Date:   Sun Jul 10 02:33:43 2016 -0600
+
+    better formatting
+
+ README.md    | 96 +++++++++++++++++++++++++++++++-------------------------
+ README.md.in | 96 +++++++++++++++++++++++++++++++-------------------------
+ 2 files changed, 106 insertions(+), 86 deletions(-)
+
+commit 0ab3aecf0f603a96fb039cff9956a55bf5c59fe6
+Author: Brian Bidulock <bidulock@openss7.org>
+Date:   Sun Jul 10 02:33:35 2016 -0600
+
+    git hates trailing space
+
+ gennews.sh | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+commit e74f603ee955d05966eef8fac2ae1c9f18dcae1e
+Author: Brian Bidulock <bidulock@openss7.org>
+Date:   Sat Jul 9 16:18:19 2016 -0600
+
+    update release files
+
+ AUTHORS      |  2 +-
+ ChangeLog    | 41 +++++++++++++++++++++++++++++++++++++++++
+ NEWS         | 18 +++++++++++++-----
+ README.md    |  4 ++--
+ configure.ac |  6 +++---
+ 5 files changed, 60 insertions(+), 11 deletions(-)
 
 commit d2c8aa067ea4bf9725cad9b4b7ad58da641ae554
 Author: Brian Bidulock <bidulock@openss7.org>
@@ -2961,479 +3033,3 @@ Date:   Sun Aug 3 06:23:17 2014 -0600
 
  src/xde-pager.c | 2 ++
  1 file changed, 2 insertions(+)
-
-commit 221a21845f950be6dd019fa7eccd43ca49fdcce5
-Author: Brian Bidulock <bidulock@openss7.org>
-Date:   Sun Aug 3 03:20:42 2014 -0600
-
-    more .desktop files
-
- Makefile.am          |  4 +++-
- data/xde-app.desktop | 13 +++++++++++++
- data/xde-run.desktop | 13 +++++++++++++
- 3 files changed, 29 insertions(+), 1 deletion(-)
-
-commit b6eb2b23bfe4de1a36a34376e419765d6209c39c
-Author: Brian Bidulock <bidulock@openss7.org>
-Date:   Sun Aug 3 03:17:20 2014 -0600
-
-    application and autostart files, XSM support for pager
-
- Makefile.am            |   5 +
- configure.template     |  31 ++-
- data/xde-pager.desktop |  15 ++
- src/Makefile.am        |  12 +-
- src/xde-pager.c        | 538 +++++++++++++++++++++++++++++++++++++++++++--
- 5 files changed, 577 insertions(+), 24 deletions(-)
-
-commit e7a7e9b9b1e5ade4bd9fcbf90d0dd735686ef123
-Author: Brian Bidulock <bidulock@openss7.org>
-Date:   Tue Jul 22 13:25:58 2014 -0600
-
-    tweaks
-
- README.md | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
-
-commit fcd54ced01dde22c53f2cb980a181c858865e573
-Author: Brian Bidulock <bidulock@openss7.org>
-Date:   Tue Jul 22 13:22:43 2014 -0600
-
-    try that
-
- README.md | 18 +++++++++---------
- 1 file changed, 9 insertions(+), 9 deletions(-)
-
-commit 024a47cb519c052b66bc91e062f5e565b20fecd4
-Author: Brian Bidulock <bidulock@openss7.org>
-Date:   Tue Jul 22 13:20:03 2014 -0600
-
-    doesn't like https
-
- README.md | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
-
-commit d1753d3df30555d9125c880eceb488bc3bc91d66
-Author: Brian Bidulock <bidulock@openss7.org>
-Date:   Tue Jul 22 13:17:31 2014 -0600
-
-    try my first markdown readme
-
- README.md | 66 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 66 insertions(+)
-
-commit d40b817a8663bb2a85059cd879e61ef6f1152eb0
-Author: Brian Bidulock <bidulock@openss7.org>
-Date:   Tue Jul 22 13:17:02 2014 -0600
-
-    this was the problem: it core dumps
-
- src/xde-pager.c | 5 +----
- 1 file changed, 1 insertion(+), 4 deletions(-)
-
-commit 691437cd6ee2908f00f3ddc3f1214594c2b16ebd
-Author: Brian Bidulock <bidulock@openss7.org>
-Date:   Tue Jul 22 11:35:50 2014 -0600
-
-    trying to find bug
-
- configure.sh    |   8 +-
- src/xde-pager.c | 231 +++++++++++++++++++++++++++++++++++++++++++++-------
- 2 files changed, 206 insertions(+), 33 deletions(-)
-
-commit c443ee9a3c9a5b398bbab208b1bfc1c58e7de8b3
-Author: Brian Bidulock <bidulock@openss7.org>
-Date:   Tue Jul 22 10:47:34 2014 -0600
-
-    final tweaks
-
- src/xde-pager.c | 64 +++++++++++++++++++++++++++++++++++++++++++++++++++--
- 1 file changed, 62 insertions(+), 2 deletions(-)
-
-commit 04d78010145b1ef213a639982636a9715930137a
-Author: Brian Bidulock <bidulock@openss7.org>
-Date:   Thu Jul 17 09:06:36 2014 -0600
-
-    updates from testing across window managers
-
- man/xde-pager.pod |  341 +++++++++------
- src/xde-pager.c   | 1131 ++++++++++---------------------------------------
- 2 files changed, 419 insertions(+), 1053 deletions(-)
-
-commit dfba797b93eccfe2d31ce80531057ed97f2888db
-Author: Brian Bidulock <bidulock@openss7.org>
-Date:   Thu Jul 17 02:13:02 2014 -0600
-
-    handle button proxy, better filters
-
- src/xde-pager.c | 639 ++++++++++++++++++++++++++++++++++++++--------------
- 1 file changed, 465 insertions(+), 174 deletions(-)
-
-commit 2f03c87cda2f76984ab91c3b9495ff4b014ab329
-Author: Brian Bidulock <bidulock@openss7.org>
-Date:   Wed Jul 16 10:48:52 2014 -0600
-
-    proper geometry and selection handling
-
- src/xde-pager.c | 459 +++++++++++++++++++++++++++++++++++++---------------
- 1 file changed, 327 insertions(+), 132 deletions(-)
-
-commit c9f70b6f173d113d2a0e9ab7fa046fae7af459ce
-Author: Brian Bidulock <bidulock@openss7.org>
-Date:   Wed Jul 16 04:09:14 2014 -0600
-
-    xde-pager seems to work pretty good
-
- .indent.pro     |   5 +
- src/xde-pager.c | 694 ++++++++++++++++++++++++++++++++++++++++++++++++++--
- 2 files changed, 677 insertions(+), 22 deletions(-)
-
-commit 0d07343e9753cddf4ef17e9851a38945416b9b3a
-Author: Brian Bidulock <bidulock@openss7.org>
-Date:   Tue Jul 15 19:49:53 2014 -0600
-
-    working up xde-pager
-
- man/xde-pager.pod |   9 +++-
- src/xde-pager.c   | 112 ++++++++++++++++++++++----------------------------
- 2 files changed, 58 insertions(+), 63 deletions(-)
-
-commit 29cc1a48f75b5d4ec47a5e9b9825aa11187d4f92
-Author: Brian Bidulock <bidulock@openss7.org>
-Date:   Tue Jul 15 19:13:36 2014 -0600
-
-    working up xde-pager
-
- man/xde-pager.pod |  52 +++++++++++++++
- src/xde-pager.c   | 181 ++++++++++++++++++++++++++++++++++++--------------
- 2 files changed, 184 insertions(+), 49 deletions(-)
-
-commit 0cc5a3af5003a47b0999eb3e4602a1b1eba3d2e7
-Author: Brian Bidulock <bidulock@openss7.org>
-Date:   Tue Jul 15 18:07:44 2014 -0600
-
-    add xde-pager and xde-cycle
-
- .gitignore                         |   2 +
- man/Makefile.am                    |   8 +-
- man/xde-cycle.pod                  | 228 +++++++++++++++++
- man/xde-pager.pod                  | 234 +++++++++++++++++
- man/xde-winlist.pod                |  10 +-
- src/Makefile.am                    |  12 +-
- src/{xde-winlist.c => xde-cycle.c} | 446 ++++++++++++++++++++++++++++++++-
- src/xde-cycle.h                    | 118 +++++++++
- src/{xde-winlist.c => xde-pager.c} | 446 ++++++++++++++++++++++++++++++++-
- src/xde-pager.h                    | 118 +++++++++
- src/xde-winlist.c                  | 444 ++++++++++++++++++++++++++++++++
- 11 files changed, 2056 insertions(+), 10 deletions(-)
-
-commit ce766bbcbf3ae5297ef20d33f58b5627a52ba232
-Author: Brian Bidulock <bidulock@openss7.org>
-Date:   Sun Jul 13 17:29:13 2014 -0600
-
-    working up xde-winlist
-
- .gitignore                           |   1 +
- man/Makefile.am                      |   6 +-
- man/xde-winlist.pod                  | 307 +++++++++++++
- man/xde-winmenu.pod                  |  24 +-
- src/Makefile.am                      |   7 +-
- src/{xde-winmenu.c => xde-winlist.c} | 709 +++++++------------------------
- src/xde-winlist.h                    | 118 +++++
- src/xde-winmenu.c                    |   2 +-
- 8 files changed, 604 insertions(+), 570 deletions(-)
-
-commit 555c919607ec80b2fd41a74fc6c219363402868b
-Author: Brian Bidulock <bidulock@openss7.org>
-Date:   Sat Jul 12 21:13:18 2014 -0600
-
-    get theme detection working properly
-
- src/xde-app.c     | 229 ++++++++++++++++++------------------------------
- src/xde-app.h     |  16 ++++
- src/xde-run.c     | 235 +++++++++++++++++++-------------------------------
- src/xde-run.h     |  16 ++++
- src/xde-winmenu.c |  12 +--
- 5 files changed, 212 insertions(+), 296 deletions(-)
-
-commit 33396f2d0304de2ebc142ccee1d2679da5aaf1f5
-Author: Brian Bidulock <bidulock@openss7.org>
-Date:   Sat Jul 12 20:39:43 2014 -0600
-
-    provide arguments for xde-winmenu positioning
-
- .indent.pro         |   8 +-
- man/xde-winmenu.pod |  71 ++++++++
- src/xde-winmenu.c   | 428 +++++++++++++++++++++++++++++++++++++-----------
- src/xde-winmenu.h   |  16 ++
- 4 files changed, 427 insertions(+), 96 deletions(-)
-
-commit 270703cdded0259f144a3d6443bc89e9642a1f33
-Author: Brian Bidulock <bidulock@openss7.org>
-Date:   Sat Jul 12 12:38:23 2014 -0600
-
-    tweaks to finding focus window and menu position
-
- .indent.pro       |   2 +
- src/xde-winmenu.c | 227 ++++++++++++++++++++++++++++++++++++++------------
- 2 files changed, 174 insertions(+), 55 deletions(-)
-
-commit 03bf629e26955165187cfe15c328149371f304f7
-Author: Brian Bidulock <bidulock@openss7.org>
-Date:   Sat Jul 12 09:20:30 2014 -0600
-
-    add xde-winmenu to provide window menus using libwnck
-
- .gitignore          |   1 +
- man/xde-winmenu.pod |  25 +-
- src/Makefile.am     |   7 +-
- src/xde-winmenu.c   | 892 ++++++++++++++++++++++++++++++++++++++++++++++++
- src/xde-winmenu.h   | 102 ++++++
- 5 files changed, 1025 insertions(+), 2 deletions(-)
-
-commit 8c1e465543de97e537dcd2dae20d6a726929ed2b
-Author: Brian Bidulock <bidulock@openss7.org>
-Date:   Fri Jul 11 11:01:07 2014 -0600
-
-    doc updates
-
- man/xde-app.pod     | 24 ++++++++---------
- man/xde-winmenu.pod | 68 +++++++++----------------------------------------
- 2 files changed, 24 insertions(+), 68 deletions(-)
-
-commit 8d658ca5ba92dc00d7b0a3ed4c200fb1b77cec0e
-Author: Brian Bidulock <bidulock@openss7.org>
-Date:   Thu Jul 10 14:12:32 2014 -0600
-
-    added xde-winmenu docs
-
- man/Makefile.am     |  19 +----
- man/xde-winmenu.pod | 198 ++++++++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 202 insertions(+), 15 deletions(-)
-
-commit f909575653291372772d55b4097a8083abe44280
-Author: Brian Bidulock <bidulock@openss7.org>
-Date:   Thu Jun 26 19:57:02 2014 -0600
-
-    correct xdg history
-
- src/xde-run.c | 4 +++-
- 1 file changed, 3 insertions(+), 1 deletion(-)
-
-commit 260aeae024a5f11babaf4eb25d8d186525d7700d
-Author: Brian Bidulock <bidulock@openss7.org>
-Date:   Wed Jun 18 07:08:21 2014 -0600
-
-    update dockapp detection logic
-
- src/xde-dock.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
-
-commit 725a0294268a745c65c1344f4ce3c1b35aad5107
-Author: Brian Bidulock <bidulock@openss7.org>
-Date:   Fri Jun 6 07:41:29 2014 -0600
-
-    spelling
-
- man/xde-app.pod  | 2 +-
- man/xde-dock.pod | 2 +-
- man/xde-run.pod  | 2 +-
- 3 files changed, 3 insertions(+), 3 deletions(-)
-
-commit 0e754c522f68718e7fba5d2fd4c289bb82563964
-Author: Brian Bidulock <bidulock@openss7.org>
-Date:   Fri Jun 6 07:39:59 2014 -0600
-
-    was renamed
-
- man/xde-run.pod | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
-
-commit 1a01902dae7915af8a98ef33c1a0f14b45154847
-Author: Brian Bidulock <bidulock@openss7.org>
-Date:   Thu Jun 5 05:14:31 2014 -0600
-
-    working up docs
-
- man/xde-preferred.pod | 273 ++++++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 273 insertions(+)
-
-commit 4ade125dfc572c7de4d1972c1357ebec78c1613b
-Author: Brian Bidulock <bidulock@openss7.org>
-Date:   Wed Jun 4 04:29:42 2014 -0600
-
-    add xde-app and make xde-run workalike
-
- .gitignore                          |   1 +
- configure.sh                        |   4 +-
- man/Makefile.am                     |  10 +-
- man/{xde-launch.pod => xde-app.pod} |   7 +
- man/xde-preferred.pod               |  71 ++++++++-
- man/xde-run.pod                     |  26 ++-
- src/Makefile.am                     |   9 +-
- src/{xde-run.c => xde-app.c}        | 263 ++++++++++++++++++++++++------
- src/xde-app.h                       | 102 ++++++++++++
- src/xde-run.c                       | 275 ++++++++++++++++++++++++++------
- 10 files changed, 654 insertions(+), 114 deletions(-)
-
-commit 2bb978bf4b5ab2e62cd3d3bf488fa17a21c94668
-Author: Brian Bidulock <bidulock@openss7.org>
-Date:   Tue Jun 3 02:55:36 2014 -0600
-
-    added manpages, reverse sorting of run-history file
-
- man/Makefile.am       |  19 +++++-
- man/xde-dock.pod      |   2 +-
- man/xde-launch.pod    | 108 +++++++++++++++++++++++++++++++
- man/xde-preferred.pod | 158 ++++++++++++++++++++++++++++++++++++++++++++++
- man/xde-run.pod       |  99 +++++++++++++++++++++++++++++
- src/xde-run.c         |  13 +++-
- 6 files changed, 393 insertions(+), 6 deletions(-)
-
-commit f3d4c5a4b097c5f430b1476b85295872d6213b64
-Author: Brian Bidulock <bidulock@openss7.org>
-Date:   Tue Jun 3 01:50:18 2014 -0600
-
-    runs very well now
-
- src/xde-run.c | 29 ++++++++++++++---------------
- 1 file changed, 14 insertions(+), 15 deletions(-)
-
-commit 9da57da3970745f778f723a51c748ac17d13bbf4
-Author: Brian Bidulock <bidulock@openss7.org>
-Date:   Tue Jun 3 01:02:41 2014 -0600
-
-    works much better now
-
- src/xde-run.c | 191 ++++++++++++++++++++++++++++++++++++++++++------------
- 1 file changed, 151 insertions(+), 40 deletions(-)
-
-commit 9496bfa4141a0435879c8c10778f683904236fcb
-Author: Brian Bidulock <bidulock@openss7.org>
-Date:   Mon Jun 2 23:31:33 2014 -0600
-
-    starting to work
-
- src/xde-run.c | 1 +
- 1 file changed, 1 insertion(+)
-
-commit bd6c7c1e9e392d2417fe541076052e4fb585b686
-Author: Brian Bidulock <bidulock@openss7.org>
-Date:   Mon Jun 2 23:08:31 2014 -0600
-
-    add new xde-run
-
- .gitignore        |   1 +
- .indent.pro       | 379 +++++++++++++-------------
- src/Makefile.am   |   8 +-
- src/xde-chooser.c |  78 ++++++
- src/xde-run.c     | 725 ++++++++++++++++++++++++++++++++++++++++++++++++++
- src/xde-run.h     | 102 +++++++
- 6 files changed, 1113 insertions(+), 180 deletions(-)
-
-commit 220c3f895c90cd58cae5752d86ea0c411252e302
-Author: Brian Bidulock <bidulock@openss7.org>
-Date:   Mon Jun 2 12:55:08 2014 -0600
-
-    still playing with this
-
- src/xde-dock.c | 410 ++++++++++++++++++++++++++++++++++++++++-------------
- 1 file changed, 309 insertions(+), 101 deletions(-)
-
-commit 4cb80ceef5d279c39a77c6a87ec4e0bd7874f082
-Author: Brian Bidulock <bidulock@openss7.org>
-Date:   Sat May 31 03:44:04 2014 -0600
-
-    working a bit better yet
-
- src/xde-dock.c | 270 +++++++++++++++++++++++++++++++++++++++++++----------
- 1 file changed, 220 insertions(+), 50 deletions(-)
-
-commit a9824a20c178866578b44cf2d9655d50f4d53e4c
-Author: Brian Bidulock <bidulock@openss7.org>
-Date:   Fri May 30 15:44:37 2014 -0600
-
-    minor correction and it works like a charm with blackbox
-
- src/xde-dock.c | 42 +++++++++++++++++++++++++++++++++---------
- 1 file changed, 33 insertions(+), 9 deletions(-)
-
-commit cefce5dabffdf6d98c8e32da33558d552481dadc
-Author: Brian Bidulock <bidulock@openss7.org>
-Date:   Fri May 30 15:26:26 2014 -0600
-
-    working better, steals nicely from blackbox
-
- .indent.pro    |   4 +-
- autogen.sh     |   2 +-
- src/xde-dock.c | 427 +++++++++++++++++++++++++----------------------------
- 3 files changed, 202 insertions(+), 231 deletions(-)
-
-commit 53f111c061f6660db02ad867e5692ad4f727e6d3
-Author: Brian Bidulock <bidulock@openss7.org>
-Date:   Fri May 30 12:36:20 2014 -0600
-
-    significant workup, rename package
-
- README.in          |   9 +-
- configure.template |   2 +-
- src/xde-dock.c     | 315 +++++++++++++++++++++++++++++--------------------
- 3 files changed, 194 insertions(+), 132 deletions(-)
-
-commit 73cff6b9de547e6a7ce10e5f2050d93e435cf65d
-Author: Brian Bidulock <bidulock@openss7.org>
-Date:   Fri May 30 09:37:06 2014 -0600
-
-    full workup from perl version
-
- .indent.pro        | 233 +++++++++++++
- configure.template |   1 +
- src/Makefile.am    |   4 +-
- src/xde-dock.c     | 892 ++++++++++++++++++++++++++++++++++++++++++++++++-
- src/xde-dock.h     |   4 +
- 5 files changed, 1121 insertions(+), 13 deletions(-)
-
-commit 385caab98f2ac994813836b3a693a041f0a2247e
-Author: Brian Bidulock <bidulock@openss7.org>
-Date:   Fri May 30 03:29:41 2014 -0600
-
-    working up code
-
- src/Makefile.am |   4 +-
- src/xde-dock.c  | 286 ++++++++++++++++++++++++++++++++++++++++++++++++++++
- src/xde-dock.h  |  97 ++++++++++++++++++
- 3 files changed, 385 insertions(+), 2 deletions(-)
-
-commit e0fbfb1ea1d63f5b91a11acb652aa7cc02843ee4
-Author: Brian Bidulock <bidulock@openss7.org>
-Date:   Fri May 30 02:19:56 2014 -0600
-
-    update bulid and start manual page
-
- autogen.sh       |   2 +-
- configure.sh     |  38 +++++++
- man/xde-dock.pod | 273 +++++++++++++++++++++++++++++++++++++++++++++++++++
- 3 files changed, 312 insertions(+), 1 deletion(-)
-
-commit e01c8470956fdd0f1bb8e951535c007136a18708
-Author: Brian Bidulock <bidulock@openss7.org>
-Date:   Fri May 30 01:31:36 2014 -0600
-
-    initial commit
-
- .gitignore         |  45 +++++++++++++++++++++
- AUTHORS.in         |   3 ++
- Makefile.am        |  37 +++++++++++++++++
- NEWS.in            |  11 +++++
- README.in          |  69 ++++++++++++++++++++++++++++++++
- THANKS.in          |   4 ++
- TODO.in            |   3 ++
- autogen.sh         |  39 ++++++++++++++++++
- configure.template | 106 +++++++++++++++++++++++++++++++++++++++++++++++++
- m4/.gitignore      |   0
- man/Makefile.am    |  29 ++++++++++++++
- man/xde-dock.pod   |   0
- src/Makefile.am    |   9 +++++
- src/xde-dock.c     |   0
- src/xde-dock.h     |   0
- 15 files changed, 355 insertions(+)
