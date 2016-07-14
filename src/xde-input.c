@@ -326,8 +326,8 @@ typedef struct {
 	struct {
 		GtkWidget *Timeout;
 		GtkWidget *Interval;
-		GtkWidget *Preferblanking;
-		GtkWidget *Allowexposures;
+		GtkWidget *Preferblanking[3];
+		GtkWidget *Allowexposures[3];
 	} ScreenSaver;
 	struct {
 		GtkWidget *State;
@@ -502,6 +502,7 @@ edit_set_values()
 {
 	int value;
 	gboolean flag;
+	char *str;
 
 	if (!file) {
 		EPRINTF("no key file!\n");
@@ -512,7 +513,8 @@ edit_set_values()
 		gtk_range_set_value(GTK_RANGE(controls.Keyboard.KeyClickPercent), value);
 		value = g_key_file_get_integer(file, KFG_Keyboard, KFK_Keyboard_BellPercent, NULL);
 		gtk_range_set_value(GTK_RANGE(controls.Keyboard.BellPercent), value);
-		gtk_range_set_value(GTK_RANGE(controls.Icon.BellPercent), value);
+		if (controls.Icon.BellPercent)
+			gtk_range_set_value(GTK_RANGE(controls.Icon.BellPercent), value);
 		value = g_key_file_get_integer(file, KFG_Keyboard, KFK_Keyboard_BellPitch, NULL);
 		gtk_range_set_value(GTK_RANGE(controls.Keyboard.BellPitch), value);
 		value = g_key_file_get_integer(file, KFG_Keyboard, KFK_Keyboard_BellDuration, NULL);
@@ -572,10 +574,24 @@ edit_set_values()
 		gtk_range_set_value(GTK_RANGE(controls.ScreenSaver.Timeout), value);
 		value = g_key_file_get_integer(file, KFG_ScreenSaver, KFK_ScreenSaver_Interval, NULL);
 		gtk_range_set_value(GTK_RANGE(controls.ScreenSaver.Interval), value);
-		flag = g_key_file_get_boolean(file, KFG_ScreenSaver, KFK_ScreenSaver_PreferBlanking, NULL);
-		gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(controls.ScreenSaver.Preferblanking), flag);
-		flag = g_key_file_get_boolean(file, KFG_ScreenSaver, KFK_ScreenSaver_AllowExposures, NULL);
-		gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(controls.ScreenSaver.Allowexposures), flag);
+		str = g_key_file_get_string(file, KFG_ScreenSaver, KFK_ScreenSaver_PreferBlanking, NULL);
+		if (str && strcmp(str, "DontPreferBlanking") == 0) {
+			gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(controls.ScreenSaver.Preferblanking[1]), TRUE);
+		} else if (str && strcmp(str, "PreferBlanking") == 0) {
+			gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(controls.ScreenSaver.Preferblanking[2]), TRUE);
+		} else {
+			gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(controls.ScreenSaver.Preferblanking[0]), TRUE);
+		}
+		if (str) g_free(str);
+		str = g_key_file_get_string(file, KFG_ScreenSaver, KFK_ScreenSaver_AllowExposures, NULL);
+		if (str && strcmp(str, "DontAllowExposures") == 0) {
+			gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(controls.ScreenSaver.Allowexposures[1]), TRUE);
+		} else if (str && strcmp(str, "AllowExposures") == 0) {
+			gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(controls.ScreenSaver.Allowexposures[2]), TRUE);
+		} else {
+			gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(controls.ScreenSaver.Allowexposures[0]), TRUE);
+		}
+		if (str) g_free(str);
 	}
 	if (support.DPMS) {
 		value = g_key_file_get_integer(file, KFG_DPMS, KFK_DPMS_StandbyTimeout, NULL);
@@ -1231,18 +1247,31 @@ set_input(void)
 	PTRACE(5);
 	if (g_key_file_has_group(file, KFG_ScreenSaver) && support.ScreenSaver) {
 		int timeout, interval, prefer_blanking, allow_exposures;
+		char *str;
 
 		PTRACE(5);
 		timeout =
 		    g_key_file_get_integer(file, KFG_ScreenSaver, KFK_ScreenSaver_Timeout, NULL);
 		interval =
 		    g_key_file_get_integer(file, KFG_ScreenSaver, KFK_ScreenSaver_Interval, NULL);
-		prefer_blanking =
-		    g_key_file_get_boolean(file, KFG_ScreenSaver, KFK_ScreenSaver_PreferBlanking,
-					   NULL);
-		allow_exposures =
-		    g_key_file_get_boolean(file, KFG_ScreenSaver, KFK_ScreenSaver_AllowExposures,
-					   NULL);
+		str = g_key_file_get_string(file, KFG_ScreenSaver, KFK_ScreenSaver_PreferBlanking, NULL);
+		if (str && strcmp(str, "DontPreferBlanking") == 0) {
+			prefer_blanking = DontPreferBlanking;
+		} else if (str && strcmp(str, "PreferBlanking") == 0) {
+			prefer_blanking = PreferBlanking;
+		} else {
+			prefer_blanking = DefaultBlanking;
+		}
+		if (str) g_free(str);
+		str = g_key_file_get_string(file, KFG_ScreenSaver, KFK_ScreenSaver_AllowExposures, NULL);
+		if (str && strcmp(str, "DontAllowExposures")) {
+			allow_exposures = DontAllowExposures;
+		} else if (str && strcmp(str, "AllowExposures")) {
+			allow_exposures = AllowExposures;
+		} else {
+			allow_exposures = DefaultExposures;
+		}
+		if (str) g_free(str);
 		XSetScreenSaver(dpy, timeout, interval, prefer_blanking, allow_exposures);
 	}
 	PTRACE(5);
@@ -2298,9 +2327,14 @@ rotate_screensaver_clicked(GtkButton *button, gpointer user_data)
 static void
 prefer_blanking_toggled(GtkToggleButton *button, gpointer user_data)
 {
-	gboolean active = gtk_toggle_button_get_active(button);
-	int value = active ? PreferBlanking : DontPreferBlanking;
+	int value = DefaultBlanking;
 
+	if (gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(controls.ScreenSaver.Preferblanking[0])))
+		value = DefaultBlanking;
+	if (gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(controls.ScreenSaver.Preferblanking[1])))
+		value = DontPreferBlanking;
+	if (gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(controls.ScreenSaver.Preferblanking[2])))
+		value = PreferBlanking;
 	if (value != state.ScreenSaver.prefer_blanking) {
 		PTRACE(5);
 		state.ScreenSaver.prefer_blanking = value;
@@ -2316,9 +2350,14 @@ prefer_blanking_toggled(GtkToggleButton *button, gpointer user_data)
 static void
 allow_exposures_toggled(GtkToggleButton *button, gpointer user_data)
 {
-	gboolean active = gtk_toggle_button_get_active(button);
-	int value = active ? AllowExposures : DontAllowExposures;
+	int value = DefaultExposures;
 
+	if (gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(controls.ScreenSaver.Allowexposures[0])))
+		value = DefaultExposures;
+	if (gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(controls.ScreenSaver.Allowexposures[1])))
+		value = DontAllowExposures;
+	if (gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(controls.ScreenSaver.Allowexposures[2])))
+		value = AllowExposures;
 	if (value != state.ScreenSaver.allow_exposures) {
 		PTRACE(5);
 		state.ScreenSaver.allow_exposures = value;
@@ -2490,7 +2529,8 @@ GtkWindow *
 create_window()
 {
 	GtkWindow *w;
-	GtkWidget *h, *n, *v, *l, *f, *u, *s, *q;
+	GtkWidget *h, *n, *v, *l, *f, *u, *s, *q, *r;
+	GSList *group;
 
 	w = GTK_WINDOW(gtk_window_new(GTK_WINDOW_TOPLEVEL));
 	gtk_window_set_wmclass(w, "xde-input", "Xde-input");
@@ -2910,30 +2950,71 @@ typical value is 600 seconds (10 minutes).");
 		g_signal_connect(G_OBJECT(h), "value-changed", G_CALLBACK(screensaver_interval_value_changed), NULL);
 		controls.ScreenSaver.Interval = h;
 
-		f = gtk_frame_new(NULL);
+		f = gtk_frame_new("Blanking");
 		gtk_box_pack_start(GTK_BOX(v), f, FALSE, FALSE, 0);
-		u = gtk_check_button_new_with_label("Prefer Blanking");
-		gtk_container_add(GTK_CONTAINER(f), u);
+		r = gtk_vbox_new(FALSE, 0);
+		u = gtk_radio_button_new_with_label(NULL, "Don't Prefer Blanking");
+		group = gtk_radio_button_get_group(GTK_RADIO_BUTTON(u));
 		gtk_widget_set_tooltip_markup(u, "\
-When checked, blank the scfreen instead of using\n\
-a screen saver; otherwise, use a screen saver if\n\
-enabled.");
+When checked, use a screen saver if enabled;\n\
+otherwise, blank the screen instead of using\n\
+a screen saver enabled.");
+		gtk_box_pack_start(GTK_BOX(r), u, FALSE, FALSE, 0);
 		g_signal_connect(G_OBJECT(u), "toggled", G_CALLBACK(prefer_blanking_toggled), NULL);
-		controls.ScreenSaver.Preferblanking = u;
-
-		f = gtk_frame_new(NULL);
-		gtk_box_pack_start(GTK_BOX(v), f, FALSE, FALSE, 0);
-		u = gtk_check_button_new_with_label("Allow Exposures");
-		gtk_container_add(GTK_CONTAINER(f), u);
+		controls.ScreenSaver.Preferblanking[1] = u;
+		u = gtk_radio_button_new_with_label(group, "Prefer Blanking");
+		group = gtk_radio_button_get_group(GTK_RADIO_BUTTON(u));
 		gtk_widget_set_tooltip_markup(u, "\
-When set, use a screensaver even when the server\n\
+When checked, blank the screen instead of\n\
+using a screen saver; otherwise, use a screen\n\
+saver if enabled.");
+		gtk_box_pack_start(GTK_BOX(r), u, FALSE, FALSE, 0);
+		g_signal_connect(G_OBJECT(u), "toggled", G_CALLBACK(prefer_blanking_toggled), NULL);
+		controls.ScreenSaver.Preferblanking[2] = u;
+		u = gtk_radio_button_new_with_label(group, "Default Blanking");
+		gtk_toggle_button_set_mode(GTK_TOGGLE_BUTTON(u), FALSE);
+		group = gtk_radio_button_get_group(GTK_RADIO_BUTTON(u));
+		gtk_widget_set_tooltip_markup(u, "\
+When checked, use the default blanking for the\n\
+server.");
+		gtk_box_pack_start(GTK_BOX(r), u, FALSE, FALSE, 0);
+		g_signal_connect(G_OBJECT(u), "toggled", G_CALLBACK(prefer_blanking_toggled), NULL);
+		controls.ScreenSaver.Preferblanking[0] = u;
+		gtk_container_add(GTK_CONTAINER(f), r);
+
+		f = gtk_frame_new("Exposures");
+		gtk_box_pack_start(GTK_BOX(v), f, FALSE, FALSE, 0);
+		r = gtk_vbox_new(FALSE, 0);
+		u = gtk_radio_button_new_with_label(NULL, "Don't Allow Exposures");
+		group = gtk_radio_button_get_group(GTK_RADIO_BUTTON(u));
+		gtk_widget_set_tooltip_markup(u, "\
+When checked, do not use a screen saver when the\n\
+server is not capable of performing screen saving\n\
+without sending exposure events to existing clients.");
+		gtk_box_pack_start(GTK_BOX(r), u, FALSE, FALSE, 0);
+		g_signal_connect(G_OBJECT(u), "toggled", G_CALLBACK(allow_exposures_toggled), NULL);
+		controls.ScreenSaver.Allowexposures[1] = u;
+		u = gtk_radio_button_new_with_label(group, "Allow Exposures");
+		group = gtk_radio_button_get_group(GTK_RADIO_BUTTON(u));
+		gtk_widget_set_tooltip_markup(u, "\
+When checked, use a screen saver even when the server\n\
 is not capable of performing screen saving without\n\
 sending exposure events to existing clients.  Not\n\
 normally needed nowadays.");
+		gtk_box_pack_start(GTK_BOX(r), u, FALSE, FALSE, 0);
 		g_signal_connect(G_OBJECT(u), "toggled", G_CALLBACK(allow_exposures_toggled), NULL);
-		controls.ScreenSaver.Allowexposures = u;
+		controls.ScreenSaver.Allowexposures[2] = u;
+		u = gtk_radio_button_new_with_label(group, "Default Exposures");
+		gtk_toggle_button_set_mode(GTK_TOGGLE_BUTTON(u), FALSE);
+		group = gtk_radio_button_get_group(GTK_RADIO_BUTTON(u));
+		gtk_widget_set_tooltip_markup(u, "\
+When checked, us the default exposures for the\n\
+server.");
+		gtk_box_pack_start(GTK_BOX(r), u, FALSE, FALSE, 0);
+		g_signal_connect(G_OBJECT(u), "toggled", G_CALLBACK(allow_exposures_toggled), NULL);
+		controls.ScreenSaver.Allowexposures[0] = u;
+		gtk_container_add(GTK_CONTAINER(f), r);
 	}
-
 	if (support.DPMS) {
 		v = gtk_vbox_new(FALSE, 5);
 		gtk_container_set_border_width(GTK_CONTAINER(v), 5);
