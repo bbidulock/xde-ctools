@@ -327,6 +327,7 @@ typedef struct _Sequence {
 	} n;
 	NotifyNotification *notification;
 	GtkStatusIcon *status;
+	GtkWindow *popup;
 	gint timer;
 } Sequence;
 
@@ -3991,6 +3992,17 @@ ref_sequence(Sequence *seq)
 	return (seq);
 }
 
+static void drop_popup(Sequence *seq);
+
+static gboolean
+persist_popup(gpointer data)
+{
+	Sequence *seq = data;
+
+	drop_popup(seq);
+	return FALSE;	/* remove timeout source */
+}
+
 static Sequence *
 remove_sequence(Sequence *seq)
 {
@@ -4005,6 +4017,11 @@ remove_sequence(Sequence *seq)
 		show_sequence("Removing sequence", seq);
 	if (options.info)
 		info_sequence("Removing sequence", seq);
+	if (seq->popup) {
+		DPRINTF(0, "persisting for %lu milliseconds\n", options.persist);
+		g_timeout_add(options.persist, persist_popup, ref_sequence(seq));
+		// drop_popup(seq);
+	}
 	seq->removed = True;
 	seq->remover = seq->from;
 	return unref_sequence(seq);
@@ -4033,7 +4050,8 @@ sequence_timeout_callback(gpointer data)
 	return TRUE;	/* continue timeout interval */
 }
 
-static GtkStatusIcon *create_statusicon(Sequence *seq);
+GtkStatusIcon *create_statusicon(Sequence *seq);
+static void create_popup(Sequence *seq);
 
 /** @brief add a new startup notification sequence to list for screen
   *
@@ -4048,6 +4066,7 @@ static GtkStatusIcon *create_statusicon(Sequence *seq);
 static void
 add_sequence(Sequence *seq)
 {
+	PTRACE(0);
 	seq->refs = 1;
 	seq->client = None;
 	seq->next = sequences;
@@ -4077,8 +4096,13 @@ add_sequence(Sequence *seq)
 	}
 	if (seq->state == StartupNotifyNew) {
 		if (options.feedback)
+#if 0
 			create_statusicon(seq);
-	}
+#else
+			create_popup(seq);
+#endif
+	} else
+		DPRINTF(0, "sequence state is %d\n", seq->state);
 	seq->timer = g_timeout_add(options.guard, sequence_timeout_callback, (gpointer) seq);
 	if (options.output > 1)
 		show_sequence("Added sequence", seq);
@@ -6496,7 +6520,7 @@ icon_size_changed_cb(GtkStatusIcon *status, gint size, gpointer data)
 /** @brief create a status icon for the startup sequence
   * @param seq - the sequence for which to create the status icon
   */
-static GtkStatusIcon *
+GtkStatusIcon *
 create_statusicon(Sequence *seq)
 {
 	GtkStatusIcon *status;
@@ -6587,6 +6611,194 @@ create_statusicon(Sequence *seq)
 
 	gtk_status_icon_set_visible(status, TRUE);
 	return (seq->status = status);
+}
+
+gboolean
+test_icon_ext(const char *icon)
+{
+	const char *p;
+
+	if ((p = strrchr(icon, '.'))) {
+		if (strcmp(p, ".xpm") == 0)
+			return TRUE;
+		if (strcmp(p, ".png") == 0)
+			return TRUE;
+		if (strcmp(p, ".svg") == 0)
+			return TRUE;
+		if (strcmp(p, ".jpg") == 0 || strcmp(p, ".jpeg") == 0)
+			return TRUE;
+		if (strcmp(p, ".gif") == 0)
+			return TRUE;
+		if (strcmp(p, ".tif") == 0 || strcmp(p, ".tiff") == 0)
+			return TRUE;
+	}
+	return FALSE;
+}
+
+GdkPixbuf *
+get_icons(GIcon *gicon, const char *const *inames)
+{
+	GtkIconTheme *theme;
+	GtkIconInfo *info;
+	const char *const *iname;
+
+	PTRACE(0);
+	if ((theme = gtk_icon_theme_get_default())) {
+		PTRACE(0);
+		if (gicon && (info = gtk_icon_theme_lookup_by_gicon(theme, gicon, 48,
+							   GTK_ICON_LOOKUP_USE_BUILTIN |
+							   GTK_ICON_LOOKUP_GENERIC_FALLBACK |
+							   GTK_ICON_LOOKUP_FORCE_SIZE))) {
+			PTRACE(0);
+			if (gtk_icon_info_get_filename(info))
+				return gtk_icon_info_load_icon(info, NULL);
+			return gtk_icon_info_get_builtin_pixbuf(info);
+		}
+		PTRACE(0);
+		for (iname = inames; *iname; iname++) {
+			DPRINTF(2, "Testing for icon name: %s\n", *iname);
+			if ((info = gtk_icon_theme_lookup_icon(theme, *iname, 48,
+							       GTK_ICON_LOOKUP_USE_BUILTIN |
+							       GTK_ICON_LOOKUP_GENERIC_FALLBACK |
+							       GTK_ICON_LOOKUP_FORCE_SIZE))) {
+				if (gtk_icon_info_get_filename(info))
+					return gtk_icon_info_load_icon(info, NULL);
+				return gtk_icon_info_get_builtin_pixbuf(info);
+			}
+		}
+		PTRACE(0);
+	}
+	return (NULL);
+}
+
+GdkPixbuf *
+get_sequence_pixbuf(Sequence *seq)
+{
+	GdkPixbuf *pixbuf = NULL;
+	GFile *file;
+	GIcon *gicon = NULL;
+	char **inames;
+	char *icon, *base, *p;
+	int i = 0;
+
+	PTRACE(0);
+	inames = calloc(16, sizeof(*inames));
+
+	if ((icon = seq->f.icon) || (seq->e && (icon = seq->e->Icon))) {
+		PTRACE(0);
+		icon = strdup(icon);
+		if (icon[0] == '/' && !access(icon, R_OK) && test_icon_ext(icon)) {
+			DPRINTF(2, "going with full icon path %s\n", icon);
+			if ((file = g_file_new_for_path(icon)))
+				gicon = g_file_icon_new(file);
+		}
+		base = icon;
+		*strchrnul(base, ' ') = '\0';
+		if ((p = strrchr(base, '/')))
+			base = p + 1;
+		if ((p = strrchr(base, '.')))
+			*p = '\0';
+		inames[i++] = strdup(base);
+		DPRINTF(2, "Choice %d for icon name: %s\n", i, base);
+		free(icon);
+	} else {
+		PTRACE(0);
+		/* try both mixed- and lower-case WMCLASS= */
+		if ((icon = seq->f.wmclass) || (seq->e && (icon = seq->e->StartupWMClass))) {
+			PTRACE(0);
+			base = strdup(icon);
+			inames[i++] = base;
+			DPRINTF(2, "Choice %d for icon name: %s\n", i, base);
+			base = strdup(seq->f.wmclass);
+			for (p = base; *p; p++)
+				*p = tolower(*p);
+			inames[i++] = base;
+			DPRINTF(2, "Choice %d for icon name: %s\n", i, base);
+		}
+		/* try BIN= or LAUNCHEE in its absence COMMAND= */
+		if ((icon = seq->f.bin) || (icon = seq->f.launchee) || (icon = seq->f.command) ||
+		    (seq->e && ((icon = seq->e->TryExec) || (icon = seq->e->Exec)))) {
+			PTRACE(0);
+			icon = strdup(icon);
+			base = icon;
+			*strchrnul(base, ' ') = '\0';
+			if ((p = strrchr(base, '/')))
+				base = p + 1;
+			if ((p = strrchr(base, '.')))
+				*p = '\0';
+			inames[i++] = strdup(base);
+			DPRINTF(2, "Choice %d for icon name: %s\n", i, base);
+			free(icon);
+		}
+	}
+	PTRACE(0);
+	base = strdup("unknown");
+	inames[i++] = base;
+	DPRINTF(2, "Choice %d for icon name: %s\n", i, base);
+	pixbuf = get_icons(gicon, (const char *const *)inames);
+	g_strfreev((gchar **) inames);
+	if (gicon)
+		g_object_unref(G_OBJECT(gicon));
+	return (pixbuf);
+}
+
+static void
+popup_widget_realize(GtkWidget *popup, gpointer user)
+{
+	gdk_window_set_override_redirect(popup->window, TRUE);
+}
+
+static void
+create_popup(Sequence *seq)
+{
+	GtkWidget *w, *h, *i = NULL, *l;
+	GdkPixbuf *p;
+	char *label;
+
+	PTRACE(0);
+	w = gtk_window_new(GTK_WINDOW_POPUP);
+	gtk_widget_add_events(w, GDK_ALL_EVENTS_MASK);
+	gtk_window_set_accept_focus(GTK_WINDOW(w), FALSE);
+	gtk_window_set_focus_on_map(GTK_WINDOW(w), FALSE);
+	gtk_window_set_type_hint(GTK_WINDOW(w), GDK_WINDOW_TEMP);
+	gtk_window_stick(GTK_WINDOW(w));
+	gtk_window_set_keep_above(GTK_WINDOW(w), TRUE);
+
+	h = gtk_hbox_new(FALSE, 5);
+	gtk_container_set_border_width(GTK_CONTAINER(h), 3);
+	if ((p = get_sequence_pixbuf(seq)) && (i = gtk_image_new_from_pixbuf(p)))
+		gtk_box_pack_start(GTK_BOX(h), i, FALSE, FALSE, 0);
+	l = gtk_label_new(NULL);
+	if ((label = seq->f.description) || (seq->e && (label = seq->e->Comment)) ||
+	    (label = seq->f.name) || (seq->e && (label = seq->e->Name)))
+		gtk_label_set_text(GTK_LABEL(l), label);
+
+	gtk_container_add(GTK_CONTAINER(w), h);
+	gtk_widget_show_all(h);
+	gtk_window_set_position(GTK_WINDOW(w), GTK_WIN_POS_CENTER_ALWAYS);
+	gtk_container_set_border_width(GTK_CONTAINER(w), 3);
+	gtk_window_set_default_size(GTK_WINDOW(w), 400, -1);
+	gtk_widget_set_size_request(w, 400, -1);
+
+	g_signal_connect(G_OBJECT(w), "realize",
+			G_CALLBACK(popup_widget_realize), seq);
+
+	gtk_window_set_position(GTK_WINDOW(w), GTK_WIN_POS_CENTER_ALWAYS);
+	gtk_window_present(GTK_WINDOW(w));
+	gtk_widget_show_now(GTK_WIDGET(w));
+	// gtk_window_focus(GTK_WINDOW(w), GDK_CURRENT_TIME);
+	seq->popup = GTK_WINDOW(w);
+}
+
+static void
+drop_popup(Sequence *seq)
+{
+	GtkWindow *w;
+
+	if ((w = seq->popup)) {
+		gtk_widget_destroy(GTK_WIDGET(w));
+		seq->popup = NULL;
+	}
 }
 
 /** @brief update notifications
