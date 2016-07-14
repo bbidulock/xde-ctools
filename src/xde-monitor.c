@@ -154,9 +154,6 @@ typedef enum {
 typedef struct {
 	int debug;
 	int output;
-	char *action;
-	Bool xsession;
-	Bool autostart;
 	Bool info;
 	Bool toolwait;
 	Bool assist;
@@ -170,9 +167,6 @@ typedef struct {
 Options options = {
 	.debug = 0,
 	.output = 1,
-	.action = NULL,
-	.xsession = False,
-	.autostart = False,
 	.info = False,
 	.toolwait = False,
 	.assist = False,
@@ -241,6 +235,8 @@ static const char *StartupNotifyFields[] = {
 	"HOSTNAME",
 	"COMMAND",
 	"ACTION",
+	"AUTOSTART",
+	"XSESSION",
 	"FILE",
 	"URL",
 	NULL
@@ -266,6 +262,8 @@ typedef enum {
 	FIELD_OFFSET_HOSTNAME,
 	FIELD_OFFSET_COMMAND,
 	FIELD_OFFSET_ACTION,
+	FIELD_OFFSET_AUTOSTART,
+	FIELD_OFFSET_XSESSION,
 	FIELD_OFFSET_FILE,
 	FIELD_OFFSET_URL,
 } FieldOffset;
@@ -290,6 +288,8 @@ struct fields {
 	char *hostname;
 	char *command;
 	char *action;
+	char *autostart;
+	char *xsession;
 	char *file;
 	char *url;
 };
@@ -324,6 +324,8 @@ typedef struct _Sequence {
 		unsigned silent;
 		unsigned pid;
 		unsigned sequence;
+		unsigned autostart;
+		unsigned xsession;
 	} n;
 	NotifyNotification *notification;
 	GtkStatusIcon *status;
@@ -1814,14 +1816,14 @@ need_assistance()
 }
 
 int
-parse_file(char *path, Entry *e)
+parse_file(char *path, Entry *e, Sequence *seq)
 {
 	FILE *file;
 	char buf[4096], *p, *q;
 	int outside_entry = 1;
 	char *section = NULL;
 	char *key, *val, *lang, *llang, *slang;
-	int ok = 0, action_found = options.action ? 0 : 1;
+	int ok = 0, action_found = seq->f.action ? 0 : 1;
 
 	if (getenv("LANG") && *getenv("LANG"))
 		llang = strdup(getenv("LANG"));
@@ -1860,11 +1862,11 @@ parse_file(char *path, Entry *e)
 			free(section);
 			section = strdup(p + 1);
 			outside_entry = strcmp(section, "Desktop Entry");
-			if (outside_entry && options.xsession)
+			if (outside_entry && seq->n.xsession)
 				outside_entry = strcmp(section, "Window Manager");
-			if (outside_entry && options.action &&
+			if (outside_entry && seq->f.action &&
 			    strstr(section, "Desktop Action ") == section &&
-			    strcmp(section + 15, options.action) == 0) {
+			    strcmp(section + 15, seq->f.action) == 0) {
 				outside_entry = 0;
 				action_found = 1;
 			}
@@ -1886,8 +1888,8 @@ parse_file(char *path, Entry *e)
 				free(e->Type);
 				e->Type = strdup(val);
 				/* autodetect XSession */
-				if (!strcmp(val, "XSession") && !options.xsession)
-					options.xsession = True;
+				if (!strcmp(val, "XSession") && !seq->n.xsession)
+					seq->n.xsession = True;
 				ok = 1;
 				continue;
 			}
@@ -2008,7 +2010,7 @@ parse_file(char *path, Entry *e)
   *
   */
 char *
-lookup_file(char *name)
+lookup_file(char *name, Sequence *seq)
 {
 	char *path = NULL, *appid;
 
@@ -2020,7 +2022,7 @@ lookup_file(char *name)
 	if ((*appid != '/') && (*appid != '.')) {
 		char *home, *copy, *dirs, *env;
 
-		if (options.autostart) {
+		if (seq->n.autostart) {
 			/* need to look in autostart subdirectory of XDG_CONFIG_HOME and
 			   then each of the subdirectories in XDG_CONFIG_DIRS */
 			if ((env = getenv("XDG_CONFIG_DIRS")) && *env)
@@ -2070,9 +2072,9 @@ lookup_file(char *name)
 				*dirs = '\0';
 			}
 			path = realloc(path, PATH_MAX + 1);
-			if (options.autostart)
+			if (seq->n.autostart)
 				strcat(path, "/autostart/");
-			else if (options.xsession)
+			else if (seq->n.xsession)
 				strcat(path, "/xsessions/");
 			else
 				strcat(path, "/applications/");
@@ -2089,13 +2091,13 @@ lookup_file(char *name)
 		}
 		free(copy);
 		/* only look in autostart for autostart entries */
-		if (options.autostart) {
+		if (seq->n.autostart) {
 			free(home);
 			free(appid);
 			return (NULL);
 		}
 		/* only look in xsessions for xsession entries */
-		else if (options.xsession) {
+		else if (seq->n.xsession) {
 			free(home);
 			free(appid);
 			return (NULL);
@@ -2268,6 +2270,8 @@ struct {
 	{ " HOSTNAME=",		FIELD_OFFSET_HOSTNAME		},
 	{ " COMMAND=",		FIELD_OFFSET_COMMAND		},
         { " ACTION=",           FIELD_OFFSET_ACTION		},
+        { " AUTOSTART=",        FIELD_OFFSET_AUTOSTART		},
+        { " XSESSION=",         FIELD_OFFSET_XSESSION		},
 	{ NULL,			FIELD_OFFSET_ID			}
 	/* *INDENT-ON* */
 };
@@ -2624,6 +2628,8 @@ test_client(Client *c, Sequence *seq)
 	if (seq->f.id && startup_id) {
 		if (strcmp(startup_id, seq->f.id)) {
 			CPRINTF(1, c, "[tc] has different startup id %s\n", startup_id);
+			/* NOTE: it is an absolute negative if we have a startup id and
+			   don't match on it. */
 			return False;
 		} else {
 			CPRINTF(1, c, "[tc] has same startup id %s\n", startup_id);
@@ -3161,7 +3167,7 @@ setup_client(Client *c)
 		if (!e->Categories || !strstr(e->Categories, "DockApp")) {
 			OPRINTF(0, "add \"Categories=DockApp\" to %s\n", e->path);
 		}
-		if (options.autostart) {
+		if (seq->n.autostart) {
 			if (e->AutostartPhase
 			    && strncmp(e->AutostartPhase, "Applications",
 				       strlen(e->AutostartPhase))) {
@@ -3179,7 +3185,7 @@ setup_client(Client *c)
 		if (!e->Categories || !strstr(e->Categories, "TrayIcon")) {
 			OPRINTF(0, "add \"Categories=TrayIcon\" to %s\n", e->path);
 		}
-		if (options.autostart) {
+		if (seq->n.autostart) {
 			if (e->AutostartPhase
 			    && strncmp(e->AutostartPhase, "Applications",
 				       strlen(e->AutostartPhase))) {
@@ -3887,6 +3893,10 @@ convert_sequence_fields(Sequence *seq)
 		seq->n.pid = atoi(seq->f.pid);
 	if (seq->f.sequence)
 		seq->n.sequence = atoi(seq->f.sequence);
+	if (seq->f.autostart)
+		seq->n.autostart = atoi(seq->f.autostart);
+	if (seq->f.xsession)
+		seq->n.autostart = atoi(seq->f.xsession);
 }
 
 static void
@@ -4078,11 +4088,11 @@ add_sequence(Sequence *seq)
 			appid = strrchr(seq->f.bin, '/');
 			appid = appid ? appid + 1 : seq->f.bin;
 		}
-		if ((path = lookup_file(appid))) {
+		if ((path = lookup_file(appid, seq))) {
 			DPRINTF(1, "found desktop file %s\n", path);
 			Entry *e = calloc(1, sizeof(*e));
 
-			if (!parse_file(path, e))
+			if (!parse_file(path, e, seq))
 				free_entry(e);
 			else {
 				seq->e = e;
@@ -5179,7 +5189,7 @@ pc_handle_NET_WM_DESKTOP(XPropertyEvent *e, Client *c)
 	if (c->desktop && (!old || old != c->desktop)) {
 		if (old)
 			CPRINTF(1, c, "[pc] _NET_WM_DESKTOP was %ld\n", old - 1);
-		CPRINTF(1, c, "[pc] _NET_WM_DESKTOP = %d\n", c->desktop);
+		CPRINTF(1, c, "[pc] _NET_WM_DESKTOP = %d\n", c->desktop - 1);
 		/* TODO: check if this actually matches sequence if any */
 	}
 }
@@ -7067,7 +7077,6 @@ do_run(int argc, char *argv[])
 		XSaveContext(dpy, scr->selwin, ScreenContext, (XPointer) scr);
 		XSelectInput(dpy, scr->selwin, StructureNotifyMask | PropertyChangeMask);
 
-#if 1
 		XGrabServer(dpy);
 		if (!(scr->owner = XGetSelectionOwner(dpy, scr->slctn_atom))) {
 			XSetSelectionOwner(dpy, scr->slctn_atom, scr->selwin, CurrentTime);
@@ -7080,7 +7089,6 @@ do_run(int argc, char *argv[])
 			exit(EXIT_FAILURE);
 		}
 		announce_selection();
-#endif
 	}
 	s = DefaultScreen(dpy);
 	scr = screens + s;
