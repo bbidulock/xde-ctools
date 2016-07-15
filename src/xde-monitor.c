@@ -96,6 +96,8 @@
 #endif
 #include <libnotify/notify.h>
 #include <glib.h>
+#include <gdk/gdkx.h>
+#include <gdk-pixbuf/gdk-pixbuf.h>
 #include <gio/gio.h>
 #include <gtk/gtk.h>
 
@@ -303,6 +305,21 @@ typedef enum {
 
 typedef struct _Client Client;
 
+typedef struct {
+	int monitor;			/* monitor number */
+	struct {
+		int x;			/* monitor position */
+		int y;			/* monitor position */
+		int w;			/* monitor width (pixels) */
+		int h;			/* monitor height (pixels) */
+	} geom;
+	GtkListStore *model;		/* model for this monitor */
+	GtkWidget *view;		/* view for this monitor */
+	GtkWidget *popup;		/* popup for this monitor */
+	guint timer;			/* timer for popup */
+	int seqcount;
+} XdeMonitor;
+
 typedef struct _Sequence {
 	struct _Sequence *next;
 	int refs;
@@ -330,7 +347,9 @@ typedef struct _Sequence {
 	NotifyNotification *notification;
 	GtkStatusIcon *status;
 	GtkWindow *popup;
-	gint timer;
+	guint timer;
+	XdeMonitor *monitor;
+	GtkTreeIter iter;
 } Sequence;
 
 Sequence *sequences;
@@ -367,6 +386,8 @@ typedef struct {
 	Bool net_wm_user_time;		/* _NET_WM_USER_TIME is supported */
 	Bool net_startup_id;		/* _NET_STARTUP_ID is supported */
 	Bool net_startup_info;		/* _NET_STARTUP_INFO is supported */
+	int nmonitors;			/* number of monitors this screen */
+	XdeMonitor *monitors;		/* the monitors (at least one) */
 } XdeScreen;
 
 XdeScreen *screens;
@@ -785,15 +806,89 @@ int (*oldhandler) (Display *, XErrorEvent *) = NULL;
 int (*oldiohandler) (Display *) = NULL;
 
 static void init_screen();
+static void init_monitor(XdeMonitor *mon);
+
+Bool use_xinerama = False;
+Bool use_xrandr = False;
+
+void
+init_monitors()
+{
+	int n = 0;
+
+	scr->nmonitors = 1;
+#ifdef XINERAMA
+	if (use_xinerama) {
+		XineramaScreenInfo *si;
+		int i;
+
+		if ((si = XineramaQueryScreens(dpy, &n))) {
+			scr->nmonitors = n;
+			scr->monitors = calloc(n, sizeof(*scr->monitors));
+			for (i = 0; i < n; i++) {
+				scr->monitors[i].monitor = i;
+				scr->monitors[i].geom.x = si[i].x_org;
+				scr->monitors[i].geom.y = si[i].y_org;
+				scr->monitors[i].geom.w = si[i].width;
+				scr->monitors[i].geom.h = si[i].height;
+				init_monitor(&scr->monitors[i]);
+			}
+			XFree(si);
+		} else
+			goto init_one;
+	} else
+#endif
+#ifdef XRANDR
+	if (use_xrandr) {
+		XRRScreenResources *sr;
+		int i, m;
+
+		if ((sr = XRRGetScreenResources(dpy, scr->root))) {
+			n = sr->ncrtc;
+			scr->nmonitors = n;
+			scr->monitors = calloc(n, sizeof(*scr->monitors));
+			for (m = 0, i = 0; i < n; i++) {
+				XRRCrtcInfo *ci;
+
+				if ((ci = XRRGetCrtcInfo(dpy, sr, sr->crtcs[i]))) {
+					scr->monitors[m].monitor = m;
+					scr->monitors[m].geom.x = ci->x;
+					scr->monitors[m].geom.y = ci->y;
+					scr->monitors[m].geom.w = ci->width;
+					scr->monitors[m].geom.h = ci->height;
+					init_monitor(&scr->monitors[m]);
+					m++;
+					XFree(ci);
+				}
+			}
+			scr->nmonitors = m;
+			XFree(sr);
+		} else
+			goto init_one;
+	} else
+#endif
+	{
+	      init_one:
+		scr->nmonitors = 1;
+		scr->monitors = calloc(n, sizeof(*scr->monitors));
+		scr->monitors[0].monitor = 0;
+		scr->monitors[0].geom.x = 0;
+		scr->monitors[0].geom.y = 0;
+		scr->monitors[0].geom.w = DisplayWidth(dpy, scr->screen);
+		scr->monitors[0].geom.h = DisplayHeight(dpy, scr->screen);
+		init_monitor(&scr->monitors[0]);
+	}
+}
 
 Bool
 get_display()
 {
 	PTRACE(5);
 	if (!dpy) {
-		int s;
+		int s, di;
 		char sel[64] = { 0, };
 
+		gtk_init(NULL, NULL);
 		if (!(dpy = XOpenDisplay(0))) {
 			EPRINTF("cannot open display\n");
 			exit(EXIT_FAILURE);
@@ -816,6 +911,20 @@ get_display()
 			EPRINTF("no memory\n");
 			exit(EXIT_FAILURE);
 		}
+#ifdef XINERAMA
+		use_xinerama = False;
+		if (XineramaQueryExtension(dpy, &di, &di) && XineramaIsActive(dpy))
+			use_xinerama = True;
+		else
+			use_xinerama = False;
+#endif
+#ifdef XRANDR
+		use_xrandr = False;
+		if (!use_xinerama && XRRQueryExtension(dpy, &di, &di))
+			use_xrandr = True;
+		else
+			use_xrandr = False;
+#endif
 		for (s = 0, scr = screens; s < nscr; s++, scr++) {
 			scr->screen = s;
 			scr->root = RootWindow(dpy, s);
@@ -836,6 +945,7 @@ get_display()
 			scr->shelp_atom = XInternAtom(dpy, sel, False);
 			snprintf(sel, sizeof(sel), SELECTION_ATOM, s);
 			scr->slctn_atom = XInternAtom(dpy, sel, False);
+			init_monitors();
 			init_screen();
 		}
 		s = DefaultScreen(dpy);
@@ -4004,13 +4114,40 @@ ref_sequence(Sequence *seq)
 
 static void drop_popup(Sequence *seq);
 
-static gboolean
+gboolean
 persist_popup(gpointer data)
 {
 	Sequence *seq = data;
 
 	drop_popup(seq);
 	return FALSE;	/* remove timeout source */
+}
+
+static void
+drop_items(XdeMonitor *mon)
+{
+	GtkWidget *popup;
+
+	if ((popup = mon->popup) && gtk_widget_get_mapped(popup)) {
+		DPRINTF(0, "hiding sequence iconview\n");
+		gtk_widget_hide(popup);
+		// gtk_widget_unmap(popup);
+	}
+}
+
+static gboolean
+persist_item(gpointer data)
+{
+	Sequence *seq = data;
+	XdeMonitor *mon = seq->monitor;
+
+	gtk_list_store_remove(mon->model, &seq->iter);
+	unref_sequence(seq);	/* once for the model */
+	unref_sequence(seq);	/* once for this callback */
+	mon->seqcount--;
+	if (mon->seqcount <= 0)
+		drop_items(mon);
+	return FALSE;		/* remove timeout source */
 }
 
 static Sequence *
@@ -4030,7 +4167,9 @@ remove_sequence(Sequence *seq)
 	if (seq->popup) {
 		DPRINTF(0, "persisting for %lu milliseconds\n", options.persist);
 		g_timeout_add(options.persist, persist_popup, ref_sequence(seq));
-		// drop_popup(seq);
+	} else {
+		DPRINTF(0, "persisting for %lu milliseconds\n", options.persist);
+		g_timeout_add(options.persist, persist_item, ref_sequence(seq));
 	}
 	seq->removed = True;
 	seq->remover = seq->from;
@@ -4061,7 +4200,8 @@ sequence_timeout_callback(gpointer data)
 }
 
 GtkStatusIcon *create_statusicon(Sequence *seq);
-static void create_popup(Sequence *seq);
+void create_popup(Sequence *seq);
+static void create_item(Sequence *seq);
 
 /** @brief add a new startup notification sequence to list for screen
   *
@@ -4105,12 +4245,17 @@ add_sequence(Sequence *seq)
 		}
 	}
 	if (seq->state == StartupNotifyNew) {
-		if (options.feedback)
+		if (options.feedback) {
 #if 0
 			create_statusicon(seq);
 #else
+#if 0
 			create_popup(seq);
+#else
 #endif
+			create_item(seq);
+#endif
+		}
 	} else
 		DPRINTF(0, "sequence state is %d\n", seq->state);
 	seq->timer = g_timeout_add(options.guard, sequence_timeout_callback, (gpointer) seq);
@@ -6758,7 +6903,7 @@ popup_widget_realize(GtkWidget *popup, gpointer user)
 	gdk_window_set_override_redirect(popup->window, TRUE);
 }
 
-static void
+void
 create_popup(Sequence *seq)
 {
 	GtkWidget *w, *h, *i = NULL, *l;
@@ -6808,6 +6953,81 @@ drop_popup(Sequence *seq)
 	if ((w = seq->popup)) {
 		gtk_widget_destroy(GTK_WIDGET(w));
 		seq->popup = NULL;
+	}
+}
+
+static void
+create_item(Sequence *seq)
+{
+	XdeMonitor *mon;
+	GdkPixbuf *pixbuf;
+	char *name = NULL, *description = NULL, *markup, *tooltip;
+	int m;
+
+	DPRINTF(0, "creating item for sequence: %s\n", seq->f.id);
+	m = seq->n.monitor;
+	if (m < 0)
+		m = 0;
+	if (m > scr->nmonitors - 1)
+		m = scr->nmonitors -1;
+	mon = &scr->monitors[m];
+	gtk_list_store_append(mon->model, &seq->iter);
+	mon->seqcount++;
+	seq->monitor = mon;
+	pixbuf = get_sequence_pixbuf(seq);
+
+	if (!name)
+		name = seq->f.name;
+	if (!name && seq->e)
+		name = seq->e->Name;
+	if (!name)
+		name = seq->f.wmclass;
+	if (!name && seq->e)
+		name = seq->e->StartupWMClass;
+	if (!name)
+		if ((name = seq->f.launchee))
+			if (strrchr(name, '/'))
+				name = strrchr(name, '/');
+	if (!name)
+		if ((name = seq->f.bin))
+			if (strrchr(name, '/'))
+				name = strrchr(name, '/');
+	if (!description)
+		description = seq->f.description;
+	if (!description && seq->e)
+		description = seq->e->Comment;
+	markup = g_markup_printf_escaped("<b>%s</b>\n%s", name ? : "", description ? : "");
+	/* for now, ellipsize description later */
+	tooltip = description;
+	DPRINTF(0, "adding list store\n");
+	/* *INDENT-OFF* */
+	gtk_list_store_set(mon->model, &seq->iter,
+			0, pixbuf,
+			1, name,
+			2, description,
+			3, markup,
+			4, tooltip,
+			5, ref_sequence(seq),
+			-1);
+	/* *INDENT-ON* */
+	g_object_unref(pixbuf);
+	g_free(markup);
+
+	if (!gtk_widget_get_mapped(mon->popup)) {
+		GdkDisplay *disp = gdk_display_get_default();
+		GdkScreen *scrn = gdk_display_get_screen(disp, scr->screen);
+		GdkEventMask mask =
+		    GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK |
+		    GDK_BUTTON_MOTION_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK |
+		    GDK_ENTER_NOTIFY_MASK | GDK_LEAVE_NOTIFY_MASK;
+
+		DPRINTF(0, "popping the window\n");
+		gtk_window_set_screen(GTK_WINDOW(mon->popup), scrn);
+		gtk_window_set_position(GTK_WINDOW(mon->popup), GTK_WIN_POS_CENTER_ALWAYS);
+		gtk_window_present(GTK_WINDOW(mon->popup));
+		gtk_widget_show_now(GTK_WIDGET(mon->popup));
+		(void) mask;
+		// gdk_pointer_grab(mon->popup->window, TRUE, mask, NULL, NULL, GDK_CURRENT_TIME);
 	}
 }
 
@@ -6960,6 +7180,77 @@ create_notification(Sequence *seq)
 	return (notify);
 }
 
+static void
+popup_realize(GtkWidget *popup, gpointer data)
+{
+	// gdk_window_set_override_redirect(popup->window, TRUE);
+	gdk_window_set_accept_focus(popup->window, FALSE);
+	gdk_window_set_focus_on_map(popup->window, FALSE);
+}
+
+static void
+init_monitor(XdeMonitor *mon)
+{
+	GtkWidget *popup;
+	GtkWidget *view;
+	GtkListStore *model;
+	GdkDisplay *disp;
+	GdkScreen *scrn;
+
+	DPRINTF(1, "monitor %d: initializating monitor\n", mon->monitor);
+	DPRINTF(1, "monitor %d: creating list store\n", mon->monitor);
+	/* *IDENT-OFF* */
+	mon->model = model = gtk_list_store_new(6
+			,GDK_TYPE_PIXBUF    /* image */
+			,G_TYPE_STRING	    /* name */
+			,G_TYPE_STRING	    /* description */
+			,G_TYPE_STRING	    /* markup */
+			,G_TYPE_STRING	    /* tooltip */
+			,G_TYPE_POINTER	    /* seq */
+			);
+	/* *IDENT-ON* */
+	DPRINTF(1, "monitor %d: creating icon view\n", mon->monitor);
+	mon->view = view = gtk_icon_view_new_with_model(GTK_TREE_MODEL(model));
+	gtk_icon_view_set_pixbuf_column(GTK_ICON_VIEW(view), 0);
+	gtk_icon_view_set_markup_column(GTK_ICON_VIEW(view), 3);
+	gtk_icon_view_set_tooltip_column(GTK_ICON_VIEW(view), 4);
+	gtk_icon_view_set_selection_mode(GTK_ICON_VIEW(view), GTK_SELECTION_NONE);
+	gtk_icon_view_set_item_orientation(GTK_ICON_VIEW(view), GTK_ORIENTATION_HORIZONTAL);
+	gtk_icon_view_set_columns(GTK_ICON_VIEW(view), -1);
+	gtk_icon_view_set_item_width(GTK_ICON_VIEW(view), -1);
+	gtk_icon_view_set_spacing(GTK_ICON_VIEW(view), 5);
+	gtk_icon_view_set_row_spacing(GTK_ICON_VIEW(view), 2);
+	gtk_icon_view_set_column_spacing(GTK_ICON_VIEW(view), 2);
+	gtk_icon_view_set_margin(GTK_ICON_VIEW(view), 5);
+	gtk_icon_view_set_item_padding(GTK_ICON_VIEW(view), 3);
+
+	DPRINTF(1, "monitor %d: getting display\n", mon->monitor);
+	disp = gdk_display_get_default();
+	DPRINTF(1, "monitor %d: getting screen\n", mon->monitor);
+	scrn = gdk_display_get_screen(disp, scr->screen);
+
+	DPRINTF(1, "monitor %d: creating popup window\n", mon->monitor);
+	mon->popup = popup = gtk_window_new(GTK_WINDOW_POPUP);
+	gtk_window_set_screen(GTK_WINDOW(popup), scrn);
+	gtk_window_set_accept_focus(GTK_WINDOW(popup), FALSE);
+	gtk_window_set_focus_on_map(GTK_WINDOW(popup), FALSE);
+	gtk_window_set_wmclass(GTK_WINDOW(popup), "xde-monitor", "XDE-Monitor");
+	gtk_window_set_title(GTK_WINDOW(popup), "XDE XDG Launch Feedback");
+	gtk_window_set_gravity(GTK_WINDOW(popup), GDK_GRAVITY_CENTER);
+	gtk_window_set_type_hint(GTK_WINDOW(popup), GDK_WINDOW_TYPE_HINT_NOTIFICATION);
+	gtk_window_set_skip_pager_hint(GTK_WINDOW(popup), TRUE);
+	gtk_window_set_skip_taskbar_hint(GTK_WINDOW(popup), TRUE);
+	gtk_window_stick(GTK_WINDOW(popup));
+	gtk_window_set_keep_above(GTK_WINDOW(popup), TRUE);
+	gtk_container_add(GTK_CONTAINER(popup), view);
+	gtk_widget_show_all(view);
+	gtk_container_set_border_width(GTK_CONTAINER(popup), 3);
+	gtk_window_set_position(GTK_WINDOW(popup), GTK_WIN_POS_CENTER_ALWAYS);
+	g_signal_connect(G_OBJECT(popup), "realize", G_CALLBACK(popup_realize), NULL);
+	g_signal_connect(G_OBJECT(popup), "delete-event", G_CALLBACK(gtk_widget_hide_on_delete), NULL);
+	DPRINTF(1, "monitor %d: done initialization\n", mon->monitor);
+}
+
 volatile int signum = 0;
 
 void
@@ -6996,7 +7287,7 @@ main_loop(int argc, char *argv[])
 	gint mask = G_IO_IN | G_IO_ERR | G_IO_HUP | G_IO_PRI;
 	guint srce;
 
-	gtk_init(NULL, NULL);
+	// gtk_init(NULL, NULL);
 	gdk_error_trap_push();
 
 	running = True;
