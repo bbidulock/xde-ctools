@@ -52,7 +52,7 @@ xde_keys_SOURCES = xde-keys.c
 xde_monitor_CPPFLAGS = -DNAME=\"xde-monitor\"
 xde_monitor_CFLAGS = $(AM_CFLAGS) $(NOTIFY_CFLAGS)
 xde_monitor_SOURCES = xde-monitor.c
-xde_monitor_LDADD = $(NOTIFY_LIBS)
+xde_monitor_LDADD = $(NOTIFY_LIBS) $(AM_LDFLAGS)
 
 xde_pager_CPPFLAGS = -DNAME=\"xde-pager\"
 xde_pager_SOURCES = xde-pager.c

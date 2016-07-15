@@ -96,9 +96,9 @@
 #endif
 #include <libnotify/notify.h>
 #include <glib.h>
+#include <gio/gio.h>
 #include <gdk/gdkx.h>
 #include <gdk-pixbuf/gdk-pixbuf.h>
-#include <gio/gio.h>
 #include <gtk/gtk.h>
 
 #define XPRINTF(_args...) do { } while (0)
@@ -135,6 +135,17 @@ dumpstack(const char *file, const int line, const char *func)
 		for (i = 0; i < nptr; i++)
 			fprintf(stderr, NAME ": E: %12s +%4d : %s() : \t%s\n", file, line, func, strings[i]);
 }
+
+#undef EXIT_SUCCESS
+#undef EXIT_FAILURE
+#undef EXIT_SYNTAXERR
+
+#define EXIT_SUCCESS	0
+#define EXIT_FAILURE	1
+#define EXIT_SYNTAXERR	2
+
+#define GTK_EVENT_STOP		TRUE
+#define GTK_EVENT_PROPAGATE	FALSE
 
 const char *program = NAME;
 
@@ -7188,6 +7199,23 @@ popup_realize(GtkWidget *popup, gpointer data)
 	gdk_window_set_focus_on_map(popup->window, FALSE);
 }
 
+static gboolean
+popup_visibility(GtkWidget *popup, GdkEvent *event, gpointer data)
+{
+	GdkEventVisibility *ev = (typeof(ev)) event;
+
+	switch (ev->state) {
+	case GDK_VISIBILITY_FULLY_OBSCURED:
+	case GDK_VISIBILITY_PARTIAL:
+		gdk_window_raise(popup->window);
+		break;
+	case GDK_VISIBILITY_UNOBSCURED:
+		/* good */
+		break;
+	}
+	return GTK_EVENT_PROPAGATE; /* event not fully handled */
+}
+
 static void
 init_monitor(XdeMonitor *mon)
 {
@@ -7248,6 +7276,7 @@ init_monitor(XdeMonitor *mon)
 	gtk_window_set_position(GTK_WINDOW(popup), GTK_WIN_POS_CENTER_ALWAYS);
 	g_signal_connect(G_OBJECT(popup), "realize", G_CALLBACK(popup_realize), NULL);
 	g_signal_connect(G_OBJECT(popup), "delete-event", G_CALLBACK(gtk_widget_hide_on_delete), NULL);
+	g_signal_connect(G_OBJECT(popup), "visibility-notify-event", G_CALLBACK(popup_visibility), NULL);
 	DPRINTF(1, "monitor %d: done initialization\n", mon->monitor);
 }
 
@@ -7744,7 +7773,7 @@ main(int argc, char *argv[])
 			      bad_usage:
 				usage(argc, argv);
 			}
-			exit(2);
+			exit(EXIT_SYNTAXERR);
 		      bad_command:
 			fprintf(stderr, "%s: only one command option allowed\n", argv[0]);
 			goto bad_usage;
