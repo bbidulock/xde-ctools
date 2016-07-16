@@ -94,6 +94,17 @@ fi
 AC_MSG_CHECKING([for XINERAMA support])
 AC_MSG_RESULT([${enable_xinerama:-yes}])
 
+AC_ARG_ENABLE([startup-notification],
+	AC_HELP_STRING([--disable-startup-notification],
+		[Disable startup notification support @<:@default=auto@:>@]))
+if test "x$enable_startup_notification" != xno ; then
+	PKG_CHECK_MODULES([SN],[libstartup-notification-1.0],
+		[AC_DEFINE([STARTUP_NOTIFICATION],[1], [Define to 1 to support startup notification.])],
+		[enable_startup_notification=no])
+fi
+AC_MSG_CHECKING([for startup notification support])
+AC_MSG_RESULT([${enable_startup_notification:-yes}])
+
 AC_ARG_ENABLE([notify],
 	AC_HELP_STRING([--disable-notify],
 		[Disable notification daemon notifications @<:@default=auto@:>@]))

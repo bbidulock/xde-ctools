@@ -9,6 +9,7 @@ bin_PROGRAMS = \
 	xde-input \
 	xde-keys \
 	xde-monitor \
+	xde-monitor2 \
 	xde-pager \
 	xde-places \
 	xde-preferred \
@@ -53,6 +54,11 @@ xde_monitor_CPPFLAGS = -DNAME=\"xde-monitor\"
 xde_monitor_CFLAGS = $(AM_CFLAGS) $(NOTIFY_CFLAGS)
 xde_monitor_SOURCES = xde-monitor.c
 xde_monitor_LDADD = $(NOTIFY_LIBS) $(AM_LDFLAGS)
+
+xde_monitor2_CPPFLAGS = -DNAME=\"xde-monitor2\"
+xde_monitor2_CFLAGS = $(AM_CFLAGS) $(NOTIFY_CFLAGS) $(ICE_CFLAGS) $(SMLIB_CFLAGS) $(SN_CFLAGS)
+xde_monitor2_SOURCES = xde-monitor2.c
+xde_monitor2_LDADD = $(SN_LIBS) $(SMLIB_LIBS) $(ICE_LIBS) $(NOTIFY_LIBS) $(AM_LDFLAGS)
 
 xde_pager_CPPFLAGS = -DNAME=\"xde-pager\"
 xde_pager_SOURCES = xde-pager.c
