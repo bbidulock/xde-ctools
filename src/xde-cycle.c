@@ -135,6 +135,11 @@
 #define EXIT_FAILURE	1
 #define EXIT_SYNTAXERR	2
 
+#define GTK_EVENT_STOP		TRUE
+#define GTK_EVENT_PROPAGATE	FALSE
+
+const char *program = NAME;
+
 #define XA_SELECTION_NAME	"_XDE_CYCLE_S%d"
 #define XA_NET_DESKTOP_LAYOUT	"_NET_DESKTOP_LAYOUT_S%d"
 
@@ -3708,14 +3713,14 @@ main(int argc, char *argv[])
 
 		case 'q':	/* -q, --quit */
 			if (options.command != CommandDefault)
-				goto bad_option;
+				goto bad_command;
 			if (command == CommandDefault)
 				command = CommandQuit;
 			options.command = CommandQuit;
 			break;
 		case 'r':	/* -r, --replace */
 			if (options.command != CommandDefault)
-				goto bad_option;
+				goto bad_command;
 			if (command == CommandDefault)
 				command = CommandReplace;
 			options.command = CommandReplace;
@@ -3762,14 +3767,14 @@ main(int argc, char *argv[])
 			break;
 		case 'V':	/* -V, --version */
 			if (options.command != CommandDefault)
-				goto bad_option;
+				goto bad_command;
 			if (command == CommandDefault)
 				command = CommandVersion;
 			options.command = CommandVersion;
 			break;
 		case 'C':	/* -C, --copying */
 			if (options.command != CommandDefault)
-				goto bad_option;
+				goto bad_command;
 			if (command == CommandDefault)
 				command = CommandCopying;
 			options.command = CommandCopying;
@@ -3797,6 +3802,9 @@ main(int argc, char *argv[])
 				usage(argc, argv);
 			}
 			exit(EXIT_SYNTAXERR);
+		      bad_command:
+			fprintf(stderr, "%s: only one command option allowed\n", argv[0]);
+			goto bad_usage;
 		}
 	}
 	DPRINTF("%s: option index = %d\n", argv[0], optind);

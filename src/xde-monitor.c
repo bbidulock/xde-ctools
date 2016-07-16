@@ -149,7 +149,7 @@ dumpstack(const char *file, const int line, const char *func)
 
 const char *program = NAME;
 
-#define SELECTION_ATOM	"_XDE_MONITOR_S%d"
+#define XA_SELECTION_NAME	"_XDE_MONITOR_S%d"
 
 char **eargv = NULL;
 int eargc = 0;
@@ -375,8 +375,8 @@ typedef struct {
 typedef struct {
 	int screen;			/* screen number */
 	Window root;			/* root window of screen */
-	Window owner;			/* SELECTION_ATOM selection owner (theirs) */
-	Window selwin;			/* SELECTION_ATOM selection window (ours) */
+	Window owner;			/* XA_SELECTION_NAME selection owner (theirs) */
+	Window selwin;			/* XA_SELECTION_NAME selection window (ours) */
 	Window netwm_check;		/* _NET_SUPPORTING_WM_CHECK or None */
 	Window winwm_check;		/* _WIN_SUPPORTING_WM_CHECK or None */
 	Window motif_check;		/* _MOTIF_MW_INFO window or None */
@@ -393,7 +393,7 @@ typedef struct {
 	Atom pager_atom;		/* _NET_DESKTOP_LAYOUT_S%d atom this screen */
 	Atom compm_atom;		/* _NET_WM_CM_S%d atom this screen */
 	Atom shelp_atom;		/* _XDG_ASSIST_S%d atom this screen */
-	Atom slctn_atom;		/* SELECTION_ATOM atom this screen */
+	Atom slctn_atom;		/* XA_SELECTION_NAME atom this screen */
 	Bool net_wm_user_time;		/* _NET_WM_USER_TIME is supported */
 	Bool net_startup_id;		/* _NET_STARTUP_ID is supported */
 	Bool net_startup_info;		/* _NET_STARTUP_INFO is supported */
@@ -954,7 +954,7 @@ get_display()
 			scr->compm_atom = XInternAtom(dpy, sel, False);
 			snprintf(sel, sizeof(sel), "_XDG_ASSIST_S%d", s);
 			scr->shelp_atom = XInternAtom(dpy, sel, False);
-			snprintf(sel, sizeof(sel), SELECTION_ATOM, s);
+			snprintf(sel, sizeof(sel), XA_SELECTION_NAME, s);
 			scr->slctn_atom = XInternAtom(dpy, sel, False);
 			init_monitors();
 			init_screen();
@@ -3898,7 +3898,7 @@ show_source(Window w, Window c)
 	if (msg_from_la(w))
 		return ("launch assistant");
 	if (msg_from_me(w))
-		return (SELECTION_ATOM);
+		return (XA_SELECTION_NAME);
 	if (msg_from_ap(w, c))
 		return ("application");
 	return ("unknown source");
@@ -6516,7 +6516,7 @@ handle_selection_clear(XSelectionClearEvent *e)
 			return;
 		XDestroyWindow(dpy, scr->selwin);
 		scr->selwin = None;
-		DPRINTF(1, "lost " SELECTION_ATOM " selection: exiting\n", scr->screen);
+		DPRINTF(1, "lost " XA_SELECTION_NAME " selection: exiting\n", scr->screen);
 		exit(EXIT_SUCCESS);
 #endif
 }
@@ -7380,7 +7380,7 @@ selectionreleased(Display *d, XEvent *e, XPointer arg)
 
 /** @brief run without replacing a running instance
   *
-  * This is performed by detecting owners of the SELECTION_ATOM selection for
+  * This is performed by detecting owners of the XA_SELECTION_NAME selection for
   * any screen and aborting when one exists.
   */
 static void
@@ -7417,7 +7417,7 @@ do_run(int argc, char *argv[])
 
 /** @brief replace running instance with this one
   *
-  * This is performed by detecting owners of the SELECTION_ATOM selection for
+  * This is performed by detecting owners of the XA_SELECTION_NAME selection for
   * each screen and setting the selection to our own window.  When the runing
   * instance detects the selection clear event for a managed screen, it will
   * destroy the selection window and exit when no more screens are managed.
@@ -7462,7 +7462,7 @@ do_replace(int argc, char *argv[])
 
 /** @brief ask running instance to quit
   *
-  * This is performed by detecting owners of the SELECTION_ATOM selection for
+  * This is performed by detecting owners of the XA_SELECTION_NAME selection for
   * each screen and clearing the selection to None.  When the running instance
   * detects the selection clear event for a managed screen, it will destroy
   * the selection window and exit when no more screens are managed.
@@ -7635,30 +7635,32 @@ main(int argc, char *argv[])
 		int option_index = 0;
 		/* *INDENT-OFF* */
 		static struct option long_options[] = {
-			{"monitor",	no_argument,		NULL, 'm'},
-			{"replace",	no_argument,		NULL, 'r'},
-			{"quit",	no_argument,		NULL, 'q'},
-			{"guard",	required_argument,	NULL, 'g'},
-			{"persist",	required_argument,	NULL, 'p'},
-			{"assist",	no_argument,		NULL, 'A'},
-			{"feedback",	no_argument,		NULL, 'F'},
-			{"notify",	no_argument,		NULL, 'N'},
+			{"display",		required_argument,	NULL,	'd'},
+			{"screen",		required_argument,	NULL,	's'},
+			{"monitor",		no_argument,		NULL,	'm'},
+			{"replace",		no_argument,		NULL,	'r'},
+			{"quit",		no_argument,		NULL,	'q'},
+			{"guard",		required_argument,	NULL,	'g'},
+			{"persist",		required_argument,	NULL,	'p'},
+			{"assist",		no_argument,		NULL,	'A'},
+			{"feedback",		no_argument,		NULL,	'F'},
+			{"notify",		no_argument,		NULL,	'N'},
 
-			{"debug",	optional_argument,	NULL, 'D'},
-			{"verbose",	optional_argument,	NULL, 'v'},
-			{"help",	no_argument,		NULL, 'h'},
-			{"version",	no_argument,		NULL, 'V'},
-			{"copying",	no_argument,		NULL, 'C'},
-			{"?",		no_argument,		NULL, 'H'},
+			{"debug",		optional_argument,	NULL,	'D'},
+			{"verbose",		optional_argument,	NULL,	'v'},
+			{"help",		no_argument,		NULL,	'h'},
+			{"version",		no_argument,		NULL,	'V'},
+			{"copying",		no_argument,		NULL,	'C'},
+			{"?",			no_argument,		NULL,	'H'},
 			{ 0, }
 		};
 		/* *INDENT-ON* */
 
 		c = getopt_long_only(argc, argv, "mrqg:p:AFND::v::hVCH?", long_options,
 				     &option_index);
-#else				/* defined _GNU_SOURCE */
+#else				/* _GNU_SOURCE */
 		c = getopt(argc, argv, "mrqg:p:AFNDvhVC?");
-#endif				/* defined _GNU_SOURCE */
+#endif				/* _GNU_SOURCE */
 		if (c == -1) {
 			if (options.debug)
 				fprintf(stderr, "%s: done options processing\n", argv[0]);
@@ -7749,21 +7751,32 @@ main(int argc, char *argv[])
 			command = CommandHelp;
 			break;
 		case 'V':	/* -V, --version */
-			command = CommandVersion;
+			if (options.command != CommandDefault)
+				goto bad_command;
+			if (command == CommandDefault)
+				command = CommandVersion;
+			options.command = CommandVersion;
 			break;
 		case 'C':	/* -C, --copying */
-			command = CommandCopying;
+			if (options.command != CommandDefault)
+				goto bad_command;
+			if (command == CommandDefault)
+				command = CommandCopying;
+			options.command = CommandCopying;
 			break;
 		case '?':
 		default:
 		      bad_option:
 			optind--;
+			goto bad_nonopt;
 		      bad_nonopt:
 			if (options.output || options.debug) {
 				if (optind < argc) {
 					fprintf(stderr, "%s: syntax error near '", argv[0]);
-					while (optind < argc)
-						fprintf(stderr, "%s ", argv[optind++]);
+					while (optind < argc) {
+						fprintf(stderr, "%s", argv[optind++]);
+						fprintf(stderr, "%s", (optind < argc) ? " " : "");
+					}
 					fprintf(stderr, "'\n");
 				} else {
 					fprintf(stderr, "%s: missing option or argument", argv[0]);
