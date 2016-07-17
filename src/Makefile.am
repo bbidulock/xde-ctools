@@ -34,8 +34,8 @@ xde_clip_LDFLAGS = $(SMLIB_LIBS) $(ICE_LIBS) $(AM_LDFLAGS)
 
 xde_cycle_CPPFLAGS = -DNAME=\"xde-cycle\"
 xde_cycle_SOURCES = xde-cycle.c
-xde_cycle_CFLAGS = $(AM_CFLAGS) $(ICE_CFLAGS) $(SMLIB_CFLAGS)
-xde_cycle_LDFLAGS = $(SMLIB_LIBS) $(ICE_LIBS) $(AM_LDFLAGS)
+xde_cycle_CFLAGS = $(AM_CFLAGS) $(NOTIFY_CFLAGS) $(ICE_CFLAGS) $(SMLIB_CFLAGS) $(SN_CFLAGS)
+xde_cycle_LDFLAGS = $(SN_LIBS) $(SMLIB_LIBS) $(ICE_LIBS) $(NOTIFY_LIBS) $(AM_LDFLAGS)
 
 xde_dock_CPPFLAGS = -DNAME=\"xde-dock\"
 xde_dock_SOURCES = xde-dock.c
@@ -44,26 +44,26 @@ xde_dock_LDFLAGS = $(SMLIB_LIBS) $(ICE_LIBS) $(AM_LDFLAGS)
 
 xde_input_CPPFLAGS = -DNAME=\"xde-input\"
 xde_input_SOURCES = xde-input.c
-xde_input_CFLAGS = $(AM_CFLAGS) $(XF86MISC_CFLAGS) $(ICE_CFLAGS) $(SMLIB_CFLAGS)
-xde_input_LDFLAGS = $(SMLIB_LIBS) $(ICE_LIBS) $(XF86MISC_LIBS) -lm $(AM_LDFLAGS)
+xde_input_CFLAGS = $(AM_CFLAGS) $(XF86MISC_CFLAGS) $(NOTIFY_CFLAGS) $(ICE_CFLAGS) $(SMLIB_CFLAGS) $(SN_CFLAGS)
+xde_input_LDFLAGS = $(SN_LIBS) $(SMLIB_LIBS) $(ICE_LIBS) $(XF86MISC_LIBS) $(NOTIFY_LIBS) -lm $(AM_LDFLAGS)
 
 xde_keys_CPPFLAGS = -DNAME=\"xde-keys\"
 xde_keys_SOURCES = xde-keys.c
 
 xde_monitor_CPPFLAGS = -DNAME=\"xde-monitor\"
-xde_monitor_CFLAGS = $(AM_CFLAGS) $(NOTIFY_CFLAGS)
 xde_monitor_SOURCES = xde-monitor.c
-xde_monitor_LDADD = $(NOTIFY_LIBS) $(AM_LDFLAGS)
+xde_monitor_CFLAGS = $(AM_CFLAGS) $(NOTIFY_CFLAGS)
+xde_monitor_LDFLAGS = $(NOTIFY_LIBS) $(AM_LDFLAGS)
 
 xde_monitor2_CPPFLAGS = -DNAME=\"xde-monitor2\"
-xde_monitor2_CFLAGS = $(AM_CFLAGS) $(NOTIFY_CFLAGS) $(ICE_CFLAGS) $(SMLIB_CFLAGS) $(SN_CFLAGS)
 xde_monitor2_SOURCES = xde-monitor2.c
-xde_monitor2_LDADD = $(SN_LIBS) $(SMLIB_LIBS) $(ICE_LIBS) $(NOTIFY_LIBS) $(AM_LDFLAGS)
+xde_monitor2_CFLAGS = $(AM_CFLAGS) $(NOTIFY_CFLAGS) $(ICE_CFLAGS) $(SMLIB_CFLAGS) $(SN_CFLAGS)
+xde_monitor2_LDFLAGS = $(SN_LIBS) $(SMLIB_LIBS) $(ICE_LIBS) $(NOTIFY_LIBS) $(AM_LDFLAGS)
 
 xde_pager_CPPFLAGS = -DNAME=\"xde-pager\"
 xde_pager_SOURCES = xde-pager.c
-xde_pager_CFLAGS = $(AM_CFLAGS) $(ICE_CFLAGS) $(SMLIB_CFLAGS)
-xde_pager_LDFLAGS = $(SMLIB_LIBS) $(ICE_LIBS) $(AM_LDFLAGS)
+xde_pager_CFLAGS = $(AM_CFLAGS) $(NOTIFY_CFLAGS) $(ICE_CFLAGS) $(SMLIB_CFLAGS) $(SN_CFLAGS)
+xde_pager_LDFLAGS = $(SN_LIBS) $(SMLIB_LIBS) $(ICE_LIBS) $(NOTIFY_LIBS) $(AM_LDFLAGS)
 
 xde_places_CPPFLAGS = -DNAME=\"xde-places\"
 xde_places_SOURCES = xde-places.c
