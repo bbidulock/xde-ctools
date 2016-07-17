@@ -253,6 +253,7 @@
 -Tsl_ushort
 -TSmClient
 -TSmsCallbacks
+-TSnStartupSequence
 -Tspinlock_t
 -Tssize_t
 -Tss_t

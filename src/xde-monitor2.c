@@ -104,6 +104,7 @@
 #endif
 #include <X11/SM/SMlib.h>
 #include <gio/gio.h>
+#include <gio/gdesktopappinfo.h>
 #include <glib.h>
 #include <glib-unix.h>
 #include <gdk/gdkx.h>
@@ -380,6 +381,7 @@ typedef struct Sequence {
 	GList **list;			/* the list we are on */
 	GtkTreeIter iter;		/* the position in the model */
 	SnStartupSequence *seq;		/* the sequence itself */
+	GDesktopAppInfo *info;		/* the desktop entry */
 } Sequence;
 #endif				/* STARTUP_NOTIFICATION */
 #endif				/* NEED_STARTUP_IDS */
@@ -1160,7 +1162,7 @@ get_icons(GIcon * gicon, const char *const *inames)
 			return gtk_icon_info_get_builtin_pixbuf(info);
 		}
 		PTRACE(0);
-		for (iname = inames; *iname; iname++) {
+		for (iname = inames; iname && *iname; iname++) {
 			DPRINTF(2, "Testing for icon name: %s\n", *iname);
 			if ((info = gtk_icon_theme_lookup_icon(theme, *iname, 48,
 							       GTK_ICON_LOOKUP_USE_BUILTIN |
@@ -1190,7 +1192,6 @@ get_sequence_pixbuf(Sequence *seq)
 	PTRACE(0);
 	inames = calloc(16, sizeof(*inames));
 
-	/* FIXME: look up entry file too */
 	if ((name = sn_startup_sequence_get_icon_name(seq->seq))) {
 		PTRACE(0);
 		icon = strdup(name);
@@ -1329,6 +1330,76 @@ restart_popup_timer(XdeMonitor *xmon)
 	DPRINTF(1, "restarting popup timer\n");
 	stop_popup_timer(xmon);
 	start_popup_timer(xmon);
+}
+
+static void
+show_popup(XdeMonitor *xmon, gboolean grab_p, gboolean grab_k)
+{
+	GdkGrabStatus status;
+	Window win;
+
+	DPRINTF(1, "popping the window\n");
+	gdk_display_get_pointer(disp, NULL, NULL, NULL, &xmon->mask);
+	stop_popup_timer(xmon);
+	gtk_window_set_screen(GTK_WINDOW(xmon->popup), gdk_display_get_screen(disp,
+				xmon->xscr->index));
+	gtk_window_set_position(GTK_WINDOW(xmon->popup), GTK_WIN_POS_CENTER_ALWAYS);
+	gtk_window_present(GTK_WINDOW(xmon->popup));
+	gtk_widget_show_now(GTK_WIDGET(xmon->popup));
+	win = GDK_WINDOW_XID(xmon->popup->window);
+
+	if (grab_p && !xmon->pointer) {
+		GdkEventMask mask =
+		    GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK |
+		    GDK_BUTTON_MOTION_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK |
+		    GDK_ENTER_NOTIFY_MASK | GDK_LEAVE_NOTIFY_MASK;
+		XSetInputFocus(dpy, win, RevertToPointerRoot, CurrentTime);
+		status = gdk_pointer_grab(xmon->popup->window, TRUE, mask, NULL, NULL, GDK_CURRENT_TIME);
+		switch (status) {
+		case GDK_GRAB_SUCCESS:
+			DPRINTF(1, "pointer grabbed\n");
+			xmon->pointer = True;
+			break;
+		case GDK_GRAB_ALREADY_GRABBED:
+			DPRINTF(1, "%s: pointer already grabbed\n", NAME);
+			break;
+		case GDK_GRAB_INVALID_TIME:
+			EPRINTF("%s: pointer grab invalid time\n", NAME);
+			break;
+		case GDK_GRAB_NOT_VIEWABLE:
+			EPRINTF("%s: pointer grab on unviewable window\n", NAME);
+			break;
+		case GDK_GRAB_FROZEN:
+			EPRINTF("%s: pointer grab on frozen pointer\n", NAME);
+			break;
+		}
+	}
+	if (grab_k && !xmon->keyboard) {
+		XSetInputFocus(dpy, win, RevertToPointerRoot, CurrentTime);
+		status = gdk_keyboard_grab(xmon->popup->window, TRUE, GDK_CURRENT_TIME);
+		switch (status) {
+		case GDK_GRAB_SUCCESS:
+			DPRINTF(1, "keyboard grabbed\n");
+			xmon->keyboard = True;
+			break;
+		case GDK_GRAB_ALREADY_GRABBED:
+			DPRINTF(1, "%s: keyboard already grabbed\n", NAME);
+			break;
+		case GDK_GRAB_INVALID_TIME:
+			EPRINTF("%s: keyboard grab invalid time\n", NAME);
+			break;
+		case GDK_GRAB_NOT_VIEWABLE:
+			EPRINTF("%s: keyboard grab on unviewable window\n", NAME);
+			break;
+		case GDK_GRAB_FROZEN:
+			EPRINTF("%s: keyboard grab on frozen keyboard\n", NAME);
+			break;
+		}
+	}
+	// if (!xmon->keyboard || !xmon->pointer)
+	if (!(xmon->mask & ~(GDK_LOCK_MASK | GDK_BUTTON1_MASK | GDK_BUTTON2_MASK | GDK_BUTTON3_MASK)))
+		if (!xmon->inside)
+			start_popup_timer(xmon);
 }
 
 /** @section Popup Window GDK Events
@@ -1931,19 +2002,112 @@ find_sequence(XdeScreen *xscr, const char *id)
 	return (NULL);
 }
 
+void
+del_sequence(XdeMonitor *xmon, Sequence *seq)
+{
+	gtk_list_store_remove(xmon->model, &seq->iter);
+	*seq->list = g_list_remove(*seq->list, seq);
+	free(seq->launcher);
+	free(seq->launchee);
+	free(seq->hostname);
+	sn_startup_sequence_unref(seq->seq);
+	seq->seq = NULL;
+	if (seq->info) {
+		g_object_unref(G_OBJECT(seq->info));
+		seq->info = NULL;
+	}
+	free(seq);
+	xmon->seqcount--;
+	if (xmon->seqcount <= 0)
+		drop_popup(xmon);
+}
+
+static gboolean
+seq_timeout(gpointer data)
+{
+	Sequence *seq = data;
+	XdeMonitor *xmon = seq->xmon;
+
+	del_sequence(xmon, seq);
+	return G_SOURCE_REMOVE;	/* remove event source */
+}
+
+void
+rem_sequence(XdeScreen *xscr, Sequence *seq)
+{
+	g_timeout_add(options.timeout, seq_timeout, seq);
+}
+
+void
+cha_sequence(XdeScreen *xscr, Sequence *seq)
+{
+	GdkPixbuf *pixbuf = NULL;
+	const char *appid, *name = NULL, *desc = NULL, *tip;
+	char *markup, *aid, *p;
+	XdeMonitor *xmon = seq->xmon;
+
+	if ((appid = sn_startup_sequence_get_application_id(seq->seq))) {
+		if (!(p = strrchr(appid, '.')) || strcmp(p, ".desktop"))
+			aid = g_strdup_printf("%s.desktop", appid);
+		else
+			aid = g_strdup(appid);
+		seq->info = g_desktop_app_info_new(aid);
+		g_free(aid);
+	}
+	if (!pixbuf)
+		pixbuf = get_sequence_pixbuf(seq);
+	if (!pixbuf)
+		pixbuf = get_icons(g_app_info_get_icon(G_APP_INFO(seq->info)), NULL);
+	if (!name)
+		name = sn_startup_sequence_get_name(seq->seq);
+	if (!name && seq->info)
+		name = g_app_info_get_display_name(G_APP_INFO(seq->info));
+	if (!name && seq->info)
+		name = g_app_info_get_name(G_APP_INFO(seq->info));
+	if (!name && seq->info)
+		name = g_desktop_app_info_get_generic_name(seq->info);
+	if (!name)
+		name = sn_startup_sequence_get_wmclass(seq->seq);
+	if (!name && seq->info)
+		name = g_desktop_app_info_get_startup_wm_class(seq->info);
+	if (!name)
+		if ((name = sn_startup_sequence_get_binary_name(seq->seq)))
+			if (strrchr(name, '/'))
+				name = strrchr(name, '/');
+	if (!name)
+		if ((name = seq->launchee))
+			if (strrchr(name, '/'))
+				name = strrchr(name, '/');
+	if (!desc)
+		desc = sn_startup_sequence_get_description(seq->seq);
+	if (!desc && seq->info)
+		desc = g_app_info_get_description(G_APP_INFO(seq->info));
+	markup = g_markup_printf_escaped("<b>%s</b>\n%s", name ? : "", desc ? : "");
+	/* for now, ellipsize later */
+	tip = desc;
+		/* *INDENT-OFF* */
+		gtk_list_store_set(xmon->model, &seq->iter,
+				0, pixbuf,
+				1, name,
+				2, desc,
+				3, markup,
+				4, tip,
+				5, seq,
+				-1);
+		/* *INDENT-ON* */
+	g_object_unref(pixbuf);
+	g_free(markup);
+}
+
 Sequence *
-add_sequence(XdeScreen *xscr, const char *id, SnStartupSequence * sn_seq)
+add_sequence(XdeScreen *xscr, const char *id, SnStartupSequence *sn_seq)
 {
 	Sequence *seq;
 	Time timestamp;
 	XdeMonitor *xmon;
+	int screen;
 
 	if ((seq = calloc(1, sizeof(*seq)))) {
-		int screen;
-		GdkPixbuf *pixbuf;
-		const char *name = NULL, *desc = NULL, *tip;
-		char *markup;
-
 		seq->screen = xscr->index;
 		seq->monitor = 0;
 		seq->seq = sn_seq;
@@ -1967,77 +2131,12 @@ add_sequence(XdeScreen *xscr, const char *id, SnStartupSequence * sn_seq)
 		gtk_list_store_append(xmon->model, &seq->iter);
 		xmon->seqcount++;
 		seq->xmon = xmon;
-		pixbuf = get_sequence_pixbuf(seq);
 
-		/* FIXME: go get .desktop file and use that too. */
+		cha_sequence(xscr, seq);
 
-		if (!name)
-			name = sn_startup_sequence_get_name(seq->seq);
-		if (!name)
-			name = sn_startup_sequence_get_wmclass(seq->seq);
-		if (!name)
-			if ((name = sn_startup_sequence_get_binary_name(seq->seq)))
-				if (strrchr(name, '/'))
-					name = strrchr(name, '/');
-		if (!name)
-			if ((name = seq->launchee))
-				if (strrchr(name, '/'))
-					name = strrchr(name, '/');
-		if (!desc)
-			desc = sn_startup_sequence_get_description(seq->seq);
-		markup = g_markup_printf_escaped("<b>%s</b>\n%s", name ? : "", desc ? : "");
-		/* for now, ellipsize later */
-		tip = desc;
-		/* *INDENT-OFF* */
-		gtk_list_store_set(xmon->model, &seq->iter,
-				0, pixbuf,
-				1, name,
-				2, desc,
-				3, markup,
-				4, tip,
-				5, seq,
-				-1);
-		/* *INDENT-ON* */
-		g_object_unref(pixbuf);
-		g_free(markup);
-
-		if (!gtk_widget_get_mapped(xmon->popup)) {
-			GdkScreen *scrn = gdk_display_get_screen(disp, xscr->index);
-
-#if 0
-			GdkEventMask mask =
-			    GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK |
-			    GDK_BUTTON_MOTION_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK |
-			    GDK_ENTER_NOTIFY_MASK | GDK_LEAVE_NOTIFY_MASK;
-#endif
-
-			DPRINTF(1, "popping the window\n");
-			gtk_window_set_screen(GTK_WINDOW(xmon->popup), scrn);
-			gtk_window_set_position(GTK_WINDOW(xmon->popup), GTK_WIN_POS_CENTER_ALWAYS);
-			gtk_window_present(GTK_WINDOW(xmon->popup));
-			gtk_widget_show_now(GTK_WIDGET(xmon->popup));
-#if 0
-			gdk_pointer_grab(xmon->popup->window, TRUE, mask, NULL, NULL, GDK_CURRENT_TIME);
-#endif
-
-		}
+		show_popup(xmon, FALSE, FALSE);
 	}
 	return (seq);
-}
-
-void
-cha_sequence(XdeScreen *xscr, Sequence *seq)
-{
-	/* FIXME: change information in monitor's list store */
-}
-
-void
-rem_sequence(XdeScreen *xscr, Sequence *seq)
-{
-	/* FIXME: remove from monitor's list store */
-	*seq->list = g_list_remove(*seq->list, seq);
-	sn_startup_sequence_unref(seq->seq);
-	free(seq);
 }
 
 #endif				/* STARTUP_NOTIFICATION */
@@ -3055,73 +3154,7 @@ static void
 something_changed(WnckScreen *wnck, XdeMonitor *xmon)
 {
 #if NEED_POPUP_WINDOW
-	GdkGrabStatus status;
-	Window win;
-
-	PTRACE(5);
-	gdk_display_get_pointer(disp, NULL, NULL, NULL, &xmon->mask);
-	DPRINTF(1, "modifier mask was: 0x%08x\n", xmon->mask);
-
-	stop_popup_timer(xmon);
-	gtk_window_set_position(GTK_WINDOW(xmon->popup), GTK_WIN_POS_CENTER_ALWAYS);
-	gtk_window_present(GTK_WINDOW(xmon->popup));
-	gtk_widget_show_now(GTK_WIDGET(xmon->popup));
-	win = GDK_WINDOW_XID(xmon->popup->window);
-	if (!xmon->pointer) {
-		GdkEventMask mask =
-		    GDK_POINTER_MOTION_MASK |
-		    GDK_POINTER_MOTION_HINT_MASK |
-		    GDK_BUTTON_MOTION_MASK |
-		    GDK_BUTTON_PRESS_MASK |
-		    GDK_BUTTON_RELEASE_MASK | GDK_ENTER_NOTIFY_MASK | GDK_LEAVE_NOTIFY_MASK;
-		PTRACE(5);
-		XSetInputFocus(dpy, win, RevertToPointerRoot, CurrentTime);
-		status = gdk_pointer_grab(xmon->popup->window, TRUE, mask, NULL, NULL, GDK_CURRENT_TIME);
-		switch (status) {
-		case GDK_GRAB_SUCCESS:
-			DPRINTF(1, "pointer grabbed\n");
-			xmon->pointer = True;
-			break;
-		case GDK_GRAB_ALREADY_GRABBED:
-			DPRINTF(1, "%s: pointer already grabbed\n", NAME);
-			break;
-		case GDK_GRAB_INVALID_TIME:
-			EPRINTF("%s: pointer grab invalid time\n", NAME);
-			break;
-		case GDK_GRAB_NOT_VIEWABLE:
-			EPRINTF("%s: pointer grab on unviewable window\n", NAME);
-			break;
-		case GDK_GRAB_FROZEN:
-			EPRINTF("%s: pointer grab on frozen pointer\n", NAME);
-			break;
-		}
-	}
-	if (!xmon->keyboard) {
-		XSetInputFocus(dpy, win, RevertToPointerRoot, CurrentTime);
-		status = gdk_keyboard_grab(xmon->popup->window, TRUE, GDK_CURRENT_TIME);
-		switch (status) {
-		case GDK_GRAB_SUCCESS:
-			DPRINTF(1, "keyboard grabbed\n");
-			xmon->keyboard = True;
-			break;
-		case GDK_GRAB_ALREADY_GRABBED:
-			DPRINTF(1, "%s: keyboard already grabbed\n", NAME);
-			break;
-		case GDK_GRAB_INVALID_TIME:
-			EPRINTF("%s: keyboard grab invalid time\n", NAME);
-			break;
-		case GDK_GRAB_NOT_VIEWABLE:
-			EPRINTF("%s: keyboard grab on unviewable window\n", NAME);
-			break;
-		case GDK_GRAB_FROZEN:
-			EPRINTF("%s: keyboard grab on frozen keyboard\n", NAME);
-			break;
-		}
-	}
-	// if (!xmon->keyboard || !xmon->pointer)
-	if (!(xmon->mask & ~(GDK_LOCK_MASK | GDK_BUTTON1_MASK | GDK_BUTTON2_MASK | GDK_BUTTON3_MASK)))
-		if (!xmon->inside)
-			start_popup_timer(xmon);
+	show_popup(xmon, TRUE, TRUE);
 #endif				/* NEED_POPUP_WINDOW */
 }
 
@@ -3191,78 +3224,14 @@ active_workspace_changed(WnckScreen *wnck, WnckWorkspace *prev, gpointer data)
 /** @section Window Events
   * @{ */
 
-#if NEED_POPUP_WINDOW
+#if NEED_CLIENT_INFO
 
 static void
 windows_changed(WnckScreen *wnck, XdeMonitor *xmon)
 {
-	GdkGrabStatus status;
-	Window win;
-
-	PTRACE(5);
-	gdk_display_get_pointer(disp, NULL, NULL, NULL, &xmon->mask);
-	DPRINTF(1, "modifier mask was: 0x%08x\n", xmon->mask);
-
-	stop_popup_timer(xmon);
-	gtk_window_set_position(GTK_WINDOW(xmon->popup), GTK_WIN_POS_CENTER_ALWAYS);
-	gtk_window_present(GTK_WINDOW(xmon->popup));
-	gtk_widget_show_now(GTK_WIDGET(xmon->popup));	/* XXX works for menus? */
-	win = GDK_WINDOW_XID(xmon->popup->window);
-	if (!xmon->pointer) {
-		GdkEventMask mask =
-		    GDK_POINTER_MOTION_MASK |
-		    GDK_POINTER_MOTION_HINT_MASK |
-		    GDK_BUTTON_MOTION_MASK |
-		    GDK_BUTTON_PRESS_MASK |
-		    GDK_BUTTON_RELEASE_MASK | GDK_ENTER_NOTIFY_MASK | GDK_LEAVE_NOTIFY_MASK;
-		PTRACE(5);
-		XSetInputFocus(dpy, win, RevertToPointerRoot, CurrentTime);
-		status = gdk_pointer_grab(xmon->popup->window, TRUE, mask, NULL, NULL, GDK_CURRENT_TIME);
-		switch (status) {
-		case GDK_GRAB_SUCCESS:
-			DPRINTF(1, "pointer grabbed\n");
-			xmon->pointer = True;
-			break;
-		case GDK_GRAB_ALREADY_GRABBED:
-			DPRINTF(1, "%s: pointer already grabbed\n", NAME);
-			break;
-		case GDK_GRAB_INVALID_TIME:
-			EPRINTF("%s: pointer grab invalid time\n", NAME);
-			break;
-		case GDK_GRAB_NOT_VIEWABLE:
-			EPRINTF("%s: pointer grab on unviewable window\n", NAME);
-			break;
-		case GDK_GRAB_FROZEN:
-			EPRINTF("%s: pointer grab on frozen pointer\n", NAME);
-			break;
-		}
-	}
-	if (!xmon->keyboard) {
-		XSetInputFocus(dpy, win, RevertToPointerRoot, CurrentTime);
-		status = gdk_keyboard_grab(xmon->popup->window, TRUE, GDK_CURRENT_TIME);
-		switch (status) {
-		case GDK_GRAB_SUCCESS:
-			DPRINTF(1, "keyboard grabbed\n");
-			xmon->keyboard = True;
-			break;
-		case GDK_GRAB_ALREADY_GRABBED:
-			DPRINTF(1, "%s: keyboard already grabbed\n", NAME);
-			break;
-		case GDK_GRAB_INVALID_TIME:
-			EPRINTF("%s: keyboard grab invalid time\n", NAME);
-			break;
-		case GDK_GRAB_NOT_VIEWABLE:
-			EPRINTF("%s: keyboard grab on unviewable window\n", NAME);
-			break;
-		case GDK_GRAB_FROZEN:
-			EPRINTF("%s: keyboard grab on frozen keyboard\n", NAME);
-			break;
-		}
-	}
-	// if (!xmon->keyboard || !xmon->pointer)
-	if (!(xmon->mask & ~(GDK_LOCK_MASK | GDK_BUTTON1_MASK | GDK_BUTTON2_MASK | GDK_BUTTON3_MASK)))
-		if (!xmon->inside)
-			start_popup_timer(xmon);
+#if NEED_POPUP_WINDOW
+	show_popup(xmon, TRUE, TRUE);
+#endif				/* NEED_POPUP_WINDOW */
 }
 
 static void
@@ -3285,10 +3254,6 @@ active_window_changed(WnckScreen *wnck, WnckWindow *previous, gpointer user)
 		for (i = 0; i < xscr->nmon; i++)
 			windows_changed(wnck, &xscr->mons[i]);
 }
-
-#endif				/* NEED_POPUP_WINDOW */
-
-#if NEED_CLIENT_INFO
 
 static void
 clients_changed(WnckScreen *wnck, XdeScreen *xscr)
@@ -4428,11 +4393,8 @@ init_wnck(XdeScreen *xscr)
 	g_signal_connect(G_OBJECT(wnck), "background_changed", G_CALLBACK(background_changed), xscr);
 	g_signal_connect(G_OBJECT(wnck), "active_workspace_changed", G_CALLBACK(active_workspace_changed), xscr);
 #endif				/* NEED_DESKTOP_INFO */
-
-#if NEED_POPUP_WINDOW
-	g_signal_connect(G_OBJECT(wnck), "active_window_changed", G_CALLBACK(active_window_changed), xscr);
-#endif				/* NEED_POPUP_WINDOW */
 #if NEED_CLIENT_INFO
+	g_signal_connect(G_OBJECT(wnck), "active_window_changed", G_CALLBACK(active_window_changed), xscr);
 	g_signal_connect(G_OBJECT(wnck), "application_closed", G_CALLBACK(application_closed), xscr);
 	g_signal_connect(G_OBJECT(wnck), "application_opened", G_CALLBACK(application_opened), xscr);
 	g_signal_connect(G_OBJECT(wnck), "class_group_closed", G_CALLBACK(class_group_closed), xscr);
