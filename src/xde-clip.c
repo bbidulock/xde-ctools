@@ -62,8 +62,10 @@
 #include <sys/stat.h>
 #include <sys/select.h>
 #include <sys/time.h>
+#include <sys/timerfd.h>
 #include <sys/ioctl.h>
 #include <sys/wait.h>
+#include <sys/poll.h>
 #include <fcntl.h>
 #include <dirent.h>
 #include <time.h>
@@ -76,6 +78,9 @@
 #include <stdarg.h>
 #include <strings.h>
 #include <regex.h>
+#include <wordexp.h>
+#include <execinfo.h>
+#include <math.h>
 
 #include <X11/Xatom.h>
 #include <X11/Xlib.h>
@@ -89,12 +94,23 @@
 #ifdef XINERAMA
 #include <X11/extensions/Xinerama.h>
 #endif
+#include <X11/extensions/scrnsaver.h>
+#include <X11/extensions/dpms.h>
+#include <X11/extensions/xf86misc.h>
+#include <X11/XKBlib.h>
 #ifdef STARTUP_NOTIFICATION
 #define SN_API_NOT_YET_FROZEN
 #include <libsn/sn.h>
 #endif
-#include <gtk/gtk.h>
+#include <X11/SM/SMlib.h>
+#include <gio/gio.h>
+#include <glib.h>
+#include <glib-unix.h>
 #include <gdk/gdkx.h>
+#include <gdk-pixbuf/gdk-pixbuf.h>
+#include <gtk/gtk.h>
+#include <cairo.h>
+
 #define WNCK_I_KNOW_THIS_IS_UNSTABLE
 #include <libwnck/libwnck.h>
 
