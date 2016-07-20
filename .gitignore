@@ -40,14 +40,15 @@ xde-app
 xde-ctools-*.tar.xz
 xde-cycle
 xde-dock
+xde-feedback
+xde-input
 xde-keys
 xde-menu
 xde-menugen
-xde-input
 xde-monitor
-xde-monitor2
 xde-pager
 xde-places
+xde-preferred
 xde-recent
 xde-run
 xde-select
@@ -55,4 +56,3 @@ xde-setbg
 xde-winlist
 xde-winmenu
 xde-wkspmenu
-xde-preferred

@@ -6,10 +6,10 @@ bin_PROGRAMS = \
 	xde-app \
 	xde-cycle \
 	xde-dock \
+	xde-feedback \
 	xde-input \
 	xde-keys \
 	xde-monitor \
-	xde-monitor2 \
 	xde-pager \
 	xde-places \
 	xde-preferred \
@@ -42,6 +42,11 @@ xde_dock_SOURCES = xde-dock.c
 xde_dock_CFLAGS = $(AM_CFLAGS) $(ICE_CFLAGS) $(SMLIB_CFLAGS)
 xde_dock_LDFLAGS = $(SMLIB_LIBS) $(ICE_LIBS) $(AM_LDFLAGS)
 
+xde_feedback_CPPFLAGS = -DNAME=\"xde-feedback\"
+xde_feedback_SOURCES = xde-feedback.c
+xde_feedback_CFLAGS = $(AM_CFLAGS) $(NOTIFY_CFLAGS) $(ICE_CFLAGS) $(SMLIB_CFLAGS) $(SN_CFLAGS)
+xde_feedback_LDFLAGS = $(SN_LIBS) $(SMLIB_LIBS) $(ICE_LIBS) $(NOTIFY_LIBS) $(AM_LDFLAGS)
+
 xde_input_CPPFLAGS = -DNAME=\"xde-input\"
 xde_input_SOURCES = xde-input.c
 xde_input_CFLAGS = $(AM_CFLAGS) $(XF86MISC_CFLAGS) $(NOTIFY_CFLAGS) $(ICE_CFLAGS) $(SMLIB_CFLAGS) $(SN_CFLAGS)
@@ -52,13 +57,8 @@ xde_keys_SOURCES = xde-keys.c
 
 xde_monitor_CPPFLAGS = -DNAME=\"xde-monitor\"
 xde_monitor_SOURCES = xde-monitor.c
-xde_monitor_CFLAGS = $(AM_CFLAGS) $(NOTIFY_CFLAGS)
-xde_monitor_LDFLAGS = $(NOTIFY_LIBS) $(AM_LDFLAGS)
-
-xde_monitor2_CPPFLAGS = -DNAME=\"xde-monitor2\"
-xde_monitor2_SOURCES = xde-monitor2.c
-xde_monitor2_CFLAGS = $(AM_CFLAGS) $(NOTIFY_CFLAGS) $(ICE_CFLAGS) $(SMLIB_CFLAGS) $(SN_CFLAGS)
-xde_monitor2_LDFLAGS = $(SN_LIBS) $(SMLIB_LIBS) $(ICE_LIBS) $(NOTIFY_LIBS) $(AM_LDFLAGS)
+xde_monitor_CFLAGS = $(AM_CFLAGS) $(NOTIFY_CFLAGS) $(ICE_CFLAGS) $(SMLIB_CFLAGS) $(SN_CFLAGS)
+xde_monitor_LDFLAGS = $(SN_LIBS) $(SMLIB_LIBS) $(ICE_LIBS) $(NOTIFY_LIBS) $(AM_LDFLAGS)
 
 xde_pager_CPPFLAGS = -DNAME=\"xde-pager\"
 xde_pager_SOURCES = xde-pager.c
@@ -84,8 +84,8 @@ xde_select_LDFLAGS = $(SMLIB_LIBS) $(ICE_LIBS) $(AM_LDFLAGS)
 
 xde_setbg_CPPFLAGS = -DNAME=\"xde-setbg\"
 xde_setbg_SOURCES = xde-setbg.c
-xde_setbg_CFLAGS = $(AM_CFLAGS) $(ICE_CFLAGS) $(SMLIB_CFLAGS)
-xde_setbg_LDFLAGS = $(SMLIB_LIBS) $(ICE_LIBS) $(AM_LDFLAGS)
+xde_setbg_CFLAGS = $(AM_CFLAGS) $(NOTIFY_CFLAGS) $(ICE_CFLAGS) $(SMLIB_CFLAGS) $(SN_CFLAGS)
+xde_setbg_LDFLAGS = $(SN_LIBS) $(SMLIB_LIBS) $(ICE_LIBS) $(NOTIFY_LIBS) $(AM_LDFLAGS)
 
 xde_winlist_CPPFLAGS = -DNAME=\"xde-winlist\"
 xde_winlist_SOURCES = xde-winlist.c

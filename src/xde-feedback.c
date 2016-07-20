@@ -165,72 +165,47 @@ dumpstack(const char *file, const int line, const char *func)
 
 const char *program = NAME;
 
-#define NEED_DESKTOP_LAYOUT		0
-#define NEED_CURRENT_DESKTOP		0
-#define NEED_ROOT_PIXMAPS		0
-#define NEED_DESKTOP_INFO		0
-#define NEED_CLIENT_INFO		0
-#define NEED_POPUP_WINDOW		1
-#define NEED_STARTUP_IDS		1
-
-#define NEED_PAGER			0
-#define NEED_TASKS			0
-#define NEED_MODEL			1
-
-#define XA_PREFIX               "_XDE_MONITOR"
+#define XA_PREFIX               "_XDE_FEEDBACK"
 #define XA_SELECTION_NAME	XA_PREFIX "_S%d"
 #define XA_NET_DESKTOP_LAYOUT	"_NET_DESKTOP_LAYOUT_S%d"
-#define LOGO_NAME		"mate-panel-launcher"
+#define LOGO_NAME		"metacity"
 
 static int saveArgc;
 static char **saveArgv;
 
-#define RESNAME "xde-monitor"
-#define RESCLAS "XDE-Monitor"
-#define RESTITL "XDG Launch Monitor"
+#define RESNAME "xde-feedback"
+#define RESCLAS "XDE-Feedback"
+#define RESTITL "XDG Desktop Feedback"
 
 #define USRDFLT "%s/.config/" RESNAME "/rc"
 #define APPDFLT "/usr/share/X11/app-defaults/" RESCLAS
 
 static Atom _XA_XDE_THEME_NAME;
 static Atom _XA_GTK_READ_RCFILES;
-
-#if NEED_DESKTOP_LAYOUT
 static Atom _XA_NET_DESKTOP_LAYOUT;
-#endif
-#if NEED_CURRENT_DESKTOP
 static Atom _XA_NET_CURRENT_DESKTOP;
 static Atom _XA_WIN_WORKSPACE;
 static Atom _XA_WM_DESKTOP;
-#endif
-#if NEED_ROOT_PIXMAPS
 static Atom _XA_XROOTPMAP_ID;
 static Atom _XA_ESETROOT_PMAP_ID;
-#endif
-#if NEED_DESKTOP_INFO
 static Atom _XA_NET_DESKTOP_NAMES;
 static Atom _XA_NET_NUMBER_OF_DESKTOPS;
 static Atom _XA_WIN_WORKSPACE_COUNT;
 static Atom _XA_WIN_DESKTOP_BUTTON_PROXY;
 static Atom _XA_NET_WM_ICON_GEOMETRY;
-#endif
 #if 0
 static Atom _XA_WIN_AREA;
 static Atom _XA_WIN_AREA_COUNT;
 #endif
-#if NEED_CLIENT_INFO
 static Atom _XA_NET_ACTIVE_WINDOW;
 static Atom _XA_NET_CLIENT_LIST;
 static Atom _XA_NET_CLIENT_LIST_STACKING;
 static Atom _XA_WIN_FOCUS;
 static Atom _XA_WIN_CLIENT_LIST;
-#endif				/* NEED_CLIENT_INFO */
-#if NEED_STARTUP_IDS
 #ifdef STARTUP_NOTIFICATION
 static Atom _XA_NET_STARTUP_INFO;
 static Atom _XA_NET_STARTUP_INFO_BEGIN;
 #endif				/* STARTUP_NOTIFICATION */
-#endif				/* NEED_STARTUP_IDS */
 
 static Atom _XA_PREFIX_EDIT;
 static Atom _XA_PREFIX_TRAY;
@@ -266,6 +241,15 @@ typedef enum {
 	WindowOrderClient,
 	WindowOrderStacking,
 } WindowOrder;
+
+typedef enum {
+	PopupPager,			/* desktop pager feedback */
+	PopupTasks,			/* task list feedback */
+	PopupCycle,			/* window cycling feedback */
+	PopupSetBG,			/* workspace background feedback */
+	PopupStart,			/* startup notification feedback */
+	PopupLast,
+} PopupType;
 
 typedef struct {
 	int debug;
@@ -305,6 +289,16 @@ typedef struct {
 	char *clientId;
 	char *saveFile;
 	Bool dryrun;
+	union {
+		struct {
+			Bool pager;
+			Bool tasks;
+			Bool cycle;
+			Bool setbg;
+			Bool start;
+		} show;
+		Bool popups[PopupLast];
+	};
 } Options;
 
 Options options = {
@@ -350,6 +344,13 @@ Options options = {
 	.clientId = NULL,
 	.saveFile = NULL,
 	.dryrun = False,
+	.show = {
+		 .pager = True,
+		 .tasks = True,
+		 .cycle = True,
+		 .setbg = True,
+		 .start = True,
+		 },
 };
 
 Display *dpy = NULL;
@@ -363,15 +364,16 @@ struct XdeImage;
 typedef struct XdeImage XdeImage;
 struct XdePixmap;
 typedef struct XdePixmap XdePixmap;
+struct XdePopup;
+typedef struct XdePopup XdePopup;
 
-#if NEED_STARTUP_IDS
 #ifdef STARTUP_NOTIFICATION
 SnDisplay *sn_dpy = NULL;
 
 typedef struct Sequence {
 	int screen;			/* screen number */
 	int monitor;			/* monitor number */
-	XdeMonitor *xmon;		/* monitor */
+	XdePopup *xpop;			/* popup */
 	char *launcher;
 	char *launchee;
 	char *hostname;
@@ -384,7 +386,6 @@ typedef struct Sequence {
 	GDesktopAppInfo *info;		/* the desktop entry */
 } Sequence;
 #endif				/* STARTUP_NOTIFICATION */
-#endif				/* NEED_STARTUP_IDS */
 
 struct XdePixmap {
 	int refs;			/* number of references */
@@ -403,26 +404,46 @@ struct XdeImage {
 	XdePixmap *pixmaps;		/* list of pixmaps at various geometries */
 };
 
+struct XdePopup {
+	PopupType type;			/* popup type */
+	GtkWidget *popup;		/* popup window */
+	GtkWidget *content;		/* content of popup window */
+	GtkListStore *model;		/* model for icon-view content */
+	int seqcount;			/* number of sequences in store */
+	unsigned timer;			/* drop popup timer */
+	Bool inside;			/* pointer inside popup */
+	Bool keyboard;			/* have a keyboard grab */
+	Bool pointer;			/* have a pointer grab */
+	GdkModifierType mask;
+};
+
 struct XdeMonitor {
 	int index;			/* monitor number */
 	XdeScreen *xscr;		/* screen */
 	int current;			/* current desktop for this monitor */
 	GdkRectangle geom;		/* geometry of the monitor */
-#if NEED_POPUP_WINDOW
-	GtkWidget *popup;
-	union {
-		GtkWidget *view;
-		GtkWidget *pager;
-		GtkWidget *tasks;
+	struct {
+		GList *oldlist;		/* clients for this monitor (old gnome) */
+		GList *clients;		/* clients for this monitor */
+		GList *stacked;		/* clients for this monitor (stacked) */
+		struct {
+			GdkWindow *old;	/* active window (previous) */
+			GdkWindow *now;	/* active window (current) */
+		} active;
 	};
-	GtkListStore *model;
-	int seqcount;			/* number of sequences in store */
-	unsigned timer;
-	Bool inside;			/* pointer inside popup */
-	Bool keyboard;			/* have a keyboard grab */
-	Bool pointer;			/* have a pointer grab */
-	GdkModifierType mask;
-#endif					/* NEED_POPUP_WINDOW */
+	union {
+		struct {
+			XdePopup pager;
+			XdePopup tasks;
+			XdePopup cycle;
+			XdePopup setbg;
+			XdePopup start;
+		};
+		XdePopup popups[PopupLast];
+	};
+	struct {
+		guint refresh_monitor;
+	} deferred;
 };
 
 struct XdeScreen {
@@ -440,10 +461,8 @@ struct XdeScreen {
 	XdeImage **sources;		/* the images for the theme */
 	Window selwin;			/* selection owner window */
 	Atom atom;			/* selection atom for this screen */
-#if NEED_DESKTOP_LAYOUT
 	Window laywin;			/* desktop layout selection owner */
 	Atom prop;			/* dekstop layout selection atom */
-#endif
 	int width, height;		/* dimensions of screen */
 	guint timer;			/* timer source of running timer */
 	int rows;			/* number of rows in layout */
@@ -454,83 +473,111 @@ struct XdeScreen {
 	int current;			/* current desktop for this screen */
 	char *wmname;			/* window manager name (adjusted) */
 	Bool goodwm;			/* is the window manager usable? */
-#if NEED_STARTUP_IDS
+	union {
+		struct {
+			Bool pager;	/* can window manager use pager? */
+			Bool tasks;	/* can window manager use tasks? */
+			Bool cycle;	/* can window manager use cycle? */
+			Bool setbg;	/* can window manager use setbg? */
+			Bool start;	/* can window manager use start? */
+		};
+		Bool flags[PopupLast];
+	};
+	struct {
+		GList *oldlist;		/* clients for this screen (old gnome) */
+		GList *clients;		/* clients for this screen */
+		GList *stacked;		/* clients for this screen (stacked) */
+		struct {
+			GdkWindow *old;	/* active window (previous) */
+			GdkWindow *now;	/* active window (current) */
+		} active;
+	};
 #ifdef STARTUP_NOTIFICATION
 	SnMonitorContext *ctx;		/* monitor context for this screen */
 	GList *sequences;		/* startup notification sequences */
 #endif
-#endif
 	GtkWindow *desktop;
 	GdkWindow *proxy;
-	guint deferred_refresh_layout;
-	guint deferred_refresh_desktop;
+	struct {
+		guint refresh_layout;
+		guint refresh_desktop;
+	} deferred;
 };
 
 XdeScreen *screens = NULL;		/* array of screens */
 
-#if NEED_DESKTOP_LAYOUT
 static void refresh_layout(XdeScreen *xscr);
-#endif				/* NEED_DESKTOP_LAYOUT */
-
-#if NEED_ROOT_PIXMAPS
 static void refresh_desktop(XdeScreen *xscr);
-#endif				/* NEED_ROOT_PIXMAPS */
+static void refresh_monitor(XdeMonitor *xmon);
 
-#if NEED_ROOT_PIXMAPS
 static gboolean
-on_deferred_refresh_layout(gpointer data)
+deferred_refresh_layout(gpointer data)
 {
 	XdeScreen *xscr = data;
 
-	xscr->deferred_refresh_layout = 0;
+	xscr->deferred.refresh_layout = 0;
 	refresh_layout(xscr);
 	return G_SOURCE_REMOVE;
 }
 
 static gboolean
-on_deferred_refresh_desktop(gpointer data)
+deferred_refresh_desktop(gpointer data)
 {
 	XdeScreen *xscr = data;
 
-	xscr->deferred_refresh_desktop = 0;
+	xscr->deferred.refresh_desktop = 0;
 	refresh_desktop(xscr);
 	return G_SOURCE_REMOVE;
 }
-#endif				/* NEED_ROOT_PIXMAPS */
 
-#if NEED_ROOT_PIXMAPS
+static gboolean
+deferred_refresh_monitor(gpointer data)
+{
+	XdeMonitor *xmon = data;
+
+	xmon->deferred.refresh_monitor = 0;
+	refresh_monitor(xmon);
+	return G_SOURCE_REMOVE;
+}
+
 static void
 add_deferred_refresh_layout(XdeScreen *xscr)
 {
-	if (!xscr->deferred_refresh_layout)
-		xscr->deferred_refresh_layout = g_idle_add(on_deferred_refresh_layout, xscr);
-	if (xscr->deferred_refresh_desktop) {
-		g_source_remove(xscr->deferred_refresh_desktop);
-		xscr->deferred_refresh_desktop = 0;
+	if (!xscr->deferred.refresh_layout)
+		xscr->deferred.refresh_layout = g_idle_add(deferred_refresh_layout, xscr);
+	if (xscr->deferred.refresh_desktop) {
+		g_source_remove(xscr->deferred.refresh_desktop);
+		xscr->deferred.refresh_desktop = 0;
 	}
 }
 
 static void
 add_deferred_refresh_desktop(XdeScreen *xscr)
 {
-	if (xscr->deferred_refresh_layout)
+	if (xscr->deferred.refresh_layout)
 		return;
-	if (xscr->deferred_refresh_desktop)
+	if (xscr->deferred.refresh_desktop)
 		return;
-	xscr->deferred_refresh_desktop = g_idle_add(on_deferred_refresh_desktop, xscr);
+	xscr->deferred.refresh_desktop = g_idle_add(deferred_refresh_desktop, xscr);
 }
-#endif				/* NEED_ROOT_PIXMAPS */
 
-#if NEED_ROOT_PIXMAPS
+static void
+add_deferred_refresh_monitor(XdeMonitor *xmon)
+{
+	if (xmon->deferred.refresh_monitor)
+		return;
+	xmon->deferred.refresh_monitor = g_idle_add(deferred_refresh_monitor, xmon);
+}
+
 void
-xde_pixmap_ref(XdePixmap * pixmap)
+xde_pixmap_ref(XdePixmap *pixmap)
 {
 	if (pixmap)
 		pixmap->refs++;
 }
 
 void
-xde_pixmap_delete(XdePixmap * pixmap)
+xde_pixmap_delete(XdePixmap *pixmap)
 {
 	if (pixmap) {
 		if (pixmap->pprev) {
@@ -542,7 +589,7 @@ xde_pixmap_delete(XdePixmap * pixmap)
 }
 
 void
-xde_pixmap_unref(XdePixmap ** pixmapp)
+xde_pixmap_unref(XdePixmap **pixmapp)
 {
 	if (pixmapp && *pixmapp) {
 		if (--(*pixmapp)->refs <= 0) {
@@ -553,14 +600,14 @@ xde_pixmap_unref(XdePixmap ** pixmapp)
 }
 
 void
-xde_image_ref(XdeImage * image)
+xde_image_ref(XdeImage *image)
 {
 	if (image)
 		image->refs++;
 }
 
 void
-xde_image_delete(XdeImage * image)
+xde_image_delete(XdeImage *image)
 {
 	XdePixmap *pixmap;
 
@@ -574,7 +621,7 @@ xde_image_delete(XdeImage * image)
 }
 
 void
-xde_image_unref(XdeImage ** imagep)
+xde_image_unref(XdeImage **imagep)
 {
 	if (imagep && *imagep) {
 		(*imagep)->refs -= 1;
@@ -1017,6 +1064,12 @@ get_temporary_pixmap(XdeScreen *xscr)
 	return (pmap);
 }
 
+/** @brief refresh desktop
+  *
+  * The current desktop has changed for the screen.  Update the root pixmaps for
+  * the screen.  Whether the window manager is multihead aware can be determined
+  * by checking the mhaware boolean on the screen structure.
+  */
 static void
 refresh_desktop(XdeScreen *xscr)
 {
@@ -1114,11 +1167,17 @@ refresh_desktop(XdeScreen *xscr)
 	xscr->pixmap = pmap;
 }
 
-#endif				/* NEED_ROOT_PIXMAPS */
-
-#if NEED_POPUP_WINDOW
-
-#if NEED_STARTUP_IDS
+/** @brief refresh monitor
+  *
+  * The current view for a multi-head aware window manager has changed.  Update
+  * the background for the monitor.
+  */
+static void
+refresh_monitor(XdeMonitor *xmon)
+{
+	/* for now */
+	refresh_desktop(xmon->xscr);
+}
 
 gboolean
 test_icon_ext(const char *icon)
@@ -1149,19 +1208,15 @@ get_icons(GIcon * gicon, const char *const *inames)
 	GtkIconInfo *info;
 	const char *const *iname;
 
-	PTRACE(0);
 	if ((theme = gtk_icon_theme_get_default())) {
-		PTRACE(0);
 		if (gicon && (info = gtk_icon_theme_lookup_by_gicon(theme, gicon, 48,
 								    GTK_ICON_LOOKUP_USE_BUILTIN |
 								    GTK_ICON_LOOKUP_GENERIC_FALLBACK |
 								    GTK_ICON_LOOKUP_FORCE_SIZE))) {
-			PTRACE(0);
 			if (gtk_icon_info_get_filename(info))
 				return gtk_icon_info_load_icon(info, NULL);
 			return gtk_icon_info_get_builtin_pixbuf(info);
 		}
-		PTRACE(0);
 		for (iname = inames; iname && *iname; iname++) {
 			DPRINTF(2, "Testing for icon name: %s\n", *iname);
 			if ((info = gtk_icon_theme_lookup_icon(theme, *iname, 48,
@@ -1173,7 +1228,6 @@ get_icons(GIcon * gicon, const char *const *inames)
 				return gtk_icon_info_get_builtin_pixbuf(info);
 			}
 		}
-		PTRACE(0);
 	}
 	return (NULL);
 }
@@ -1189,11 +1243,10 @@ get_sequence_pixbuf(Sequence *seq)
 	const char *name;
 	int i = 0;
 
-	PTRACE(0);
 	inames = calloc(16, sizeof(*inames));
 
+	/* FIXME: look up entry file too */
 	if ((name = sn_startup_sequence_get_icon_name(seq->seq))) {
-		PTRACE(0);
 		icon = strdup(name);
 		if (icon[0] == '/' && !access(icon, R_OK) && test_icon_ext(icon)) {
 			DPRINTF(2, "going with full icon path %s\n", icon);
@@ -1210,11 +1263,9 @@ get_sequence_pixbuf(Sequence *seq)
 		DPRINTF(2, "Choice %d for icon name: %s\n", i, base);
 		free(icon);
 	} else {
-		PTRACE(0);
 		/* FIXME: look up entry file too */
 		/* try both mixed- and lower-case WMCLASS= */
 		if ((name = sn_startup_sequence_get_wmclass(seq->seq))) {
-			PTRACE(0);
 			base = strdup(name);
 			inames[i++] = base;
 			DPRINTF(2, "Choice %d for icon name: %s\n", i, base);
@@ -1227,7 +1278,6 @@ get_sequence_pixbuf(Sequence *seq)
 		/* FIXME: look up entry file too */
 		/* try BIN= or LAUNCHEE in its absence COMMAND= */
 		if ((name = sn_startup_sequence_get_binary_name(seq->seq)) || (name = seq->launchee)) {
-			PTRACE(0);
 			icon = strdup(name);
 			base = icon;
 			*strchrnul(base, ' ') = '\0';
@@ -1240,7 +1290,6 @@ get_sequence_pixbuf(Sequence *seq)
 			free(icon);
 		}
 	}
-	PTRACE(0);
 	base = strdup("unknown");
 	inames[i++] = base;
 	DPRINTF(2, "Choice %d for icon name: %s\n", i, base);
@@ -1251,114 +1300,117 @@ get_sequence_pixbuf(Sequence *seq)
 	return (pixbuf);
 }
 
-#endif				/* NEED_STARTUP_IDS */
-
 /** @section Popup Window Event Handlers
   * @{ */
 
 static gboolean
-stop_popup_timer(XdeMonitor *xmon)
+stop_popup_timer(XdePopup *xpop)
 {
 	PTRACE(5);
-	if (xmon->timer) {
+	if (xpop->timer) {
 		DPRINTF(1, "stopping popup timer\n");
-		g_source_remove(xmon->timer);
-		xmon->timer = 0;
+		g_source_remove(xpop->timer);
+		xpop->timer = 0;
 		return TRUE;
 	}
 	return FALSE;
 }
 
 static void
-release_grabs(XdeMonitor *xmon)
+release_grabs(XdePopup *xpop)
 {
 	PTRACE(5);
-	if (xmon->pointer) {
+	if (xpop->pointer) {
 #if 0
 		/* will be broken when window unmaps */
 		DPRINTF(1, "ungrabbing pointer\n");
-		gdk_display_pointer_ungrab(xmon->disp, GDK_CURRENT_TIME);
+		gdk_display_pointer_ungrab(disp, GDK_CURRENT_TIME);
 #endif
-		xmon->pointer = False;
+		xpop->pointer = False;
 	}
-	if (xmon->keyboard) {
+	if (xpop->keyboard) {
 #if 0
 		/* will be broken when window unmaps */
 		DPRINTF(1, "ungrabbing keyboard\n");
-		gdk_display_keyboard_ungrab(xmon->disp, GDK_CURRENT_TIME);
+		gdk_display_keyboard_ungrab(disp, GDK_CURRENT_TIME);
 #endif
-		xmon->keyboard = False;
+		xpop->keyboard = False;
 	}
 }
 
 static void
-drop_popup(XdeMonitor *xmon)
+drop_popup(XdePopup *xpop)
 {
 	PTRACE(5);
-	if (gtk_widget_get_mapped(xmon->popup)) {
-		stop_popup_timer(xmon);
-		release_grabs(xmon);
-		gtk_widget_hide(xmon->popup);
+	if (gtk_widget_get_mapped(xpop->popup)) {
+		stop_popup_timer(xpop);
+		release_grabs(xpop);
+		gtk_widget_hide(xpop->popup);
 	}
 }
 
 static gboolean
 workspace_timeout(gpointer user)
 {
-	XdeMonitor *xmon = user;
+	XdePopup *xpop = user;
 
 	DPRINTF(1, "popup timeout!\n");
-	drop_popup(xmon);
-	xmon->timer = 0;
+	drop_popup(xpop);
+	xpop->timer = 0;
 	return G_SOURCE_REMOVE;
 }
 
 static gboolean
-start_popup_timer(XdeMonitor *xmon)
+start_popup_timer(XdePopup *xpop)
 {
 	PTRACE(5);
-	if (xmon->timer)
+	if (xpop->timer)
 		return FALSE;
 	DPRINTF(1, "starting popup timer\n");
-	xmon->timer = g_timeout_add(options.timeout, workspace_timeout, xmon);
+	xpop->timer = g_timeout_add(options.timeout, workspace_timeout, xpop);
 	return TRUE;
 }
 
 void
-restart_popup_timer(XdeMonitor *xmon)
+restart_popup_timer(XdePopup *xpop)
 {
 	DPRINTF(1, "restarting popup timer\n");
-	stop_popup_timer(xmon);
-	start_popup_timer(xmon);
+	stop_popup_timer(xpop);
+	start_popup_timer(xpop);
 }
 
 static void
-show_popup(XdeMonitor *xmon, gboolean grab_p, gboolean grab_k)
+show_popup(XdeScreen *xscr, XdePopup *xpop, gboolean grab_p, gboolean grab_k)
 {
 	GdkGrabStatus status;
 	Window win;
 
+	if (!xpop->popup)
+		return;
 	DPRINTF(1, "popping the window\n");
-	gdk_display_get_pointer(disp, NULL, NULL, NULL, &xmon->mask);
-	stop_popup_timer(xmon);
-	gtk_window_set_screen(GTK_WINDOW(xmon->popup), gdk_display_get_screen(disp,
-				xmon->xscr->index));
-	gtk_window_set_position(GTK_WINDOW(xmon->popup), GTK_WIN_POS_CENTER_ALWAYS);
-	gtk_window_present(GTK_WINDOW(xmon->popup));
-	gtk_widget_show_now(GTK_WIDGET(xmon->popup));
-	win = GDK_WINDOW_XID(xmon->popup->window);
+	gdk_display_get_pointer(disp, NULL, NULL, NULL, &xpop->mask);
+	stop_popup_timer(xpop);
+	if (xpop->type == PopupStart) {
+		gtk_window_set_default_size(GTK_WINDOW(xpop->popup), -1, -1);
+		gtk_widget_set_size_request(GTK_WIDGET(xpop->popup), -1, -1);
+	}
+	gtk_window_set_screen(GTK_WINDOW(xpop->popup), gdk_display_get_screen(disp, xscr->index));
+	gtk_window_set_position(GTK_WINDOW(xpop->popup), GTK_WIN_POS_CENTER_ALWAYS);
+	gtk_window_present(GTK_WINDOW(xpop->popup));
+	gtk_widget_show_now(GTK_WIDGET(xpop->popup));
+	win = GDK_WINDOW_XID(xpop->popup->window);
 
-	if (grab_p && !xmon->pointer) {
+	if (grab_p && !xpop->pointer) {
 		GdkEventMask mask =
 		    GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK |
 		    GDK_BUTTON_MOTION_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK |
 		    GDK_ENTER_NOTIFY_MASK | GDK_LEAVE_NOTIFY_MASK;
 		XSetInputFocus(dpy, win, RevertToPointerRoot, CurrentTime);
-		status = gdk_pointer_grab(xmon->popup->window, TRUE, mask, NULL, NULL, GDK_CURRENT_TIME);
+		status = gdk_pointer_grab(xpop->popup->window, TRUE, mask, NULL, NULL, GDK_CURRENT_TIME);
 		switch (status) {
 		case GDK_GRAB_SUCCESS:
 			DPRINTF(1, "pointer grabbed\n");
-			xmon->pointer = True;
+			xpop->pointer = True;
 			break;
 		case GDK_GRAB_ALREADY_GRABBED:
 			DPRINTF(1, "%s: pointer already grabbed\n", NAME);
@@ -1374,13 +1426,13 @@ show_popup(XdeMonitor *xmon, gboolean grab_p, gboolean grab_k)
 			break;
 		}
 	}
-	if (grab_k && !xmon->keyboard) {
+	if (grab_k && !xpop->keyboard) {
 		XSetInputFocus(dpy, win, RevertToPointerRoot, CurrentTime);
-		status = gdk_keyboard_grab(xmon->popup->window, TRUE, GDK_CURRENT_TIME);
+		status = gdk_keyboard_grab(xpop->popup->window, TRUE, GDK_CURRENT_TIME);
 		switch (status) {
 		case GDK_GRAB_SUCCESS:
 			DPRINTF(1, "keyboard grabbed\n");
-			xmon->keyboard = True;
+			xpop->keyboard = True;
 			break;
 		case GDK_GRAB_ALREADY_GRABBED:
 			DPRINTF(1, "%s: keyboard already grabbed\n", NAME);
@@ -1396,10 +1448,10 @@ show_popup(XdeMonitor *xmon, gboolean grab_p, gboolean grab_k)
 			break;
 		}
 	}
-	// if (!xmon->keyboard || !xmon->pointer)
-	if (!(xmon->mask & ~(GDK_LOCK_MASK | GDK_BUTTON1_MASK | GDK_BUTTON2_MASK | GDK_BUTTON3_MASK)))
-		if (!xmon->inside)
-			start_popup_timer(xmon);
+	// if (!xpop->keyboard || !xpop->pointer)
+	if (!(xpop->mask & ~(GDK_LOCK_MASK | GDK_BUTTON1_MASK | GDK_BUTTON2_MASK | GDK_BUTTON3_MASK)))
+		if (!xpop->inside)
+			start_popup_timer(xpop);
 }
 
 /** @section Popup Window GDK Events
@@ -1408,11 +1460,11 @@ show_popup(XdeMonitor *xmon, gboolean grab_p, gboolean grab_k)
 #define PASSED_EVENT_MASK (KeyPressMask|KeyReleaseMask|ButtonPressMask|ButtonReleaseMask|SubstructureNotifyMask|SubstructureRedirectMask)
 
 static GdkFilterReturn
-event_handler_KeyPress(Display *dpy, XEvent *xev, XdeMonitor *xmon)
+event_handler_KeyPress(Display *dpy, XEvent *xev, XdePopup *xpop)
 {
 	PTRACE(5);
 	if (options.debug > 1) {
-		fprintf(stderr, "==> KeyPress: %p\n", xmon);
+		fprintf(stderr, "==> KeyPress: %p\n", xpop);
 		fprintf(stderr, "    --> send_event = %s\n", xev->xkey.send_event ? "true" : "false");
 		fprintf(stderr, "    --> window = 0x%lx\n", xev->xkey.window);
 		fprintf(stderr, "    --> root = 0x%lx\n", xev->xkey.root);
@@ -1425,12 +1477,12 @@ event_handler_KeyPress(Display *dpy, XEvent *xev, XdeMonitor *xmon)
 		fprintf(stderr, "    --> state = 0x%08x\n", xev->xkey.state);
 		fprintf(stderr, "    --> keycode = %u\n", xev->xkey.keycode);
 		fprintf(stderr, "    --> same_screen = %s\n", xev->xkey.same_screen ? "true" : "false");
-		fprintf(stderr, "<== KeyPress: %p\n", xmon);
+		fprintf(stderr, "<== KeyPress: %p\n", xpop);
 	}
 	if (!xev->xkey.send_event) {
 		XEvent ev = *xev;
 
-		start_popup_timer(xmon);
+		start_popup_timer(xpop);
 		ev.xkey.window = ev.xkey.root;
 		XSendEvent(dpy, ev.xkey.root, True, PASSED_EVENT_MASK, &ev);
 		XFlush(dpy);
@@ -1440,11 +1492,11 @@ event_handler_KeyPress(Display *dpy, XEvent *xev, XdeMonitor *xmon)
 }
 
 static GdkFilterReturn
-event_handler_KeyRelease(Display *dpy, XEvent *xev, XdeMonitor *xmon)
+event_handler_KeyRelease(Display *dpy, XEvent *xev, XdePopup *xpop)
 {
 	PTRACE(5);
 	if (options.debug > 1) {
-		fprintf(stderr, "==> KeyRelease: %p\n", xmon);
+		fprintf(stderr, "==> KeyRelease: %p\n", xpop);
 		fprintf(stderr, "    --> send_event = %s\n", xev->xkey.send_event ? "true" : "false");
 		fprintf(stderr, "    --> window = 0x%lx\n", xev->xkey.window);
 		fprintf(stderr, "    --> root = 0x%lx\n", xev->xkey.root);
@@ -1457,12 +1509,12 @@ event_handler_KeyRelease(Display *dpy, XEvent *xev, XdeMonitor *xmon)
 		fprintf(stderr, "    --> state = 0x%08x\n", xev->xkey.state);
 		fprintf(stderr, "    --> keycode = %u\n", xev->xkey.keycode);
 		fprintf(stderr, "    --> same_screen = %s\n", xev->xkey.same_screen ? "true" : "false");
-		fprintf(stderr, "<== KeyRelease: %p\n", xmon);
+		fprintf(stderr, "<== KeyRelease: %p\n", xpop);
 	}
 	if (!xev->xkey.send_event) {
 		XEvent ev = *xev;
 
-		// start_popup_timer(xmon);
+		// start_popup_timer(xpop);
 		ev.xkey.window = ev.xkey.root;
 		XSendEvent(dpy, ev.xkey.root, True, PASSED_EVENT_MASK, &ev);
 		XFlush(dpy);
@@ -1472,11 +1524,11 @@ event_handler_KeyRelease(Display *dpy, XEvent *xev, XdeMonitor *xmon)
 }
 
 static GdkFilterReturn
-event_handler_ButtonPress(Display *dpy, XEvent *xev, XdeMonitor *xmon)
+event_handler_ButtonPress(Display *dpy, XEvent *xev, XdePopup *xpop)
 {
 	PTRACE(5);
 	if (options.debug > 1) {
-		fprintf(stderr, "==> ButtonPress: %p\n", xmon);
+		fprintf(stderr, "==> ButtonPress: %p\n", xpop);
 		fprintf(stderr, "    --> send_event = %s\n", xev->xbutton.send_event ? "true" : "false");
 		fprintf(stderr, "    --> window = 0x%lx\n", xev->xbutton.window);
 		fprintf(stderr, "    --> root = 0x%lx\n", xev->xbutton.root);
@@ -1489,14 +1541,14 @@ event_handler_ButtonPress(Display *dpy, XEvent *xev, XdeMonitor *xmon)
 		fprintf(stderr, "    --> state = 0x%08x\n", xev->xbutton.state);
 		fprintf(stderr, "    --> button = %u\n", xev->xbutton.button);
 		fprintf(stderr, "    --> same_screen = %s\n", xev->xbutton.same_screen ? "true" : "false");
-		fprintf(stderr, "<== ButtonPress: %p\n", xmon);
+		fprintf(stderr, "<== ButtonPress: %p\n", xpop);
 	}
 	if (!xev->xbutton.send_event) {
 		XEvent ev = *xev;
 
 		if (ev.xbutton.button == 4 || ev.xbutton.button == 5) {
-			if (!xmon->inside)
-				start_popup_timer(xmon);
+			if (!xpop->inside)
+				start_popup_timer(xpop);
 			DPRINTF(1, "ButtonPress = %d passing to root window\n", ev.xbutton.button);
 			ev.xbutton.window = ev.xbutton.root;
 			XSendEvent(dpy, ev.xbutton.root, True, PASSED_EVENT_MASK, &ev);
@@ -1508,11 +1560,11 @@ event_handler_ButtonPress(Display *dpy, XEvent *xev, XdeMonitor *xmon)
 }
 
 static GdkFilterReturn
-event_handler_ButtonRelease(Display *dpy, XEvent *xev, XdeMonitor *xmon)
+event_handler_ButtonRelease(Display *dpy, XEvent *xev, XdePopup *xpop)
 {
 	PTRACE(5);
 	if (options.debug > 1) {
-		fprintf(stderr, "==> ButtonRelease: %p\n", xmon);
+		fprintf(stderr, "==> ButtonRelease: %p\n", xpop);
 		fprintf(stderr, "    --> send_event = %s\n", xev->xbutton.send_event ? "true" : "false");
 		fprintf(stderr, "    --> window = 0x%lx\n", xev->xbutton.window);
 		fprintf(stderr, "    --> root = 0x%lx\n", xev->xbutton.root);
@@ -1525,13 +1577,13 @@ event_handler_ButtonRelease(Display *dpy, XEvent *xev, XdeMonitor *xmon)
 		fprintf(stderr, "    --> state = 0x%08x\n", xev->xbutton.state);
 		fprintf(stderr, "    --> button = %u\n", xev->xbutton.button);
 		fprintf(stderr, "    --> same_screen = %s\n", xev->xbutton.same_screen ? "true" : "false");
-		fprintf(stderr, "<== ButtonRelease: %p\n", xmon);
+		fprintf(stderr, "<== ButtonRelease: %p\n", xpop);
 	}
 	if (!xev->xbutton.send_event) {
 		XEvent ev = *xev;
 
 		if (ev.xbutton.button == 4 || ev.xbutton.button == 5) {
-			// start_popup_timer(xmon);
+			// start_popup_timer(xpop);
 			DPRINTF(1, "ButtonRelease = %d passing to root window\n", ev.xbutton.button);
 			ev.xbutton.window = ev.xbutton.root;
 			XSendEvent(dpy, ev.xbutton.root, True, PASSED_EVENT_MASK, &ev);
@@ -1585,11 +1637,11 @@ show_detail(int detail)
 }
 
 static GdkFilterReturn
-event_handler_EnterNotify(Display *dpy, XEvent *xev, XdeMonitor *xmon)
+event_handler_EnterNotify(Display *dpy, XEvent *xev, XdePopup *xpop)
 {
 	PTRACE(5);
 	if (options.debug > 1) {
-		fprintf(stderr, "==> EnterNotify: %p\n", xmon);
+		fprintf(stderr, "==> EnterNotify: %p\n", xpop);
 		fprintf(stderr, "    --> send_event = %s\n", xev->xcrossing.send_event ? "true" : "false");
 		fprintf(stderr, "    --> window = 0x%lx\n", xev->xcrossing.window);
 		fprintf(stderr, "    --> root = 0x%lx\n", xev->xcrossing.root);
@@ -1604,24 +1656,24 @@ event_handler_EnterNotify(Display *dpy, XEvent *xev, XdeMonitor *xmon)
 		fprintf(stderr, "    --> same_screen = %s\n", xev->xcrossing.same_screen ? "true" : "false");
 		fprintf(stderr, "    --> focus = %s\n", xev->xcrossing.focus ? "true" : "false");
 		fprintf(stderr, "    --> state = 0x%08x\n", xev->xcrossing.state);
-		fprintf(stderr, "<== EnterNotify: %p\n", xmon);
+		fprintf(stderr, "<== EnterNotify: %p\n", xpop);
 	}
 	if (xev->xcrossing.mode == NotifyNormal) {
-		if (!xmon->inside) {
+		if (!xpop->inside) {
 			DPRINTF(1, "entered popup\n");
-			stop_popup_timer(xmon);
-			xmon->inside = True;
+			stop_popup_timer(xpop);
+			xpop->inside = True;
 		}
 	}
 	return GDK_FILTER_CONTINUE;
 }
 
 static GdkFilterReturn
-event_handler_LeaveNotify(Display *dpy, XEvent *xev, XdeMonitor *xmon)
+event_handler_LeaveNotify(Display *dpy, XEvent *xev, XdePopup *xpop)
 {
 	PTRACE(5);
 	if (options.debug > 1) {
-		fprintf(stderr, "==> LeaveNotify: %p\n", xmon);
+		fprintf(stderr, "==> LeaveNotify: %p\n", xpop);
 		fprintf(stderr, "    --> send_event = %s\n", xev->xcrossing.send_event ? "true" : "false");
 		fprintf(stderr, "    --> window = 0x%lx\n", xev->xcrossing.window);
 		fprintf(stderr, "    --> root = 0x%lx\n", xev->xcrossing.root);
@@ -1636,29 +1688,29 @@ event_handler_LeaveNotify(Display *dpy, XEvent *xev, XdeMonitor *xmon)
 		fprintf(stderr, "    --> same_screen = %s\n", xev->xcrossing.same_screen ? "true" : "false");
 		fprintf(stderr, "    --> focus = %s\n", xev->xcrossing.focus ? "true" : "false");
 		fprintf(stderr, "    --> state = 0x%08x\n", xev->xcrossing.state);
-		fprintf(stderr, "<== LeaveNotify: %p\n", xmon);
+		fprintf(stderr, "<== LeaveNotify: %p\n", xpop);
 	}
 	if (xev->xcrossing.mode == NotifyNormal) {
-		if (xmon->inside) {
+		if (xpop->inside) {
 			DPRINTF(1, "left popup\n");
-			start_popup_timer(xmon);
-			xmon->inside = False;
+			start_popup_timer(xpop);
+			xpop->inside = False;
 		}
 	}
 	return GDK_FILTER_CONTINUE;
 }
 
 static GdkFilterReturn
-event_handler_FocusIn(Display *dpy, XEvent *xev, XdeMonitor *xmon)
+event_handler_FocusIn(Display *dpy, XEvent *xev, XdePopup *xpop)
 {
 	PTRACE(5);
 	if (options.debug > 1) {
-		fprintf(stderr, "==> FocusIn: %p\n", xmon);
+		fprintf(stderr, "==> FocusIn: %p\n", xpop);
 		fprintf(stderr, "    --> send_event = %s\n", xev->xfocus.send_event ? "true" : "false");
 		fprintf(stderr, "    --> window = 0x%lx\n", xev->xfocus.window);
 		fprintf(stderr, "    --> mode = %s\n", show_mode(xev->xfocus.mode));
 		fprintf(stderr, "    --> detail = %s\n", show_detail(xev->xfocus.detail));
-		fprintf(stderr, "<== FocusIn: %p\n", xmon);
+		fprintf(stderr, "<== FocusIn: %p\n", xpop);
 	}
 	switch (xev->xfocus.mode) {
 	case NotifyNormal:
@@ -1670,25 +1722,25 @@ event_handler_FocusIn(Display *dpy, XEvent *xev, XdeMonitor *xmon)
 }
 
 static GdkFilterReturn
-event_handler_FocusOut(Display *dpy, XEvent *xev, XdeMonitor *xmon)
+event_handler_FocusOut(Display *dpy, XEvent *xev, XdePopup *xpop)
 {
 	PTRACE(5);
 	if (options.debug > 1) {
-		fprintf(stderr, "==> FocusOut: %p\n", xmon);
+		fprintf(stderr, "==> FocusOut: %p\n", xpop);
 		fprintf(stderr, "    --> send_event = %s\n", xev->xfocus.send_event ? "true" : "false");
 		fprintf(stderr, "    --> window = 0x%lx\n", xev->xfocus.window);
 		fprintf(stderr, "    --> mode = %s\n", show_mode(xev->xfocus.mode));
 		fprintf(stderr, "    --> detail = %s\n", show_detail(xev->xfocus.detail));
-		fprintf(stderr, "<== FocusOut: %p\n", xmon);
+		fprintf(stderr, "<== FocusOut: %p\n", xpop);
 	}
 	switch (xev->xfocus.mode) {
 	case NotifyNormal:
 	case NotifyGrab:
 	case NotifyWhileGrabbed:
 		DPRINTF(1, "unfocused popup\n");
-		if (!xmon->keyboard) {
+		if (!xpop->keyboard) {
 			DPRINTF(1, "no grab or focus\n");
-			start_popup_timer(xmon);
+			start_popup_timer(xpop);
 		}
 		break;
 	}
@@ -1699,31 +1751,29 @@ static GdkFilterReturn
 popup_handler(GdkXEvent *xevent, GdkEvent *event, gpointer data)
 {
 	XEvent *xev = (typeof(xev)) xevent;
-	XdeMonitor *xmon = data;
+	XdePopup *xpop = data;
 
 	PTRACE(5);
 	switch (xev->type) {
 	case KeyPress:
-		return event_handler_KeyPress(dpy, xev, xmon);
+		return event_handler_KeyPress(dpy, xev, xpop);
 	case KeyRelease:
-		return event_handler_KeyRelease(dpy, xev, xmon);
+		return event_handler_KeyRelease(dpy, xev, xpop);
 	case ButtonPress:
-		return event_handler_ButtonPress(dpy, xev, xmon);
+		return event_handler_ButtonPress(dpy, xev, xpop);
 	case ButtonRelease:
-		return event_handler_ButtonRelease(dpy, xev, xmon);
+		return event_handler_ButtonRelease(dpy, xev, xpop);
 	case EnterNotify:
-		return event_handler_EnterNotify(dpy, xev, xmon);
+		return event_handler_EnterNotify(dpy, xev, xpop);
 	case LeaveNotify:
-		return event_handler_LeaveNotify(dpy, xev, xmon);
+		return event_handler_LeaveNotify(dpy, xev, xpop);
 	case FocusIn:
-		return event_handler_FocusIn(dpy, xev, xmon);
+		return event_handler_FocusIn(dpy, xev, xpop);
 	case FocusOut:
-		return event_handler_FocusOut(dpy, xev, xmon);
+		return event_handler_FocusOut(dpy, xev, xpop);
 	}
 	return GDK_FILTER_CONTINUE;
 }
-
-#if NEED_CURRENT_DESKTOP
 
 void
 set_current_desktop(XdeScreen *xscr, int index, Time timestamp)
@@ -1748,8 +1798,6 @@ set_current_desktop(XdeScreen *xscr, int index, Time timestamp)
 	XSendEvent(dpy, root, False, SubstructureNotifyMask | SubstructureRedirectMask, &ev);
 }
 
-#endif				/* NEED_CURRENT_DESKTOP */
-
 /** @} */
 
 /** @section Popup Window GTK Events
@@ -1766,24 +1814,24 @@ set_current_desktop(XdeScreen *xscr, int index, Time timestamp)
 static gboolean
 grab_broken_event(GtkWidget *widget, GdkEvent *event, gpointer user)
 {
-	XdeMonitor *xmon = user;
+	XdePopup *xpop = user;
 	GdkEventGrabBroken *ev = (typeof(ev)) event;
 
 	PTRACE(5);
 	if (ev->keyboard) {
 		DPRINTF(1, "keyboard grab was broken\n");
-		xmon->keyboard = False;
+		xpop->keyboard = False;
 		/* IF we lost a keyboard grab, it is because another hot-key was pressed, 
 		   either doing something else or moving to another desktop.  Start the
 		   timeout in this case. */
-		start_popup_timer(xmon);
+		start_popup_timer(xpop);
 	} else {
 		DPRINTF(1, "pointer grab was broken\n");
-		xmon->pointer = False;
+		xpop->pointer = False;
 		/* If we lost a pointer grab, it is because somebody clicked on another
 		   window.  In this case we want to drop the popup altogether.  This will 
 		   break the keyboard grab if any. */
-		drop_popup(xmon);
+		drop_popup(xpop);
 	}
 	if (ev->implicit) {
 		DPRINTF(1, "broken grab was implicit\n");
@@ -1799,97 +1847,97 @@ grab_broken_event(GtkWidget *widget, GdkEvent *event, gpointer user)
 }
 
 static void
-widget_realize(GtkWidget *popup, gpointer xmon)
+window_realize(GtkWidget *popup, gpointer xpop)
 {
-	gdk_window_add_filter(popup->window, popup_handler, xmon);
-	gdk_window_set_override_redirect(popup->window, TRUE);
-	gdk_window_set_accept_focus(popup->window, FALSE);
-	gdk_window_set_focus_on_map(popup->window, FALSE);
+	gdk_window_add_filter(popup->window, popup_handler, xpop);
+	// gdk_window_set_override_redirect(popup->window, TRUE);
+	// gdk_window_set_accept_focus(popup->window, FALSE);
+	// gdk_window_set_focus_on_map(popup->window, FALSE);
 }
 
 static gboolean
-button_press_event(GtkWidget *widget, GdkEvent *event, gpointer xmon)
-{
-	return GTK_EVENT_PROPAGATE;
-}
-
-static gboolean
-button_release_event(GtkWidget *widget, GdkEvent *event, gpointer xmon)
+button_press_event(GtkWidget *widget, GdkEvent *event, gpointer xpop)
 {
 	return GTK_EVENT_PROPAGATE;
 }
 
 static gboolean
-enter_notify_event(GtkWidget *widget, GdkEvent *event, gpointer xmon)
+button_release_event(GtkWidget *widget, GdkEvent *event, gpointer xpop)
+{
+	return GTK_EVENT_PROPAGATE;
+}
+
+static gboolean
+enter_notify_event(GtkWidget *widget, GdkEvent *event, gpointer xpop)
 {
 #if 0
 	/* currently done by event handler, but considering grab */
-	stop_popup_timer(xmon);
-	xmon->inside = True;
+	stop_popup_timer(xpop);
+	xpop->inside = True;
 #endif
 	return GTK_EVENT_PROPAGATE;
 }
 
 static gboolean
-focus_in_event(GtkWidget *widget, GdkEvent *event, gpointer xmon)
+focus_in_event(GtkWidget *widget, GdkEvent *event, gpointer xpop)
 {
 	return GTK_EVENT_PROPAGATE;
 }
 
 static gboolean
-focus_out_event(GtkWidget *widget, GdkEvent *event, gpointer xmon)
+focus_out_event(GtkWidget *widget, GdkEvent *event, gpointer xpop)
 {
 	return GTK_EVENT_PROPAGATE;
 }
 
 static void
-grab_focus(GtkWidget *widget, gpointer xmon)
+grab_focus(GtkWidget *widget, gpointer xpop)
 {
 }
 
 static gboolean
-key_press_event(GtkWidget *widget, GdkEvent *event, gpointer xmon)
+key_press_event(GtkWidget *widget, GdkEvent *event, gpointer xpop)
 {
 	return GTK_EVENT_PROPAGATE;
 }
 
 static gboolean
-key_release_event(GtkWidget *widget, GdkEvent *event, gpointer xmon)
+key_release_event(GtkWidget *widget, GdkEvent *event, gpointer xpop)
 {
 	GdkEventKey *ev = (typeof(ev)) event;
 
 	if (ev->is_modifier) {
 		DPRINTF(1, "released key is modifier: dropping popup\n");
-		drop_popup(xmon);
+		drop_popup(xpop);
 	}
 	return GTK_EVENT_PROPAGATE;
 }
 
 static gboolean
-leave_notify_event(GtkWidget *widget, GdkEvent *event, gpointer xmon)
+leave_notify_event(GtkWidget *widget, GdkEvent *event, gpointer xpop)
 {
 #if 0
 	/* currently done by event handler, but considering grab */
-	start_popup_timer(xmon);
-	xmon->inside = False;
+	start_popup_timer(xpop);
+	xpop->inside = False;
 #endif
 	return GTK_EVENT_PROPAGATE;
 }
 
 static gboolean
-map_event(GtkWidget *widget, GdkEvent *event, gpointer xmon)
+map_event(GtkWidget *widget, GdkEvent *event, gpointer xpop)
 {
 	return GTK_EVENT_PROPAGATE;
 }
 
 static gboolean
-scroll_event(GtkWidget *widget, GdkEvent *event, gpointer xmon)
+scroll_event(GtkWidget *widget, GdkEvent *event, gpointer xpop)
 {
 	return GTK_EVENT_PROPAGATE;
 }
 
 static gboolean
-visibility_notify_event(GtkWidget *popup, GdkEvent *event, gpointer xmon)
+visibility_notify_event(GtkWidget *popup, GdkEvent *event, gpointer xpop)
 {
 	GdkEventVisibility *ev = (typeof(ev)) event;
 
@@ -1909,12 +1957,9 @@ visibility_notify_event(GtkWidget *popup, GdkEvent *event, gpointer xmon)
 
 /** @} */
 
-#endif				/* NEED_POPUP_WINDOW */
-
 /** @section Startup Notification Handling
   * @{ */
 
-#if NEED_STARTUP_IDS
 #ifdef STARTUP_NOTIFICATION
 
 static Bool
@@ -2003,9 +2048,9 @@ find_sequence(XdeScreen *xscr, const char *id)
 }
 
 void
-del_sequence(XdeMonitor *xmon, Sequence *seq)
+del_sequence(XdePopup *xpop, Sequence *seq)
 {
-	gtk_list_store_remove(xmon->model, &seq->iter);
+	gtk_list_store_remove(xpop->model, &seq->iter);
 	*seq->list = g_list_remove(*seq->list, seq);
 	free(seq->launcher);
 	free(seq->launchee);
@@ -2017,18 +2062,18 @@ del_sequence(XdeMonitor *xmon, Sequence *seq)
 		seq->info = NULL;
 	}
 	free(seq);
-	xmon->seqcount--;
-	if (xmon->seqcount <= 0)
-		drop_popup(xmon);
+	xpop->seqcount--;
+	if (xpop->seqcount <= 0)
+		drop_popup(xpop);
 }
 
 static gboolean
 seq_timeout(gpointer data)
 {
 	Sequence *seq = data;
-	XdeMonitor *xmon = seq->xmon;
+	XdePopup *xpop = seq->xpop;
 
-	del_sequence(xmon, seq);
+	del_sequence(xpop, seq);
 	return G_SOURCE_REMOVE;	/* remove event source */
 }
 
@@ -2044,7 +2089,7 @@ cha_sequence(XdeScreen *xscr, Sequence *seq)
 	GdkPixbuf *pixbuf = NULL;
 	const char *appid, *name = NULL, *desc = NULL, *tip;
 	char *markup, *aid, *p;
-	XdeMonitor *xmon = seq->xmon;
+	XdePopup *xpop = seq->xpop;
 
 	if ((appid = sn_startup_sequence_get_application_id(seq->seq))) {
 		if (!(p = strrchr(appid, '.')) || strcmp(p, ".desktop"))
@@ -2086,7 +2131,7 @@ cha_sequence(XdeScreen *xscr, Sequence *seq)
 	/* for now, ellipsize later */
 	tip = desc;
 		/* *INDENT-OFF* */
-		gtk_list_store_set(xmon->model, &seq->iter,
+		gtk_list_store_set(xpop->model, &seq->iter,
 				0, pixbuf,
 				1, name,
 				2, desc,
@@ -2105,6 +2150,7 @@ add_sequence(XdeScreen *xscr, const char *id, SnStartupSequence *sn_seq)
 	Sequence *seq;
 	Time timestamp;
 	XdeMonitor *xmon;
+	XdePopup *xpop;
 	int screen;
 
 	if ((seq = calloc(1, sizeof(*seq)))) {
@@ -2126,21 +2172,21 @@ add_sequence(XdeScreen *xscr, const char *id, SnStartupSequence *sn_seq)
 			xscr = screens + screen;
 		}
 		seq->list = &xscr->sequences;
-		xscr->sequences = g_list_append(xscr->sequences, sn_seq);
+		xscr->sequences = g_list_append(xscr->sequences, seq);
 		xmon = xscr->mons + seq->monitor;
-		gtk_list_store_append(xmon->model, &seq->iter);
-		xmon->seqcount++;
-		seq->xmon = xmon;
+		xpop = &xmon->start;
+		gtk_list_store_append(xpop->model, &seq->iter);
+		xpop->seqcount++;
+		seq->xpop = xpop;
 
 		cha_sequence(xscr, seq);
 
-		show_popup(xmon, FALSE, FALSE);
+		show_popup(xscr, xpop, FALSE, FALSE);
 	}
 	return (seq);
 }
 
 #endif				/* STARTUP_NOTIFICATION */
-#endif				/* NEED_STARTUP_IDS */
 
 /** @} */
 
@@ -2969,9 +3015,12 @@ good_window_manager(XdeScreen *xscr)
 	if (!strcasecmp(xscr->wmname, "awesome"))
 		return True;
 	/* XXX: When running with bbkeys(1), blackbox(1) has its own window cycling
-	   feedback.  WHen running under blackbox(1), xde-cycle does nothing. */
-	if (!strcasecmp(xscr->wmname, "blackbox"))
-		return False;
+	   feedback.  When running under blackbox(1), xde-cycle does nothing. Otherwise,
+	   blackbox(1) is largely supported and works well. */
+	if (!strcasecmp(xscr->wmname, "blackbox")) {
+		xscr->cycle = False;
+		return True;
+	}
 	/* XXX: bspwm(1) is supported and works well. */
 	if (!strcasecmp(xscr->wmname, "bspwm"))
 		return True;
@@ -3003,9 +3052,13 @@ good_window_manager(XdeScreen *xscr)
 	if (!strcasecmp(xscr->wmname, "failsafewm"))
 		return False;
 	/* XXX: fluxbox(1) provides its own window cycling feedback.  When running under
-	   fluxbox(1), xde-cycle does nothing. */
-	if (!strcasecmp(xscr->wmname, "fluxbox"))
-		return False;
+	   fluxbox(1), xde-cycle does nothing. Otherwise, fluxbox(1) is supported and
+	   works well. */
+	if (!strcasecmp(xscr->wmname, "fluxbox")) {
+		xscr->tasks = False;
+		xscr->cycle = False;
+		return True;
+	}
 	/* XXX: flwm(1) supports GNOME/WinWM but not EWMH/NetWM and is not currently
 	   supported by libwnck+.  xde-pager mitigates this to some extent. */
 	if (!strcasecmp(xscr->wmname, "flwm"))
@@ -3032,17 +3085,24 @@ good_window_manager(XdeScreen *xscr)
 		return True;
 	/* XXX: jwm(1) provides its own pager on the panel, but does not respect or set
 	   _NET_DESKTOP_LAYOUT, and key bindings are confused.  When xde-pager detects
-	   that it is running under jwm(1) it will simply do nothing. */
-	if (!strcasecmp(xscr->wmname, "jwm"))
-		return False;
+	   that it is running under jwm(1) it will simply do nothing.  Otherwise, jwm(1)
+	   is supported and works well. */
+	if (!strcasecmp(xscr->wmname, "jwm")) {
+		xscr->pager = False;
+		return True;
+	}
 	/* XXX: matwm2(1) is supported and works well. */
 	if (!strcasecmp(xscr->wmname, "matwm2"))
 		return True;
 	/* XXX: metacity(1) provides its own competent desktop switching feedback pop-up. 
 	   When xde-pager detects that it is running under metacity(1), it will simply do 
 	   nothing. */
-	if (!strcasecmp(xscr->wmname, "metacity"))
-		return False;
+	if (!strcasecmp(xscr->wmname, "metacity")) {
+		xscr->pager = False;
+		xscr->tasks = False;
+		xscr->cycle = False;
+		return True;
+	}
 	/* XXX: mwm(1) only supports OSF/Motif and does not support multiple desktops. It 
 	   is not supported. */
 	if (!strcasecmp(xscr->wmname, "mwm"))
@@ -3054,14 +3114,22 @@ good_window_manager(XdeScreen *xscr)
 	   does respect _NET_DESKTOP_LAYOUT but does not provide any of the contents of
 	   the desktop. When both are running it is a little confusing, so when xde-pager 
 	   detects that it is running under openbox(1), it will simply do nothing. */
-	if (!strcasecmp(xscr->wmname, "openbox"))
-		return False;
+	if (!strcasecmp(xscr->wmname, "openbox")) {
+		xscr->pager = False;
+		xscr->cycle = False;
+		xscr->tasks = False;
+		return True;
+	}
 	/* XXX: pekwm(1) provides its own broken desktop switching feedback pop-up;
 	   however, it does not respect _NET_DESKTOP_LAYOUT and key bindings are
 	   confused.  When xde-pager detects that it is running under pekwm(1), it will
 	   simply do nothing. */
-	if (!strcasecmp(xscr->wmname, "pekwm"))
-		return False;
+	if (!strcasecmp(xscr->wmname, "pekwm")) {
+		xscr->pager = False;
+		xscr->cycle = False;
+		xscr->tasks = False;
+		return True;
+	}
 	/* XXX: spectrwm(1) is supported, but it doesn't work that well because, like
 	   cwm(1), spectrwm(1) is not placing _NET_WM_STATE on client windows, so
 	   libwnck+ cannot locate them and will not provide contents in the pager. */
@@ -3088,9 +3156,13 @@ good_window_manager(XdeScreen *xscr)
 	/* XXX: wind(1) is supported and works well. */
 	if (!strcasecmp(xscr->wmname, "wind"))
 		return True;
-	/* XXX: wmaker(1) is supported and works well. */
-	if (!strcasecmp(xscr->wmname, "wmaker"))
+	/* XXX: wmaker(1) is supported and works well.  wmaker(1) has its own background
+	   switcher and window cycling. */
+	if (!strcasecmp(xscr->wmname, "wmaker")) {
+		xscr->setbg = False;
+		xscr->cycle = False;
 		return True;
+	}
 	/* XXX: wmii(1) is supported and works well.  wmii(1) was stealing the focus back 
 	   from the pop-up, but this was fixed. */
 	if (!strcasecmp(xscr->wmname, "wmii"))
@@ -3104,13 +3176,11 @@ good_window_manager(XdeScreen *xscr)
 	/* XXX: yeahwm(1) does not support EWMH/NetWM and is currently unsupported.  The
 	   pager will simply not do anything while this window manager is running. */
 	if (!strcasecmp(xscr->wmname, "yeahwm"))
-		return True;
+		return False;
 	return True;
 }
 
-#if NEED_DESKTOP_INFO
 static void setup_button_proxy(XdeScreen *xscr);
-#endif				/* NEED_DESKTOP_INFO */
 
 static void
 window_manager_changed(WnckScreen *wnck, gpointer user)
@@ -3120,13 +3190,17 @@ window_manager_changed(WnckScreen *wnck, gpointer user)
 
 	PTRACE(5);
 	wnck_screen_force_update(wnck);
-#if NEED_DESKTOP_INFO
 	if (options.proxy)
 		setup_button_proxy(xscr);
-#endif				/* NEED_DESKTOP_INFO */
 	free(xscr->wmname);
 	xscr->wmname = NULL;
 	xscr->goodwm = False;
+	/* start with all True and let wm check set False */
+	xscr->pager = options.show.pager;
+	xscr->tasks = options.show.tasks;
+	xscr->cycle = options.show.cycle;
+	xscr->setbg = options.show.setbg;
+	xscr->start = options.show.start;
 	if ((name = wnck_screen_get_window_manager_name(wnck))) {
 		xscr->wmname = strdup(name);
 		*strchrnul(xscr->wmname, ' ') = '\0';
@@ -3142,20 +3216,22 @@ window_manager_changed(WnckScreen *wnck, gpointer user)
 			free(xscr->wmname);
 			xscr->wmname = strdup("uwm");
 		}
-		xscr->goodwm = good_window_manager(xscr);
+		if (!(xscr->goodwm = good_window_manager(xscr))) {
+			xscr->pager = False;
+			xscr->tasks = False;
+			xscr->cycle = False;
+			xscr->setbg = False;
+			xscr->start = False;
+		}
 	}
 	DPRINTF(1, "window manager is '%s'\n", xscr->wmname);
 	DPRINTF(1, "window manager is %s\n", xscr->goodwm ? "usable" : "unusable");
 }
 
-#if NEED_DESKTOP_INFO || NEED_ROOT_PIXMAPS
-
 static void
-something_changed(WnckScreen *wnck, XdeMonitor *xmon)
+something_changed(XdeScreen *xscr, XdePopup *xpop)
 {
-#if NEED_POPUP_WINDOW
-	show_popup(xmon, TRUE, TRUE);
-#endif				/* NEED_POPUP_WINDOW */
+	show_popup(xscr, xpop, TRUE, TRUE);
 }
 
 static void
@@ -3165,8 +3241,14 @@ workspace_destroyed(WnckScreen *wnck, WnckWorkspace *space, gpointer data)
 	int i;
 
 	if (xscr->goodwm)
-		for (i = 0; i < xscr->nmon; i++)
-			something_changed(wnck, &xscr->mons[i]);
+		for (i = 0; i < xscr->nmon; i++) {
+			if (options.show.pager)
+				something_changed(xscr, &xscr->mons[i].pager);
+#if 0
+			if (options.show.setbg)
+				something_changed(xscr, &xscr->mons[i].setbg);
+#endif
+		}
 }
 
 static void
@@ -3177,8 +3259,14 @@ workspace_created(WnckScreen *wnck, WnckWorkspace *space, gpointer data)
 	int i;
 
 	if (xscr->goodwm)
-		for (i = 0; i < xscr->nmon; i++)
-			something_changed(wnck, &xscr->mons[i]);
+		for (i = 0; i < xscr->nmon; i++) {
+			if (options.show.pager)
+				something_changed(xscr, &xscr->mons[i].pager);
+#if 0
+			if (options.show.setbg)
+				something_changed(xscr, &xscr->mons[i].setbg);
+#endif
+		}
 #endif
 }
 
@@ -3189,8 +3277,14 @@ viewports_changed(WnckScreen *wnck, gpointer data)
 	int i;
 
 	if (xscr->goodwm)
-		for (i = 0; i < xscr->nmon; i++)
-			something_changed(wnck, &xscr->mons[i]);
+		for (i = 0; i < xscr->nmon; i++) {
+			if (options.show.pager)
+				something_changed(xscr, &xscr->mons[i].pager);
+#if 0
+			if (options.show.setbg)
+				something_changed(xscr, &xscr->mons[i].setbg);
+#endif
+		}
 }
 
 static void
@@ -3201,8 +3295,14 @@ background_changed(WnckScreen *wnck, gpointer data)
 	int i;
 
 	if (xscr->goodwm)
-		for (i = 0; i < xscr->nmon; i++)
-			something_changed(wnck, &xscr->mons[i]);
+		for (i = 0; i < xscr->nmon; i++) {
+			if (options.show.pager)
+				something_changed(xscr, &xscr->mons[i].pager);
+#if 0
+			if (options.show.setbg)
+				something_changed(xscr, &xscr->mons[i].setbg);
+#endif
+		}
 #endif
 }
 
@@ -3213,46 +3313,192 @@ active_workspace_changed(WnckScreen *wnck, WnckWorkspace *prev, gpointer data)
 	int i;
 
 	if (xscr->goodwm)
-		for (i = 0; i < xscr->nmon; i++)
-			something_changed(wnck, &xscr->mons[i]);
+		for (i = 0; i < xscr->nmon; i++) {
+			if (options.show.pager)
+				something_changed(xscr, &xscr->mons[i].pager);
+#if 0
+			if (options.show.setbg)
+				something_changed(xscr, &xscr->mons[i].setbg);
+#endif
+		}
 }
 
-#endif				/* DESKTOP_INFO || NEED_ROOT_PIXMAPS */
+/** @} */
+
+/** @section Specific Window Events
+  * @{ */
+
+static void
+actions_changed(WnckWindow *window, WnckWindowActions changed, WnckWindowActions state, gpointer xscr)
+{
+}
+
+static void
+geometry_changed(WnckWindow *window, gpointer xscr)
+{
+}
+
+static void
+icon_changed(WnckWindow *window, gpointer xscr)
+{
+}
+
+static void
+name_changed(WnckWindow *window, gpointer xscr)
+{
+}
+
+static void
+state_changed(WnckWindow *window, WnckWindowState changed, WnckWindowState state, gpointer xscr)
+{
+}
+
+static void
+workspace_changed(WnckWindow *window, gpointer xscr)
+{
+}
 
 /** @} */
 
 /** @section Window Events
   * @{ */
 
-#if NEED_CLIENT_INFO
-
 static void
-windows_changed(WnckScreen *wnck, XdeMonitor *xmon)
+windows_changed(XdeScreen *xscr, XdePopup *xpop)
 {
-#if NEED_POPUP_WINDOW
-	show_popup(xmon, TRUE, TRUE);
-#endif				/* NEED_POPUP_WINDOW */
+	if (options.show.cycle)
+		show_popup(xscr, xpop, TRUE, TRUE);
 }
 
-static void
-active_window_changed(WnckScreen *wnck, WnckWindow *previous, gpointer user)
+static WnckWorkspace *
+same_desk(WnckScreen *wnck, WnckWindow *win1, WnckWindow *win2)
 {
+	WnckWorkspace *desk;
+
+	if (((desk = wnck_window_get_workspace(win1)) && wnck_window_is_on_workspace(win2, desk)) ||
+	    ((desk = wnck_window_get_workspace(win2)) && wnck_window_is_on_workspace(win1, desk)) ||
+	    ((desk = wnck_screen_get_active_workspace(wnck)) &&
+	     wnck_window_is_on_workspace(win2, desk) && wnck_window_is_on_workspace(win1, desk)))
+		return (desk);
+	return (NULL);
+}
+
+static gboolean
+is_cyclic(WnckWorkspace *desk, WnckWindow *prev, WnckWindow *actv, GList *list)
+{
+	GList *l, *lprev = NULL, *lactv = NULL;
+
+	for (l = list; l; l = l->next) {
+		if (l->data == prev)
+			lprev = l;
+		if (l->data == actv)
+			lactv = l;
+	}
+	if (lprev && lactv) {
+		for (l = lprev->next ? : list; l; l = l->next ? : list) {
+			WnckWindow *curr = l->data;
+
+			if (l == lactv)
+				return TRUE;
+			if (!wnck_window_is_visible_on_workspace(curr, desk))
+				continue;
+			if (wnck_window_is_skip_tasklist(curr))
+				continue;
+			break;
+		}
+		for (l = lactv->next ? : list; l; l = l->next ? : list) {
+			WnckWindow *curr = l->data;
+
+			if (l == lprev)
+				return TRUE;
+			if (!wnck_window_is_visible_on_workspace(curr, desk))
+				continue;
+			if (wnck_window_is_skip_tasklist(curr))
+				continue;
+			break;
+		}
+	}
+	return FALSE;
+}
+
+static XdeMonitor *
+is_cycle(XdeScreen *xscr, WnckScreen *wnck, WnckWindow *prev, WnckWindow *actv)
+{
+	XdeMonitor *xmon = NULL;
+	WnckWorkspace *desk;
+	GdkWindow *wp, *wa;
+	int mp, ma;
+
+	if (!prev || !actv)
+		return (NULL);
+	if (prev == actv)
+		return (NULL);
+	wp = gdk_x11_window_foreign_new_for_display(disp, wnck_window_get_xid(prev));
+	wa = gdk_x11_window_foreign_new_for_display(disp, wnck_window_get_xid(actv));
+	if (!wp || !wa) {
+		if (wp)
+			g_object_unref(G_OBJECT(wp));
+		if (wa)
+			g_object_unref(G_OBJECT(wa));
+		return (NULL);
+	}
+	mp = gdk_screen_get_monitor_at_window(xscr->scrn, wp);
+	ma = gdk_screen_get_monitor_at_window(xscr->scrn, wa);
+	if (mp != ma) {
+		g_object_unref(G_OBJECT(wp));
+		g_object_unref(G_OBJECT(wa));
+		return (NULL);
+	}
+	xmon = &xscr->mons[ma];
+
+	if (!(desk = same_desk(wnck, prev, actv)))
+		return (NULL);
+	if (options.order != WindowOrderStacking)
+		if (is_cyclic(desk, prev, actv, wnck_screen_get_windows(wnck)))
+			return (xmon);
+	if (options.order != WindowOrderClient)
+		if (is_cyclic(desk, prev, actv, wnck_screen_get_windows_stacked(wnck)))
+			return (xmon);
+	return (NULL);
+}
+
+/** @brief active window changed
+  *
+  * The active window changing only affects the cycling window.  We should only
+  * pop the cycle window when the window has cycled according to criteria.
+  */
+static void
+active_window_changed(WnckScreen *wnck, WnckWindow *prev, gpointer user)
+{
+	static const GdkModifierType buttons =
+	    (GDK_BUTTON1_MASK | GDK_BUTTON2_MASK | GDK_BUTTON3_MASK | GDK_BUTTON4_MASK | GDK_BUTTON5_MASK);
+	static const GdkModifierType dontcare = (GDK_SHIFT_MASK | GDK_LOCK_MASK | GDK_RELEASE_MASK);
 	XdeScreen *xscr = user;
-	WnckWindow *active = wnck_screen_get_active_window(wnck);
+	XdeMonitor *xmon = NULL;
+	GdkModifierType mask = 0;
+	WnckWindow *actv;
 	int i;
 
-	if (!active || !previous) {
-#if NEED_POPUP_WINDOW
+	if (!options.show.cycle)
+		return;
+	gdk_display_get_pointer(disp, NULL, NULL, NULL, &mask);
+	/* if button down, do nothing */
+	if (mask & buttons)
+		return;
+	if (mask & ~(buttons | dontcare)) {
+		actv = wnck_screen_get_active_window(wnck);
+		if (actv && prev)
+			xmon = is_cycle(xscr, wnck, prev, actv);
+	}
+	if (!xmon) {
 		for (i = 0; i < xscr->nmon; i++) {
-			stop_popup_timer(&xscr->mons[i]);
-			drop_popup(&xscr->mons[i]);
+			stop_popup_timer(&xscr->mons[i].cycle);
+			drop_popup(&xscr->mons[i].cycle);
 		}
-#endif				/* NEED_POPUP_WINDOW */
 		return;
 	}
-	if (xscr->goodwm)
-		for (i = 0; i < xscr->nmon; i++)
-			windows_changed(wnck, &xscr->mons[i]);
+	windows_changed(xscr, &xmon->cycle);
+	return;
 }
 
 static void
@@ -3293,6 +3539,12 @@ window_closed(WnckScreen *wnck, WnckWindow *window, gpointer xscr)
 static void
 window_opened(WnckScreen *wnck, WnckWindow *window, gpointer xscr)
 {
+	g_signal_connect(G_OBJECT(window), "actions_changed", G_CALLBACK(actions_changed), xscr);
+	g_signal_connect(G_OBJECT(window), "geometry_changed", G_CALLBACK(geometry_changed), xscr);
+	g_signal_connect(G_OBJECT(window), "icon_changed", G_CALLBACK(icon_changed), xscr);
+	g_signal_connect(G_OBJECT(window), "name_changed", G_CALLBACK(name_changed), xscr);
+	g_signal_connect(G_OBJECT(window), "state_changed", G_CALLBACK(state_changed), xscr);
+	g_signal_connect(G_OBJECT(window), "workspace_changed", G_CALLBACK(workspace_changed), xscr);
 	clients_changed(wnck, xscr);
 }
 
@@ -3302,7 +3554,10 @@ window_stacking_changed(WnckScreen *wnck, gpointer xscr)
 	clients_changed(wnck, xscr);
 }
 
-#endif				/* NEED_CLIENT_INFO */
+static void
+showing_desktop_changed(WnckScreen *wnck, gpointer xscr)
+{
+}
 
 /** @} */
 
@@ -3311,7 +3566,6 @@ window_stacking_changed(WnckScreen *wnck, gpointer xscr)
 /** @section X Event Handlers
   * @{ */
 
-#if NEED_STARTUP_IDS
 #ifdef STARTUP_NOTIFICATION
 static void
 sn_handler(SnMonitorEvent * event, void *data)
@@ -3340,23 +3594,207 @@ sn_handler(SnMonitorEvent * event, void *data)
 	}
 }
 #endif				/* STARTUP_NOTIFICATION */
-#endif				/* NEED_STARTUP_IDS */
 
 static void
 update_client_list(XdeScreen *xscr, Atom prop)
 {
-#if NEED_CLIENT_INFO
-	if (prop == None || prop == _XA_NET_CLIENT_LIST_STACKING) {
+	Window root = RootWindow(dpy, xscr->index);
+	Atom actual = None;
+	int format = 0;
+	unsigned long nitems = 0, after = 0, num;
+	unsigned long *data = NULL;
+	GdkWindow *window;
+	GdkWindowState state;
+	GList *oldlist = NULL, **moldlist;
+	GList *clients = NULL, **mclients;
+	GList *stacked = NULL, **mstacked;
+	GList *l;
+	int i, m;
+
+	if (prop == None || prop == _XA_WIN_CLIENT_LIST) {
+	      try_harder1:
+		if (XGetWindowProperty(dpy, root, _XA_WIN_CLIENT_LIST, 0L, 16,
+				       False, XA_CARDINAL, &actual, &format,
+				       &nitems, &after, (unsigned char **) &data)
+		    == Success && format == 32) {
+			if (after) {
+				num += ((after + 1) >> 2);
+				if (data) {
+					XFree(data);
+					data = NULL;
+				}
+				goto try_harder1;
+			}
+			for (i = 0; i < nitems; i++)
+				if ((window = gdk_x11_window_foreign_new_for_display(disp, data[i])))
+					oldlist = g_list_append(oldlist, window);
+			if (data)
+				XFree(data);
+		}
 	}
 	if (prop == None || prop == _XA_NET_CLIENT_LIST) {
-	} else if (prop == None || prop == _XA_WIN_CLIENT_LIST) {
+	      try_harder2:
+		if (XGetWindowProperty(dpy, root, _XA_NET_CLIENT_LIST, 0L, 16,
+				       False, XA_WINDOW, &actual, &format,
+				       &nitems, &after, (unsigned char **) &data)
+		    == Success && format == 32) {
+			if (after) {
+				num += ((after + 1) >> 2);
+				if (data) {
+					XFree(data);
+					data = NULL;
+				}
+				goto try_harder2;
+			}
+			for (i = 0; i < nitems; i++)
+				if ((window = gdk_x11_window_foreign_new_for_display(disp, data[i])))
+					clients = g_list_append(clients, window);
+			if (data)
+				XFree(data);
+		}
 	}
-#endif				/* NEED_CLIENT_INFO */
+	if (prop == None || prop == _XA_NET_CLIENT_LIST_STACKING) {
+	      try_harder3:
+		if (XGetWindowProperty(dpy, root, _XA_NET_CLIENT_LIST, 0L, 16,
+				       False, XA_WINDOW, &actual, &format,
+				       &nitems, &after, (unsigned char **) &data)
+		    == Success && format == 32) {
+			if (after) {
+				num += ((after + 1) >> 2);
+				if (data) {
+					XFree(data);
+					data = NULL;
+				}
+				goto try_harder3;
+			}
+			for (i = 0; i < nitems; i++)
+				if ((window = gdk_x11_window_foreign_new_for_display(disp, data[i])))
+					stacked = g_list_append(stacked, window);
+			if (data)
+				XFree(data);
+		}
+	}
+	moldlist = calloc(xscr->nmon, sizeof(*moldlist));
+	for (i = 0; i < xscr->nmon; i++) {
+		for (l = oldlist; l; l = l->next) {
+			window = l->data;
+			state = gdk_window_get_state(window);
+			if (state & (GDK_WINDOW_STATE_WITHDRAWN | GDK_WINDOW_STATE_ICONIFIED))
+				continue;
+			m = gdk_screen_get_monitor_at_window(xscr->scrn, window);
+			g_object_ref(G_OBJECT(window));
+			moldlist[m] = g_list_append(moldlist[m], window);
+		}
+	}
+	mclients = calloc(xscr->nmon, sizeof(*mclients));
+	for (i = 0; i < xscr->nmon; i++) {
+		for (l = clients; l; l = l->next) {
+			window = l->data;
+			state = gdk_window_get_state(window);
+			if (state & (GDK_WINDOW_STATE_WITHDRAWN | GDK_WINDOW_STATE_ICONIFIED))
+				continue;
+			m = gdk_screen_get_monitor_at_window(xscr->scrn, window);
+			g_object_ref(G_OBJECT(window));
+			mclients[m] = g_list_append(mclients[m], window);
+		}
+	}
+	mstacked = calloc(xscr->nmon, sizeof(*mstacked));
+	for (i = 0; i < xscr->nmon; i++) {
+		for (l = stacked; l; l = l->next) {
+			window = l->data;
+			state = gdk_window_get_state(window);
+			if (state & (GDK_WINDOW_STATE_WITHDRAWN | GDK_WINDOW_STATE_ICONIFIED))
+				continue;
+			m = gdk_screen_get_monitor_at_window(xscr->scrn, window);
+			g_object_ref(G_OBJECT(window));
+			mstacked[m] = g_list_append(mstacked[m], window);
+		}
+	}
 }
 
 static void
-update_window(XdeScreen *xscr, Atom prop)
+update_screen_active_window(XdeScreen *xscr)
 {
+}
+
+static void
+update_monitor_active_window(XdeMonitor *xmon)
+{
+}
+
+static void
+update_active_window(XdeScreen *xscr, Atom prop)
+{
+	Window root = RootWindow(dpy, xscr->index);
+	Atom actual = None;
+	int format = 0;
+	unsigned long nitems = 0, after = 0;
+	unsigned long *data = NULL;
+	int i, j = 0, *x;
+	Window *active;
+	GdkWindow **window;
+	XdeMonitor *xmon;
+
+	PTRACE(5);
+	active = calloc(xscr->nmon + 1, sizeof(*active));
+	window = calloc(xscr->nmon + 1, sizeof(*window));
+
+	if (prop == None || prop == _XA_WIN_FOCUS) {
+		if (XGetWindowProperty(dpy, root, _XA_WIN_FOCUS,
+				       0, 64, False, XA_CARDINAL, &actual, &format,
+				       &nitems, &after, (unsigned char **) &data) == Success &&
+		    format == 32 && nitems >= 1 && data) {
+			active[0] = data[0];
+			if (nitems > 1 && nitems == xscr->nmon) {
+				xscr->mhaware = True;
+				x = &i;
+			} else
+				x = &j;
+			for (i = 0; i < nitems; i++)
+				active[i + 1] = data[*x];
+			XFree(data);
+		}
+	}
+	if (prop == None || prop == _XA_NET_ACTIVE_WINDOW) {
+		if (XGetWindowProperty(dpy, root, _XA_NET_ACTIVE_WINDOW,
+				       0, 64, False, XA_WINDOW, &actual, &format,
+				       &nitems, &after, (unsigned char **) &data) == Success &&
+		    format == 32 && nitems >= 1 && data) {
+			active[0] = data[0];
+			if (nitems > 1 && nitems == xscr->nmon) {
+				xscr->mhaware = True;
+				x = &i;
+			} else
+				x = &j;
+			for (i = 0; i < nitems; i++)
+				active[i + 1] = data[*x];
+			XFree(data);
+		}
+	}
+	window[0] = gdk_x11_window_foreign_new_for_display(disp, active[0]);
+	if (xscr->active.now != window[0]) {
+		if (xscr->active.old)
+			g_object_unref(xscr->active.old);
+		xscr->active.old = xscr->active.now;
+		xscr->active.now = window[0];
+		update_screen_active_window(xscr);
+	}
+	for (i = 0, xmon = xscr->mons; i < xscr->nmon; i++, xmon++) {
+		if ((window[i + 1] = gdk_x11_window_foreign_new_for_display(disp, active[i + 1]))) {
+			if ((i != gdk_screen_get_monitor_at_window(xscr->scrn, window[i + 1]))) {
+				g_object_unref(G_OBJECT(window[i + 1]));
+				window[i + 1] = NULL;
+				continue;
+			}
+			if (xmon->active.old)
+				g_object_unref(xscr->active.old);
+			xscr->active.old = xscr->active.now;
+			xscr->active.now = window[i + 1];
+			update_monitor_active_window(xmon);
+		}
+	}
+	free(active);
+	free(window);
 }
 
 static void
@@ -3384,7 +3822,6 @@ update_monitor(XdeScreen *xscr, XdeMonitor *mon, int m)
 	gdk_screen_get_monitor_geometry(xscr->scrn, m, &mon->geom);
 }
 
-#if NEED_ROOT_PIXMAPS
 static void
 update_root_pixmap(XdeScreen *xscr, Atom prop)
 {
@@ -3430,9 +3867,7 @@ update_root_pixmap(XdeScreen *xscr, Atom prop)
 		   it to work correctly.  */
 	}
 }
-#endif				/* NEED_ROOT_PIXMAPS */
 
-#if NEED_CURRENT_DESKTOP
 static void
 update_current_desktop(XdeScreen *xscr, Atom prop)
 {
@@ -3441,26 +3876,21 @@ update_current_desktop(XdeScreen *xscr, Atom prop)
 	int format = 0;
 	unsigned long nitems = 0, after = 0, i, j = 0, *x;
 	unsigned long *data = NULL;
-	Bool changed = False;
 	XdeMonitor *xmon;
+	unsigned long *current;
 
 	PTRACE(5);
+	current = calloc(xscr->nmon + 1, sizeof(*current));
+
 	if (prop == None || prop == _XA_WM_DESKTOP) {
 		if (XGetWindowProperty(dpy, root, _XA_WM_DESKTOP, 0, 64, False,
 				       XA_CARDINAL, &actual, &format, &nitems, &after,
 				       (unsigned char **) &data) == Success &&
 		    format == 32 && actual && nitems >= 1 && data) {
-			if (xscr->current != (int) data[0]) {
-				xscr->current = data[0];
-				changed = True;
-			}
+			current[0] = data[0];
 			x = (xscr->mhaware = (nitems >= xscr->nmon)) ? &i : &j;
-			for (i = 0, xmon = xscr->mons; i < xscr->nmon; i++, xmon++) {
-				if (xmon->current != (int) data[*x]) {
-					xmon->current = data[*x];
-					changed = True;
-				}
-			}
+			for (i = 0; i < xscr->nmon; i++)
+				current[i + 1] = data[*x];
 		}
 		if (data) {
 			XFree(data);
@@ -3472,17 +3902,10 @@ update_current_desktop(XdeScreen *xscr, Atom prop)
 				       XA_CARDINAL, &actual, &format, &nitems, &after,
 				       (unsigned char **) &data) == Success &&
 		    format == 32 && actual && nitems >= 1 && data) {
-			if (xscr->current != (int) data[0]) {
-				xscr->current = data[0];
-				changed = True;
-			}
+			current[0] = data[0];
 			x = (xscr->mhaware = (nitems >= xscr->nmon)) ? &i : &j;
-			for (i = 0, xmon = xscr->mons; i < xscr->nmon; i++, xmon++) {
-				if (xmon->current != (int) data[*x]) {
-					xmon->current = data[*x];
-					changed = True;
-				}
-			}
+			for (i = 0; i < xscr->nmon; i++)
+				current[i + 1] = data[*x];
 		}
 		if (data) {
 			XFree(data);
@@ -3494,29 +3917,35 @@ update_current_desktop(XdeScreen *xscr, Atom prop)
 				       XA_CARDINAL, &actual, &format, &nitems, &after,
 				       (unsigned char **) &data) == Success &&
 		    format == 32 && actual && nitems >= 1 && data) {
-			if (xscr->current != (int) data[0]) {
-				xscr->current = data[0];
-				changed = True;
-			}
+			current[0] = data[0];
 			x = (xscr->mhaware = (nitems >= xscr->nmon)) ? &i : &j;
-			for (i = 0, xmon = xscr->mons; i < xscr->nmon; i++, xmon++) {
-				if (xmon->current != (int) data[*x]) {
-					xmon->current = data[*x];
-					changed = True;
-				}
-			}
+			for (i = 0; i < xscr->nmon; i++)
+				current[i + 1] = data[*x];
 		}
 		if (data) {
 			XFree(data);
 			data = NULL;
 		}
 	}
-	if (changed) {
-		DPRINTF(1, "Current desktop changed.\n");
-		/* FIXME: if changed update something */
+	/* There are two things to do when the workspace changes: */
+	/* First off, drop any cycle or task windows that we have open. */
+	/* Second, queue deferred action to refresh pixmaps on the desktop. */
+	/* Third, pop the pager window. */
+	if (xscr->current != current[0]) {
+		xscr->current = current[0];
 		add_deferred_refresh_desktop(xscr);
-	} else
-		DPRINTF(1, "No change in current desktop.\n");
+		DPRINTF(1, "Current desktop for screen %d changed.\n", xscr->index);
+	}
+	if (xscr->mhaware) {
+		for (i = 0, xmon = xscr->mons; i < xscr->nmon; i++, xmon++) {
+			if (xmon->current != current[i + 1]) {
+				xmon->current = current[i + 1];
+				add_deferred_refresh_monitor(xmon);
+				DPRINTF(1, "Current view for monitor %d chaged.\n", xmon->index);
+			}
+		}
+	}
+	free(current);
 }
 
 static GdkFilterReturn
@@ -3606,24 +4035,44 @@ proxy_handler(GdkXEvent *xevent, GdkEvent *event, gpointer data)
 	return GDK_FILTER_CONTINUE;
 }
 
-#endif				/* NEED_CURRENT_DESKTOP */
-
-#if NEED_DESKTOP_LAYOUT || NEED_ROOT_PIXMAPS
 static void
 refresh_layout(XdeScreen *xscr)
 {
-	unsigned int w, h, f, wmax, hmax;
-	int i;
+	if (options.show.pager) {
+		unsigned int w, h, f, wmax, hmax;
+		int i;
 
-	w = xscr->width * xscr->cols;
-	h = xscr->height * xscr->rows;
-	for (i = 0; i < xscr->nmon; i++) {
-		XdeMonitor *xmon = &xscr->mons[i];
+		w = xscr->width * xscr->cols;
+		h = xscr->height * xscr->rows;
+		for (i = 0; i < xscr->nmon; i++) {
+			XdeMonitor *xmon = &xscr->mons[i];
 
-		wmax = (xmon->geom.width * 8) / 10;
-		hmax = (xmon->geom.height * 8) / 10;
-		for (f = 10; w > wmax * f || h > hmax * f; f++) ;
-		gtk_window_set_default_size(GTK_WINDOW(xmon->popup), w / f, h / f);
+			wmax = (xmon->geom.width * 8) / 10;
+			hmax = (xmon->geom.height * 8) / 10;
+			for (f = 10; w > wmax * f || h > hmax * f; f++) ;
+			if (xmon->pager.popup)
+				gtk_window_set_default_size(GTK_WINDOW(xmon->pager.popup), w / f, h / f);
+		}
+	}
+	if (options.show.setbg) {
+		int n, d;
+
+		/* redistribute images over desktops */
+		DPRINTF(1, "There are %d desktops\n", xscr->ndsk);
+		for (d = 0; d < xscr->ndsk; d++) {
+			DPRINTF(1, "Attempting to unref image %d (desktops is %p)\n", d, xscr->backdrops + d);
+			xde_image_unref(xscr->backdrops + d);
+		}
+		d = xscr->ndsk = xscr->desks;
+		DPRINTF(1, "Reallocating %d desktops\n", (int) d);
+		xscr->backdrops = realloc(xscr->backdrops, d * sizeof(*xscr->backdrops));
+		memset(xscr->backdrops, 0, d * sizeof(*xscr->backdrops));
+		if (xscr->nimg)
+			for (n = 0, d = 0; d < xscr->ndsk; d++, n = (n + 1) % xscr->nimg) {
+				DPRINTF(1, "desktop %d assigned source image %d\n", d, n);
+				xde_image_ref((xscr->backdrops[d] = xscr->sources[n]));
+			}
+		refresh_desktop(xscr);
 	}
 }
 
@@ -3720,7 +4169,6 @@ update_layout(XdeScreen *xscr, Atom prop)
 		add_deferred_refresh_layout(xscr);
 	}
 }
-#endif				/* NEED_DESKTOP_LAYOUT */
 
 static void
 update_theme(XdeScreen *xscr, Atom prop)
@@ -3780,9 +4228,8 @@ update_theme(XdeScreen *xscr, Atom prop)
 	if (changed) {
 		DPRINTF(1, "New theme is %s\n", xscr->theme);
 		/* FIXME: do something more about it. */
-#if NEED_ROOT_PIXMAPS
-		read_theme(xscr);
-#endif				/* NEED_ROOT_PIXMAPS */
+		if (options.show.setbg)
+			read_theme(xscr);
 	} else
 		DPRINTF(1, "No change in current theme %s\n", xscr->theme);
 }
@@ -3790,15 +4237,10 @@ update_theme(XdeScreen *xscr, Atom prop)
 static void
 update_screen(XdeScreen *xscr)
 {
-#if NEED_ROOT_PIXMAPS
-	update_root_pixmap(xscr, None);
-#endif
-#if NEED_DESKTOP_LAYOUT
+	if (options.show.setbg)
+		update_root_pixmap(xscr, None);
 	update_layout(xscr, None);
-#endif
-#if NEED_DESKTOP_INFO
 	update_current_desktop(xscr, None);
-#endif
 	update_theme(xscr, None);
 }
 
@@ -3853,44 +4295,38 @@ refresh_screen(XdeScreen *xscr, GdkScreen *scrn)
 
 /** @brief monitors changed
   *
-  * The number and/or size of monitors belonging to a screen have changed.  This
-  * may be as a result of RANDR or XINERAMA changes.  Walk through the monitors
-  * and adjust the necessary parameters.
+  * Emitted when the number, size or position of the monitors attached to the screen change.  The
+  * number and/or size of monitors belonging to a screen have changed.  This may be as a result of
+  * RANDR or XINERAMA changes.  Walk through the monitors and adjust the necessary parameters.
   */
 static void
-on_monitors_changed(GdkScreen *scrn, gpointer user_data)
+monitors_changed(GdkScreen *scrn, gpointer user_data)
 {
 	XdeScreen *xscr = user_data;
 
 	wnck_screen_force_update(xscr->wnck);
 	refresh_screen(xscr, scrn);
-#if NEED_DESKTOP_LAYOUT
 	refresh_layout(xscr);
-#endif				/* NEED_DESKTOP_LAYOUT */
-#if NEED_ROOT_PIXMAPS
-	read_theme(xscr);
-#endif				/* NEED_ROOT_PIXMAPS */
+	if (options.show.setbg)
+		read_theme(xscr);
 }
 
 /** @brief screen size changed
   *
-  * The size of the screen changed.  This may be as a result of RANDR or
-  * XINERAMA changes.  Walk through the screen and the monitors on the screen
-  * and adjust the necessary parameters.
+  * The size (pixel width or height) of the screen changed.  This may be as a result of RANDR or
+  * XINERAMA changes.  Walk through the screen and the monitors on the screen and adjust the
+  * necessary parameters.
   */
 static void
-on_size_changed(GdkScreen *scrn, gpointer user_data)
+size_changed(GdkScreen *scrn, gpointer user_data)
 {
 	XdeScreen *xscr = user_data;
 
 	wnck_screen_force_update(xscr->wnck);
 	refresh_screen(xscr, scrn);
-#if NEED_DESKTOP_LAYOUT
 	refresh_layout(xscr);
-#endif				/* NEED_DESKTOP_LAYOUT */
-#if NEED_ROOT_PIXMAPS
-	read_theme(xscr);
-#endif				/* NEED_ROOT_PIXMAPS */
+	if (options.show.setbg)
+		read_theme(xscr);
 }
 
 static void
@@ -3958,15 +4394,11 @@ event_handler_ClientMessage(Display *dpy, XEvent *xev)
 		}
 	} else
 		xscr = screens;
-#if NEED_STARTUP_IDS
+#ifdef STARTUP_NOTIFICATION
 	if (xev->xclient.message_type == _XA_NET_STARTUP_INFO) {
-#ifdef STARTUP_NOTIFICATION
 		return sn_display_process_event(sn_dpy, xev);
-#endif
 	} else if (xev->xclient.message_type == _XA_NET_STARTUP_INFO_BEGIN) {
-#ifdef STARTUP_NOTIFICATION
 		return sn_display_process_event(sn_dpy, xev);
-#endif
 	}
 #endif
 	return GDK_FILTER_CONTINUE;	/* event not handled */
@@ -4004,12 +4436,10 @@ event_handler_SelectionClear(Display *dpy, XEvent *xev, XdeScreen *xscr)
 		gtk_main_quit();
 		return GDK_FILTER_REMOVE;
 	}
-#if NEED_DESKTOP_LAYOUT
 	if (xscr && xev->xselectionclear.window == xscr->laywin) {
 		XDestroyWindow(dpy, xscr->laywin);
 		xscr->laywin = None;
 	}
-#endif				/* NEED_DESKTOP_LAYOUT */
 	return GDK_FILTER_CONTINUE;
 }
 
@@ -4028,7 +4458,6 @@ selwin_handler(GdkXEvent *xevent, GdkEvent *event, gpointer data)
 	return GDK_FILTER_CONTINUE;
 }
 
-#if NEED_DESKTOP_LAYOUT
 static GdkFilterReturn
 laywin_handler(GdkXEvent *xevent, GdkEvent *event, gpointer data)
 {
@@ -4047,7 +4476,6 @@ laywin_handler(GdkXEvent *xevent, GdkEvent *event, gpointer data)
 	EPRINTF("wrong message type for handler %d\n", xev->type);
 	return GDK_FILTER_CONTINUE;
 }
-#endif				/* NEED_DESKTOP_LAYOUT */
 
 static GdkFilterReturn
 event_handler_PropertyNotify(Display *dpy, XEvent *xev, XdeScreen *xscr)
@@ -4066,7 +4494,6 @@ event_handler_PropertyNotify(Display *dpy, XEvent *xev, XdeScreen *xscr)
 		PTRACE(5);
 		update_theme(xscr, xev->xproperty.atom);
 		return GDK_FILTER_REMOVE;	/* event handled */
-#if NEED_DESKTOP_LAYOUT
 	} else if (xev->xproperty.atom == _XA_NET_DESKTOP_LAYOUT && xev->xproperty.state == PropertyNewValue) {
 		PTRACE(5);
 		update_layout(xscr, xev->xproperty.atom);
@@ -4076,8 +4503,6 @@ event_handler_PropertyNotify(Display *dpy, XEvent *xev, XdeScreen *xscr)
 	} else if (xev->xproperty.atom == _XA_WIN_WORKSPACE_COUNT && xev->xproperty.state == PropertyNewValue) {
 		PTRACE(5);
 		update_layout(xscr, xev->xproperty.atom);
-#endif				/* NEED_DESKTOP_LAYOUT */
-#if NEED_CURRENT_DESKTOP
 	} else if (xev->xproperty.atom == _XA_NET_CURRENT_DESKTOP && xev->xproperty.state == PropertyNewValue) {
 		PTRACE(5);
 		update_current_desktop(xscr, xev->xproperty.atom);
@@ -4087,19 +4512,15 @@ event_handler_PropertyNotify(Display *dpy, XEvent *xev, XdeScreen *xscr)
 	} else if (xev->xproperty.atom == _XA_WM_DESKTOP && xev->xproperty.state == PropertyNewValue) {
 		PTRACE(5);
 		update_current_desktop(xscr, xev->xproperty.atom);
-#endif				/* NEED_CURRENT_DESKTOP */
-#if NEED_ROOT_PIXMAPS
 	} else if (xev->xproperty.atom == _XA_XROOTPMAP_ID && xev->xproperty.state == PropertyNewValue) {
 		PTRACE(5);
 		update_root_pixmap(xscr, xev->xproperty.atom);
 	} else if (xev->xproperty.atom == _XA_ESETROOT_PMAP_ID && xev->xproperty.state == PropertyNewValue) {
 		PTRACE(5);
 		update_root_pixmap(xscr, xev->xproperty.atom);
-#endif				/* NEED_ROOT_PIXMAPS */
-#if NEED_CLIENT_INFO
 	} else if (xev->xproperty.atom == _XA_NET_ACTIVE_WINDOW && xev->xproperty.state == PropertyNewValue) {
 		PTRACE(5);
-		update_window(xscr, xev->xproperty.atom);
+		update_active_window(xscr, xev->xproperty.atom);
 	} else if (xev->xproperty.atom == _XA_NET_CLIENT_LIST && xev->xproperty.state == PropertyNewValue) {
 		PTRACE(5);
 		update_client_list(xscr, xev->xproperty.atom);
@@ -4108,11 +4529,10 @@ event_handler_PropertyNotify(Display *dpy, XEvent *xev, XdeScreen *xscr)
 		update_client_list(xscr, xev->xproperty.atom);
 	} else if (xev->xproperty.atom == _XA_WIN_FOCUS && xev->xproperty.state == PropertyNewValue) {
 		PTRACE(5);
-		update_window(xscr, xev->xproperty.atom);
+		update_active_window(xscr, xev->xproperty.atom);
 	} else if (xev->xproperty.atom == _XA_WIN_CLIENT_LIST && xev->xproperty.state == PropertyNewValue) {
 		PTRACE(5);
 		update_client_list(xscr, xev->xproperty.atom);
-#endif				/* NEED_CLIENT_INFO */
 	}
 	return GDK_FILTER_CONTINUE;	/* event not handled */
 }
@@ -4192,11 +4612,8 @@ term_signal_handler(gpointer data)
 /** @section Initialization
   * @{ */
 
-#if NEED_POPUP_WINDOW
-
-#if NEED_PAGER
 static void
-add_pager(XdeScreen *xscr, XdeMonitor *xmon, GtkWidget *popup)
+add_pager(XdeScreen *xscr, XdePopup *xpop, GtkWidget *popup)
 {
 	GtkWidget *pager = wnck_pager_new(xscr->wnck);
 
@@ -4208,14 +4625,12 @@ add_pager(XdeScreen *xscr, XdeMonitor *xmon, GtkWidget *popup)
 	wnck_pager_set_shadow_type(WNCK_PAGER(pager), GTK_SHADOW_IN);
 	gtk_container_add(GTK_CONTAINER(popup), GTK_WIDGET(pager));
 	gtk_window_set_position(GTK_WINDOW(popup), GTK_WIN_POS_CENTER_ALWAYS);
-	gtk_widget_show(GTK_WIDGET(pager));
-	xmon->pager = pager;
+	gtk_widget_show_all(GTK_WIDGET(popup));
+	xpop->content = pager;
 }
-#endif				/* NEED_PAGER */
 
-#if NEED_TASKS
 static void
-add_tasks(XdeScreen *xscr, XdeMonitor *xmon, GtkWidget *popup)
+add_tasks(XdeScreen *xscr, XdePopup *xpop, GtkWidget *popup)
 {
 	GtkWidget *tasks = wnck_tasklist_new(xscr->wnck);
 
@@ -4226,31 +4641,28 @@ add_tasks(XdeScreen *xscr, XdeMonitor *xmon, GtkWidget *popup)
 	/* use wnck_tasklist_get_size_hint_list() to size tasks */
 	gtk_container_add(GTK_CONTAINER(popup), GTK_WIDGET(tasks));
 	gtk_window_set_position(GTK_WINDOW(popup), GTK_WIN_POS_CENTER_ALWAYS);
-	gtk_widget_show(GTK_WIDGET(tasks));
-	xmon->tasks = tasks;
+	gtk_widget_show_all(GTK_WIDGET(popup));
+	xpop->content = tasks;
 }
-#endif				/* NEED_TASKS */
 
-#if NEED_MODEL
 static void
-add_model(XdeScreen *xscr, XdeMonitor *xmon, GtkWidget *popup)
+add_cycle(XdeScreen *xscr, XdePopup *xpop, GtkWidget *popup)
 {
 	GtkWidget *view;
 	GtkListStore *model;
 
-	DPRINTF(1, "monitor %d: creating list store\n", xmon->index);
 	/* *INDENT-OFF* */
-	xmon->model = model = gtk_list_store_new(6
+	xpop->model = model = gtk_list_store_new(6
 			,GDK_TYPE_PIXBUF	/* icon */
 			,G_TYPE_STRING		/* name */
 			,G_TYPE_STRING		/* description */
 			,G_TYPE_STRING		/* markup */
 			,G_TYPE_STRING		/* tooltip */
-			,G_TYPE_POINTER		/* seq */
+			,G_TYPE_POINTER		/* WnckWindow */
 			);
 	/* *INDENT-ON* */
-	DPRINTF(1, "monitor %d: creating icon view\n", xmon->index);
-	xmon->view = view = gtk_icon_view_new_with_model(GTK_TREE_MODEL(model));
+
+	xpop->content = view = gtk_icon_view_new_with_model(GTK_TREE_MODEL(model));
 	gtk_icon_view_set_pixbuf_column(GTK_ICON_VIEW(view), 0);
 	gtk_icon_view_set_markup_column(GTK_ICON_VIEW(view), 3);
 	gtk_icon_view_set_tooltip_column(GTK_ICON_VIEW(view), 4);
@@ -4265,30 +4677,86 @@ add_model(XdeScreen *xscr, XdeMonitor *xmon, GtkWidget *popup)
 	gtk_icon_view_set_item_padding(GTK_ICON_VIEW(view), 3);
 
 	gtk_container_add(GTK_CONTAINER(popup), view);
+	gtk_window_set_default_size(GTK_WINDOW(popup), -1, -1);
+	gtk_widget_set_size_request(GTK_WIDGET(popup), -1, -1);
+	gtk_widget_show_all(GTK_WIDGET(popup));
 }
-#endif				/* NEED_MODEL */
 
 static void
-add_items(XdeScreen *xscr, XdeMonitor *xmon, GtkWidget *popup)
+add_setbg(XdeScreen *xscr, XdePopup *xpop, GtkWidget *popup)
 {
-#if NEED_PAGER
-	return add_pager(xscr, xmon, popup);
-#endif
-#if NEED_TASKS
-	return add_tasks(xscr, xmon, popup);
-#endif
-#if NEED_MODEL
-	return add_model(xscr, xmon, popup);
-#endif
 }
 
 static void
-init_window(XdeScreen *xscr, XdeMonitor *xmon)
+add_start(XdeScreen *xscr, XdePopup *xpop, GtkWidget *popup)
+{
+	GtkWidget *view;
+	GtkListStore *model;
+
+	/* *INDENT-OFF* */
+	xpop->model = model = gtk_list_store_new(6
+			,GDK_TYPE_PIXBUF	/* icon */
+			,G_TYPE_STRING		/* name */
+			,G_TYPE_STRING		/* description */
+			,G_TYPE_STRING		/* markup */
+			,G_TYPE_STRING		/* tooltip */
+			,G_TYPE_POINTER		/* seq */
+			);
+	/* *INDENT-ON* */
+
+	xpop->content = view = gtk_icon_view_new_with_model(GTK_TREE_MODEL(model));
+	gtk_icon_view_set_pixbuf_column(GTK_ICON_VIEW(view), 0);
+	gtk_icon_view_set_markup_column(GTK_ICON_VIEW(view), 3);
+	gtk_icon_view_set_tooltip_column(GTK_ICON_VIEW(view), 4);
+	gtk_icon_view_set_selection_mode(GTK_ICON_VIEW(view), GTK_SELECTION_NONE);
+	gtk_icon_view_set_item_orientation(GTK_ICON_VIEW(view), GTK_ORIENTATION_HORIZONTAL);
+	gtk_icon_view_set_columns(GTK_ICON_VIEW(view), -1);
+	gtk_icon_view_set_item_width(GTK_ICON_VIEW(view), -1);
+	gtk_icon_view_set_spacing(GTK_ICON_VIEW(view), 5);
+	gtk_icon_view_set_row_spacing(GTK_ICON_VIEW(view), 2);
+	gtk_icon_view_set_column_spacing(GTK_ICON_VIEW(view), 2);
+	gtk_icon_view_set_margin(GTK_ICON_VIEW(view), 5);
+	gtk_icon_view_set_item_padding(GTK_ICON_VIEW(view), 3);
+
+	gtk_container_add(GTK_CONTAINER(popup), view);
+	gtk_window_set_default_size(GTK_WINDOW(popup), -1, -1);
+	gtk_widget_set_size_request(GTK_WIDGET(popup), -1, -1);
+	gtk_widget_show_all(GTK_WIDGET(popup));
+}
+
+static void
+add_items(XdeScreen *xscr, XdePopup *xpop, GtkWidget *popup)
+{
+	switch (xpop->type) {
+	case PopupPager:
+		add_pager(xscr, xpop, popup);
+		break;
+	case PopupTasks:
+		add_tasks(xscr, xpop, popup);
+		break;
+	case PopupCycle:
+		add_cycle(xscr, xpop, popup);
+		break;
+	case PopupSetBG:
+		add_setbg(xscr, xpop, popup);
+		break;
+	case PopupStart:
+		add_start(xscr, xpop, popup);
+		break;
+	default:
+		EPRINTF("bad popup type %d\n", xpop->type);
+		break;
+	}
+	return;
+}
+
+static void
+init_window(XdeScreen *xscr, XdePopup *xpop)
 {
 	GtkWidget *popup;
 
 	PTRACE(5);
-	xmon->popup = popup = gtk_window_new(GTK_WINDOW_POPUP);
+	xpop->popup = popup = gtk_window_new(GTK_WINDOW_POPUP);
 	gtk_widget_add_events(popup, GDK_ALL_EVENTS_MASK);
 	/* don't want the window accepting focus: it messes up the window manager's
 	   setting of focus after the desktop has changed... */
@@ -4299,30 +4767,26 @@ init_window(XdeScreen *xscr, XdeMonitor *xmon)
 	gtk_window_stick(GTK_WINDOW(popup));
 	gtk_window_set_keep_above(GTK_WINDOW(popup), TRUE);
 
-	add_items(xscr, xmon, popup);
+	add_items(xscr, xpop, popup);
 
 	gtk_container_set_border_width(GTK_CONTAINER(popup), options.border);
 
-	g_signal_connect(G_OBJECT(popup), "button_press_event", G_CALLBACK(button_press_event), xmon);
-	g_signal_connect(G_OBJECT(popup), "button_release_event", G_CALLBACK(button_release_event), xmon);
-	g_signal_connect(G_OBJECT(popup), "enter_notify_event", G_CALLBACK(enter_notify_event), xmon);
-	g_signal_connect(G_OBJECT(popup), "focus_in_event", G_CALLBACK(focus_in_event), xmon);
-	g_signal_connect(G_OBJECT(popup), "focus_out_event", G_CALLBACK(focus_out_event), xmon);
-	g_signal_connect(G_OBJECT(popup), "grab_broken_event", G_CALLBACK(grab_broken_event), xmon);
-	g_signal_connect(G_OBJECT(popup), "grab_focus", G_CALLBACK(grab_focus), xmon);
-	g_signal_connect(G_OBJECT(popup), "key_press_event", G_CALLBACK(key_press_event), xmon);
-	g_signal_connect(G_OBJECT(popup), "key_release_event", G_CALLBACK(key_release_event), xmon);
-	g_signal_connect(G_OBJECT(popup), "leave_notify_event", G_CALLBACK(leave_notify_event), xmon);
-	g_signal_connect(G_OBJECT(popup), "map_event", G_CALLBACK(map_event), xmon);
-	g_signal_connect(G_OBJECT(popup), "realize", G_CALLBACK(widget_realize), xmon);
-	g_signal_connect(G_OBJECT(popup), "scroll_event", G_CALLBACK(scroll_event), xmon);
-	g_signal_connect(G_OBJECT(popup), "visibility_notify_event", G_CALLBACK(visibility_notify_event), xmon);
+	g_signal_connect(G_OBJECT(popup), "button_press_event", G_CALLBACK(button_press_event), xpop);
+	g_signal_connect(G_OBJECT(popup), "button_release_event", G_CALLBACK(button_release_event), xpop);
+	g_signal_connect(G_OBJECT(popup), "enter_notify_event", G_CALLBACK(enter_notify_event), xpop);
+	g_signal_connect(G_OBJECT(popup), "focus_in_event", G_CALLBACK(focus_in_event), xpop);
+	g_signal_connect(G_OBJECT(popup), "focus_out_event", G_CALLBACK(focus_out_event), xpop);
+	g_signal_connect(G_OBJECT(popup), "grab_broken_event", G_CALLBACK(grab_broken_event), xpop);
+	g_signal_connect(G_OBJECT(popup), "grab_focus", G_CALLBACK(grab_focus), xpop);
+	g_signal_connect(G_OBJECT(popup), "key_press_event", G_CALLBACK(key_press_event), xpop);
+	g_signal_connect(G_OBJECT(popup), "key_release_event", G_CALLBACK(key_release_event), xpop);
+	g_signal_connect(G_OBJECT(popup), "leave_notify_event", G_CALLBACK(leave_notify_event), xpop);
+	g_signal_connect(G_OBJECT(popup), "map_event", G_CALLBACK(map_event), xpop);
+	g_signal_connect(G_OBJECT(popup), "realize", G_CALLBACK(window_realize), xpop);
+	g_signal_connect(G_OBJECT(popup), "scroll_event", G_CALLBACK(scroll_event), xpop);
+	g_signal_connect(G_OBJECT(popup), "visibility_notify_event", G_CALLBACK(visibility_notify_event), xpop);
 	g_signal_connect(G_OBJECT(popup), "delete-event", G_CALLBACK(gtk_widget_hide_on_delete), NULL);
 }
-
-#endif				/* NEED_POPUP_WINDOW */
-
-#if NEED_DESKTOP_INFO
 
 static void
 setup_button_proxy(XdeScreen *xscr)
@@ -4356,16 +4820,14 @@ setup_button_proxy(XdeScreen *xscr)
 	}
 }
 
-#endif				/* NEED_DESKTOP_INFO */
-
 static void
 init_monitors(XdeScreen *xscr)
 {
 	XdeMonitor *xmon;
 	int m;
 
-	g_signal_connect(G_OBJECT(xscr->scrn), "monitors-changed", G_CALLBACK(on_monitors_changed), xscr);
-	g_signal_connect(G_OBJECT(xscr->scrn), "size-changed", G_CALLBACK(on_size_changed), xscr);
+	g_signal_connect(G_OBJECT(xscr->scrn), "monitors-changed", G_CALLBACK(monitors_changed), xscr);
+	g_signal_connect(G_OBJECT(xscr->scrn), "size-changed", G_CALLBACK(size_changed), xscr);
 
 	xscr->nmon = gdk_screen_get_n_monitors(xscr->scrn);
 	xscr->mons = calloc(xscr->nmon + 1, sizeof(*xscr->mons));
@@ -4373,9 +4835,18 @@ init_monitors(XdeScreen *xscr)
 		xmon->index = m;
 		xmon->xscr = xscr;
 		gdk_screen_get_monitor_geometry(xscr->scrn, m, &xmon->geom);
-#if NEED_POPUP_WINDOW
-		init_window(xscr, xmon);
-#endif				/* NEED_POPUP_WINDOW */
+		for (int p = 0; p < PopupLast; p++)
+			xmon->popups[p].type = p;
+		if (options.show.pager)
+			init_window(xscr, &xmon->pager);
+		if (options.show.tasks)
+			init_window(xscr, &xmon->tasks);
+		if (options.show.cycle)
+			init_window(xscr, &xmon->cycle);
+		if (options.show.setbg)
+			init_window(xscr, &xmon->setbg);
+		if (options.show.start)
+			init_window(xscr, &xmon->start);
 	}
 }
 
@@ -4385,15 +4856,11 @@ init_wnck(XdeScreen *xscr)
 	WnckScreen *wnck = xscr->wnck = wnck_screen_get(xscr->index);
 
 	g_signal_connect(G_OBJECT(wnck), "window_manager_changed", G_CALLBACK(window_manager_changed), xscr);
-
-#if NEED_DESKTOP_INFO
 	g_signal_connect(G_OBJECT(wnck), "workspace_destroyed", G_CALLBACK(workspace_destroyed), xscr);
 	g_signal_connect(G_OBJECT(wnck), "workspace_created", G_CALLBACK(workspace_created), xscr);
 	g_signal_connect(G_OBJECT(wnck), "viewports_changed", G_CALLBACK(viewports_changed), xscr);
 	g_signal_connect(G_OBJECT(wnck), "background_changed", G_CALLBACK(background_changed), xscr);
 	g_signal_connect(G_OBJECT(wnck), "active_workspace_changed", G_CALLBACK(active_workspace_changed), xscr);
-#endif				/* NEED_DESKTOP_INFO */
-#if NEED_CLIENT_INFO
 	g_signal_connect(G_OBJECT(wnck), "active_window_changed", G_CALLBACK(active_window_changed), xscr);
 	g_signal_connect(G_OBJECT(wnck), "application_closed", G_CALLBACK(application_closed), xscr);
 	g_signal_connect(G_OBJECT(wnck), "application_opened", G_CALLBACK(application_opened), xscr);
@@ -4402,14 +4869,14 @@ init_wnck(XdeScreen *xscr)
 	g_signal_connect(G_OBJECT(wnck), "window_closed", G_CALLBACK(window_closed), xscr);
 	g_signal_connect(G_OBJECT(wnck), "window_opened", G_CALLBACK(window_opened), xscr);
 	g_signal_connect(G_OBJECT(wnck), "window_stacking_changed", G_CALLBACK(window_stacking_changed), xscr);
-#endif				/* NEED_CLIENT_INFO */
+	g_signal_connect(G_OBJECT(wnck), "showing_desktop_changed", G_CALLBACK(showing_desktop_changed), xscr);
 
 	wnck_screen_force_update(wnck);
 	window_manager_changed(wnck, xscr);
 }
 
 static gboolean
-on_ifd_watch(GIOChannel *chan, GIOCondition cond, pointer data)
+ifd_watch(GIOChannel *chan, GIOCondition cond, pointer data)
 {
 	SmcConn smcConn = data;
 	IceConn iceConn = SmcGetIceConnection(smcConn);
@@ -4450,7 +4917,7 @@ init_smclient(void)
 	iceConn = SmcGetIceConnection(smcConn);
 	ifd = IceConnectionNumber(iceConn);
 	chan = g_io_channel_unix_new(ifd);
-	g_io_add_watch(chan, mask, on_ifd_watch, smcConn);
+	g_io_add_watch(chan, mask, ifd_watch, smcConn);
 }
 
 static void
@@ -4481,10 +4948,8 @@ startup(int argc, char *argv[])
 
 	dpy = GDK_DISPLAY_XDISPLAY(disp);
 
-#if NEED_STARTUP_IDS
 #ifdef STARTUP_NOTIFICATION
 	sn_dpy = sn_display_new(dpy, NULL, NULL);
-#endif
 #endif
 
 	atom = gdk_atom_intern_static_string("_XDE_THEME_NAME");
@@ -4494,12 +4959,9 @@ startup(int argc, char *argv[])
 	_XA_GTK_READ_RCFILES = gdk_x11_atom_to_xatom_for_display(disp, atom);
 	gdk_display_add_client_message_filter(disp, atom, client_handler, dpy);
 
-#if NEED_DESKTOP_LAYOUT
 	atom = gdk_atom_intern_static_string("_NET_DESKTOP_LAYOUT");
 	_XA_NET_DESKTOP_LAYOUT = gdk_x11_atom_to_xatom_for_display(disp, atom);
-#endif				/* NEED_DESKTOP_LAYOUT */
 
-#if NEED_CURRENT_DESKTOP
 	atom = gdk_atom_intern_static_string("_NET_CURRENT_DESKTOP");
 	_XA_NET_CURRENT_DESKTOP = gdk_x11_atom_to_xatom_for_display(disp, atom);
 
@@ -4508,9 +4970,7 @@ startup(int argc, char *argv[])
 
 	atom = gdk_atom_intern_static_string("WM_DESKTOP");
 	_XA_WM_DESKTOP = gdk_x11_atom_to_xatom_for_display(disp, atom);
-#endif				/* NEED_CURRENT_DESKTOP */
 
-#if NEED_DESKTOP_INFO
 	atom = gdk_atom_intern_static_string("_NET_DESKTOP_NAMES");
 	_XA_NET_DESKTOP_NAMES = gdk_x11_atom_to_xatom_for_display(disp, atom);
 
@@ -4525,17 +4985,13 @@ startup(int argc, char *argv[])
 
 	atom = gdk_atom_intern_static_string("_NET_WM_ICON_GEOMETRY");
 	_XA_NET_WM_ICON_GEOMETRY = gdk_x11_atom_to_xatom_for_display(disp, atom);
-#endif				/* NEED_DESKTOP_INFO */
 
-#if NEED_ROOT_PIXMAPS
 	atom = gdk_atom_intern_static_string("_XROOTPMAP_ID");
 	_XA_XROOTPMAP_ID = gdk_x11_atom_to_xatom_for_display(disp, atom);
 
 	atom = gdk_atom_intern_static_string("ESETROOT_PMAP_ID");
 	_XA_ESETROOT_PMAP_ID = gdk_x11_atom_to_xatom_for_display(disp, atom);
-#endif				/* NEED_ROOT_PIXMAPS */
 
-#if NEED_CLIENT_INFO
 	atom = gdk_atom_intern_static_string("_NET_ACTIVE_WINDOW");
 	_XA_NET_ACTIVE_WINDOW = gdk_x11_atom_to_xatom_for_display(disp, atom);
 
@@ -4550,9 +5006,7 @@ startup(int argc, char *argv[])
 
 	atom = gdk_atom_intern_static_string("_WIN_CLIENT_LIST");
 	_XA_WIN_CLIENT_LIST = gdk_x11_atom_to_xatom_for_display(disp, atom);
-#endif				/* NEED_CLIENT_INFO */
 
-#if NEED_STARTUP_IDS
 #ifdef STARTUP_NOTIFICATION
 	atom = gdk_atom_intern_static_string("_NET_STARTUP_INFO");
 	_XA_NET_STARTUP_INFO = gdk_x11_atom_to_xatom_for_display(disp, atom);
@@ -4562,7 +5016,6 @@ startup(int argc, char *argv[])
 	_XA_NET_STARTUP_INFO_BEGIN = gdk_x11_atom_to_xatom_for_display(disp, atom);
 	gdk_display_add_client_message_filter(disp, atom, client_handler, dpy);
 #endif				/* STARTUP_NOTIFICATION */
-#endif				/* NEED_STARTUP_IDS */
 
 	atom = gdk_atom_intern_static_string(XA_PREFIX "_EDIT");
 	_XA_PREFIX_EDIT = gdk_x11_atom_to_xatom_for_display(disp, atom);
@@ -4581,7 +5034,6 @@ startup(int argc, char *argv[])
 	wnck_set_client_type(WNCK_CLIENT_TYPE_PAGER);
 }
 
-#if NEED_DESKTOP_LAYOUT
 Window
 get_desktop_layout_selection(XdeScreen *xscr)
 {
@@ -4628,7 +5080,6 @@ get_desktop_layout_selection(XdeScreen *xscr)
 	}
 	return (owner);
 }
-#endif				/* NEED_DESKTOP_LAYOUT */
 
 static Window
 get_selection(Bool replace, Window selwin)
@@ -4792,29 +5243,20 @@ do_run(int argc, char *argv[], Bool replace)
 		xscr->selwin = selwin;
 		xscr->width = gdk_screen_get_width(xscr->scrn);
 		xscr->height = gdk_screen_get_height(xscr->scrn);
-#if NEED_STARTUP_IDS
 #ifdef STARTUP_NOTIFICATION
 		xscr->ctx = sn_monitor_context_new(sn_dpy, s, &sn_handler, xscr, NULL);
-#endif
 #endif
 		gdk_window_add_filter(xscr->root, root_handler, xscr);
 		init_wnck(xscr);
 		init_monitors(xscr);
-#if NEED_DESKTOP_INFO
 		if (options.proxy)
 			setup_button_proxy(xscr);
-#endif				/* NEED_DESKTOP_INFO */
-#if NEED_ROOT_PIXMAPS
-		update_root_pixmap(xscr, None);
-#endif				/* NEED_ROOT_PIXMAPS */
-#if NEED_DESKTOP_LAYOUT
+		if (options.show.setbg)
+			update_root_pixmap(xscr, None);
 		update_layout(xscr, None);
-#endif				/* NEED_DESKTOP_LAYOUT */
-#if NEED_CURRENT_DESKTOP
 		update_current_desktop(xscr, None);
-#endif				/* NEED_CURRENT_DESKTOP */
 		update_theme(xscr, None);
-		update_window(xscr, None);
+		update_active_window(xscr, None);
 		update_client_list(xscr, None);
 	}
 	g_unix_signal_add(SIGTERM, &term_signal_handler, NULL);
@@ -4937,7 +5379,7 @@ show_bool(Bool value)
 	return ("false");
 }
 
-const char *
+static const char *
 show_order(WindowOrder order)
 {
 	switch (order) {
@@ -4951,7 +5393,7 @@ show_order(WindowOrder order)
 	return NULL;
 }
 
-const char *
+static const char *
 show_screen(int snum)
 {
 	static char screen[64] = { 0, };
@@ -4962,7 +5404,7 @@ show_screen(int snum)
 	return (screen);
 }
 
-const char *
+static const char *
 show_which(UseScreen which)
 {
 	switch (which) {
@@ -4980,7 +5422,7 @@ show_which(UseScreen which)
 	return NULL;
 }
 
-const char *
+static const char *
 show_where(MenuPosition where)
 {
 	static char position[128] = { 0, };
@@ -5070,6 +5512,22 @@ Options:\n\
         specify keys for cycling [default: %20$s]\n\
     -p, --proxy\n\
         respond to button proxy [default: %21$s]\n\
+    -c, --cycle\n\
+        show a window cycle list [default: %24$s]\n\
+    --hidden\n\
+        list hidden windows as well [default: %25$s]\n\
+    --minimized\n\
+        list minimized windows as well [default: %26$s]\n\
+    --all-monitors\n\
+        list windows on all monitors [deefault: %27$s]\n\
+    --all-workspaces\n\
+        list windows on all workspaces [default: %28$s]\n\
+    -n, --noactivate\n\
+        do not activate windows [default: %29$s]\n\
+    --raise\n\
+        raise windows when selected/cycling [default: %30$s]\n\
+    -R, --restore\n\
+        restore previous windows when cycling [default: %31$s]\n\
     -n, --dry-run\n\
         do not change anything, just report actions [default: %23$s]\n\
     -D, --debug [LEVEL]\n\
@@ -5106,6 +5564,14 @@ Session Management:\n\
 	, show_bool(options.proxy)
 	, show_bool(options.editor)
 	, show_bool(options.dryrun)
+	, show_bool(options.cycle)
+	, show_bool(options.hidden)
+	, show_bool(options.minimized)
+	, show_bool(options.monitors)
+	, show_bool(options.workspaces)
+	, show_bool(!options.activate)
+	, show_bool(options.raise)
+	, show_bool(options.restore)
 );
 	/* *INDENT-ON* */
 }
@@ -5205,6 +5671,14 @@ main(int argc, char *argv[])
 			{"timestamp",		required_argument,	NULL,	'T'},
 			{"key",			optional_argument,	NULL,	'k'},
 
+			{"cycle",		no_argument,		NULL,	'c'},
+			{"hidden",		no_argument,		NULL,	'1'},
+			{"minimized",		no_argument,		NULL,	'm'},
+			{"all-monitors",	no_argument,		NULL,	'2'},
+			{"all-workspaces",	no_argument,		NULL,	'3'},
+			{"noactivate",		no_argument,		NULL,	'n'},
+			{"raise",		no_argument,		NULL,	'4'},
+			{"restore",		no_argument,		NULL,	'R'},
 
 			{"trayicon",		no_argument,		NULL,	'y'},
 			{"editor",		no_argument,		NULL,	'e'},
@@ -5226,10 +5700,9 @@ main(int argc, char *argv[])
 		};
 		/* *INDENT-ON* */
 
-		c = getopt_long_only(argc, argv, "d:s:m:f:t:B:b:PKw:W:O::yeqrD::v::hVCH?",
-				     long_options, &option_index);
+		c = getopt_long_only(argc, argv, "d:s:M:f:t:B:PKb:w:W:O::pT:k::cmnRyeqrND::v::hVCH?", long_options, &option_index);
 #else				/* _GNU_SOURCE */
-		c = getopt(argc, argv, "d:s:m:f:t:B:b:PKw:W:O:yeqr89D:vhVCH?");
+		c = getopt(argc, argv, "d:s:M:f:t:B:PKb:w:W:O:pT:k:cmnRyeqrND:vhVCH?");
 #endif				/* _GNU_SOURCE */
 		if (c == -1) {
 			if (options.debug > 0)
@@ -5374,6 +5847,31 @@ main(int argc, char *argv[])
 			break;
 		case 'p':	/* -p, --proxy */
 			options.proxy = True;
+			break;
+
+		case 'c':	/* -c, --cycle */
+			options.cycle = True;
+			break;
+		case '1':	/* --hidden */
+			options.hidden = True;
+			break;
+		case 'm':	/* -m, --minimized */
+			options.minimized = True;
+			break;
+		case '2':	/* --all-monitors */
+			options.monitors = True;
+			break;
+		case '3':	/* --all-workspaces */
+			options.workspaces = True;
+			break;
+		case 'n':	/* -n, --noactivate */
+			options.activate = False;
+			break;
+		case '4':	/* --raise */
+			options.raise = True;
+			break;
+		case 'R':	/* -R, --restore */
+			options.restore = True;
 			break;
 
 		case 'y':	/* -y, --trayicon */

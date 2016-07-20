@@ -310,7 +310,10 @@
 -TXdeClient
 -TXdeDock
 -TXdeIcon
+-TXdeImage
 -TXdeMonitor
+-TXdePixmap
+-TXdePopup
 -TXdeScreen
 -TXdeWindow
 -TXdgContext
