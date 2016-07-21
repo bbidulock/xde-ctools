@@ -174,7 +174,7 @@ dumpstack(const char *file, const int line, const char *func)
 
 const char *program = NAME;
 
-#define XA_PREFIX               "_XDE_FEEDBACK"
+#define XA_PREFIX		"_XDE_FEEDBACK"
 #define XA_SELECTION_NAME	XA_PREFIX "_S%d"
 #define XA_NET_DESKTOP_LAYOUT	"_NET_DESKTOP_LAYOUT_S%d"
 #define LOGO_NAME		"metacity"
@@ -593,97 +593,109 @@ add_deferred_refresh_monitor(XdeMonitor *xmon)
 /** @section Finding Screens and Monitors
   * @{ */
 
-/** @brief find the specified screen
+/** @brief find the specified monitor
   * 
-  * Either specified with options.screen, or if the DISPLAY environment variable
-  * specifies a screen, use that screen; otherwise, return NULL.
+  * Either specified with options.screen and options.monitor, or if the DISPLAY
+  * environment variable specifies a screen, use that screen; otherwise, return
+  * NULL.
   */
-static XdeScreen *
-find_specific_screen()
+static XdeMonitor *
+find_specific_monitor(void)
 {
-	XdeScreen *xscr = NULL;
+	XdeMonitor *xmon = NULL;
 	int nscr = gdk_display_get_n_screens(disp);
+	XdeScreen *xscr;
 
-	if (0 <= options.screen && options.screen < nscr)
+	if (0 <= options.screen && options.screen < nscr) {
 		/* user specified a valid screen number */
 		xscr = screens + options.screen;
-	return (xscr);
+		if (0 <= options.monitor && options.monitor < xscr->nmon)
+			xmon = xscr->mons + options.monitor;
+	}
+	return (xmon);
 }
 
 /** @brief find the screen of window with the focus
   */
-static XdeScreen *
-find_focus_screen()
+static XdeMonitor *
+find_focus_monitor(void)
 {
-	XdeScreen *xscr = NULL;
+	XdeMonitor *xmon = NULL;
+	XdeScreen *xscr;
 	GdkScreen *scrn;
 	GdkWindow *win;
 	Window focus = None;
-	int revert_to;
+	int revert_to, m;
 
 	XGetInputFocus(dpy, &focus, &revert_to);
 	if (focus != PointerRoot && focus != None) {
 		win = gdk_x11_window_foreign_new_for_display(disp, focus);
 		if (win) {
 			scrn = gdk_window_get_screen(win);
-			if (scrn)
-				xscr = screens + gdk_screen_get_number(scrn);
+			xscr = screens + gdk_screen_get_number(scrn);
+			m = gdk_screen_get_monitor_at_window(scrn, win);
 			g_object_unref(win);
+			xmon = xscr->mons + m;
 		}
 	}
-	return (xscr);
+	return (xmon);
 }
 
-static XdeScreen *
-find_pointer_screen()
+static XdeMonitor *
+find_pointer_monitor(void)
 {
+	XdeMonitor *xmon = NULL;
 	XdeScreen *xscr = NULL;
 	GdkScreen *scrn = NULL;
+	int m, x = 0, y = 0;
 
-	gdk_display_get_pointer(disp, &scrn, NULL, NULL, NULL);
-	if (scrn)
+	gdk_display_get_pointer(disp, &scrn, &x, &y, NULL);
+	if (scrn) {
 		xscr = screens + gdk_screen_get_number(scrn);
-	return (xscr);
+		m = gdk_screen_get_monitor_at_point(scrn, x, y);
+		xmon = xscr->mons + m;
+	}
+	return (xmon);
 }
 
-static XdeScreen *
-find_screen()
+static XdeMonitor *
+find_monitor(void)
 {
-	XdeScreen *xscr = NULL;
+	XdeMonitor *xmon = NULL;
 
-	if ((xscr = find_specific_screen()))
-		return (xscr);
+	if ((xmon = find_specific_monitor()))
+		return (xmon);
 	switch (options.which) {
 	case UseScreenDefault:
 		if (options.button) {
-			if ((xscr = find_pointer_screen()))
-				return (xscr);
-			if ((xscr = find_focus_screen()))
-				return (xscr);
+			if ((xmon = find_pointer_monitor()))
+				return (xmon);
+			if ((xmon = find_focus_monitor()))
+				return (xmon);
 		} else {
-			if ((xscr = find_focus_screen()))
-				return (xscr);
-			if ((xscr = find_pointer_screen()))
-				return (xscr);
+			if ((xmon = find_focus_monitor()))
+				return (xmon);
+			if ((xmon = find_pointer_monitor()))
+				return (xmon);
 		}
 		break;
 	case UseScreenActive:
 		break;
 	case UseScreenFocused:
-		if ((xscr = find_focus_screen()))
-			return (xscr);
+		if ((xmon = find_focus_monitor()))
+			return (xmon);
 		break;
 	case UseScreenPointer:
-		if ((xscr = find_pointer_screen()))
-			return (xscr);
+		if ((xmon = find_pointer_monitor()))
+			return (xmon);
 		break;
 	case UseScreenSpecified:
 		break;
 	}
 
-	if (!xscr)
-		xscr = screens;
-	return (xscr);
+	if (!xmon)
+		xmon = screens->mons;
+	return (xmon);
 }
 
 /** @} */
@@ -4735,12 +4747,12 @@ size_changed(GdkScreen *scrn, gpointer user_data)
 }
 
 static void
-edit_input(XdeScreen *xscr)
+edit_input(XdeMonitor *xmon)
 {
 }
 
 static void
-show_stray(XdeScreen *xscr)
+show_stray(XdeMonitor *xmon)
 {
 }
 
@@ -4791,10 +4803,10 @@ event_handler_ClientMessage(Display *dpy, XEvent *xev)
 			update_theme(xscr, xev->xclient.message_type);
 			return GDK_FILTER_REMOVE;	/* event handled */
 		} else if (xev->xclient.message_type == _XA_PREFIX_EDIT) {
-			edit_input(xscr);
+			edit_input(xscr->mons);
 			return GDK_FILTER_REMOVE;
 		} else if (xev->xclient.message_type == _XA_PREFIX_TRAY) {
-			show_stray(xscr);
+			show_stray(xscr->mons);
 			return GDK_FILTER_REMOVE;
 		}
 	} else
@@ -5439,11 +5451,12 @@ startup(int argc, char *argv[])
 	wnck_set_client_type(WNCK_CLIENT_TYPE_PAGER);
 }
 
-XdeScreen *
+XdeMonitor *
 init_screens(Window selwin)
 {
 	GdkWindow *sel;
 	char selection[65] = { 0, };
+	XdeMonitor *xmon = NULL;
 	XdeScreen *xscr;
 	int s, nscr;
 
@@ -5480,8 +5493,8 @@ init_screens(Window selwin)
 		update_active_window(xscr, None);
 		update_client_list(xscr, None);
 	}
-	xscr = find_screen();
-	return (xscr);
+	xmon = find_monitor();
+	return (xmon);
 }
 
 Window
@@ -5614,7 +5627,7 @@ do_run(int argc, char *argv[], Bool replace)
 	GdkScreen *scrn = gdk_display_get_default_screen(disp);
 	GdkWindow *root = gdk_screen_get_root_window(scrn);
 	Window selwin, owner, broadcast = GDK_WINDOW_XID(root);
-	XdeScreen *xscr;
+	XdeMonitor *xmon;
 
 	PTRACE(5);
 	selwin = XCreateSimpleWindow(dpy, broadcast, 0, 0, 1, 1, 0, 0, 0);
@@ -5677,15 +5690,15 @@ do_run(int argc, char *argv[], Bool replace)
 	oldhandler = XSetErrorHandler(handler);
 	oldiohandler = XSetIOErrorHandler(iohandler);
 
-	xscr = init_screens(selwin);
+	xmon = init_screens(selwin);
 
 	g_unix_signal_add(SIGTERM, &term_signal_handler, NULL);
 	g_unix_signal_add(SIGINT, &int_signal_handler, NULL);
 	g_unix_signal_add(SIGHUP, &hup_signal_handler, NULL);
 	if (options.trayicon)
-		show_stray(xscr);
+		show_stray(xmon);
 	if (options.editor)
-		edit_input(xscr);
+		edit_input(xmon);
 	gtk_main();
 }
 
