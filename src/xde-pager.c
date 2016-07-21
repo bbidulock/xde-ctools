@@ -206,7 +206,6 @@ static Atom _XA_NET_DESKTOP_NAMES;
 static Atom _XA_NET_NUMBER_OF_DESKTOPS;
 static Atom _XA_WIN_WORKSPACE_COUNT;
 static Atom _XA_WIN_DESKTOP_BUTTON_PROXY;
-static Atom _XA_NET_WM_ICON_GEOMETRY;
 #if 0
 static Atom _XA_WIN_AREA;
 static Atom _XA_WIN_AREA_COUNT;
@@ -302,9 +301,10 @@ typedef struct {
 	Bool raise;
 	Bool restore;
 	Command command;
+	Bool tooltips;
+	Bool dryrun;
 	char *clientId;
 	char *saveFile;
-	Bool dryrun;
 	union {
 		struct {
 			Bool pager;
@@ -355,9 +355,10 @@ Options options = {
 	.raise = False,
 	.restore = True,
 	.command = CommandDefault,
+	.tooltips = False,
+	.dryrun = False,
 	.clientId = NULL,
 	.saveFile = NULL,
-	.dryrun = False,
 	.show = {
 		.pager = True,
 		.tasks = False,
@@ -706,6 +707,7 @@ find_monitor(void)
 static gboolean
 position_pointer(GtkMenu *menu, XdeMonitor *xmon, gint *x, gint *y)
 {
+	PTRACE(5);
 	gdk_display_get_pointer(disp, NULL, x, y, NULL);
 	return TRUE;
 }
@@ -1030,7 +1032,6 @@ find_image_file(char *name, int dirc, char *dirv[])
 static void
 set_workspaces(XdeScreen *xscr, gint count)
 {
-	Display *dpy = GDK_DISPLAY_XDISPLAY(disp);
 	Window root = RootWindow(dpy, xscr->index);
 	XEvent ev;
 
@@ -1065,8 +1066,6 @@ Window get_desktop_layout_selection(XdeScreen *xscr);
 static void
 set_workspace_layout(XdeScreen *xscr, gint *array, gsize num)
 {
-	GdkDisplay *disp = gdk_screen_get_display(xscr->scrn);
-	Display *dpy = GDK_DISPLAY_XDISPLAY(disp);
 	Window root = RootWindow(dpy, xscr->index);
 	long data[4] = { 0, };
 
@@ -1128,8 +1127,6 @@ set_workspace_layout(XdeScreen *xscr, gint *array, gsize num)
 static void
 set_workspace_names(XdeScreen *xscr, gchar **names, gsize num)
 {
-	GdkDisplay *disp = gdk_screen_get_display(xscr->scrn);
-	Display *dpy = GDK_DISPLAY_XDISPLAY(disp);
 	Window root = RootWindow(dpy, xscr->index);
 	gchar **alloc = NULL;
 	XTextProperty xtp;
@@ -1364,7 +1361,6 @@ get_temporary_pixmap(XdeScreen *xscr)
 static void
 refresh_desktop(XdeScreen *xscr)
 {
-	GdkDisplay *disp = gdk_screen_get_display(xscr->scrn);
 	GdkWindow *root = gdk_screen_get_root_window(xscr->scrn);
 	GdkColormap *cmap = gdk_drawable_get_colormap(GDK_DRAWABLE(root));
 	GdkPixmap *pixmap;
@@ -4634,7 +4630,7 @@ show_stray(XdeMonitor *xmon)
 }
 
 static GdkFilterReturn
-event_handler_ClientMessage(Display *dpy, XEvent *xev)
+event_handler_ClientMessage(XEvent *xev)
 {
 	XdeScreen *xscr = NULL;
 	int s, nscr = ScreenCount(dpy);
@@ -4706,7 +4702,7 @@ client_handler(GdkXEvent *xevent, GdkEvent *event, gpointer data)
 	PTRACE(5);
 	switch (xev->type) {
 	case ClientMessage:
-		return event_handler_ClientMessage(dpy, xev);
+		return event_handler_ClientMessage(xev);
 	}
 	EPRINTF("wrong message type for handler %d\n", xev->type);
 	return GDK_FILTER_CONTINUE;	/* event not handled, continue processing */
@@ -5251,7 +5247,7 @@ startup(int argc, char *argv[])
 
 	atom = gdk_atom_intern_static_string("_GTK_READ_RCFILES");
 	_XA_GTK_READ_RCFILES = gdk_x11_atom_to_xatom_for_display(disp, atom);
-	gdk_display_add_client_message_filter(disp, atom, client_handler, dpy);
+	gdk_display_add_client_message_filter(disp, atom, client_handler, NULL);
 
 	atom = gdk_atom_intern_static_string("_NET_DESKTOP_LAYOUT");
 	_XA_NET_DESKTOP_LAYOUT = gdk_x11_atom_to_xatom_for_display(disp, atom);
@@ -5277,9 +5273,6 @@ startup(int argc, char *argv[])
 	atom = gdk_atom_intern_static_string("_WIN_WORKSPACE_COUNT");
 	_XA_WIN_WORKSPACE_COUNT = gdk_x11_atom_to_xatom_for_display(disp, atom);
 
-	atom = gdk_atom_intern_static_string("_NET_WM_ICON_GEOMETRY");
-	_XA_NET_WM_ICON_GEOMETRY = gdk_x11_atom_to_xatom_for_display(disp, atom);
-
 	atom = gdk_atom_intern_static_string("_XROOTPMAP_ID");
 	_XA_XROOTPMAP_ID = gdk_x11_atom_to_xatom_for_display(disp, atom);
 
@@ -5304,20 +5297,20 @@ startup(int argc, char *argv[])
 #ifdef STARTUP_NOTIFICATION
 	atom = gdk_atom_intern_static_string("_NET_STARTUP_INFO");
 	_XA_NET_STARTUP_INFO = gdk_x11_atom_to_xatom_for_display(disp, atom);
-	gdk_display_add_client_message_filter(disp, atom, client_handler, dpy);
+	gdk_display_add_client_message_filter(disp, atom, client_handler, NULL);
 
 	atom = gdk_atom_intern_static_string("_NET_STARTUP_INFO_BEGIN");
 	_XA_NET_STARTUP_INFO_BEGIN = gdk_x11_atom_to_xatom_for_display(disp, atom);
-	gdk_display_add_client_message_filter(disp, atom, client_handler, dpy);
+	gdk_display_add_client_message_filter(disp, atom, client_handler, NULL);
 #endif				/* STARTUP_NOTIFICATION */
 
 	atom = gdk_atom_intern_static_string(XA_PREFIX "_EDIT");
 	_XA_PREFIX_EDIT = gdk_x11_atom_to_xatom_for_display(disp, atom);
-	gdk_display_add_client_message_filter(disp, atom, client_handler, dpy);
+	gdk_display_add_client_message_filter(disp, atom, client_handler, NULL);
 
 	atom = gdk_atom_intern_static_string(XA_PREFIX "_TRAY");
 	_XA_PREFIX_TRAY = gdk_x11_atom_to_xatom_for_display(disp, atom);
-	gdk_display_add_client_message_filter(disp, atom, client_handler, dpy);
+	gdk_display_add_client_message_filter(disp, atom, client_handler, NULL);
 
 	scrn = gdk_display_get_default_screen(disp);
 	root = gdk_screen_get_root_window(scrn);
@@ -5377,8 +5370,6 @@ init_screens(Window selwin)
 Window
 get_desktop_layout_selection(XdeScreen *xscr)
 {
-	GdkDisplay *disp = gdk_screen_get_display(xscr->scrn);
-	Display *dpy = GDK_DISPLAY_XDISPLAY(disp);
 	Window root = RootWindow(dpy, xscr->index);
 	char selection[64] = { 0, };
 	GdkWindow *lay;
@@ -5425,18 +5416,13 @@ static Window
 get_selection(Bool replace, Window selwin)
 {
 	char selection[64] = { 0, };
-	GdkDisplay *disp;
-	Display *dpy;
 	int s, nscr;
 	Window owner;
 	Atom atom;
 	Window gotone = None;
 
 	PTRACE(5);
-	disp = gdk_display_get_default();
 	nscr = gdk_display_get_n_screens(disp);
-
-	dpy = GDK_DISPLAY_XDISPLAY(disp);
 
 	for (s = 0; s < nscr; s++) {
 		snprintf(selection, sizeof(selection), XA_SELECTION_NAME, s);
@@ -5951,20 +5937,20 @@ main(int argc, char *argv[])
 			{"screen",		required_argument,	NULL,	's'},
 			{"monitor",		required_argument,	NULL,	'M'},
 
-			{"filename",		required_argument,	NULL,	'f'},
 			{"timeout",		required_argument,	NULL,	't'},
 			{"border",		required_argument,	NULL,	'B'},
+			{"filename",		required_argument,	NULL,	'f'},
 			{"pointer",		no_argument,		NULL,	'P'},
 			{"keyboard",		no_argument,		NULL,	'K'},
 			{"button",		required_argument,	NULL,	'b'},
 			{"which",		required_argument,	NULL,	'w'},
 			{"where",		required_argument,	NULL,	'W'},
-			{"order",		required_argument,	NULL,	'O'},
 
 			{"proxy",		no_argument,		NULL,	'p'},
 			{"timestamp",		required_argument,	NULL,	'T'},
-			{"key",			required_argument,	NULL,	'k'},
 
+			{"key",			required_argument,	NULL,	'k'},
+			{"order",		required_argument,	NULL,	'O'},
 			{"cycle",		no_argument,		NULL,	'c'},
 			{"normal",		no_argument,		NULL,	'4'},
 			{"hidden",		no_argument,		NULL,	'1'},
@@ -5984,6 +5970,7 @@ main(int argc, char *argv[])
 			{"clientId",		required_argument,	NULL,	'8'},
 			{"restore",		required_argument,	NULL,	'9'},
 
+			{"tooltips",		no_argument,		NULL,	'6'},
 			{"dry-run",		no_argument,		NULL,	'N'},
 			{"debug",		optional_argument,	NULL,	'D'},
 			{"verbose",		optional_argument,	NULL,	'v'},
@@ -6026,10 +6013,6 @@ main(int argc, char *argv[])
 			options.monitor = val;
 			break;
 
-		case 'f':	/* -f, --filename FILENAME */
-			free(options.filename);
-			options.filename = strdup(optarg);
-			break;
 		case 't':	/* -t, --timeout MILLISECONDS */
 			val = strtoul(optarg, &endptr, 0);
 			if (endptr && *endptr)
@@ -6043,6 +6026,10 @@ main(int argc, char *argv[])
 			if (val < 0 || val > 20)
 				goto bad_option;
 			options.border = val;
+			break;
+		case 'f':	/* -f, --filename FILENAME */
+			free(options.filename);
+			options.filename = strdup(optarg);
 			break;
 		case 'K':	/* -K, --keyboard */
 			options.keyboard = True;
@@ -6135,6 +6122,7 @@ main(int argc, char *argv[])
 			if (endptr && *endptr)
 				goto bad_option;
 			break;
+
 		case 'k':	/* -k, --key [KEY1:KEY2] */
 			free(options.keys);
 			options.keys = strdup(optarg);
@@ -6142,7 +6130,6 @@ main(int argc, char *argv[])
 		case 'p':	/* -p, --proxy */
 			options.proxy = True;
 			break;
-
 		case 'c':	/* -c, --cycle */
 			options.cycle = True;
 			break;
@@ -6198,6 +6185,9 @@ main(int argc, char *argv[])
 			options.saveFile = strdup(optarg);
 			break;
 
+		case '6':	/* --tooltips */
+			options.tooltips = True;
+			break;
 		case 'N':	/* -N, --dry-run */
 			options.dryrun = True;
 			break;
