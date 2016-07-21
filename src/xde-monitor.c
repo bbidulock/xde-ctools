@@ -359,12 +359,12 @@ Options options = {
 	.saveFile = NULL,
 	.dryrun = False,
 	.show = {
-		 .pager = False,
-		 .tasks = False,
-		 .cycle = False,
-		 .setbg = False,
-		 .start = True,
-		 },
+		.pager = False,
+		.tasks = False,
+		.cycle = False,
+		.setbg = False,
+		.start = True,
+	},
 };
 
 Display *dpy = NULL;
@@ -704,39 +704,34 @@ find_monitor(void)
   * @{ */
 
 static gboolean
-position_pointer(GtkMenu *menu, WnckScreen *scrn, gint *x, gint *y)
+position_pointer(GtkMenu *menu, XdeMonitor *xmon, gint *x, gint *y)
 {
 	gdk_display_get_pointer(disp, NULL, x, y, NULL);
 	return TRUE;
 }
 
 static gboolean
-position_center_monitor(GtkMenu *menu, WnckScreen *scrn, gint *x, gint *y)
+position_center_monitor(GtkMenu *menu, XdeMonitor *xmon, gint *x, gint *y)
 {
-	GdkScreen *scr;
-	GdkRectangle rect;
-	gint px, py, nmon;
 	GtkRequisition req;
 
 	PTRACE(5);
-	gdk_display_get_pointer(disp, &scr, &px, &py, NULL);
-	nmon = gdk_screen_get_monitor_at_point(scr, px, py);
-	gdk_screen_get_monitor_geometry(scr, nmon, &rect);
 	gtk_widget_get_requisition(GTK_WIDGET(menu), &req);
 
-	*x = rect.x + (rect.width - req.width) / 2;
-	*y = rect.y + (rect.height - req.height) / 2;
+	*x = xmon->geom.x + (xmon->geom.width - req.width) / 2;
+	*y = xmon->geom.y + (xmon->geom.height - req.height) / 2;
 
 	return TRUE;
 }
 
 static gboolean
-position_topleft_workarea(GtkMenu *menu, WnckScreen *scrn, gint *x, gint *y)
+position_topleft_workarea(GtkMenu *menu, XdeMonitor *xmon, gint *x, gint *y)
 {
 #if 1
 	WnckWorkspace *wkspc;
 
-	wkspc = wnck_screen_get_active_workspace(scrn);
+	/* XXX: not sure this is what we want... */
+	wkspc = wnck_screen_get_active_workspace(xmon->xscr->wnck);
 	*x = wnck_workspace_get_viewport_x(wkspc);
 	*y = wnck_workspace_get_viewport_y(wkspc);
 #else
@@ -757,13 +752,14 @@ position_topleft_workarea(GtkMenu *menu, WnckScreen *scrn, gint *x, gint *y)
 }
 
 static gboolean
-position_bottomright_workarea(GtkMenu *menu, WnckScreen *scrn, gint *x, gint *y)
+position_bottomright_workarea(GtkMenu *menu, XdeMonitor *xmon, gint *x, gint *y)
 {
 #if 1
 	WnckWorkspace *wkspc;
 	GtkRequisition req;
 
-	wkspc = wnck_screen_get_active_workspace(scrn);
+	/* XXX: not sure this is what we want... */
+	wkspc = wnck_screen_get_active_workspace(xmon->xscr->wnck);
 	gtk_widget_get_requisition(GTK_WIDGET(menu), &req);
 	*x = wnck_workspace_get_viewport_x(wkspc) +
 		wnck_workspace_get_width(wkspc) - req.width;
@@ -789,12 +785,12 @@ position_bottomright_workarea(GtkMenu *menu, WnckScreen *scrn, gint *x, gint *y)
 }
 
 static gboolean
-position_specified(GtkMenu *menu, WnckScreen *scrn, gint *x, gint *y)
+position_specified(GtkMenu *menu, XdeMonitor *xmon, gint *x, gint *y)
 {
 	int x1, y1, sw, sh;
 
-	sw = wnck_screen_get_width(scrn);
-	sh = wnck_screen_get_height(scrn);
+	sw = wnck_screen_get_width(xmon->xscr->wnck);
+	sh = wnck_screen_get_height(xmon->xscr->wnck);
 
 	x1 = (options.geom.mask & XNegative) ? sw - options.geom.x : options.geom.x;
 	y1 = (options.geom.mask & YNegative) ? sh - options.geom.y : options.geom.y;
@@ -830,31 +826,31 @@ position_specified(GtkMenu *menu, WnckScreen *scrn, gint *x, gint *y)
 void
 position_menu(GtkMenu *menu, gint *x, gint *y, gboolean *push_in, gpointer user_data)
 {
-	WnckScreen *scrn = user_data;
+	XdeMonitor *xmon = user_data;
 
 	*push_in = FALSE;
 	if (options.button) {
-		position_pointer(menu, scrn, x, y);
+		position_pointer(menu, xmon, x, y);
 		return;
 	}
 	switch (options.where) {
 	case PositionDefault:
-		position_center_monitor(menu, scrn, x, y);
+		position_center_monitor(menu, xmon, x, y);
 		break;
 	case PositionPointer:
-		position_pointer(menu, scrn, x, y);
+		position_pointer(menu, xmon, x, y);
 		break;
 	case PositionCenter:
-		position_center_monitor(menu, scrn, x, y);
+		position_center_monitor(menu, xmon, x, y);
 		break;
 	case PositionTopLeft:
-		position_topleft_workarea(menu, scrn, x, y);
+		position_topleft_workarea(menu, xmon, x, y);
 		break;
 	case PositionBottomRight:
-		position_bottomright_workarea(menu, scrn, x, y);
+		position_bottomright_workarea(menu, xmon, x, y);
 		break;
 	case PositionSpecified:
-		position_specified(menu, scrn, x, y);
+		position_specified(menu, xmon, x, y);
 		break;
 	}
 }
@@ -4490,18 +4486,11 @@ update_theme(XdeScreen *xscr, Atom prop)
 	if (XGetTextProperty(dpy, root, &xtp, _XA_XDE_THEME_NAME)) {
 		if (Xutf8TextPropertyToTextList(dpy, &xtp, &list, &strings) == Success) {
 			if (strings >= 1) {
-				static const char *prefix = "gtk-theme-name=\"";
-				static const char *suffix = "\"";
 				char *rc_string;
-				int len;
 
-				len = strlen(prefix) + strlen(list[0]) + strlen(suffix) + 1;
-				rc_string = calloc(len, sizeof(*rc_string));
-				strncpy(rc_string, prefix, len);
-				strncat(rc_string, list[0], len);
-				strncat(rc_string, suffix, len);
+				rc_string = g_strdup_printf("gtk-theme-name=\"%s\"", list[0]);
 				gtk_rc_parse_string(rc_string);
-				free(rc_string);
+				g_free(rc_string);
 				if (!xscr->theme || strcmp(xscr->theme, list[0])) {
 					free(xscr->theme);
 					xscr->theme = strdup(list[0]);
@@ -5135,7 +5124,7 @@ init_monitors(XdeScreen *xscr)
 	g_signal_connect(G_OBJECT(xscr->scrn), "size-changed", G_CALLBACK(size_changed), xscr);
 
 	xscr->nmon = gdk_screen_get_n_monitors(xscr->scrn);
-	xscr->mons = calloc(xscr->nmon + 1, sizeof(*xscr->mons));
+	xscr->mons = calloc(xscr->nmon, sizeof(*xscr->mons));
 	for (m = 0, xmon = xscr->mons; m < xscr->nmon; m++, xmon++) {
 		xmon->index = m;
 		xmon->xscr = xscr;
