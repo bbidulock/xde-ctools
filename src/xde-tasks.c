@@ -174,17 +174,17 @@ dumpstack(const char *file, const int line, const char *func)
 
 const char *program = NAME;
 
-#define XA_PREFIX		"_XDE_SETBG"
+#define XA_PREFIX               "_XDE_TASKS"
 #define XA_SELECTION_NAME	XA_PREFIX "_S%d"
 #define XA_NET_DESKTOP_LAYOUT	"_NET_DESKTOP_LAYOUT_S%d"
-#define LOGO_NAME		"preferences-desktop"
+#define LOGO_NAME		"metacity"
 
 static int saveArgc;
 static char **saveArgv;
 
-#define RESNAME "xde-setbg"
-#define RESCLAS "XDE-setbg"
-#define RESTITL "XDG Desktop Background Setter"
+#define RESNAME "xde-tasks"
+#define RESCLAS "XDE-tasks"
+#define RESTITL "XDG Task List Feedback"
 
 #define USRDFLT "%s/.config/" RESNAME "/rc"
 #define APPDFLT "/usr/share/X11/app-defaults/" RESCLAS
@@ -359,12 +359,12 @@ Options options = {
 	.saveFile = NULL,
 	.dryrun = False,
 	.show = {
-		.pager = False,
-		.tasks = False,
-		.cycle = False,
-		.setbg = True,
-		.start = False,
-	},
+		 .pager = False,
+		 .tasks = True,
+		 .cycle = False,
+		 .setbg = False,
+		 .start = False,
+		 },
 };
 
 Display *dpy = NULL;
@@ -5867,7 +5867,7 @@ Session Management:\n\
 	, show_bool(options.keyboard)
 	, show_bool(options.pointer)
 	, options.timestamp
-	, options.keys ?: "AC+Left:AC+Right"
+	, options.keys ?: "AS+Tab:A+Tab"
 	, show_bool(options.proxy)
 	, show_bool(options.editor)
 	, show_bool(options.dryrun)

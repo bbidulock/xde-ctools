@@ -78,12 +78,14 @@
 -TGClosure
 -TGdkDisplay
 -TGdkEvent
+-TGdkEvent
 -TGdkManager
 -TGdkPixbuf
 -TGdkPixmap
 -TGdkRectangle
 -TGdkScreen
 -TGdkWindow
+-TGdkXEvent
 -TGdkXEvent
 -TGError
 -TGFile
@@ -187,6 +189,7 @@
 -Tlong
 -Tmajor_t
 -Tmblk_t
+-TMenuPosition
 -TMessage
 -Tmessage_t
 -Tminor_t
@@ -286,6 +289,7 @@
 -Tuint8_t
 -Tulong
 -T__user
+-TUseScreen
 -Tushort
 -Tva_list
 -Tverify_fp_t
@@ -296,6 +300,7 @@
 -Twait_struct_t
 -TWindow
 -TWindowManager
+-TWindowOrder
 -TWmArea
 -TWmDesktop
 -TWmDisplay
@@ -331,6 +336,7 @@
 -TXErrorEvent
 -TXEvent
 -Txfunc_t
+-TXGeometry
 -Tx_id_t
 -TXPointer
 -TXPropertyEvent

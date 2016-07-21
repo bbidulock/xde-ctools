@@ -317,6 +317,55 @@ Options options = {
 Display *dpy = NULL;
 GdkDisplay *disp = NULL;
 
+struct XdeScreen;
+typedef struct XdeScreen XdeScreen;
+struct XdeMonitor;
+typedef struct XdeMonitor XdeMonitor;
+
+struct XdeMonitor {
+	int index;			/* monitor number */
+	XdeScreen *xscr;		/* screen */
+	int current;			/* current desktop for this monitor */
+	GdkRectangle geom;		/* geometry of the monitor */
+	struct {
+		GList *oldlist;		/* clients for this monitor (old gnome) */
+		GList *clients;		/* clients for this monitor */
+		GList *stacked;		/* clients for this monitor (stacked) */
+		struct {
+			GdkWindow *old;	/* active window (previous) */
+			GdkWindow *now;	/* active window (current) */
+		} active;
+	};
+};
+
+struct XdeScreen {
+	int index;			/* index */
+	GdkScreen *scrn;		/* screen */
+	GdkWindow *root;
+	WnckScreen *wnck;
+	gint nmon;			/* number of monitors */
+	XdeMonitor *mons;		/* monitors for this screen */
+	Bool mhaware;			/* multi-head aware NetWM */
+	char *theme;			/* XDE theme name */
+	Window selwin;			/* selection owner window */
+	Atom atom;			/* selection atom for this screen */
+	guint timer;			/* timer source of running timer */
+	int current;			/* current desktop for this screen */
+	char *wmname;			/* window manager name (adjusted) */
+	Bool goodwm;			/* is the window manager usable? */
+	struct {
+		GList *oldlist;		/* clients for this screen (old gnome) */
+		GList *clients;		/* clients for this screen */
+		GList *stacked;		/* clients for this screen (stacked) */
+		struct {
+			GdkWindow *old;	/* active window (previous) */
+			GdkWindow *now;	/* active window (current) */
+		} active;
+	};
+};
+
+XdeScreen *screens = NULL;		/* array of screens */
+
 /** @} */
 
 /** @section Menu Handling
@@ -823,7 +872,7 @@ popup_menu_new(WnckScreen *scrn)
   * specifies a screen, use that screen; otherwise, return NULL.
   */
 static WnckScreen *
-find_specific_screen(GdkDisplay *disp)
+find_specific_screen()
 {
 	WnckScreen *scrn = NULL;
 	int nscr = gdk_display_get_n_screens(disp);
@@ -837,13 +886,12 @@ find_specific_screen(GdkDisplay *disp)
 /** @brief find the screen of window with the focus
   */
 static WnckScreen *
-find_focus_screen(GdkDisplay *disp)
+find_focus_screen()
 {
 	WnckScreen *scrn = NULL;
 	Window focus = None, froot = None;
 	int di;
 	unsigned int du;
-	Display *dpy = GDK_DISPLAY_XDISPLAY(disp);
 
 	XGetInputFocus(dpy, &focus, &di);
 	if (focus != PointerRoot && focus != None) {
@@ -855,7 +903,7 @@ find_focus_screen(GdkDisplay *disp)
 }
 
 static WnckScreen *
-find_pointer_screen(GdkDisplay *disp)
+find_pointer_screen()
 {
 	WnckScreen *scrn = NULL;
 	GdkScreen *screen = NULL;
@@ -867,34 +915,34 @@ find_pointer_screen(GdkDisplay *disp)
 }
 
 static WnckScreen *
-find_screen(GdkDisplay *disp)
+find_screen()
 {
 	WnckScreen *scrn = NULL;
 
-	if ((scrn = find_specific_screen(disp)))
+	if ((scrn = find_specific_screen()))
 		return (scrn);
 	switch (options.which) {
 	case UseScreenDefault:
 		if (options.button) {
-			if ((scrn = find_pointer_screen(disp)))
+			if ((scrn = find_pointer_screen()))
 				return (scrn);
-			if ((scrn = find_focus_screen(disp)))
+			if ((scrn = find_focus_screen()))
 				return (scrn);
 		} else {
-			if ((scrn = find_focus_screen(disp)))
+			if ((scrn = find_focus_screen()))
 				return (scrn);
-			if ((scrn = find_pointer_screen(disp)))
+			if ((scrn = find_pointer_screen()))
 				return (scrn);
 		}
 		break;
 	case UseScreenActive:
 		break;
 	case UseScreenFocused:
-		if ((scrn = find_focus_screen(disp)))
+		if ((scrn = find_focus_screen()))
 			return (scrn);
 		break;
 	case UseScreenPointer:
-		if ((scrn = find_pointer_screen(disp)))
+		if ((scrn = find_pointer_screen()))
 			return (scrn);
 		break;
 	case UseScreenSpecified:
@@ -914,10 +962,6 @@ find_screen(GdkDisplay *disp)
 static gboolean
 position_pointer(GtkMenu *menu, WnckScreen *scrn, gint *x, gint *y)
 {
-	GdkDisplay *disp;
-	
-	PTRACE(5);
-	disp = gtk_widget_get_display(GTK_WIDGET(menu));
 	gdk_display_get_pointer(disp, NULL, x, y, NULL);
 	return TRUE;
 }
@@ -925,14 +969,12 @@ position_pointer(GtkMenu *menu, WnckScreen *scrn, gint *x, gint *y)
 static gboolean
 position_center_monitor(GtkMenu *menu, WnckScreen *scrn, gint *x, gint *y)
 {
-	GdkDisplay *disp;
 	GdkScreen *scr;
 	GdkRectangle rect;
 	gint px, py, nmon;
 	GtkRequisition req;
 
 	PTRACE(5);
-	disp = gtk_widget_get_display(GTK_WIDGET(menu));
 	gdk_display_get_pointer(disp, &scr, &px, &py, NULL);
 	nmon = gdk_screen_get_monitor_at_point(scr, px, py);
 	gdk_screen_get_monitor_geometry(scr, nmon, &rect);
@@ -954,13 +996,11 @@ position_topleft_workarea(GtkMenu *menu, WnckScreen *scrn, gint *x, gint *y)
 	*x = wnck_workspace_get_viewport_x(wkspc);
 	*y = wnck_workspace_get_viewport_y(wkspc);
 #else
-	GdkDisplay *disp;
 	GdkScreen *scr;
 	GdkRectangle rect;
 	gint px, py, nmon;
 
 	PTRACE(5);
-	disp = gtk_widget_get_display(GTK_WIDGET(menu));
 	gdk_display_get_pointer(disp, &scr, &px, &py, NULL);
 	nmon = gdk_screen_get_monitor_at_point(scr, px, py);
 	gdk_screen_get_monitor_geometry(scr, nmon, &rect);
@@ -986,14 +1026,12 @@ position_bottomright_workarea(GtkMenu *menu, WnckScreen *scrn, gint *x, gint *y)
 	*y = wnck_workspace_get_viewport_y(wkspc) +
 		wnck_workspace_get_height(wkspc) - req.height;
 #else
-	GdkDisplay *disp;
 	GdkScreen *scrn;
 	GdkRectangle rect;
 	gint px, py, nmon;
 	GtkRequisition req;
 
 	PTRACE(5);
-	disp = gtk_widget_get_display(GTK_WIDGET(menu));
 	gdk_display_get_pointer(disp, &scrn, &px, &py, NULL);
 	nmon = gdk_screen_get_monitor_at_point(scrn, px, py);
 	gdk_screen_get_monitor_geometry(scrn, nmon, &rect);
@@ -1699,7 +1737,6 @@ get_resources(int argc, char *argv[])
 static void
 do_run(int argc, char *argv[])
 {
-	GdkDisplay *disp;
 	WnckScreen *scrn;
 	GtkWidget *menu;
 
@@ -1728,7 +1765,7 @@ do_run(int argc, char *argv[])
 }
 
 static void
-reparse(Display *dpy, Window root)
+reparse(Window root)
 {
 	XTextProperty xtp = { NULL, };
 	char **list = NULL;
@@ -1755,7 +1792,7 @@ reparse(Display *dpy, Window root)
 }
 
 static GdkFilterReturn
-event_handler_PropertyNotify(Display *dpy, XEvent *xev)
+event_handler_PropertyNotify(XEvent *xev)
 {
 	if (options.debug > 1) {
 		fprintf(stderr, "==> PropertyNotify:\n");
@@ -1768,14 +1805,14 @@ event_handler_PropertyNotify(Display *dpy, XEvent *xev)
 	}
 	if (xev->xproperty.atom == _XA_XDE_THEME_NAME
 	    && xev->xproperty.state == PropertyNewValue) {
-		reparse(dpy, xev->xproperty.window);
+		reparse(xev->xproperty.window);
 		return GDK_FILTER_REMOVE;	/* event handled */
 	}
 	return GDK_FILTER_CONTINUE;	/* event not handled */
 }
 
 static GdkFilterReturn
-event_handler_ClientMessage(Display *dpy, XEvent *xev)
+event_handler_ClientMessage(XEvent *xev)
 {
 	if (options.debug > 1) {
 		fprintf(stderr, "==> ClientMessage:\n");
@@ -1808,7 +1845,7 @@ event_handler_ClientMessage(Display *dpy, XEvent *xev)
 		fprintf(stderr, "<== ClientMessage:\n");
 	}
 	if (xev->xclient.message_type == _XA_GTK_READ_RCFILES) {
-		reparse(dpy, xev->xclient.window);
+		reparse(xev->xclient.window);
 		return GDK_FILTER_REMOVE;	/* event handled */
 	}
 	return GDK_FILTER_CONTINUE;	/* event not handled */
@@ -1822,20 +1859,20 @@ client_handler(GdkXEvent *xevent, GdkEvent *event, gpointer data)
 	PTRACE(5);
 	switch (xev->type) {
 	case ClientMessage:
-		return event_handler_ClientMessage(dpy, xev);
+		return event_handler_ClientMessage(xev);
 	}
 	EPRINTF("wrong message type for handler %d\n", xev->type);
 	return GDK_FILTER_CONTINUE;	/* event not handled, continue processing */
 }
 
 static GdkFilterReturn
-handle_event(Display *dpy, XEvent *xev)
+handle_event(XEvent *xev)
 {
 	switch (xev->type) {
 	case PropertyNotify:
-		return event_handler_PropertyNotify(dpy, xev);
+		return event_handler_PropertyNotify(xev);
 	case ClientMessage:
-		return event_handler_ClientMessage(dpy, xev);
+		return event_handler_ClientMessage(xev);
 	}
 	return GDK_FILTER_CONTINUE;	/* event not handled, continue processing */
 }
@@ -1844,9 +1881,8 @@ static GdkFilterReturn
 filter_handler(GdkXEvent * xevent, GdkEvent * event, gpointer data)
 {
 	XEvent *xev = (typeof(xev)) xevent;
-	Display *dpy = data;
 
-	return handle_event(dpy, xev);
+	return handle_event(xev);
 }
 
 /** @} */
@@ -1880,14 +1916,14 @@ startup(int argc, char *argv[])
 
 	dpy = GDK_DISPLAY_XDISPLAY(disp);
 
-	gdk_window_add_filter(NULL, filter_handler, dpy);
+	gdk_window_add_filter(NULL, filter_handler, NULL);
 
 	atom = gdk_atom_intern_static_string("_XDE_THEME_NAME");
 	_XA_XDE_THEME_NAME = gdk_x11_atom_to_xatom_for_display(disp, atom);
 
 	atom = gdk_atom_intern_static_string("_GTK_READ_RCFILES");
 	_XA_GTK_READ_RCFILES = gdk_x11_atom_to_xatom_for_display(disp, atom);
-	gdk_display_add_client_message_filter(disp, atom, client_handler, dpy);
+	gdk_display_add_client_message_filter(disp, atom, client_handler, NULL);
 
 	atom = gdk_atom_intern_static_string("_NET_CURRENT_DESKTOP");
 	_XA_NET_CURRENT_DESKTOP = gdk_x11_atom_to_xatom_for_display(disp, atom);
@@ -1931,7 +1967,7 @@ startup(int argc, char *argv[])
 	mask |= GDK_PROPERTY_CHANGE_MASK | GDK_STRUCTURE_MASK | GDK_SUBSTRUCTURE_MASK;
 	gdk_window_set_events(root, mask);
 
-	reparse(dpy, GDK_WINDOW_XID(root));
+	reparse(GDK_WINDOW_XID(root));
 
 	wnck_set_client_type(WNCK_CLIENT_TYPE_PAGER);
 }
@@ -2313,7 +2349,7 @@ main(int argc, char *argv[])
 		c = getopt(argc, argv, "d:s:pb:T:w:W:O:D:vhVCH?");
 #endif				/* _GNU_SOURCE */
 		if (c == -1) {
-			if (options.debug)
+			if (options.debug > 0)
 				fprintf(stderr, "%s: done options processing\n", argv[0]);
 			break;
 		}

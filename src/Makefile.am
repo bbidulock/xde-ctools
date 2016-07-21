@@ -17,6 +17,7 @@ bin_PROGRAMS = \
 	xde-run \
 	xde-select \
 	xde-setbg \
+	xde-tasks \
 	xde-winlist \
 	xde-winmenu \
 	xde-wkspmenu
@@ -86,6 +87,11 @@ xde_setbg_CPPFLAGS = -DNAME=\"xde-setbg\"
 xde_setbg_SOURCES = xde-setbg.c
 xde_setbg_CFLAGS = $(AM_CFLAGS) $(NOTIFY_CFLAGS) $(ICE_CFLAGS) $(SMLIB_CFLAGS) $(SN_CFLAGS)
 xde_setbg_LDFLAGS = $(SN_LIBS) $(SMLIB_LIBS) $(ICE_LIBS) $(NOTIFY_LIBS) $(AM_LDFLAGS)
+
+xde_tasks_CPPFLAGS = -DNAME=\"xde-tasks\"
+xde_tasks_SOURCES = xde-tasks.c
+xde_tasks_CFLAGS = $(AM_CFLAGS) $(NOTIFY_CFLAGS) $(ICE_CFLAGS) $(SMLIB_CFLAGS) $(SN_CFLAGS)
+xde_tasks_LDFLAGS = $(SN_LIBS) $(SMLIB_LIBS) $(ICE_LIBS) $(NOTIFY_LIBS) $(AM_LDFLAGS)
 
 xde_winlist_CPPFLAGS = -DNAME=\"xde-winlist\"
 xde_winlist_SOURCES = xde-winlist.c

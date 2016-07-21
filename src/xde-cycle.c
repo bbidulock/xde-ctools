@@ -42,6 +42,9 @@
 
  *****************************************************************************/
 
+/** @section Headers
+  * @{ */
+
 #ifndef _XOPEN_SOURCE
 #define _XOPEN_SOURCE 600
 #endif
@@ -109,6 +112,7 @@
 #include <glib-unix.h>
 #include <gdk/gdkx.h>
 #include <gdk-pixbuf/gdk-pixbuf.h>
+#include <gdk/gdkkeysyms.h>
 #include <gtk/gtk.h>
 #include <cairo.h>
 
@@ -120,6 +124,11 @@
 #ifdef _GNU_SOURCE
 #include <getopt.h>
 #endif
+
+/** @} */
+
+/** @section Preamble
+  * @{ */
 
 #define XPRINTF(_args...) do { } while (0)
 
@@ -179,6 +188,11 @@ static char **saveArgv;
 
 #define USRDFLT "%s/.config/" RESNAME "/rc"
 #define APPDFLT "/usr/share/X11/app-defaults/" RESCLAS
+
+/** @} */
+
+/** @section Globals and Structures
+  * @{ */
 
 static Atom _XA_XDE_THEME_NAME;
 static Atom _XA_GTK_READ_RCFILES;
@@ -252,6 +266,11 @@ typedef enum {
 } PopupType;
 
 typedef struct {
+	int mask, x, y;
+	unsigned int w, h;
+} XdeGeometry;
+
+typedef struct {
 	int debug;
 	int output;
 	char *display;
@@ -265,11 +284,7 @@ typedef struct {
 	Time timestamp;
 	UseScreen which;
 	MenuPosition where;
-	struct {
-		int value;
-		int sign;
-	} x, y;
-	unsigned int w, h;
+	XdeGeometry geom;
 	WindowOrder order;
 	char *filename;
 	Bool replace;
@@ -280,6 +295,7 @@ typedef struct {
 	Bool cycle;
 	Bool hidden;
 	Bool minimized;
+	Bool normal;
 	Bool monitors;
 	Bool workspaces;
 	Bool activate;
@@ -315,16 +331,13 @@ Options options = {
 	.timestamp = CurrentTime,
 	.which = UseScreenDefault,
 	.where = PositionDefault,
-	.x = {
-	      .value = 0,
-	      .sign = 1,
-	      },
-	.y = {
-	      .value = 0,
-	      .sign = 1,
-	      },
-	.w = 0,
-	.h = 0,
+	.geom = {
+		.mask = 0,
+		.x = 0,
+		.y = 0,
+		.w = 0,
+		.h = 0,
+	},
 	.order = WindowOrderDefault,
 	.filename = NULL,
 	.replace = False,
@@ -335,6 +348,7 @@ Options options = {
 	.cycle = False,
 	.hidden = False,
 	.minimized = False,
+	.normal = False,
 	.monitors = False,
 	.workspaces = False,
 	.activate = True,
@@ -345,11 +359,11 @@ Options options = {
 	.saveFile = NULL,
 	.dryrun = False,
 	.show = {
-		 .pager = False,
-		 .tasks = False,
+		 .pager = True,
+		 .tasks = True,
 		 .cycle = True,
-		 .setbg = False,
-		 .start = False,
+		 .setbg = True,
+		 .start = True,
 		 },
 };
 
@@ -506,6 +520,11 @@ struct XdeScreen {
 
 XdeScreen *screens = NULL;		/* array of screens */
 
+/** @} */
+
+/** @section Deferred Actions
+  * @{ */
+
 static void refresh_layout(XdeScreen *xscr);
 static void refresh_desktop(XdeScreen *xscr);
 static void refresh_monitor(XdeMonitor *xmon);
@@ -568,6 +587,270 @@ add_deferred_refresh_monitor(XdeMonitor *xmon)
 		return;
 	xmon->deferred.refresh_monitor = g_idle_add(deferred_refresh_monitor, xmon);
 }
+
+/** @} */
+
+/** @section Finding Screens and Monitors
+  * @{ */
+
+/** @brief find the specified screen
+  * 
+  * Either specified with options.screen, or if the DISPLAY environment variable
+  * specifies a screen, use that screen; otherwise, return NULL.
+  */
+static XdeScreen *
+find_specific_screen()
+{
+	XdeScreen *xscr = NULL;
+	int nscr = gdk_display_get_n_screens(disp);
+
+	if (0 <= options.screen && options.screen < nscr)
+		/* user specified a valid screen number */
+		xscr = screens + options.screen;
+	return (xscr);
+}
+
+/** @brief find the screen of window with the focus
+  */
+static XdeScreen *
+find_focus_screen()
+{
+	XdeScreen *xscr = NULL;
+	GdkScreen *scrn;
+	GdkWindow *win;
+	Window focus = None;
+	int revert_to;
+
+	XGetInputFocus(dpy, &focus, &revert_to);
+	if (focus != PointerRoot && focus != None) {
+		win = gdk_x11_window_foreign_new_for_display(disp, focus);
+		if (win) {
+			scrn = gdk_window_get_screen(win);
+			if (scrn)
+				xscr = screens + gdk_screen_get_number(scrn);
+			g_object_unref(win);
+		}
+	}
+	return (xscr);
+}
+
+static XdeScreen *
+find_pointer_screen()
+{
+	XdeScreen *xscr = NULL;
+	GdkScreen *scrn = NULL;
+
+	gdk_display_get_pointer(disp, &scrn, NULL, NULL, NULL);
+	if (scrn)
+		xscr = screens + gdk_screen_get_number(scrn);
+	return (xscr);
+}
+
+static XdeScreen *
+find_screen()
+{
+	XdeScreen *xscr = NULL;
+
+	if ((xscr = find_specific_screen()))
+		return (xscr);
+	switch (options.which) {
+	case UseScreenDefault:
+		if (options.button) {
+			if ((xscr = find_pointer_screen()))
+				return (xscr);
+			if ((xscr = find_focus_screen()))
+				return (xscr);
+		} else {
+			if ((xscr = find_focus_screen()))
+				return (xscr);
+			if ((xscr = find_pointer_screen()))
+				return (xscr);
+		}
+		break;
+	case UseScreenActive:
+		break;
+	case UseScreenFocused:
+		if ((xscr = find_focus_screen()))
+			return (xscr);
+		break;
+	case UseScreenPointer:
+		if ((xscr = find_pointer_screen()))
+			return (xscr);
+		break;
+	case UseScreenSpecified:
+		break;
+	}
+
+	if (!xscr)
+		xscr = screens;
+	return (xscr);
+}
+
+/** @} */
+
+/** @section Menu Positioning
+  * @{ */
+
+static gboolean
+position_pointer(GtkMenu *menu, WnckScreen *scrn, gint *x, gint *y)
+{
+	gdk_display_get_pointer(disp, NULL, x, y, NULL);
+	return TRUE;
+}
+
+static gboolean
+position_center_monitor(GtkMenu *menu, WnckScreen *scrn, gint *x, gint *y)
+{
+	GdkScreen *scr;
+	GdkRectangle rect;
+	gint px, py, nmon;
+	GtkRequisition req;
+
+	PTRACE(5);
+	gdk_display_get_pointer(disp, &scr, &px, &py, NULL);
+	nmon = gdk_screen_get_monitor_at_point(scr, px, py);
+	gdk_screen_get_monitor_geometry(scr, nmon, &rect);
+	gtk_widget_get_requisition(GTK_WIDGET(menu), &req);
+
+	*x = rect.x + (rect.width - req.width) / 2;
+	*y = rect.y + (rect.height - req.height) / 2;
+
+	return TRUE;
+}
+
+static gboolean
+position_topleft_workarea(GtkMenu *menu, WnckScreen *scrn, gint *x, gint *y)
+{
+#if 1
+	WnckWorkspace *wkspc;
+
+	wkspc = wnck_screen_get_active_workspace(scrn);
+	*x = wnck_workspace_get_viewport_x(wkspc);
+	*y = wnck_workspace_get_viewport_y(wkspc);
+#else
+	GdkScreen *scr;
+	GdkRectangle rect;
+	gint px, py, nmon;
+
+	PTRACE(5);
+	gdk_display_get_pointer(disp, &scr, &px, &py, NULL);
+	nmon = gdk_screen_get_monitor_at_point(scr, px, py);
+	gdk_screen_get_monitor_geometry(scr, nmon, &rect);
+
+	*x = rect.x;
+	*y = rect.y;
+#endif
+
+	return TRUE;
+}
+
+static gboolean
+position_bottomright_workarea(GtkMenu *menu, WnckScreen *scrn, gint *x, gint *y)
+{
+#if 1
+	WnckWorkspace *wkspc;
+	GtkRequisition req;
+
+	wkspc = wnck_screen_get_active_workspace(scrn);
+	gtk_widget_get_requisition(GTK_WIDGET(menu), &req);
+	*x = wnck_workspace_get_viewport_x(wkspc) +
+		wnck_workspace_get_width(wkspc) - req.width;
+	*y = wnck_workspace_get_viewport_y(wkspc) +
+		wnck_workspace_get_height(wkspc) - req.height;
+#else
+	GdkScreen *scrn;
+	GdkRectangle rect;
+	gint px, py, nmon;
+	GtkRequisition req;
+
+	PTRACE(5);
+	gdk_display_get_pointer(disp, &scrn, &px, &py, NULL);
+	nmon = gdk_screen_get_monitor_at_point(scrn, px, py);
+	gdk_screen_get_monitor_geometry(scrn, nmon, &rect);
+	gtk_widget_get_requisition(GTK_WIDGET(menu), &req);
+
+	*x = rect.x + rect.width - req.width;
+	*y = rect.y + rect.height - req.height;
+#endif
+
+	return TRUE;
+}
+
+static gboolean
+position_specified(GtkMenu *menu, WnckScreen *scrn, gint *x, gint *y)
+{
+	int x1, y1, sw, sh;
+
+	sw = wnck_screen_get_width(scrn);
+	sh = wnck_screen_get_height(scrn);
+
+	x1 = (options.geom.mask & XNegative) ? sw - options.geom.x : options.geom.x;
+	y1 = (options.geom.mask & YNegative) ? sh - options.geom.y : options.geom.y;
+
+	if (!(options.geom.mask & (WidthValue | HeightValue))) {
+		*x = x1;
+		*y = y1;
+	} else {
+		GtkRequisition req;
+		int x2, y2;
+
+		gtk_widget_size_request(GTK_WIDGET(menu), &req);
+		x2 = x1 + options.geom.w;
+		y2 = y1 + options.geom.h;
+
+		if (x1 + req.width < sw)
+			*x = x1;
+		else if (x2 - req.width > 0)
+			*x = x2 - req.width;
+		else
+			*x = 0;
+
+		if (y2 + req.height < sh)
+			*y = y2;
+		else if (y1 - req.height > 0)
+			*y = y1 - req.height;
+		else
+			*y = 0;
+	}
+	return TRUE;
+}
+
+void
+position_menu(GtkMenu *menu, gint *x, gint *y, gboolean *push_in, gpointer user_data)
+{
+	WnckScreen *scrn = user_data;
+
+	*push_in = FALSE;
+	if (options.button) {
+		position_pointer(menu, scrn, x, y);
+		return;
+	}
+	switch (options.where) {
+	case PositionDefault:
+		position_center_monitor(menu, scrn, x, y);
+		break;
+	case PositionPointer:
+		position_pointer(menu, scrn, x, y);
+		break;
+	case PositionCenter:
+		position_center_monitor(menu, scrn, x, y);
+		break;
+	case PositionTopLeft:
+		position_topleft_workarea(menu, scrn, x, y);
+		break;
+	case PositionBottomRight:
+		position_bottomright_workarea(menu, scrn, x, y);
+		break;
+	case PositionSpecified:
+		position_specified(menu, scrn, x, y);
+		break;
+	}
+}
+
+/** @} */
+
+/** @section Background Theme Handling
+  * @{ */
 
 void
 xde_pixmap_ref(XdePixmap *pixmap)
@@ -1299,6 +1582,8 @@ get_sequence_pixbuf(Sequence *seq)
 		g_object_unref(G_OBJECT(gicon));
 	return (pixbuf);
 }
+
+/** @} */
 
 /** @section Popup Window Event Handlers
   * @{ */
@@ -2554,9 +2839,10 @@ put_nc_resource(XrmDatabase xrdb, const char *prefix, const char *resource, cons
 }
 
 void
-put_resource(XrmDatabase xrdb, const char *resource, const char *value)
+put_resource(XrmDatabase xrdb, const char *resource, char *value)
 {
 	put_nc_resource(xrdb, RESCLAS, resource, value);
+	g_free(value);
 }
 
 char *
@@ -2661,6 +2947,81 @@ putXrmString(const char *string)
 	return g_strdup(string);
 }
 
+char *
+putXrmWhich(UseScreen which, int screen)
+{
+	switch (which) {
+	case UseScreenDefault:
+		return g_strdup("default");
+	case UseScreenActive:
+		return g_strdup("active");
+	case UseScreenFocused:
+		return g_strdup("focused");
+	case UseScreenPointer:
+		return g_strdup("pointer");
+	case UseScreenSpecified:
+		return putXrmInt(screen);
+	}
+	return (NULL);
+}
+
+char *
+putXrmXGeometry(XdeGeometry *geom)
+{
+	char *wh = NULL, *xy = NULL, *result = NULL;
+
+	if (geom->mask & (WidthValue | HeightValue))
+		wh = g_strdup_printf("%ux%u", geom->w, geom->h);
+	if (geom->mask & (XValue | YValue))
+		xy = g_strdup_printf("%c%d%c%d",
+				     (geom->mask & XNegative) ? '-' : '+', geom->x,
+				     (geom->mask & YNegative) ? '-' : '+', geom->y);
+	if (wh && xy) {
+		result = g_strconcat(wh, xy, NULL);
+		g_free(wh);
+		g_free(xy);
+	} else if (wh) {
+		result = wh;
+	} else if (xy) {
+		result = xy;
+	}
+	return (result);
+}
+
+char *
+putXrmWhere(MenuPosition where, XdeGeometry *geom)
+{
+	switch (where) {
+	case PositionDefault:
+		return g_strdup("default");
+	case PositionCenter:
+		return g_strdup("center");
+	case PositionTopLeft:
+		return g_strdup("pointer");
+	case PositionPointer:
+		return g_strdup("topleft");
+	case PositionBottomRight:
+		return g_strdup("bottomright");
+	case PositionSpecified:
+		return putXrmXGeometry(geom);
+	}
+	return (NULL);
+}
+
+char *
+putXrmOrder(WindowOrder order)
+{
+	switch (order) {
+	case WindowOrderDefault:
+		return g_strdup("default");
+	case WindowOrderClient:
+		return g_strdup("client");
+	case WindowOrderStacking:
+		return g_strdup("stacking");
+	}
+	return (NULL);
+}
+
 void
 put_resources(void)
 {
@@ -2674,41 +3035,46 @@ put_resources(void)
 		DPRINTF(1, "no resource manager database allocated\n");
 		return;
 	}
-	if ((val = putXrmInt(options.debug))) {
+	if ((val = putXrmInt(options.debug)))
 		put_resource(rdb, "debug", val);
-		g_free(val);
-	}
-	if ((val = putXrmInt(options.output))) {
+	if ((val = putXrmInt(options.output)))
 		put_resource(rdb, "output", val);
-		g_free(val);
-	}
 	/* put a bunch of resources */
-	if ((val = putXrmBool(options.trayicon))) {
+	if ((val = putXrmBool(options.trayicon)))
 		put_resource(rdb, "trayIcon", val);
-		g_free(val);
-	}
-	if ((val = putXrmTime(options.timeout))) {
+	if ((val = putXrmTime(options.timeout)))
 		put_resource(rdb, "timeout", val);
-		g_free(val);
-	}
-	if ((val = putXrmInt(options.border))) {
+	if ((val = putXrmInt(options.border)))
 		put_resource(rdb, "border", val);
-		g_free(val);
-	}
+
+	if ((val = putXrmWhich(options.which, options.screen)))
+		put_resource(rdb, "which", val);
+	if ((val = putXrmWhere(options.where, &options.geom)))
+		put_resource(rdb, "where", val);
+	if ((val = putXrmOrder(options.order)))
+		put_resource(rdb, "order", val);
+	if ((val = putXrmString(options.keys)))
+		put_resource(rdb, "keys", val);
+	if ((val = putXrmBool(options.cycle)))
+		put_resource(rdb, "cycle", val);
+	if ((val = putXrmBool(options.normal)))
+		put_resource(rdb, "normal", val);
+	if ((val = putXrmBool(options.minimized)))
+		put_resource(rdb, "minimized", val);
+	if ((val = putXrmBool(options.monitors)))
+		put_resource(rdb, "allMonitors", val);
+	if ((val = putXrmBool(options.workspaces)))
+		put_resource(rdb, "allWorkspaces", val);
+	if ((val = putXrmBool(options.activate)))
+		put_resource(rdb, "activate", val);
+	if ((val = putXrmBool(options.raise)))
+		put_resource(rdb, "raise", val);
+	if ((val = putXrmBool(options.restore)))
+		put_resource(rdb, "restore", val);
 
 	XrmPutFileDatabase(rdb, usrdb);
 	XrmDestroyDatabase(rdb);
 	return;
-}
-
-/** @} */
-
-/** @section Putting Key File
-  * @{ */
-
-void
-put_keyfile(void)
-{
 }
 
 /** @} */
@@ -2920,6 +3286,93 @@ getXrmString(const char *val, char **string)
 	return False;
 }
 
+Bool
+getXrmWhich(const char *val, UseScreen *which, int *screen)
+{
+	if (!strcasecmp(val, "default")) {
+		*which = UseScreenDefault;
+		return True;
+	}
+	if (!strcasecmp(val, "active")) {
+		*which = UseScreenActive;
+		return True;
+	}
+	if (!strcasecmp(val, "focused")) {
+		*which = UseScreenFocused;
+		return True;
+	}
+	if (!strcasecmp(val, "pointer")) {
+		*which = UseScreenPointer;
+		return True;
+	}
+	if (getXrmInt(val, screen)) {
+		*which = UseScreenSpecified;
+		return True;
+	}
+	return False;
+}
+
+Bool
+getXrmXGeometry(const char *val, XdeGeometry *geom)
+{
+	int mask, x = 0, y = 0;
+	unsigned int w = 0, h = 0;
+
+	mask = XParseGeometry(val, &x, &y, &w, &h);
+	if (!(mask & XValue) || !(mask & YValue))
+		return False;
+	geom->mask = mask;
+	geom->x = x;
+	geom->y = y;
+	geom->w = w;
+	geom->h = h;
+	return True;
+}
+
+Bool
+getXrmWhere(const char *val, MenuPosition *where, XdeGeometry *geom)
+{
+	if (!strcasecmp(val, "default")) {
+		*where = PositionDefault;
+		return True;
+	}
+	if (!strcasecmp(val, "center")) {
+		*where = PositionCenter;
+		return True;
+	}
+	if (!strcasecmp(val, "topleft")) {
+		*where = PositionTopLeft;
+		return True;
+	}
+	if (!strcasecmp(val, "bottomright")) {
+		*where = PositionBottomRight;
+		return True;
+	}
+	if (getXrmXGeometry(val, geom)) {
+		*where = PositionSpecified;
+		return True;
+	}
+	return False;
+}
+
+Bool
+getXrmOrder(const char *val, WindowOrder *order)
+{
+	if (!strcasecmp(val, "default")) {
+		*order = WindowOrderDefault;
+		return True;
+	}
+	if (!strcasecmp(val, "client")) {
+		*order = WindowOrderClient;
+		return True;
+	}
+	if (!strcasecmp(val, "stacking")) {
+		*order = WindowOrderStacking;
+		return True;
+	}
+	return False;
+}
+
 void
 get_resources(int argc, char *argv[])
 {
@@ -2940,9 +3393,13 @@ get_resources(int argc, char *argv[])
 			DPRINTF(1, "no resource manager database allocated\n");
 		XCloseDisplay(dpy);
 	}
+	if (options.filename)
+		if (!XrmCombineFileDatabase(options.filename, &rdb, False))
+			DPRINTF(1, "could not open rcfile %s\n", options.filename);
 	usrdflt = g_strdup_printf(USRDFLT, getenv("HOME"));
-	if (!XrmCombineFileDatabase(usrdflt, &rdb, False))
-		DPRINTF(1, "could not open rcfile %s\n", usrdflt);
+	if (!options.filename || strcmp(options.filename, usrdflt))
+		if (!XrmCombineFileDatabase(usrdflt, &rdb, False))
+			DPRINTF(1, "could not open rcfile %s\n", usrdflt);
 	g_free(usrdflt);
 	if (!XrmCombineFileDatabase(APPDFLT, &rdb, False))
 		DPRINTF(1, "could not open rcfile %s\n", APPDFLT);
@@ -2952,7 +3409,7 @@ get_resources(int argc, char *argv[])
 	}
 	if ((val = get_resource(rdb, "debug", "0")))
 		getXrmInt(val, &options.debug);
-	if ((val = get_resource(rdb, "output", "1")))
+	if ((val = get_resource(rdb, "verbose", "1")))
 		getXrmInt(val, &options.output);
 	/* get a bunch of resources */
 	if ((val = get_resource(rdb, "trayIcon", NULL)))
@@ -2962,17 +3419,32 @@ get_resources(int argc, char *argv[])
 	if ((val = get_resource(rdb, "border", "5")))
 		getXrmInt(val, &options.border);
 
+	if ((val = get_resource(rdb, "which", "default")))
+		getXrmWhich(val, &options.which, &options.screen);
+	if ((val = get_resource(rdb, "where", "default")))
+		getXrmWhere(val, &options.where, &options.geom);
+	if ((val = get_resource(rdb, "order", "default")))
+		getXrmOrder(val, &options.order);
+	if ((val = get_resource(rdb, "keys", NULL)))
+		getXrmString(val, &options.keys);
+	if ((val = get_resource(rdb, "cycle", "false")))
+		getXrmBool(val, &options.cycle);
+	if ((val = get_resource(rdb, "normal", "false")))
+		getXrmBool(val, &options.normal);
+	if ((val = get_resource(rdb, "minimized", "false")))
+		getXrmBool(val, &options.minimized);
+	if ((val = get_resource(rdb, "allMonitors", "false")))
+		getXrmBool(val, &options.monitors);
+	if ((val = get_resource(rdb, "allWorkspaces", "false")))
+		getXrmBool(val, &options.workspaces);
+	if ((val = get_resource(rdb, "activate", "true")))
+		getXrmBool(val, &options.activate);
+	if ((val = get_resource(rdb, "raise", "false")))
+		getXrmBool(val, &options.raise);
+	if ((val = get_resource(rdb, "restore", "false")))
+		getXrmBool(val, &options.restore);
+
 	XrmDestroyDatabase(rdb);
-}
-
-/** @} */
-
-/** @section Getting Key File
-  * @{ */
-
-void
-get_keyfile(void)
-{
 }
 
 /** @} */
@@ -3229,98 +3701,33 @@ window_manager_changed(WnckScreen *wnck, gpointer user)
 }
 
 static void
-something_changed(XdeScreen *xscr, XdePopup *xpop)
-{
-	show_popup(xscr, xpop, TRUE, TRUE);
-}
-
-static void
 workspace_destroyed(WnckScreen *wnck, WnckWorkspace *space, gpointer data)
 {
-	XdeScreen *xscr = data;
-	int i;
-
-	if (xscr->goodwm)
-		for (i = 0; i < xscr->nmon; i++) {
-			if (options.show.pager)
-				something_changed(xscr, &xscr->mons[i].pager);
-#if 0
-			if (options.show.setbg)
-				something_changed(xscr, &xscr->mons[i].setbg);
-#endif
-		}
+	/* pager can handle this on its own */
 }
 
 static void
 workspace_created(WnckScreen *wnck, WnckWorkspace *space, gpointer data)
 {
-#if 0
-	XdeScreen *xscr = data;
-	int i;
-
-	if (xscr->goodwm)
-		for (i = 0; i < xscr->nmon; i++) {
-			if (options.show.pager)
-				something_changed(xscr, &xscr->mons[i].pager);
-#if 0
-			if (options.show.setbg)
-				something_changed(xscr, &xscr->mons[i].setbg);
-#endif
-		}
-#endif
+	/* pager can handle this on its own */
 }
 
 static void
 viewports_changed(WnckScreen *wnck, gpointer data)
 {
-	XdeScreen *xscr = data;
-	int i;
-
-	if (xscr->goodwm)
-		for (i = 0; i < xscr->nmon; i++) {
-			if (options.show.pager)
-				something_changed(xscr, &xscr->mons[i].pager);
-#if 0
-			if (options.show.setbg)
-				something_changed(xscr, &xscr->mons[i].setbg);
-#endif
-		}
+	/* pager can handle this on its own */
 }
 
 static void
 background_changed(WnckScreen *wnck, gpointer data)
 {
-#if 0
-	XdeScreen *xscr = data;
-	int i;
-
-	if (xscr->goodwm)
-		for (i = 0; i < xscr->nmon; i++) {
-			if (options.show.pager)
-				something_changed(xscr, &xscr->mons[i].pager);
-#if 0
-			if (options.show.setbg)
-				something_changed(xscr, &xscr->mons[i].setbg);
-#endif
-		}
-#endif
+	/* XXX: might have setbg do something here */
 }
 
 static void
 active_workspace_changed(WnckScreen *wnck, WnckWorkspace *prev, gpointer data)
 {
-	XdeScreen *xscr = data;
-	int i;
-
-	if (xscr->goodwm)
-		for (i = 0; i < xscr->nmon; i++) {
-			if (options.show.pager)
-				something_changed(xscr, &xscr->mons[i].pager);
-#if 0
-			if (options.show.setbg)
-				something_changed(xscr, &xscr->mons[i].setbg);
-#endif
-		}
+	/* XXX: should be handled by update_current_desktop */
 }
 
 /** @} */
@@ -3362,13 +3769,6 @@ workspace_changed(WnckWindow *window, gpointer xscr)
 
 /** @section Window Events
   * @{ */
-
-static void
-windows_changed(XdeScreen *xscr, XdePopup *xpop)
-{
-	if (options.show.cycle)
-		show_popup(xscr, xpop, TRUE, TRUE);
-}
 
 static WnckWorkspace *
 same_desk(WnckScreen *wnck, WnckWindow *win1, WnckWindow *win2)
@@ -3497,7 +3897,8 @@ active_window_changed(WnckScreen *wnck, WnckWindow *prev, gpointer user)
 		}
 		return;
 	}
-	windows_changed(xscr, &xmon->cycle);
+	if (xscr->cycle)
+		show_popup(xscr, &xmon->cycle, TRUE, TRUE);
 	return;
 }
 
@@ -3821,15 +4222,19 @@ update_current_desktop(XdeScreen *xscr, Atom prop)
 	/* Third, pop the pager window. */
 	if (xscr->current != current[0]) {
 		xscr->current = current[0];
-		add_deferred_refresh_desktop(xscr);
+		if (xscr->setbg)
+			add_deferred_refresh_desktop(xscr);
 		DPRINTF(1, "Current desktop for screen %d changed.\n", xscr->index);
+		if (xscr->pager) {
+		}
 	}
-	if (xscr->mhaware) {
-		for (i = 0, xmon = xscr->mons; i < xscr->nmon; i++, xmon++) {
-			if (xmon->current != current[i + 1]) {
-				xmon->current = current[i + 1];
+	for (i = 0, xmon = xscr->mons; i < xscr->nmon; i++, xmon++) {
+		if (xmon->current != current[i + 1]) {
+			xmon->current = current[i + 1];
+			if (xscr->setbg)
 				add_deferred_refresh_monitor(xmon);
-				DPRINTF(1, "Current view for monitor %d chaged.\n", xmon->index);
+			DPRINTF(1, "Current view for monitor %d chaged.\n", xmon->index);
+			if (xscr->pager) {
 			}
 		}
 	}
@@ -4922,6 +5327,51 @@ startup(int argc, char *argv[])
 	wnck_set_client_type(WNCK_CLIENT_TYPE_PAGER);
 }
 
+XdeScreen *
+init_screens(Window selwin)
+{
+	GdkWindow *sel;
+	char selection[65] = { 0, };
+	XdeScreen *xscr;
+	int s, nscr;
+
+	nscr = gdk_display_get_n_screens(disp);
+	screens = calloc(nscr, sizeof(*screens));
+
+	sel = gdk_x11_window_foreign_new_for_display(disp, selwin);
+	gdk_window_add_filter(sel, selwin_handler, screens);
+	g_object_unref(G_OBJECT(sel));
+	gdk_window_add_filter(NULL, events_handler, NULL);
+
+	for (s = 0, xscr = screens; s < nscr; s++, xscr++) {
+		snprintf(selection, sizeof(selection), XA_SELECTION_NAME, s);
+		xscr->index = s;
+		xscr->atom = XInternAtom(dpy, selection, False);
+		xscr->scrn = gdk_display_get_screen(disp, s);
+		xscr->root = gdk_screen_get_root_window(xscr->scrn);
+		xscr->selwin = selwin;
+		xscr->width = gdk_screen_get_width(xscr->scrn);
+		xscr->height = gdk_screen_get_height(xscr->scrn);
+#ifdef STARTUP_NOTIFICATION
+		xscr->ctx = sn_monitor_context_new(sn_dpy, s, &sn_handler, xscr, NULL);
+#endif
+		gdk_window_add_filter(xscr->root, root_handler, xscr);
+		init_wnck(xscr);
+		init_monitors(xscr);
+		if (options.proxy)
+			setup_button_proxy(xscr);
+		if (options.show.setbg)
+			update_root_pixmap(xscr, None);
+		update_layout(xscr, None);
+		update_current_desktop(xscr, None);
+		update_theme(xscr, None);
+		update_active_window(xscr, None);
+		update_client_list(xscr, None);
+	}
+	xscr = find_screen();
+	return (xscr);
+}
+
 Window
 get_desktop_layout_selection(XdeScreen *xscr)
 {
@@ -5050,11 +5500,9 @@ static void
 do_run(int argc, char *argv[], Bool replace)
 {
 	GdkScreen *scrn = gdk_display_get_default_screen(disp);
-	GdkWindow *root = gdk_screen_get_root_window(scrn), *sel;
-	char selection[65] = { 0, };
+	GdkWindow *root = gdk_screen_get_root_window(scrn);
 	Window selwin, owner, broadcast = GDK_WINDOW_XID(root);
 	XdeScreen *xscr;
-	int s, nscr;
 
 	PTRACE(5);
 	selwin = XCreateSimpleWindow(dpy, broadcast, 0, 0, 1, 1, 0, 0, 0);
@@ -5066,8 +5514,10 @@ do_run(int argc, char *argv[], Bool replace)
 				EPRINTF("%s: instance already running\n", NAME);
 				exit(EXIT_FAILURE);
 			}
-			scrn = gdk_display_get_screen(disp, options.screen);
-			root = gdk_screen_get_root_window(scrn);
+			if (options.screen >= 0) {
+				scrn = gdk_display_get_screen(disp, options.screen);
+				root = gdk_screen_get_root_window(scrn);
+			}
 			broadcast = GDK_WINDOW_XID(root);
 			if (options.editor) {
 				XEvent ev = { 0, };
@@ -5115,49 +5565,15 @@ do_run(int argc, char *argv[], Bool replace)
 	oldhandler = XSetErrorHandler(handler);
 	oldiohandler = XSetIOErrorHandler(iohandler);
 
-	nscr = gdk_display_get_n_screens(disp);
-	screens = calloc(nscr, sizeof(*screens));
+	xscr = init_screens(selwin);
 
-	sel = gdk_x11_window_foreign_new_for_display(disp, selwin);
-	gdk_window_add_filter(sel, selwin_handler, screens);
-	gdk_window_add_filter(NULL, events_handler, NULL);
-
-	for (s = 0, xscr = screens; s < nscr; s++, xscr++) {
-		snprintf(selection, sizeof(selection), XA_SELECTION_NAME, s);
-		xscr->index = s;
-		xscr->atom = XInternAtom(dpy, selection, False);
-		xscr->scrn = gdk_display_get_screen(disp, s);
-		xscr->root = gdk_screen_get_root_window(xscr->scrn);
-		xscr->selwin = selwin;
-		xscr->width = gdk_screen_get_width(xscr->scrn);
-		xscr->height = gdk_screen_get_height(xscr->scrn);
-#ifdef STARTUP_NOTIFICATION
-		xscr->ctx = sn_monitor_context_new(sn_dpy, s, &sn_handler, xscr, NULL);
-#endif
-		gdk_window_add_filter(xscr->root, root_handler, xscr);
-		init_wnck(xscr);
-		init_monitors(xscr);
-		if (options.proxy)
-			setup_button_proxy(xscr);
-		if (options.show.setbg)
-			update_root_pixmap(xscr, None);
-		update_layout(xscr, None);
-		update_current_desktop(xscr, None);
-		update_theme(xscr, None);
-		update_active_window(xscr, None);
-		update_client_list(xscr, None);
-	}
 	g_unix_signal_add(SIGTERM, &term_signal_handler, NULL);
 	g_unix_signal_add(SIGINT, &int_signal_handler, NULL);
 	g_unix_signal_add(SIGHUP, &hup_signal_handler, NULL);
-	if (options.trayicon) {
-		xscr = screens + options.screen;
+	if (options.trayicon)
 		show_stray(xscr);
-	}
-	if (options.editor) {
-		xscr = screens + options.screen;
+	if (options.editor)
 		edit_input(xscr);
-	}
 	gtk_main();
 }
 
@@ -5327,9 +5743,10 @@ show_where(MenuPosition where)
 	case PositionBottomRight:
 		return ("bottomright");
 	case PositionSpecified:
-		snprintf(position, sizeof(position), "%ux%u%c%d%c%d", options.w, options.h,
-			 (options.x.sign < 0) ? '-' : '+', options.x.value,
-			 (options.y.sign < 0) ? '-' : '+', options.y.value);
+		snprintf(position, sizeof(position), "%ux%u%c%d%c%d",
+			 options.geom.w, options.geom.h,
+			 (options.geom.mask & XNegative) ? '-' : '+', options.geom.x,
+			 (options.geom.mask & YNegative) ? '-' : '+', options.geom.y);
 		return (position);
 	}
 	return NULL;
@@ -5402,20 +5819,22 @@ Options:\n\
         respond to button proxy [default: %21$s]\n\
     -c, --cycle\n\
         show a window cycle list [default: %24$s]\n\
+    --normal\n\
+        list normal windows as well [default: %25$s]\n\
     --hidden\n\
-        list hidden windows as well [default: %25$s]\n\
+        list hidden windows as well [default: %26$s]\n\
     --minimized\n\
-        list minimized windows as well [default: %26$s]\n\
+        list minimized windows as well [default: %27$s]\n\
     --all-monitors\n\
-        list windows on all monitors [deefault: %27$s]\n\
+        list windows on all monitors [deefault: %28$s]\n\
     --all-workspaces\n\
-        list windows on all workspaces [default: %28$s]\n\
+        list windows on all workspaces [default: %29$s]\n\
     -n, --noactivate\n\
-        do not activate windows [default: %29$s]\n\
+        do not activate windows [default: %30$s]\n\
     --raise\n\
-        raise windows when selected/cycling [default: %30$s]\n\
+        raise windows when selected/cycling [default: %31$s]\n\
     -R, --restore\n\
-        restore previous windows when cycling [default: %31$s]\n\
+        restore previous windows when cycling [default: %32$s]\n\
     -n, --dry-run\n\
         do not change anything, just report actions [default: %23$s]\n\
     -D, --debug [LEVEL]\n\
@@ -5453,6 +5872,7 @@ Session Management:\n\
 	, show_bool(options.editor)
 	, show_bool(options.dryrun)
 	, show_bool(options.cycle)
+	, show_bool(options.normal)
 	, show_bool(options.hidden)
 	, show_bool(options.minimized)
 	, show_bool(options.monitors)
@@ -5479,21 +5899,9 @@ set_defaults(void)
 	}
 	if ((p = getenv("XDE_DEBUG")))
 		options.debug = atoi(p);
-	file = g_build_filename(g_get_home_dir(), ".config", "xde", "input.ini", NULL);
+	file = g_build_filename(g_get_home_dir(), ".config", RESNAME, "rc", NULL);
 	options.filename = g_strdup(file);
 	g_free(file);
-}
-
-static int
-find_pointer_screen(void)
-{
-	return 0;		/* FIXME: write this */
-}
-
-static int
-find_focus_screen(void)
-{
-	return 0;		/* FIXME: write this */
 }
 
 static void
@@ -5511,12 +5919,8 @@ get_defaults(void)
 	if (options.screen < 0 && (p = strrchr(options.display, '.'))
 	    && (n = strspn(++p, "0123456789")) && *(p + n) == '\0')
 		options.screen = atoi(p);
-	if (options.screen < 0 && (options.editor || options.trayicon)) {
-		if (options.button)
-			options.screen = find_pointer_screen();
-		else
-			options.screen = find_focus_screen();
-	}
+	if (!options.hidden && !options.minimized)
+		options.normal = True;
 }
 
 int
@@ -5553,19 +5957,20 @@ main(int argc, char *argv[])
 			{"button",		required_argument,	NULL,	'b'},
 			{"which",		required_argument,	NULL,	'w'},
 			{"where",		required_argument,	NULL,	'W'},
-			{"order",		optional_argument,	NULL,	'O'},
+			{"order",		required_argument,	NULL,	'O'},
 
 			{"proxy",		no_argument,		NULL,	'p'},
 			{"timestamp",		required_argument,	NULL,	'T'},
-			{"key",			optional_argument,	NULL,	'k'},
+			{"key",			required_argument,	NULL,	'k'},
 
 			{"cycle",		no_argument,		NULL,	'c'},
+			{"normal",		no_argument,		NULL,	'4'},
 			{"hidden",		no_argument,		NULL,	'1'},
 			{"minimized",		no_argument,		NULL,	'm'},
 			{"all-monitors",	no_argument,		NULL,	'2'},
 			{"all-workspaces",	no_argument,		NULL,	'3'},
 			{"noactivate",		no_argument,		NULL,	'n'},
-			{"raise",		no_argument,		NULL,	'4'},
+			{"raise",		no_argument,		NULL,	'5'},
 			{"restore",		no_argument,		NULL,	'R'},
 
 			{"trayicon",		no_argument,		NULL,	'y'},
@@ -5588,7 +5993,7 @@ main(int argc, char *argv[])
 		};
 		/* *INDENT-ON* */
 
-		c = getopt_long_only(argc, argv, "d:s:M:f:t:B:PKb:w:W:O::pT:k::cmnRyeqrND::v::hVCH?", long_options, &option_index);
+		c = getopt_long_only(argc, argv, "d:s:M:f:t:B:PKb:w:W:O:pT:k:cmnRyeqrND::v::hVCH?", long_options, &option_index);
 #else				/* _GNU_SOURCE */
 		c = getopt(argc, argv, "d:s:M:f:t:B:PKb:w:W:O:pT:k:cmnRyeqrND:vhVCH?");
 #endif				/* _GNU_SOURCE */
@@ -5703,12 +6108,11 @@ main(int argc, char *argv[])
 				if (!(mask & XValue) || !(mask & YValue))
 					goto bad_option;
 				options.where = PositionSpecified;
-				options.x.value = x;
-				options.x.sign = (mask & XNegative) ? -1 : 1;
-				options.y.value = y;
-				options.y.sign = (mask & YNegative) ? -1 : 1;
-				options.w = w;
-				options.h = h;
+				options.geom.mask = mask;
+				options.geom.x = x;
+				options.geom.y = y;
+				options.geom.w = w;
+				options.geom.h = h;
 			}
 			break;
 		case 'O':	/* -O, --order ORDERTYPE */
@@ -5740,6 +6144,9 @@ main(int argc, char *argv[])
 		case 'c':	/* -c, --cycle */
 			options.cycle = True;
 			break;
+		case '4':	/* --normal */
+			options.normal = True;
+			break;
 		case '1':	/* --hidden */
 			options.hidden = True;
 			break;
@@ -5755,7 +6162,7 @@ main(int argc, char *argv[])
 		case 'n':	/* -n, --noactivate */
 			options.activate = False;
 			break;
-		case '4':	/* --raise */
+		case '5':	/* --raise */
 			options.raise = True;
 			break;
 		case 'R':	/* -R, --restore */
