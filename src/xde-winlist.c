@@ -161,16 +161,16 @@ dumpstack(const char *file, const int line, const char *func)
 #undef EXIT_FAILURE
 #undef EXIT_SYNTAXERR
 
-#define EXIT_SUCCESS    0
-#define EXIT_FAILURE    1
-#define EXIT_SYNTAXERR  2
+#define EXIT_SUCCESS	0
+#define EXIT_FAILURE	1
+#define EXIT_SYNTAXERR	2
 
 #define GTK_EVENT_STOP		TRUE
 #define GTK_EVENT_PROPAGATE	FALSE
 
 const char *program = NAME;
 
-#define XA_PREFIX               "_XDE_WINLIST"
+#define XA_PREFIX		"_XDE_WINLIST"
 #define XA_SELECTION_NAME	XA_PREFIX "_S%d"
 #define XA_NET_DESKTOP_LAYOUT	"_NET_DESKTOP_LAYOUT_S%d"
 #define LOGO_NAME		"metacity"
@@ -219,17 +219,18 @@ static Atom _XA_WIN_CLIENT_LIST;
 typedef enum {
 	CommandDefault,
 	CommandRun,
+	CommandQuit,
 	CommandHelp,
 	CommandVersion,
 	CommandCopying,
 } Command;
 
 typedef enum {
-	UseScreenDefault,               /* default screen by button */
-	UseScreenActive,                /* screen with active window */
-	UseScreenFocused,               /* screen with focused window */
-	UseScreenPointer,               /* screen with pointer */
-	UseScreenSpecified,             /* specified screen */
+	UseScreenDefault,		/* default screen by button */
+	UseScreenActive,		/* screen with active window */
+	UseScreenFocused,		/* screen with focused window */
+	UseScreenPointer,		/* screen with pointer */
+	UseScreenSpecified,		/* specified screen */
 } UseScreen;
 
 typedef enum {
@@ -288,6 +289,8 @@ typedef struct {
 	UseScreen which;
 	MenuPosition where;
 	XdeGeometry geom;
+	char *filename;
+	Bool replace;
 	WindowOrder order;
 	char *keys;
 	Bool cycle;
@@ -322,6 +325,8 @@ Options options = {
 		.w = 0,
 		.h = 0,
 	},
+	.filename = NULL,
+	.replace = False,
 	.order = WindowOrderDefault,
 	.keys = NULL,
 	.cycle = False,
@@ -1729,9 +1734,13 @@ get_resources(int argc, char *argv[])
 			DPRINTF(1, "no resource manager database allocated\n");
 		XCloseDisplay(dpy);
 	}
+	if (options.filename)
+		if (!XrmCombineFileDatabase(options.filename, &rdb, False))
+			DPRINTF(1, "could not open rcfile %s\n", options.filename);
 	usrdflt = g_strdup_printf(USRDFLT, getenv("HOME"));
-	if (!XrmCombineFileDatabase(usrdflt, &rdb, False))
-		DPRINTF(1, "could not open rcfile %s\n", usrdflt);
+	if (!options.filename || strcmp(options.filename, usrdflt))
+		if (!XrmCombineFileDatabase(usrdflt, &rdb, False))
+			DPRINTF(1, "could not open rcfile %s\n", usrdflt);
 	g_free(usrdflt);
 	if (!XrmCombineFileDatabase(APPDFLT, &rdb, False))
 		DPRINTF(1, "could not open rcfile %s\n", APPDFLT);
@@ -1776,7 +1785,7 @@ get_resources(int argc, char *argv[])
 
 /** @} */
 
-/** @section Event handlers
+/** @section X Event Handlers
   * @{ */
 
 static void
@@ -2308,6 +2317,14 @@ init_monitors(XdeScreen *xscr)
 }
 
 static void
+init_wnck(XdeScreen *xscr)
+{
+	WnckScreen *wnck = xscr->wnck = wnck_screen_get(xscr->index);
+
+	wnck_screen_force_update(wnck);
+}
+
+static void
 startup(int argc, char *argv[])
 {
 	GdkAtom atom;
@@ -2410,8 +2427,7 @@ init_screens(void)
 		xscr->width = gdk_screen_get_width(xscr->scrn);
 		xscr->height = gdk_screen_get_height(xscr->scrn);
 		gdk_window_add_filter(xscr->root, root_handler, xscr);
-		xscr->wnck = wnck_screen_get(s);
-		wnck_screen_force_update(xscr->wnck);
+		init_wnck(xscr);
 		init_monitors(xscr);
 		update_layout(xscr, None);
 		update_current_desktop(xscr, None);
@@ -2424,7 +2440,7 @@ init_screens(void)
 }
 
 static void
-do_run(int argc, char *argv[])
+do_run(int argc, char *argv[], Bool replace)
 {
 	XdeMonitor *xmon;
 	GtkWidget *menu;
@@ -2548,6 +2564,20 @@ show_bool(Bool value)
 }
 
 static const char *
+show_order(WindowOrder order)
+{
+	switch (order) {
+	case WindowOrderDefault:
+		return ("default");
+	case WindowOrderClient:
+		return ("client");
+	case WindowOrderStacking:
+		return ("stacking");
+	}
+	return NULL;
+}
+
+static const char *
 show_screen(int snum)
 {
 	static char screen[64] = { 0, };
@@ -2598,20 +2628,6 @@ show_where(MenuPosition where)
 			 (options.geom.mask & XNegative) ? '-' : '+', options.geom.x,
 			 (options.geom.mask & YNegative) ? '-' : '+', options.geom.y);
 		return (position);
-	}
-	return NULL;
-}
-
-static const char *
-show_order(WindowOrder order)
-{
-	switch (order) {
-	case WindowOrderDefault:
-		return ("default");
-	case WindowOrderClient:
-		return ("client");
-	case WindowOrderStacking:
-		return ("stacking");
 	}
 	return NULL;
 }
@@ -2717,6 +2733,7 @@ static void
 set_defaults(void)
 {
 	const char *env, *p;
+	char *file;
 	int n;
 
 	if ((env = getenv("DISPLAY"))) {
@@ -2727,6 +2744,9 @@ set_defaults(void)
 	}
 	if ((p = getenv("XDE_DEBUG")))
 		options.debug = atoi(p);
+	file = g_build_filename(g_get_home_dir(), ".config", RESNAME, "rc", NULL);
+	options.filename = strdup(file);
+	g_free(file);
 }
 
 static void
@@ -2775,6 +2795,7 @@ main(int argc, char *argv[])
 			{"monitor",		required_argument,	NULL,	'M'},
 
 			{"popup",		no_argument,		NULL,	'p'},
+			{"filename",		required_argument,	NULL,	'f'},
 			{"pointer",		no_argument,		NULL,	'P'},
 			{"keyboard",		no_argument,		NULL,	'K'},
 			{"button",		required_argument,	NULL,	'b'},
@@ -2782,8 +2803,8 @@ main(int argc, char *argv[])
 			{"where",		required_argument,	NULL,	'W'},
 			{"timestamp",		required_argument,	NULL,	'T'},
 
-			{"key",			optional_argument,	NULL,	'k'},
-			{"order",		optional_argument,	NULL,	'O'},
+			{"key",			required_argument,	NULL,	'k'},
+			{"order",		required_argument,	NULL,	'O'},
 			{"cycle",		no_argument,		NULL,	'c'},
 			{"normal",		no_argument,		NULL,	'4'},
 			{"hidden",		no_argument,		NULL,	'1'},
@@ -2806,10 +2827,10 @@ main(int argc, char *argv[])
 		};
 		/* *INDENT-ON* */
 
-		c = getopt_long_only(argc, argv, "d:s:pb:T:w:W:O:D::v::hVCH?",
+		c = getopt_long_only(argc, argv, "d:s:M:pf:PKb:w:W:T:k:O:cmnrRtND::v::hVCH?",
 				     long_options, &option_index);
 #else				/* _GNU_SOURCE */
-		c = getopt(argc, argv, "d:s:pb:T:w:W:O:D:vhVCH?");
+		c = getopt(argc, argv, "d:s:M:pf:PKb:w:W:T:k:O:cmnrRtND:vhVCH?");
 #endif				/* _GNU_SOURCE */
 		if (c == -1) {
 			if (options.debug > 0)
@@ -2844,6 +2865,10 @@ main(int argc, char *argv[])
 			if (command == CommandDefault)
 				command = CommandRun;
 			options.command = CommandRun;
+			break;
+		case 'f':	/* -f, --filename FILENAME */
+			free(options.filename);
+			options.filename = strdup(optarg);
 			break;
 		case 'K':	/* -K, --keyboard */
 			options.keyboard = True;
@@ -2938,10 +2963,8 @@ main(int argc, char *argv[])
 			break;
 
 		case 'k':	/* -k, --key [KEY1:KEY2] */
-			if (optarg) {
-				free(options.keys);
-				options.keys = strdup(optarg);
-			}
+			free(options.keys);
+			options.keys = strdup(optarg);
 			break;
 		case 'c':	/* -c, --cycle */
 			options.cycle = True;
@@ -2971,7 +2994,11 @@ main(int argc, char *argv[])
 			options.restore = True;
 			break;
 
-		case 't':	/* -t, --tooltips */
+		case '7':	/* --replace */
+			options.replace = True;
+			break;
+
+		case '6':	/* --tooltips */
 			options.tooltips = True;
 			break;
 		case 'N':	/* -N, --dry-run */
@@ -3067,7 +3094,7 @@ main(int argc, char *argv[])
 	case CommandRun:
 		DPRINTF(1, "%s: popping the menu\n", argv[0]);
 		startup(argc, argv);
-		do_run(argc, argv);
+		do_run(argc, argv, options.replace);
 		break;
 	case CommandHelp:
 		DPRINTF(1, "%s: printing help message\n", argv[0]);
