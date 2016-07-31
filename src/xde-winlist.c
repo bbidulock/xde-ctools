@@ -45,12 +45,12 @@
 /** @section Headers
   * @{ */
 
-#ifndef _XOPEN_SOURCE
-#define _XOPEN_SOURCE 600
-#endif
-
 #ifdef HAVE_CONFIG_H
 #include "autoconf.h"
+#endif
+
+#ifndef _XOPEN_SOURCE
+#define _XOPEN_SOURCE 600
 #endif
 
 #include <stddef.h>
@@ -78,12 +78,14 @@
 
 #include <assert.h>
 #include <locale.h>
+#include <langinfo.h>
 #include <stdarg.h>
 #include <strings.h>
 #include <regex.h>
 #include <wordexp.h>
 #include <execinfo.h>
 #include <math.h>
+#include <dlfcn.h>
 
 #include <X11/Xatom.h>
 #include <X11/Xlib.h>
@@ -190,40 +192,86 @@ static char **saveArgv;
 /** @section Globals and Structures
   * @{ */
 
-static Atom _XA_XDE_THEME_NAME;
 static Atom _XA_GTK_READ_RCFILES;
-static Atom _XA_NET_DESKTOP_LAYOUT;
-static Atom _XA_NET_CURRENT_DESKTOP;
-static Atom _XA_WIN_WORKSPACE;
-static Atom _XA_WM_DESKTOP;
-static Atom _XA_XROOTPMAP_ID;
-static Atom _XA_ESETROOT_PMAP_ID;
-static Atom _XA_NET_DESKTOP_NAMES;
-static Atom _XA_NET_NUMBER_OF_DESKTOPS;
-static Atom _XA_WIN_WORKSPACE_COUNT;
-// static Atom _XA_WIN_DESKTOP_BUTTON_PROXY;
-#if 0
-static Atom _XA_WIN_AREA;
-static Atom _XA_WIN_AREA_COUNT;
-#endif
+
 static Atom _XA_NET_ACTIVE_WINDOW;
 static Atom _XA_NET_CLIENT_LIST;
 static Atom _XA_NET_CLIENT_LIST_STACKING;
-static Atom _XA_WIN_FOCUS;
+static Atom _XA_NET_CURRENT_DESKTOP;
+static Atom _XA_NET_DESKTOP_LAYOUT;
+static Atom _XA_NET_DESKTOP_NAMES;
+static Atom _XA_NET_NUMBER_OF_DESKTOPS;
+
+static Atom _XA_WIN_AREA;
+static Atom _XA_WIN_AREA_COUNT;
 static Atom _XA_WIN_CLIENT_LIST;
+static Atom _XA_WIN_DESKTOP_BUTTON_PROXY;
+static Atom _XA_WIN_FOCUS;
+static Atom _XA_WIN_WORKSPACE;
+static Atom _XA_WIN_WORKSPACE_COUNT;
+
+static Atom _XA_WM_DESKTOP;
+
+static Atom _XA_ESETROOT_PMAP_ID;
+static Atom _XA_XROOTPMAP_ID;
+
+static Atom _XA_XDE_ICON_THEME_NAME;		/* XXX */
+static Atom _XA_XDE_THEME_NAME;
+static Atom _XA_XDE_WM_CLASS;
+static Atom _XA_XDE_WM_CMDLINE;
+static Atom _XA_XDE_WM_COMMAND;
+static Atom _XA_XDE_WM_ETCDIR;
+static Atom _XA_XDE_WM_HOST;
+static Atom _XA_XDE_WM_HOSTNAME;
+static Atom _XA_XDE_WM_ICCCM_SUPPORT;
+static Atom _XA_XDE_WM_ICON;
+static Atom _XA_XDE_WM_ICONTHEME;		/* XXX */
+static Atom _XA_XDE_WM_INFO;
+static Atom _XA_XDE_WM_MENU;
+static Atom _XA_XDE_WM_NAME;
+static Atom _XA_XDE_WM_NETWM_SUPPORT;
+static Atom _XA_XDE_WM_PID;
+static Atom _XA_XDE_WM_PRVDIR;
+static Atom _XA_XDE_WM_RCFILE;
+static Atom _XA_XDE_WM_REDIR_SUPPORT;
+static Atom _XA_XDE_WM_STYLE;
+static Atom _XA_XDE_WM_STYLENAME;
+static Atom _XA_XDE_WM_SYSDIR;
+static Atom _XA_XDE_WM_THEME;
+static Atom _XA_XDE_WM_THEMEFILE;
+static Atom _XA_XDE_WM_USRDIR;
+static Atom _XA_XDE_WM_VERSION;
+
+static Atom _XA_PREFIX_REFRESH;
+static Atom _XA_PREFIX_RESTART;
+static Atom _XA_PREFIX_EDITOR;
+
 #ifdef STARTUP_NOTIFICATION
-// static Atom _XA_NET_STARTUP_INFO;
-// static Atom _XA_NET_STARTUP_INFO_BEGIN;
+static Atom _XA_NET_STARTUP_INFO;
+static Atom _XA_NET_STARTUP_INFO_BEGIN;
 #endif				/* STARTUP_NOTIFICATION */
 
 typedef enum {
 	CommandDefault,
 	CommandRun,
-	CommandQuit,
-	CommandHelp,
-	CommandVersion,
-	CommandCopying,
+	CommandQuit,			/* ask running instance to quit */
+	CommandHelp,			/* print usage info and exit */
+	CommandVersion,			/* print version info and exit */
+	CommandCopying,			/* print copying info and exit */
 } Command;
+
+typedef enum {
+	StyleFullmenu,
+	StyleAppmenu,
+	StyleSubmenu,
+	StyleEntries,
+} Style;
+
+typedef enum {
+	XdeStyleSystem,
+	XdeStyleUser,
+	XdeStyleMixed,
+} Which;
 
 typedef enum {
 	UseScreenDefault,		/* default screen by button */
@@ -271,6 +319,15 @@ typedef enum {
 	OrganizeApp,
 } Organize;
 
+typedef enum {
+	PopupPager,			/* desktop pager feedback */
+	PopupTasks,			/* task list feedback */
+	PopupCycle,			/* window cycling feedback */
+	PopupSetBG,			/* workspace background feedback */
+	PopupStart,			/* startup notification feedback */
+	PopupLast,
+} PopupType;
+
 typedef struct {
 	int mask, x, y;
 	unsigned int w, h;
@@ -289,9 +346,9 @@ typedef struct {
 	UseScreen which;
 	MenuPosition where;
 	XdeGeometry geom;
+	WindowOrder order;
 	char *filename;
 	Bool replace;
-	WindowOrder order;
 	char *keys;
 	Bool cycle;
 	Bool hidden;
@@ -305,6 +362,13 @@ typedef struct {
 	Command command;
 	Bool tooltips;
 	Bool dryrun;
+	char *format;
+	char *desktop;
+	char *charset;
+	char *language;
+	char *locale;
+	char *wmname;
+	char *theme;
 } Options;
 
 Options options = {
@@ -312,6 +376,7 @@ Options options = {
 	.output = 1,
 	.display = NULL,
 	.screen = -1,
+	.monitor = 0,
 	.keyboard = False,
 	.pointer = False,
 	.button = 0,
@@ -319,15 +384,15 @@ Options options = {
 	.which = UseScreenDefault,
 	.where = PositionDefault,
 	.geom = {
-		.mask = 0,
-		.x = 0,
-		.y = 0,
-		.w = 0,
-		.h = 0,
-	},
+		 .mask = 0,
+		 .x = 0,
+		 .y = 0,
+		 .w = 0,
+		 .h = 0,
+		 },
+	.order = WindowOrderDefault,
 	.filename = NULL,
 	.replace = False,
-	.order = WindowOrderDefault,
 	.keys = NULL,
 	.cycle = False,
 	.hidden = False,
@@ -376,6 +441,7 @@ struct XdeScreen {
 	XdeMonitor *mons;		/* monitors for this screen */
 	Bool mhaware;			/* multi-head aware NetWM */
 	char *theme;			/* XDE theme name */
+	char *itheme;			/* XDE icon theme name */
 	Window selwin;			/* selection owner window */
 	Atom atom;			/* selection atom for this screen */
 	int width, height;		/* dimensions of screen */
@@ -903,7 +969,7 @@ popup_menu_new(XdeMonitor *xmon)
   * @{ */
 
 /** @brief find the specified monitor
-  * 
+  *
   * Either specified with options.screen and options.monitor, or if the DISPLAY
   * environment variable specifies a screen, use that screen; otherwise, return
   * NULL.
@@ -1071,10 +1137,8 @@ position_bottomright_workarea(GtkMenu *menu, XdeMonitor *xmon, gint *x, gint *y)
 	/* XXX: not sure this is what we want... */
 	wkspc = wnck_screen_get_active_workspace(xmon->xscr->wnck);
 	gtk_widget_get_requisition(GTK_WIDGET(menu), &req);
-	*x = wnck_workspace_get_viewport_x(wkspc) +
-		wnck_workspace_get_width(wkspc) - req.width;
-	*y = wnck_workspace_get_viewport_y(wkspc) +
-		wnck_workspace_get_height(wkspc) - req.height;
+	*x = wnck_workspace_get_viewport_x(wkspc) + wnck_workspace_get_width(wkspc) - req.width;
+	*y = wnck_workspace_get_viewport_y(wkspc) + wnck_workspace_get_height(wkspc) - req.height;
 #else
 	GdkScreen *scrn;
 	GdkRectangle rect;
@@ -1099,11 +1163,18 @@ position_specified(GtkMenu *menu, XdeMonitor *xmon, gint *x, gint *y)
 {
 	int x1, y1, sw, sh;
 
-	sw = wnck_screen_get_width(xmon->xscr->wnck);
-	sh = wnck_screen_get_height(xmon->xscr->wnck);
+	sw = xmon->xscr->width;
+	sh = xmon->xscr->height;
+	DPRINTF(1, "screen width = %d\n", sw);
+	DPRINTF(1, "screen height = %d\n", sh);
 
 	x1 = (options.geom.mask & XNegative) ? sw - options.geom.x : options.geom.x;
 	y1 = (options.geom.mask & YNegative) ? sh - options.geom.y : options.geom.y;
+
+	DPRINTF(1, "geometry x1 = %d\n", x1);
+	DPRINTF(1, "geometry y1 = %d\n", y1);
+	DPRINTF(1, "geometry w = %d\n", options.geom.w);
+	DPRINTF(1, "geometry h = %d\n", options.geom.h);
 
 	if (!(options.geom.mask & (WidthValue | HeightValue))) {
 		*x = x1;
@@ -1115,6 +1186,8 @@ position_specified(GtkMenu *menu, XdeMonitor *xmon, gint *x, gint *y)
 		gtk_widget_size_request(GTK_WIDGET(menu), &req);
 		x2 = x1 + options.geom.w;
 		y2 = y1 + options.geom.h;
+		DPRINTF(1, "geometry x2 = %d\n", x2);
+		DPRINTF(1, "geometry y2 = %d\n", y2);
 
 		if (x1 + req.width < sw)
 			*x = x1;
@@ -1130,10 +1203,11 @@ position_specified(GtkMenu *menu, XdeMonitor *xmon, gint *x, gint *y)
 		else
 			*y = 0;
 	}
+	DPRINTF(1, "placing menu at +%d+%d\n", *x, *y);
 	return TRUE;
 }
 
-static void
+void
 position_menu(GtkMenu *menu, gint *x, gint *y, gboolean *push_in, gpointer user_data)
 {
 	XdeMonitor *xmon = user_data;
@@ -1145,6 +1219,7 @@ position_menu(GtkMenu *menu, gint *x, gint *y, gboolean *push_in, gpointer user_
 	}
 	switch (options.where) {
 	case PositionDefault:
+	default:
 		position_center_monitor(menu, xmon, x, y);
 		break;
 	case PositionPointer:
@@ -1715,7 +1790,7 @@ getXrmOrder(const char *val, WindowOrder *order)
 }
 
 void
-get_resources(int argc, char *argv[])
+get_resources(void)
 {
 	XrmDatabase rdb;
 	Display *dpy;
@@ -1878,10 +1953,12 @@ update_active_window(XdeScreen *xscr, Atom prop)
 	free(window);
 }
 
+#if 1
 static void
 update_root_pixmap(XdeScreen *xscr, Atom prop)
 {
 }
+#endif
 
 static void
 update_current_desktop(XdeScreen *xscr, Atom prop)
@@ -2049,18 +2126,77 @@ update_layout(XdeScreen *xscr, Atom prop)
 }
 
 static void
+update_icon_theme(XdeScreen *xscr, Atom prop)
+{
+	Window root = RootWindow(dpy, xscr->index);
+	XTextProperty xtp = { NULL, };
+	Bool changed = False;
+	GtkSettings *set;
+
+	gtk_rc_reparse_all();
+	if (!prop || prop == _XA_GTK_READ_RCFILES)
+		prop = _XA_XDE_ICON_THEME_NAME;
+	if (XGetTextProperty(dpy, root, &xtp, prop)) {
+		char **list = NULL;
+		int strings = 0;
+
+		if (Xutf8TextPropertyToTextList(dpy, &xtp, &list, &strings) == Success) {
+			if (strings >= 1) {
+				char *rc_string;
+
+				rc_string = g_strdup_printf("gtk-icon-theme-name=\"%s\"", list[0]);
+				gtk_rc_parse_string(rc_string);
+				g_free(rc_string);
+				if (!xscr->itheme || strcmp(xscr->itheme, list[0])) {
+					free(xscr->itheme);
+					xscr->itheme = strdup(list[0]);
+					changed = True;
+				}
+			}
+			if (list)
+				XFreeStringList(list);
+		} else
+			DPRINTF(1, "could not get text list for property\n");
+		if (xtp.value)
+			XFree(xtp.value);
+	} else
+		DPRINTF(1, "could not get %s for root 0x%lx\n", XGetAtomName(dpy, prop), root);
+	if ((set = gtk_settings_get_for_screen(xscr->scrn))) {
+		GValue theme_v = G_VALUE_INIT;
+		const char *itheme;
+
+		g_value_init(&theme_v, G_TYPE_STRING);
+		g_object_get_property(G_OBJECT(set), "gtk-icon-theme-name", &theme_v);
+		itheme = g_value_get_string(&theme_v);
+		if (itheme && (!xscr->itheme || strcmp(xscr->itheme, itheme))) {
+			free(xscr->itheme);
+			xscr->itheme = strdup(itheme);
+			changed = True;
+		}
+		g_value_unset(&theme_v);
+	}
+	if (changed) {
+		DPRINTF(1, "New icon theme is %s\n", xscr->itheme);
+		/* FIXME: do something more about it. */
+	}
+}
+
+static void
 update_theme(XdeScreen *xscr, Atom prop)
 {
 	Window root = RootWindow(dpy, xscr->index);
 	XTextProperty xtp = { NULL, };
-	char **list = NULL;
-	int strings = 0;
 	Bool changed = False;
 	GtkSettings *set;
 
 	PTRACE(5);
 	gtk_rc_reparse_all();
-	if (XGetTextProperty(dpy, root, &xtp, _XA_XDE_THEME_NAME)) {
+	if (!prop || prop == _XA_GTK_READ_RCFILES)
+		prop = _XA_XDE_THEME_NAME;
+	if (XGetTextProperty(dpy, root, &xtp, prop)) {
+		char **list = NULL;
+		int strings = 0;
+
 		if (Xutf8TextPropertyToTextList(dpy, &xtp, &list, &strings) == Success) {
 			if (strings >= 1) {
 				char *rc_string;
@@ -2077,11 +2213,11 @@ update_theme(XdeScreen *xscr, Atom prop)
 			if (list)
 				XFreeStringList(list);
 		} else
-			EPRINTF("could not get text list for property\n");
+			DPRINTF(1, "could not get text list for property\n");
 		if (xtp.value)
 			XFree(xtp.value);
 	} else
-		DPRINTF(1, "could not get _XDE_THEME_NAME for root 0x%lx\n", root);
+		DPRINTF(1, "could not get %s for root 0x%lx\n", XGetAtomName(dpy, prop), root);
 	if ((set = gtk_settings_get_for_screen(xscr->scrn))) {
 		GValue theme_v = G_VALUE_INIT;
 		const char *theme;
@@ -2099,6 +2235,10 @@ update_theme(XdeScreen *xscr, Atom prop)
 	if (changed) {
 		DPRINTF(1, "New theme is %s\n", xscr->theme);
 		/* FIXME: do something more about it. */
+#if 0
+		if (options.show.setbg)
+			read_theme(xscr);
+#endif
 	} else
 		DPRINTF(1, "No change in current theme %s\n", xscr->theme);
 }
@@ -2108,14 +2248,18 @@ event_handler_ClientMessage(XEvent *xev)
 {
 	XdeScreen *xscr = NULL;
 	int s, nscr = ScreenCount(dpy);
+	Atom type;
 
+	PTRACE(5);
 	for (s = 0; s < nscr; s++)
 		if (xev->xclient.window == RootWindow(dpy, s)) {
 			xscr = screens + s;
 			break;
 		}
-
-	PTRACE(5);
+	if (!xscr) {
+		EPRINTF("could not find screen for client message with window 0%08lx\n", xev->xclient.window);
+		xscr = screens;
+	}
 	if (options.debug > 1) {
 		fprintf(stderr, "==> ClientMessage: %p\n", xscr);
 		fprintf(stderr, "    --> window = 0x%08lx\n", xev->xclient.window);
@@ -2127,13 +2271,13 @@ event_handler_ClientMessage(XEvent *xev)
 		case 8:
 			fprintf(stderr, "    --> data =");
 			for (i = 0; i < 20; i++)
-				fprintf(stderr, " %02x", xev->xclient.data.b[i]);
+				fprintf(stderr, " %02x", (int) xev->xclient.data.b[i]);
 			fprintf(stderr, "\n");
 			break;
 		case 16:
 			fprintf(stderr, "    --> data =");
 			for (i = 0; i < 10; i++)
-				fprintf(stderr, " %04x", xev->xclient.data.s[i]);
+				fprintf(stderr, " %04x", (int) xev->xclient.data.s[i]);
 			fprintf(stderr, "\n");
 			break;
 		case 32:
@@ -2145,11 +2289,11 @@ event_handler_ClientMessage(XEvent *xev)
 		}
 		fprintf(stderr, "<== ClientMessage: %p\n", xscr);
 	}
-	if (xscr) {
-		if (xev->xclient.message_type == _XA_GTK_READ_RCFILES) {
-			update_theme(xscr, xev->xclient.message_type);
-			return GDK_FILTER_REMOVE;	/* event handled */
-		}
+	type = xev->xclient.message_type;
+	if (type == _XA_GTK_READ_RCFILES) {
+		update_theme(xscr, type);
+		update_icon_theme(xscr, type);
+		return GDK_FILTER_REMOVE;	/* event handled */
 	}
 	return GDK_FILTER_CONTINUE;	/* event not handled */
 }
@@ -2169,8 +2313,10 @@ client_handler(GdkXEvent *xevent, GdkEvent *event, gpointer data)
 }
 
 static GdkFilterReturn
-event_handler_PropertyNotify(Display *dpy, XEvent *xev, XdeScreen *xscr)
+event_handler_PropertyNotify(XEvent *xev, XdeScreen *xscr)
 {
+	Atom atom;
+
 	PTRACE(5);
 	if (options.debug > 2) {
 		fprintf(stderr, "==> PropertyNotify:\n");
@@ -2181,49 +2327,51 @@ event_handler_PropertyNotify(Display *dpy, XEvent *xev, XdeScreen *xscr)
 			(xev->xproperty.state == PropertyNewValue) ? "NewValue" : "Delete");
 		fprintf(stderr, "<== PropertyNotify:\n");
 	}
-	if (xev->xproperty.atom == _XA_XDE_THEME_NAME && xev->xproperty.state == PropertyNewValue) {
-		PTRACE(5);
-		update_theme(xscr, xev->xproperty.atom);
-		return GDK_FILTER_REMOVE;	/* event handled */
-	} else if (xev->xproperty.atom == _XA_NET_DESKTOP_LAYOUT && xev->xproperty.state == PropertyNewValue) {
-		PTRACE(5);
-		update_layout(xscr, xev->xproperty.atom);
-	} else if (xev->xproperty.atom == _XA_NET_NUMBER_OF_DESKTOPS && xev->xproperty.state == PropertyNewValue) {
-		PTRACE(5);
-		update_layout(xscr, xev->xproperty.atom);
-	} else if (xev->xproperty.atom == _XA_WIN_WORKSPACE_COUNT && xev->xproperty.state == PropertyNewValue) {
-		PTRACE(5);
-		update_layout(xscr, xev->xproperty.atom);
-	} else if (xev->xproperty.atom == _XA_NET_CURRENT_DESKTOP && xev->xproperty.state == PropertyNewValue) {
-		PTRACE(5);
-		update_current_desktop(xscr, xev->xproperty.atom);
-	} else if (xev->xproperty.atom == _XA_WIN_WORKSPACE && xev->xproperty.state == PropertyNewValue) {
-		PTRACE(5);
-		update_current_desktop(xscr, xev->xproperty.atom);
-	} else if (xev->xproperty.atom == _XA_WM_DESKTOP && xev->xproperty.state == PropertyNewValue) {
-		PTRACE(5);
-		update_current_desktop(xscr, xev->xproperty.atom);
-	} else if (xev->xproperty.atom == _XA_XROOTPMAP_ID && xev->xproperty.state == PropertyNewValue) {
-		PTRACE(5);
-		update_root_pixmap(xscr, xev->xproperty.atom);
-	} else if (xev->xproperty.atom == _XA_ESETROOT_PMAP_ID && xev->xproperty.state == PropertyNewValue) {
-		PTRACE(5);
-		update_root_pixmap(xscr, xev->xproperty.atom);
-	} else if (xev->xproperty.atom == _XA_NET_ACTIVE_WINDOW && xev->xproperty.state == PropertyNewValue) {
-		PTRACE(5);
-		update_active_window(xscr, xev->xproperty.atom);
-	} else if (xev->xproperty.atom == _XA_NET_CLIENT_LIST && xev->xproperty.state == PropertyNewValue) {
-		PTRACE(5);
-		update_client_list(xscr, xev->xproperty.atom);
-	} else if (xev->xproperty.atom == _XA_NET_CLIENT_LIST_STACKING && xev->xproperty.state == PropertyNewValue) {
-		PTRACE(5);
-		update_client_list(xscr, xev->xproperty.atom);
-	} else if (xev->xproperty.atom == _XA_WIN_FOCUS && xev->xproperty.state == PropertyNewValue) {
-		PTRACE(5);
-		update_active_window(xscr, xev->xproperty.atom);
-	} else if (xev->xproperty.atom == _XA_WIN_CLIENT_LIST && xev->xproperty.state == PropertyNewValue) {
-		PTRACE(5);
-		update_client_list(xscr, xev->xproperty.atom);
+	atom = xev->xproperty.atom;
+	if (xev->xproperty.state == PropertyNewValue) {
+		if (atom == _XA_XDE_THEME_NAME || atom == _XA_XDE_WM_THEME) {
+			update_theme(xscr, atom);
+			return GDK_FILTER_REMOVE;	/* event handled */
+		} else if (atom == _XA_XDE_ICON_THEME_NAME || atom == _XA_XDE_WM_ICONTHEME) {
+			update_icon_theme(xscr, atom);
+			return GDK_FILTER_REMOVE;	/* event handled */
+#if 1
+		} else if (atom == _XA_NET_DESKTOP_LAYOUT) {
+			update_layout(xscr, atom);
+		} else if (atom == _XA_NET_NUMBER_OF_DESKTOPS) {
+			update_layout(xscr, atom);
+		} else if (atom == _XA_WIN_WORKSPACE_COUNT) {
+			update_layout(xscr, atom);
+#endif
+#if 1
+		} else if (atom == _XA_NET_CURRENT_DESKTOP) {
+			update_current_desktop(xscr, atom);
+		} else if (atom == _XA_WIN_WORKSPACE) {
+			update_current_desktop(xscr, atom);
+		} else if (atom == _XA_WM_DESKTOP) {
+			update_current_desktop(xscr, atom);
+#endif
+#if 1
+		} else if (atom == _XA_XROOTPMAP_ID) {
+			update_root_pixmap(xscr, atom);
+		} else if (atom == _XA_ESETROOT_PMAP_ID) {
+			update_root_pixmap(xscr, atom);
+#endif
+		} else if (atom == _XA_NET_ACTIVE_WINDOW) {
+			update_active_window(xscr, atom);
+#if 1
+		} else if (atom == _XA_NET_CLIENT_LIST) {
+			update_client_list(xscr, atom);
+		} else if (atom == _XA_NET_CLIENT_LIST_STACKING) {
+			update_client_list(xscr, atom);
+#endif
+		} else if (atom == _XA_WIN_FOCUS) {
+			update_active_window(xscr, atom);
+#if 1
+		} else if (atom == _XA_WIN_CLIENT_LIST) {
+			update_client_list(xscr, atom);
+#endif
+		}
 	}
 	return GDK_FILTER_CONTINUE;	/* event not handled */
 }
@@ -2237,7 +2385,7 @@ root_handler(GdkXEvent *xevent, GdkEvent *event, gpointer data)
 	PTRACE(5);
 	switch (xev->type) {
 	case PropertyNotify:
-		return event_handler_PropertyNotify(dpy, xev, xscr);
+		return event_handler_PropertyNotify(xev, xscr);
 	}
 	return GDK_FILTER_CONTINUE;
 }
@@ -2256,7 +2404,7 @@ handler(Display *display, XErrorEvent *xev)
 
 		snprintf(num, sizeof(num), "%d", xev->request_code);
 		snprintf(def, sizeof(def), "[request_code=%d]", xev->request_code);
-		XGetErrorDatabaseText(dpy, "xdg-launch", num, def, req, sizeof(req));
+		XGetErrorDatabaseText(dpy, NAME, num, def, req, sizeof(req));
 		if (XGetErrorText(dpy, xev->error_code, msg, sizeof(msg)) != Success)
 			msg[0] = '\0';
 		fprintf(stderr, "X error %s(0x%08lx): %s\n", req, xev->resourceid, msg);
@@ -2324,6 +2472,11 @@ init_wnck(XdeScreen *xscr)
 	wnck_screen_force_update(wnck);
 }
 
+/*
+ *  This startup function starts up the X11 protocol connection and initializes GTK+.  Note that the
+ *  program can still be run from a console, in which case the "DISPLAY" environment variables should
+ *  not be defined: in which case, we will not start up X11 at all.
+ */
 static void
 startup(int argc, char *argv[])
 {
@@ -2338,25 +2491,112 @@ startup(int argc, char *argv[])
 	gtk_rc_add_default_file(file);
 	g_free(file);
 
+#if 0
+	/* We can start session management without a display; however, we then need to
+	   run a GLIB event loop instead of a GTK event loop.  */
+	init_smclient();
+
+	/* do not start up X11 connection unless DISPLAY is defined */
+	if (!options.display) {
+		loop = g_main_loop_new(NULL, FALSE);
+		return;
+	}
+#endif
+
 	gtk_init(&argc, &argv);
 
 	disp = gdk_display_get_default();
 	nscr = gdk_display_get_n_screens(disp);
+	dpy = GDK_DISPLAY_XDISPLAY(disp);
 
 	if (options.screen >= 0 && options.screen >= nscr) {
 		EPRINTF("bad screen specified: %d\n", options.screen);
 		exit(EXIT_FAILURE);
 	}
 
-	dpy = GDK_DISPLAY_XDISPLAY(disp);
+
+	atom = gdk_atom_intern_static_string("_XDE_ICON_THEME_NAME");
+	_XA_XDE_ICON_THEME_NAME = gdk_x11_atom_to_xatom_for_display(disp, atom);
 
 	atom = gdk_atom_intern_static_string("_XDE_THEME_NAME");
 	_XA_XDE_THEME_NAME = gdk_x11_atom_to_xatom_for_display(disp, atom);
 
+	atom = gdk_atom_intern_static_string("_XDE_WM_CLASS");
+	_XA_XDE_WM_CLASS = gdk_x11_atom_to_xatom_for_display(disp, atom);
+
+	atom = gdk_atom_intern_static_string("_XDE_WM_CMDLINE");
+	_XA_XDE_WM_CMDLINE = gdk_x11_atom_to_xatom_for_display(disp, atom);
+
+	atom = gdk_atom_intern_static_string("_XDE_WM_COMMAND");
+	_XA_XDE_WM_COMMAND = gdk_x11_atom_to_xatom_for_display(disp, atom);
+
+	atom = gdk_atom_intern_static_string("_XDE_WM_ETCDIR");
+	_XA_XDE_WM_ETCDIR = gdk_x11_atom_to_xatom_for_display(disp, atom);
+
+	atom = gdk_atom_intern_static_string("_XDE_WM_HOST");
+	_XA_XDE_WM_HOST = gdk_x11_atom_to_xatom_for_display(disp, atom);
+
+	atom = gdk_atom_intern_static_string("_XDE_WM_HOSTNAME");
+	_XA_XDE_WM_HOSTNAME = gdk_x11_atom_to_xatom_for_display(disp, atom);
+
+	atom = gdk_atom_intern_static_string("_XDE_WM_ICCCM_SUPPORT");
+	_XA_XDE_WM_ICCCM_SUPPORT = gdk_x11_atom_to_xatom_for_display(disp, atom);
+
+	atom = gdk_atom_intern_static_string("_XDE_WM_ICON");
+	_XA_XDE_WM_ICON = gdk_x11_atom_to_xatom_for_display(disp, atom);
+
+	atom = gdk_atom_intern_static_string("_XDE_WM_ICONTHEME");
+	_XA_XDE_WM_ICONTHEME = gdk_x11_atom_to_xatom_for_display(disp, atom);
+
+	atom = gdk_atom_intern_static_string("_XDE_WM_INFO");
+	_XA_XDE_WM_INFO = gdk_x11_atom_to_xatom_for_display(disp, atom);
+
+	atom = gdk_atom_intern_static_string("_XDE_WM_MENU");
+	_XA_XDE_WM_MENU = gdk_x11_atom_to_xatom_for_display(disp, atom);
+
+	atom = gdk_atom_intern_static_string("_XDE_WM_NAME");
+	_XA_XDE_WM_NAME = gdk_x11_atom_to_xatom_for_display(disp, atom);
+
+	atom = gdk_atom_intern_static_string("_XDE_WM_NETWM_SUPPORT");
+	_XA_XDE_WM_NETWM_SUPPORT = gdk_x11_atom_to_xatom_for_display(disp, atom);
+
+	atom = gdk_atom_intern_static_string("_XDE_WM_PID");
+	_XA_XDE_WM_PID = gdk_x11_atom_to_xatom_for_display(disp, atom);
+
+	atom = gdk_atom_intern_static_string("_XDE_WM_PRVDIR");
+	_XA_XDE_WM_PRVDIR = gdk_x11_atom_to_xatom_for_display(disp, atom);
+
+	atom = gdk_atom_intern_static_string("_XDE_WM_RCFILE");
+	_XA_XDE_WM_RCFILE = gdk_x11_atom_to_xatom_for_display(disp, atom);
+
+	atom = gdk_atom_intern_static_string("_XDE_WM_REDIR_SUPPORT");
+	_XA_XDE_WM_REDIR_SUPPORT = gdk_x11_atom_to_xatom_for_display(disp, atom);
+
+	atom = gdk_atom_intern_static_string("_XDE_WM_STYLE");
+	_XA_XDE_WM_STYLE = gdk_x11_atom_to_xatom_for_display(disp, atom);
+
+	atom = gdk_atom_intern_static_string("_XDE_WM_STYLENAME");
+	_XA_XDE_WM_STYLENAME = gdk_x11_atom_to_xatom_for_display(disp, atom);
+
+	atom = gdk_atom_intern_static_string("_XDE_WM_SYSDIR");
+	_XA_XDE_WM_SYSDIR = gdk_x11_atom_to_xatom_for_display(disp, atom);
+
+	atom = gdk_atom_intern_static_string("_XDE_WM_THEME");
+	_XA_XDE_WM_THEME = gdk_x11_atom_to_xatom_for_display(disp, atom);
+
+	atom = gdk_atom_intern_static_string("_XDE_WM_THEMEFILE");
+	_XA_XDE_WM_THEMEFILE = gdk_x11_atom_to_xatom_for_display(disp, atom);
+
+	atom = gdk_atom_intern_static_string("_XDE_WM_USRDIR");
+	_XA_XDE_WM_USRDIR = gdk_x11_atom_to_xatom_for_display(disp, atom);
+
+	atom = gdk_atom_intern_static_string("_XDE_WM_VERSION");
+	_XA_XDE_WM_VERSION = gdk_x11_atom_to_xatom_for_display(disp, atom);
+
 	atom = gdk_atom_intern_static_string("_GTK_READ_RCFILES");
 	_XA_GTK_READ_RCFILES = gdk_x11_atom_to_xatom_for_display(disp, atom);
 	gdk_display_add_client_message_filter(disp, atom, client_handler, NULL);
-
+#if 1
 	atom = gdk_atom_intern_static_string("_NET_DESKTOP_LAYOUT");
 	_XA_NET_DESKTOP_LAYOUT = gdk_x11_atom_to_xatom_for_display(disp, atom);
 
@@ -2374,6 +2614,9 @@ startup(int argc, char *argv[])
 
 	atom = gdk_atom_intern_static_string("_NET_NUMBER_OF_DESKTOPS");
 	_XA_NET_NUMBER_OF_DESKTOPS = gdk_x11_atom_to_xatom_for_display(disp, atom);
+
+	atom = gdk_atom_intern_static_string("_WIN_DESKTOP_BUTTON_PROXY");
+	_XA_WIN_DESKTOP_BUTTON_PROXY = gdk_x11_atom_to_xatom_for_display(disp, atom);
 
 	atom = gdk_atom_intern_static_string("_WIN_WORKSPACE_COUNT");
 	_XA_WIN_WORKSPACE_COUNT = gdk_x11_atom_to_xatom_for_display(disp, atom);
@@ -2398,6 +2641,33 @@ startup(int argc, char *argv[])
 
 	atom = gdk_atom_intern_static_string("_WIN_CLIENT_LIST");
 	_XA_WIN_CLIENT_LIST = gdk_x11_atom_to_xatom_for_display(disp, atom);
+#endif
+#ifdef STARTUP_NOTIFICATION
+	atom = gdk_atom_intern_static_string("_NET_STARTUP_INFO");
+	_XA_NET_STARTUP_INFO = gdk_x11_atom_to_xatom_for_display(disp, atom);
+	gdk_display_add_client_message_filter(disp, atom, client_handler, NULL);
+
+	atom = gdk_atom_intern_static_string("_NET_STARTUP_INFO_BEGIN");
+	_XA_NET_STARTUP_INFO_BEGIN = gdk_x11_atom_to_xatom_for_display(disp, atom);
+	gdk_display_add_client_message_filter(disp, atom, client_handler, NULL);
+#endif				/* STARTUP_NOTIFICATION */
+	atom = gdk_atom_intern_static_string("_WIN_AREA");
+	_XA_WIN_AREA = gdk_x11_atom_to_xatom_for_display(disp, atom);
+
+	atom = gdk_atom_intern_static_string("_WIN_AREA_COUNT");
+	_XA_WIN_AREA_COUNT = gdk_x11_atom_to_xatom_for_display(disp, atom);
+
+	atom = gdk_atom_intern_static_string(XA_PREFIX "_REFRESH");
+	_XA_PREFIX_REFRESH = gdk_x11_atom_to_xatom_for_display(disp, atom);
+	gdk_display_add_client_message_filter(disp, atom, client_handler, NULL);
+
+	atom = gdk_atom_intern_static_string(XA_PREFIX "_RESTART");
+	_XA_PREFIX_RESTART = gdk_x11_atom_to_xatom_for_display(disp, atom);
+	gdk_display_add_client_message_filter(disp, atom, client_handler, NULL);
+
+	atom = gdk_atom_intern_static_string(XA_PREFIX "_EDITOR");
+	_XA_PREFIX_EDITOR = gdk_x11_atom_to_xatom_for_display(disp, atom);
+	gdk_display_add_client_message_filter(disp, atom, client_handler, NULL);
 
 	scrn = gdk_display_get_default_screen(disp);
 	root = gdk_screen_get_root_window(scrn);
@@ -2429,11 +2699,16 @@ init_screens(void)
 		gdk_window_add_filter(xscr->root, root_handler, xscr);
 		init_wnck(xscr);
 		init_monitors(xscr);
+#if 1
 		update_layout(xscr, None);
 		update_current_desktop(xscr, None);
+#endif
 		update_theme(xscr, None);
+		update_icon_theme(xscr, None);
+#if 1
 		update_active_window(xscr, None);
 		update_client_list(xscr, None);
+#endif
 	}
 	xmon = find_monitor();
 	return (xmon);
@@ -2563,6 +2838,7 @@ show_bool(Bool value)
 	return ("false");
 }
 
+#if 1
 static const char *
 show_order(WindowOrder order)
 {
@@ -2576,16 +2852,33 @@ show_order(WindowOrder order)
 	}
 	return NULL;
 }
+#endif
 
 static const char *
 show_screen(int snum)
 {
 	static char screen[64] = { 0, };
 
-	if (options.screen == -1)
+	if (snum == -1)
 		return ("None");
-	snprintf(screen, sizeof(screen), "%d", options.screen);
+	snprintf(screen, sizeof(screen), "%d", snum);
 	return (screen);
+}
+
+const char *
+show_style(Style style)
+{
+	switch (style) {
+	case StyleFullmenu:
+		return ("fullmenu");
+	case StyleAppmenu:
+		return ("appmenu");
+	case StyleEntries:
+		return ("entries");
+	case StyleSubmenu:
+		return ("submenu");
+	}
+	return ("(unknown)");
 }
 
 static const char *
@@ -2729,24 +3022,339 @@ Options:\n\
 	/* *INDENT-ON* */
 }
 
+/*
+ * Set options in the "options" structure.  The defaults are determined by preset defaults,
+ * environment variables and other startup information, but not information from the X Server.  All
+ * options are set in this way, only the ones that depend on environment variables or other startup
+ * information.
+ */
 static void
 set_defaults(void)
 {
-	const char *env, *p;
-	char *file;
-	int n;
+	const char *env, *p, *q;
+	char *file, *endptr = NULL;
+	int n, monitor;
+	Time timestamp;
 
 	if ((env = getenv("DISPLAY"))) {
+		free(options.display);
 		options.display = strdup(env);
 		if (options.screen < 0 && (p = strrchr(options.display, '.'))
 		    && (n = strspn(++p, "0123456789")) && *(p + n) == '\0')
 			options.screen = atoi(p);
 	}
-	if ((p = getenv("XDE_DEBUG")))
-		options.debug = atoi(p);
+	if ((env = getenv("XDG_CURRENT_DESKTOP"))) {
+		free(options.desktop);
+		options.desktop = strdup(env);
+	}
+	if ((env = getenv("DESKTOP_STARTUP_ID"))) {
+		/* we can get the timestamp from the startup id */
+		if ((p = strstr(env, "_TIME"))) {
+			timestamp = strtoul(p + 5, &endptr, 10);
+			if (endptr && *endptr)
+				options.timestamp = timestamp;
+		}
+		/* we can get the monitor number from the startup id */
+		if ((p = strstr(env, "xdg-launch/")) == env &&
+		    (p = strchr(p + 11, '/')) && (p = strchr(p + 1, '-')) && (q = strchr(p + 1, '-'))) {
+			monitor = strtoul(p, &endptr, 10);
+			if (endptr == q)
+				options.monitor = monitor;
+		}
+	}
+	if ((env = getenv("XDE_DEBUG")))
+		options.debug = atoi(env);
 	file = g_build_filename(g_get_home_dir(), ".config", RESNAME, "rc", NULL);
+	free(options.filename);
 	options.filename = strdup(file);
 	g_free(file);
+}
+
+static void
+get_default_locale(void)
+{
+	char *val;
+	int len, set;
+
+	set = (options.charset || options.language);
+
+	if (!options.charset && (val = nl_langinfo(CODESET)))
+		options.charset = strdup(val);
+	if (!options.language && options.locale) {
+		options.language = strdup(options.locale);
+		*strchrnul(options.language, '.') = '\0';
+	}
+	if (set && options.language && options.charset) {
+		len = strlen(options.language) + 1 + strlen(options.charset);
+		val = calloc(len, sizeof(*val));
+		strcpy(val, options.language);
+		strcat(val, ".");
+		strcat(val, options.charset);
+		DPRINTF(1, "setting locale to: '%s'\n", val);
+		if (!setlocale(LC_ALL, val))
+			EPRINTF("cannot set locale to '%s'\n", val);
+		free(val);
+	}
+	DPRINTF(1, "locale is '%s'\n", options.locale);
+	DPRINTF(1, "charset is '%s'\n", options.charset);
+	DPRINTF(1, "language is '%s'\n", options.language);
+}
+
+static Bool
+get_text_property(Window root, Atom prop, char ***listp, int *stringsp)
+{
+	XTextProperty xtp = { NULL, };
+
+	if (XGetTextProperty(dpy, root, &xtp, prop)) {
+		*listp = NULL;
+		*stringsp = 0;
+
+		if (Xutf8TextPropertyToTextList(dpy, &xtp, listp, stringsp) == Success)
+			return True;
+		else
+			DPRINTF(1, "could not get text list for %s property\n", XGetAtomName(dpy, prop));
+	} else
+		DPRINTF(1, "could not get %s for root 0x%lx\n", XGetAtomName(dpy, prop), root);
+	return False;
+}
+
+static void
+get_default_wmname(void)
+{
+	if (options.wmname) {
+		DPRINTF(1, "option wmname is set to '%s'\n", options.wmname);
+		return;
+	}
+
+	if (options.format) {
+		char *p;
+
+		free(options.wmname);
+		options.wmname = strdup(options.format);
+		if ((p = strstr(options.wmname, "old")) && !p[3])
+			p[0] = '\0';
+		for (p = options.wmname; *p; p++)
+			*p = tolower(*p);
+	}
+	if (options.display) {
+		Display *dpy = GDK_DISPLAY_XDISPLAY(disp);
+		GdkScreen *scrn = gdk_display_get_default_screen(disp);
+		GdkWindow *wind = gdk_screen_get_root_window(scrn);
+		Window root = GDK_WINDOW_XID(wind);
+		Atom prop = _XA_XDE_WM_NAME;
+		char **list = NULL;
+		int strings = 0;
+
+		if (get_text_property(root, prop, &list, &strings)) {
+			if (!options.wmname) {
+				free(options.wmname);
+				options.wmname = strdup(list[0]);
+			} else if (strcmp(options.wmname, list[0]))
+				DPRINTF(1, "default wmname %s different from actual %s\n",
+					options.wmname, list[0]);
+			if (list)
+				XFreeStringList(list);
+		} else
+			DPRINTF(1, "could not get %s for root 0x%lx\n", XGetAtomName(dpy, prop), root);
+	} else
+		EPRINTF("cannot determine wmname without DISPLAY\n");
+
+	if (options.wmname)
+		DPRINTF(1, "assigned wmname as '%s'\n", options.wmname);
+}
+
+static void
+get_default_format(void)
+{
+	if (options.format) {
+		DPRINTF(1, "option format is set to '%s'\n", options.format);
+		return;
+	}
+
+	if (options.wmname) {
+		char *p;
+
+		free(options.format);
+		options.format = strdup(options.wmname);
+		for (p = options.format; *p; p++)
+			*p = tolower(*p);
+	}
+	if (options.display) {
+		GdkScreen *scrn = gdk_display_get_default_screen(disp);
+		GdkWindow *wind = gdk_screen_get_root_window(scrn);
+		Window root = GDK_WINDOW_XID(wind);
+		Atom prop = _XA_XDE_WM_NAME;
+		char **list = NULL;
+		int strings = 0;
+
+		if (get_text_property(root, prop, &list, &strings)) {
+			if (!options.format) {
+				free(options.format);
+				options.format = strdup(list[0]);
+			} else if (strcmp(options.format, list[0]))
+				DPRINTF(1, "default format %s different from actual %s\n",
+					options.format, list[0]);
+			if (list)
+				XFreeStringList(list);
+		} else
+			DPRINTF(1, "could not get %s for root 0x%lx\n", XGetAtomName(dpy, prop), root);
+	} else
+		EPRINTF("cannot determine format without DISPLAY\n");
+
+	if (options.format)
+		DPRINTF(1, "assigned format as '%s'\n", options.format);
+}
+
+static void
+get_default_desktop(void)
+{
+	XdeScreen *xscr = screens;
+	const char *env;
+	char *p;
+
+	if (!options.desktop || !strcmp(options.desktop, "XDE") || !options.wmname
+	    || strcasecmp(options.wmname, options.desktop)) {
+		if ((env = getenv("XDG_CURRENT_DESKTOP"))) {
+			free(options.desktop);
+			options.desktop = strdup(env);
+		} else if (options.format) {
+			free(options.desktop);
+			options.desktop = strdup(options.format);
+			for (p = options.desktop; *p; p++)
+				*p = toupper(*p);
+		} else if (xscr && xscr->wmname) {
+			free(options.desktop);
+			options.desktop = strdup(xscr->wmname);
+			for (p = options.desktop; *p; p++)
+				*p = toupper(*p);
+		} else if (!options.desktop) {
+			options.desktop = strdup("XDE");
+		}
+	}
+	if (options.desktop)
+		DPRINTF(1, "assigned desktop as '%s'\n", options.desktop);
+}
+
+static void
+get_default_theme(void)
+{
+#if 1
+	GdkScreen *scrn = gdk_display_get_default_screen(disp);
+	GdkWindow *wind = gdk_screen_get_root_window(scrn);
+	Window root = GDK_WINDOW_XID(wind);
+	XTextProperty xtp = { NULL, };
+	Atom prop = _XA_XDE_ICON_THEME_NAME;
+	GtkSettings *set;
+
+	gtk_rc_reparse_all();
+
+	if (XGetTextProperty(dpy, root, &xtp, prop)) {
+		char **list = NULL;
+		int strings = 0;
+
+		if (Xutf8TextPropertyToTextList(dpy, &xtp, &list, &strings) == Success) {
+			if (strings >= 1) {
+				static const char *prefix = "gtk-icon-theme-name=\"";
+				static const char *suffix = "\"";
+				char *rc_string;
+				int len;
+
+				len = strlen(prefix) + strlen(list[0]) + strlen(suffix);
+				rc_string = calloc(len + 1, sizeof(*rc_string));
+				strncpy(rc_string, prefix, len);
+				strncat(rc_string, list[0], len);
+				strncat(rc_string, suffix, len);
+				gtk_rc_parse_string(rc_string);
+				free(rc_string);
+				if (!options.theme || strcmp(options.theme, list[0])) {
+					free(options.theme);
+					options.theme = strdup(list[0]);
+				}
+			}
+			if (list)
+				XFreeStringList(list);
+		} else
+			EPRINTF("could not get text list for %s property\n", XGetAtomName(dpy, prop));
+		if (xtp.value)
+			XFree(xtp.value);
+	} else
+		DPRINTF(1, "could not get %s for root 0x%lx\n", XGetAtomName(dpy, prop), root);
+	if ((set = gtk_settings_get_for_screen(scrn))) {
+		GValue theme_v = G_VALUE_INIT;
+		const char *itheme;
+
+		g_value_init(&theme_v, G_TYPE_STRING);
+		g_object_get_property(G_OBJECT(set), "gtk-icon-theme-name", &theme_v);
+		itheme = g_value_get_string(&theme_v);
+		if (itheme && (!options.theme || strcmp(options.theme, itheme))) {
+			free(options.theme);
+			options.theme = strdup(itheme);
+		}
+		g_value_unset(&theme_v);
+	}
+#else
+
+	static const char *suffix1 = "/etc/gtk-2.0/gtkrc";
+	static const char *suffix2 = "/.gtkrc-2.0";
+	static const char *suffix3 = "/.gtkrc-2.0.xde";
+	static const char *prefix = "gtk-icon-theme-name=\"";
+	char *env;
+	int len;
+
+	if (options.theme)
+		return;
+	if ((env = getenv("XDG_ICON_THEME"))) {
+		free(options.theme);
+		options.theme = strdup(env);
+		return;
+	} else {
+		char *path, *d, *e, *buf;
+
+		/* need to go looking for the theme name */
+
+		if ((env = getenv("GTK_RC_FILES"))) {
+			path = strdup(env);
+		} else {
+			env = getenv("HOME") ? : "~";
+			len = 1 + strlen(suffix1) + 1 + strlen(env) + strlen(suffix2) +
+			    1 + strlen(env) + strlen(suffix3);
+			path = calloc(len, sizeof(*path));
+			strcpy(path, suffix1);
+			strcat(path, ":");
+			strcat(path, env);
+			strcat(path, suffix2);
+			strcat(path, ":");
+			strcat(path, env);
+			strcat(path, suffix3);
+		}
+		buf = calloc(BUFSIZ, sizeof(*buf));
+		d = path;
+		e = d + strlen(d);
+		while ((d = strchrnul(d, ':')) < e)
+			*d++ = '\0';
+		for (d = path; d < e; d += strlen(d) + 1) {
+			FILE *f;
+
+			if (!(f = fopen(d, "r")))
+				continue;
+			while (fgets(buf, BUFSIZ, f)) {
+				if (!strncmp(buf, prefix, strlen(prefix))) {
+					char *p;
+
+					p = buf + strlen(prefix);
+					*strchrnul(p, '"') = '\0';
+					free(options.theme);
+					options.theme = strdup(p);
+				}
+				/* FIXME: this does not traverse "include" statements */
+			}
+			fclose(f);
+		}
+		free(buf);
+	}
+	if (!options.theme)
+		options.theme = strdup("hicolor");
+#endif
 }
 
 static void
@@ -2757,30 +3365,37 @@ get_defaults(void)
 
 	if (options.command == CommandDefault)
 		options.command = CommandRun;
-	if (!options.display) {
-		EPRINTF("No DISPLAY environment variable nor --display option\n");
-		return;
+	if (options.display) {
+		if (options.screen < 0 && (p = strrchr(options.display, '.'))
+		    && (n = strspn(++p, "0123456789")) && *(p + n) == '\0')
+			options.screen = atoi(p);
 	}
-	if (options.screen < 0 && (p = strrchr(options.display, '.'))
-	    && (n = strspn(++p, "0123456789")) && *(p + n) == '\0')
-		options.screen = atoi(p);
 	if (!options.hidden && !options.minimized)
 		options.normal = True;
+	get_default_locale();
+	get_default_wmname();
+	get_default_format();
+	get_default_desktop();
+	get_default_theme();
 }
 
 int
 main(int argc, char *argv[])
 {
 	Command command = CommandDefault;
-
-	setlocale(LC_ALL, "");
-
-	set_defaults();
+	char *loc;
 
 	saveArgc = argc;
 	saveArgv = g_strdupv(argv);
 
-	get_resources(argc, argv);
+	if ((loc = setlocale(LC_ALL, ""))) {
+		free(options.locale);
+		options.locale = strdup(loc);
+	}
+
+	set_defaults();
+
+	get_resources();
 
 	while (1) {
 		int c, val, len;
@@ -2796,12 +3411,18 @@ main(int argc, char *argv[])
 
 			{"popup",		no_argument,		NULL,	'p'},
 			{"filename",		required_argument,	NULL,	'f'},
+			{"timestamp",		required_argument,	NULL,	'T'},
 			{"pointer",		no_argument,		NULL,	'P'},
 			{"keyboard",		no_argument,		NULL,	'K'},
 			{"button",		required_argument,	NULL,	'b'},
 			{"which",		required_argument,	NULL,	'w'},
 			{"where",		required_argument,	NULL,	'W'},
-			{"timestamp",		required_argument,	NULL,	'T'},
+
+			{"wmname",		required_argument,	NULL,	'w'},
+			{"desktop",		required_argument,	NULL,	'd'},
+			{"charset",		required_argument,	NULL,	'c'},
+			{"language",		required_argument,	NULL,	'l'},
+			{"theme",		required_argument,	NULL,	't'},
 
 			{"key",			required_argument,	NULL,	'k'},
 			{"order",		required_argument,	NULL,	'O'},
@@ -3004,9 +3625,9 @@ main(int argc, char *argv[])
 		case 'N':	/* -N, --dry-run */
 			options.dryrun = True;
 			break;
+
 		case 'D':	/* -D, --debug [LEVEL] */
-			if (options.debug > 0)
-				fprintf(stderr, "%s: increasing debug verbosity\n", argv[0]);
+			DPRINTF(1, "increasing debug verbosity\n");
 			if (optarg == NULL) {
 				options.debug++;
 				break;
@@ -3018,8 +3639,7 @@ main(int argc, char *argv[])
 			options.debug = val;
 			break;
 		case 'v':	/* -v, --verbose [LEVEL] */
-			if (options.debug > 0)
-				fprintf(stderr, "%s: increasing output verbosity\n", argv[0]);
+			DPRINTF(1, "increasing output verbosity\n");
 			if (optarg == NULL) {
 				options.output++;
 				break;
@@ -3032,6 +3652,7 @@ main(int argc, char *argv[])
 			break;
 		case 'h':	/* -h, --help */
 		case 'H':	/* -H, --? */
+			DPRINTF(1, "Setting command to CommandHelp\n");
 			command = CommandHelp;
 			break;
 		case 'V':	/* -V, --version */
@@ -3056,14 +3677,14 @@ main(int argc, char *argv[])
 		      bad_nonopt:
 			if (options.output || options.debug) {
 				if (optind < argc) {
-					fprintf(stderr, "%s: syntax error near '", argv[0]);
+					EPRINTF("syntax error near '");
 					while (optind < argc) {
 						fprintf(stderr, "%s", argv[optind++]);
 						fprintf(stderr, "%s", (optind < argc) ? " " : "");
 					}
 					fprintf(stderr, "'\n");
 				} else {
-					fprintf(stderr, "%s: missing option or argument", argv[0]);
+					EPRINTF("missing option or argument");
 					fprintf(stderr, "\n");
 				}
 				fflush(stderr);
@@ -3079,7 +3700,7 @@ main(int argc, char *argv[])
 	DPRINTF(1, "%s: option index = %d\n", argv[0], optind);
 	DPRINTF(1, "%s: option count = %d\n", argv[0], argc);
 	if (optind < argc) {
-		fprintf(stderr, "%s: excess non-option arguments near '", argv[0]);
+		EPRINTF("excess non-option arguments near '");
 		while (optind < argc) {
 			fprintf(stderr, "%s", argv[optind++]);
 			fprintf(stderr, "%s", (optind < argc) ? " " : "");
@@ -3088,12 +3709,13 @@ main(int argc, char *argv[])
 		usage(argc, argv);
 		exit(EXIT_SYNTAXERR);
 	}
+	startup(argc, argv);
 	get_defaults();
+
 	switch (command) {
 	case CommandDefault:
 	case CommandRun:
 		DPRINTF(1, "%s: popping the menu\n", argv[0]);
-		startup(argc, argv);
 		do_run(argc, argv, options.replace);
 		break;
 	case CommandHelp:

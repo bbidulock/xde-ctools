@@ -316,6 +316,29 @@ typedef enum {
 } WindowOrder;
 
 typedef enum {
+	SortByDefault,			/* default sorting */
+	SortByRecent,			/* sort from most recent */
+	SortByFavorite,			/* sort from most frequent */
+} Sorting;
+
+typedef enum {
+	IncludeDefault,			/* default things */
+	IncludeDocs,			/* documents (files) only */
+	IncludeApps,			/* applications only */
+	IncludeBoth,			/* both documents and applications */
+} Include;
+
+typedef enum {
+	OrganizeDefault,
+	OrganizeNone,
+	OrganizeDate,
+	OrganizeFreq,
+	OrganizeGroup,
+	OrganizeContent,
+	OrganizeApp,
+} Organize;
+
+typedef enum {
 	PopupPager,			/* desktop pager feedback */
 	PopupTasks,			/* task list feedback */
 	PopupCycle,			/* window cycling feedback */
@@ -5893,6 +5916,7 @@ startup(int argc, char *argv[])
 	gtk_rc_add_default_file(file);
 	g_free(file);
 
+#if 1
 	/* We can start session management without a display; however, we then need to
 	   run a GLIB event loop instead of a GTK event loop.  */
 	init_smclient();
@@ -5902,6 +5926,7 @@ startup(int argc, char *argv[])
 		loop = g_main_loop_new(NULL, FALSE);
 		return;
 	}
+#endif
 
 	gtk_init(&argc, &argv);
 
@@ -6754,7 +6779,7 @@ set_defaults(void)
 		options.debug = atoi(env);
 	file = g_build_filename(g_get_home_dir(), ".config", RESNAME, "rc", NULL);
 	free(options.filename);
-	options.filename = g_strdup(file);
+	options.filename = strdup(file);
 	g_free(file);
 }
 
@@ -7174,6 +7199,8 @@ get_defaults(void)
 	const char *p;
 	int n;
 
+	if (options.command == CommandDefault)
+		options.command = CommandRun;
 	if (options.display) {
 		if (options.screen < 0 && (p = strrchr(options.display, '.'))
 		    && (n = strspn(++p, "0123456789")) && *(p + n) == '\0')
@@ -7522,7 +7549,7 @@ main(int argc, char *argv[])
 			break;
 
 		case 'D':	/* -D, --debug [LEVEL] */
-			DPRINTF(1, "%s: increasing debug verbosity\n", argv[0]);
+			DPRINTF(1, "increasing debug verbosity\n");
 			if (optarg == NULL) {
 				options.debug++;
 				break;
@@ -7534,7 +7561,7 @@ main(int argc, char *argv[])
 			options.debug = val;
 			break;
 		case 'v':	/* -v, --verbose [LEVEL] */
-			DPRINTF(1, "%s: increasing output verbosity\n", argv[0]);
+			DPRINTF(1, "increasing output verbosity\n");
 			if (optarg == NULL) {
 				options.output++;
 				break;
@@ -7572,14 +7599,14 @@ main(int argc, char *argv[])
 		      bad_nonopt:
 			if (options.output || options.debug) {
 				if (optind < argc) {
-					EPRINTF("%s: syntax error near '", argv[0]);
+					EPRINTF("syntax error near '");
 					while (optind < argc) {
 						fprintf(stderr, "%s", argv[optind++]);
 						fprintf(stderr, "%s", (optind < argc) ? " " : "");
 					}
 					fprintf(stderr, "'\n");
 				} else {
-					EPRINTF("%s: missing option or argument", argv[0]);
+					EPRINTF("missing option or argument");
 					fprintf(stderr, "\n");
 				}
 				fflush(stderr);
@@ -7595,7 +7622,7 @@ main(int argc, char *argv[])
 	DPRINTF(1, "%s: option index = %d\n", argv[0], optind);
 	DPRINTF(1, "%s: option count = %d\n", argv[0], argc);
 	if (optind < argc) {
-		EPRINTF("%s: excess non-option arguments near '", argv[0]);
+		EPRINTF("excess non-option arguments near '");
 		while (optind < argc) {
 			fprintf(stderr, "%s", argv[optind++]);
 			fprintf(stderr, "%s", (optind < argc) ? " " : "");
@@ -7609,7 +7636,6 @@ main(int argc, char *argv[])
 
 	switch (command) {
 	case CommandDefault:
-		options.command = CommandRun;
 	case CommandRun:
 		DPRINTF(1, "%s: running a %s instance\n", argv[0], options.replace ? "replacement" : "new");
 		do_run(argc, argv);
