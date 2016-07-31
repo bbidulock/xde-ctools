@@ -777,8 +777,6 @@ find_monitor(void)
 {
 	XdeMonitor *xmon = NULL;
 
-	if ((xmon = find_specific_monitor()))
-		return (xmon);
 	switch (options.which) {
 	case UseScreenDefault:
 		if (options.button) {
@@ -804,6 +802,8 @@ find_monitor(void)
 			return (xmon);
 		break;
 	case UseScreenSpecified:
+		if ((xmon = find_specific_monitor()))
+			return (xmon);
 		break;
 	}
 
@@ -4786,6 +4786,7 @@ update_root_pixmap(XdeScreen *xscr, Atom prop)
 }
 #endif
 
+#if 1
 static void
 update_current_desktop(XdeScreen *xscr, Atom prop)
 {
@@ -4997,7 +4998,9 @@ refresh_layout(XdeScreen *xscr)
 		refresh_desktop(xscr);
 	}
 }
+#endif
 
+#if 1
 static void
 update_layout(XdeScreen *xscr, Atom prop)
 {
@@ -5086,11 +5089,13 @@ update_layout(XdeScreen *xscr, Atom prop)
 			for (num = xscr->desks; num > 0; xscr->cols++, num -= xscr->rows) ;
 		if (xscr->rows == 0)
 			for (num = xscr->desks; num > 0; xscr->rows++, num -= xscr->cols) ;
-
+#if 1
 		// refresh_layout(xscr); /* XXX: should be deferred */
 		add_deferred_refresh_layout(xscr);
+#endif
 	}
 }
+#endif
 
 static void
 update_icon_theme(XdeScreen *xscr, Atom prop)
@@ -5213,10 +5218,12 @@ update_theme(XdeScreen *xscr, Atom prop)
 static void
 update_screen(XdeScreen *xscr)
 {
+#if 1
 	if (options.show.setbg)
 		update_root_pixmap(xscr, None);
 	update_layout(xscr, None);
 	update_current_desktop(xscr, None);
+#endif
 	update_theme(xscr, None);
 	update_icon_theme(xscr, None);
 }
@@ -5283,9 +5290,11 @@ monitors_changed(GdkScreen *scrn, gpointer user_data)
 
 	wnck_screen_force_update(xscr->wnck);
 	refresh_screen(xscr, scrn);
+#if 1
 	refresh_layout(xscr);
 	if (options.show.setbg)
 		read_theme(xscr);
+#endif
 }
 
 /** @brief screen size changed
@@ -5301,9 +5310,11 @@ size_changed(GdkScreen *scrn, gpointer user_data)
 
 	wnck_screen_force_update(xscr->wnck);
 	refresh_screen(xscr, scrn);
+#if 1
 	refresh_layout(xscr);
 	if (options.show.setbg)
 		read_theme(xscr);
+#endif
 }
 
 static void
@@ -6632,6 +6643,55 @@ show_where(MenuPosition where)
 	return NULL;
 }
 
+const char *
+show_include(Include include)
+{
+	switch (include) {
+	case IncludeDefault:
+	case IncludeDocs:
+		return ("documents");
+	case IncludeApps:
+		return ("applications");
+	case IncludeBoth:
+		return ("both");
+	}
+	return NULL;
+}
+
+const char *
+show_sorting(Sorting sorting)
+{
+	switch (sorting) {
+	case SortByDefault:
+	case SortByRecent:
+		return ("recent");
+	case SortByFavorite:
+		return ("favorite");
+	}
+	return NULL;
+}
+
+const char *
+show_organize(Organize organize)
+{
+	switch (organize) {
+	case OrganizeDefault:
+	case OrganizeNone:
+		return ("none");
+	case OrganizeDate:
+		return ("date");
+	case OrganizeFreq:
+		return ("freq");
+	case OrganizeGroup:
+		return ("group");
+	case OrganizeContent:
+		return ("content");
+	case OrganizeApp:
+		return ("app");
+	}
+	return NULL;
+}
+
 static void
 help(int argc, char *argv[])
 {
@@ -6823,7 +6883,7 @@ set_defaults(void)
 static void
 get_default_locale(void)
 {
-	char *val;
+	char *val, *loc;
 	int len, set;
 
 	set = (options.charset || options.language);
@@ -6841,8 +6901,10 @@ get_default_locale(void)
 		strcat(val, ".");
 		strcat(val, options.charset);
 		DPRINTF(1, "setting locale to: '%s'\n", val);
-		if (!setlocale(LC_ALL, val))
+		if (!(loc = setlocale(LC_ALL, val)))
 			EPRINTF("cannot set locale to '%s'\n", val);
+		else
+			options.locale = strdup(loc);
 		free(val);
 	}
 	DPRINTF(1, "locale is '%s'\n", options.locale);

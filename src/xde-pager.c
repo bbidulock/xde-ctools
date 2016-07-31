@@ -777,8 +777,6 @@ find_monitor(void)
 {
 	XdeMonitor *xmon = NULL;
 
-	if ((xmon = find_specific_monitor()))
-		return (xmon);
 	switch (options.which) {
 	case UseScreenDefault:
 		if (options.button) {
@@ -804,6 +802,8 @@ find_monitor(void)
 			return (xmon);
 		break;
 	case UseScreenSpecified:
+		if ((xmon = find_specific_monitor()))
+			return (xmon);
 		break;
 	}
 
@@ -6628,6 +6628,55 @@ show_where(MenuPosition where)
 			 (options.geom.mask & XNegative) ? '-' : '+', options.geom.x,
 			 (options.geom.mask & YNegative) ? '-' : '+', options.geom.y);
 		return (position);
+	}
+	return NULL;
+}
+
+const char *
+show_include(Include include)
+{
+	switch (include) {
+	case IncludeDefault:
+	case IncludeDocs:
+		return ("documents");
+	case IncludeApps:
+		return ("applications");
+	case IncludeBoth:
+		return ("both");
+	}
+	return NULL;
+}
+
+const char *
+show_sorting(Sorting sorting)
+{
+	switch (sorting) {
+	case SortByDefault:
+	case SortByRecent:
+		return ("recent");
+	case SortByFavorite:
+		return ("favorite");
+	}
+	return NULL;
+}
+
+const char *
+show_organize(Organize organize)
+{
+	switch (organize) {
+	case OrganizeDefault:
+	case OrganizeNone:
+		return ("none");
+	case OrganizeDate:
+		return ("date");
+	case OrganizeFreq:
+		return ("freq");
+	case OrganizeGroup:
+		return ("group");
+	case OrganizeContent:
+		return ("content");
+	case OrganizeApp:
+		return ("app");
 	}
 	return NULL;
 }

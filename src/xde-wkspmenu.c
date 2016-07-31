@@ -1234,8 +1234,6 @@ find_monitor(void)
 {
 	XdeMonitor *xmon = NULL;
 
-	if ((xmon = find_specific_monitor()))
-		return (xmon);
 	switch (options.which) {
 	case UseScreenDefault:
 		if (options.button) {
@@ -1261,6 +1259,8 @@ find_monitor(void)
 			return (xmon);
 		break;
 	case UseScreenSpecified:
+		if ((xmon = find_specific_monitor()))
+			return (xmon);
 		break;
 	}
 

@@ -110,6 +110,8 @@
 #define SN_API_NOT_YET_FROZEN
 #include <libsn/sn.h>
 #endif
+#include <X11/Xdmcp.h>
+#include <X11/Xauth.h>
 #include <X11/SM/SMlib.h>
 #include <gio/gio.h>
 #include <gio/gdesktopappinfo.h>
@@ -1048,8 +1050,6 @@ find_monitor(void)
 {
 	XdeMonitor *xmon = NULL;
 
-	if ((xmon = find_specific_monitor()))
-		return (xmon);
 	switch (options.which) {
 	case UseScreenDefault:
 		if (options.button) {
@@ -1075,6 +1075,8 @@ find_monitor(void)
 			return (xmon);
 		break;
 	case UseScreenSpecified:
+		if ((xmon = find_specific_monitor()))
+			return (xmon);
 		break;
 	}
 
@@ -6547,6 +6549,7 @@ main(int argc, char *argv[])
 			{"timestamp",		required_argument,	NULL,	'T'},
 			{"pointer",		no_argument,		NULL,	'P'},
 			{"keyboard",		no_argument,		NULL,	'K'},
+			{"keypress",		optional_argument,	NULL,	'k'},
 			{"button",		required_argument,	NULL,	'b'},
 			{"which",		required_argument,	NULL,	'w'},
 			{"where",		required_argument,	NULL,	'W'},
