@@ -3751,7 +3751,7 @@ about_selected(GtkMenuItem *item, gpointer user_data)
 	gchar *authors[] = { "Brian F. G. Bidulock <bidulock@openss7.org>", NULL };
 	gtk_show_about_dialog(NULL,
 			      "authors", authors,
-			      "comments", "An XDG compliant pager.",
+			      "comments", "An XDG compliant background changer.",
 			      "copyright", "Copyright (c) 2013, 2014, 2015, 2016  OpenSS7 Corporation",
 			      "license", "Do what thou wilt shall be the whole of the law.\n\n-- Aleister Crowley",
 			      "logo-icon-name", LOGO_NAME,
