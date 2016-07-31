@@ -865,6 +865,7 @@ get_xbel_recent_list(GList *list, const char *file)
 	gchar **uris, **uri;
 	GError *error = NULL;
 
+	DPRINTF(1, "getting bookmark file %s\n", file);
 	if (!(bookmark = g_bookmark_file_new())) {
 		EPRINTF("could not obtain bookmark file!\n");
 		return (list);
@@ -886,7 +887,6 @@ get_xbel_recent_list(GList *list, const char *file)
 		gchar **names, **name;
 
 		DPRINTF(1, "processing xbel uri %s\n", *uri);
-
 #if 0
 		if (g_bookmark_file_get_is_private(bookmark, *uri, NULL)) {
 			DPRINTF(1, "uri is private: %s\n", *uri);
