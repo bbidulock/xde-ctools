@@ -195,7 +195,6 @@ static char **saveArgv;
 #define RESCLAS "XDE-Feedback"
 #define RESTITL "XDG Desktop Feedback"
 
-#define USRDFLT "%s/.config/" RESNAME "/rc"
 #define APPDFLT "/usr/share/X11/app-defaults/" RESCLAS
 
 SmcConn smcConn = NULL;
@@ -370,7 +369,6 @@ typedef struct {
 	WindowOrder order;
 	char *filename;
 	Bool replace;
-	Bool editor;
 	Bool systray;
 	char *keys;
 	Bool proxy;
@@ -456,7 +454,6 @@ Options options = {
 	.order = WindowOrderDefault,
 	.filename = NULL,
 	.replace = False,
-	.editor = False,
 	.systray = False,
 	.keys = NULL,
 	.proxy = False,
@@ -990,6 +987,7 @@ position_menu(GtkMenu *menu, gint *x, gint *y, gboolean *push_in, gpointer user_
 /** @section Setting Arguments
   * @{ */
 
+#if 1
 static void
 set_scmon(long scmon)
 {
@@ -1061,12 +1059,14 @@ set_word2(long word2)
 	options.geom.mask |= ((word2 >> 30) & 0x01) ? YValue : 0;
 	options.geom.mask |= ((word2 >> 31) & 0x01) ? YNegative : 0;
 }
+#endif
 
 /** @} */
 
 /** @section Getting Arguments
   * @{ */
 
+#if 1
 static long
 get_scmon(void)
 {
@@ -1144,6 +1144,7 @@ get_word2(void)
 	word2 |= ((long) (options.geom.mask & YNegative ? 1 : 0) << 31);
 	return (word2);
 }
+#endif
 
 /** @} */
 
@@ -1172,6 +1173,7 @@ mainloop_quit(void)
 /** @section Background Theme Handling
   * @{ */
 
+#if 1
 void
 xde_pixmap_ref(XdePixmap *pixmap)
 {
@@ -1782,12 +1784,14 @@ get_sequence_pixbuf(Sequence *seq)
 		g_object_unref(G_OBJECT(gicon));
 	return (pixbuf);
 }
+#endif
 
 /** @} */
 
 /** @section Popup Window Event Handlers
   * @{ */
 
+#if 1
 static gboolean
 stop_popup_timer(XdePopup *xpop)
 {
@@ -2440,6 +2444,8 @@ visibility_notify_event(GtkWidget *popup, GdkEvent *event, gpointer xpop)
 
 /** @} */
 
+#endif
+
 /** @} */
 
 /** @section Startup Notification Handling
@@ -2678,6 +2684,7 @@ add_sequence(XdeScreen *xscr, const char *id, SnStartupSequence *sn_seq)
 /** @section Session Management
   * @{ */
 
+#if 1
 static void
 clientSetProperties(SmcConn smcConn, SmPointer data)
 {
@@ -3020,6 +3027,7 @@ static SmcCallbacks clientCBs = {
 	.save_complete = {.callback = &clientSaveCompleteCB,.client_data = NULL,},
 	.shutdown_cancelled = {.callback = &clientShutdownCancelledCB,.client_data = NULL,},
 };
+#endif
 
 /** @} */
 
@@ -3237,13 +3245,15 @@ putXrmOrder(WindowOrder order)
 void
 put_resources(void)
 {
-	char *usrdb = g_strdup_printf("%s/.config/xde/inputrc", getenv("HOME"));
+	char *usrdb;
 	XrmDatabase rdb = NULL;
 	Display *dpy;
 	char *val;
 
 	if (!options.display)
 		return;
+
+	usrdb = g_build_filename(g_get_user_config_dir(), RESNAME, "rc", NULL);
 
 	if (!(dpy = XOpenDisplay(NULL))) {
 		EPRINTF("could not open display %s\n", options.display);
@@ -3265,6 +3275,7 @@ put_resources(void)
 		put_resource(rdb, "timeout", val);
 	if ((val = putXrmInt(options.border)))
 		put_resource(rdb, "border", val);
+
 	if ((val = putXrmWhich(options.which, options.screen)))
 		put_resource(rdb, "which", val);
 	if ((val = putXrmWhere(options.where, &options.geom)))
@@ -3289,10 +3300,12 @@ put_resources(void)
 		put_resource(rdb, "raise", val);
 	if ((val = putXrmBool(options.restore)))
 		put_resource(rdb, "restore", val);
+
 	XrmPutFileDatabase(rdb, usrdb);
 	XrmSetDatabase(dpy, rdb);
 	XrmDestroyDatabase(rdb);
 	XCloseDisplay(dpy);
+	g_free(usrdb);
 }
 
 /** @} */
@@ -3649,7 +3662,7 @@ get_resources(void)
 	if (options.filename)
 		if (!XrmCombineFileDatabase(options.filename, &rdb, False))
 			DPRINTF(1, "could not open rcfile %s\n", options.filename);
-	usrdflt = g_strdup_printf(USRDFLT, getenv("HOME"));
+	usrdflt = g_build_filename(g_get_user_config_dir(), RESNAME, "rc", NULL);
 	if (!options.filename || strcmp(options.filename, usrdflt))
 		if (!XrmCombineFileDatabase(usrdflt, &rdb, False))
 			DPRINTF(1, "could not open rcfile %s\n", usrdflt);
@@ -3707,6 +3720,7 @@ get_resources(void)
 /** @section System Tray Icon
   * @{ */
 
+#if 1
 static gboolean
 button_press(GtkStatusIcon *icon, GdkEvent *event, gpointer user_data)
 {
@@ -3811,6 +3825,7 @@ systray_show(XdeScreen *xscr)
 	g_signal_connect(G_OBJECT(icon), "button_press_event", G_CALLBACK(button_press), xscr);
 	g_signal_connect(G_OBJECT(icon), "popup_menu", G_CALLBACK(popup_menu), xscr);
 }
+#endif
 
 /** @} */
 
@@ -3823,6 +3838,7 @@ systray_show(XdeScreen *xscr)
 /** @section Workspace Events
   * @{ */
 
+#if 1
 static Bool
 good_window_manager(XdeScreen *xscr)
 {
@@ -4105,12 +4121,14 @@ active_workspace_changed(WnckScreen *wnck, WnckWorkspace *prev, gpointer data)
 {
 	/* XXX: should be handled by update_current_desktop */
 }
+#endif
 
 /** @} */
 
 /** @section Specific Window Events
   * @{ */
 
+#if 1
 static void
 actions_changed(WnckWindow *window, WnckWindowActions changed, WnckWindowActions state, gpointer xscr)
 {
@@ -4140,12 +4158,14 @@ static void
 workspace_changed(WnckWindow *window, gpointer xscr)
 {
 }
+#endif
 
 /** @} */
 
 /** @section Window Events
   * @{ */
 
+#if 1
 static WnckWorkspace *
 same_desk(WnckScreen *wnck, WnckWindow *win1, WnckWindow *win2)
 {
@@ -4335,6 +4355,7 @@ static void
 showing_desktop_changed(WnckScreen *wnck, gpointer xscr)
 {
 }
+#endif
 
 /** @} */
 
@@ -4372,6 +4393,7 @@ sn_handler(SnMonitorEvent *event, void *data)
 }
 #endif				/* STARTUP_NOTIFICATION */
 
+#if 1
 /** @brief refresh desktop
   *
   * The current desktop has changed for the screen.  Update the root pixmaps for
@@ -4485,10 +4507,12 @@ refresh_monitor(XdeMonitor *xmon)
 	/* for now */
 	refresh_desktop(xmon->xscr);
 }
+#endif
 
 static void
 update_client_list(XdeScreen *xscr, Atom prop)
 {
+#if 0
 	Window root = RootWindow(dpy, xscr->index);
 	Atom actual = None;
 	int format = 0;
@@ -4601,6 +4625,7 @@ update_client_list(XdeScreen *xscr, Atom prop)
 			mstacked[m] = g_list_append(mstacked[m], window);
 		}
 	}
+#endif
 }
 
 static void
@@ -5398,6 +5423,7 @@ event_handler_SelectionClear(XEvent *xev, XdeScreen *xscr)
 	if (xscr && xev->xselectionclear.window == xscr->selwin) {
 		XDestroyWindow(dpy, xscr->selwin);
 		EPRINTF("selection cleared, exiting\n");
+#if 1
 		if (smcConn) {
 			/* Care must be taken where if we are running under a session
 			   manager. We set the restart hint to SmRestartImmediately which
@@ -5407,6 +5433,9 @@ event_handler_SelectionClear(XEvent *xev, XdeScreen *xscr)
 			return GDK_FILTER_CONTINUE;
 		}
 		exit(EXIT_SUCCESS);
+#endif
+		mainloop_quit();
+		return GDK_FILTER_REMOVE;
 	}
 	if (xscr && xev->xselectionclear.window == xscr->laywin) {
 		XDestroyWindow(dpy, xscr->laywin);
@@ -6109,8 +6138,6 @@ startup(int argc, char *argv[])
 XdeMonitor *
 init_screens(Window selwin)
 {
-	GdkWindow *sel;
-	char selection[65] = { 0, };
 	XdeMonitor *xmon = NULL;
 	XdeScreen *xscr;
 	int s, nscr;
@@ -6118,18 +6145,26 @@ init_screens(Window selwin)
 	nscr = gdk_display_get_n_screens(disp);
 	screens = calloc(nscr, sizeof(*screens));
 
-	sel = gdk_x11_window_foreign_new_for_display(disp, selwin);
-	gdk_window_add_filter(sel, selwin_handler, screens);
-	g_object_unref(G_OBJECT(sel));
+	if (selwin) {
+		GdkWindow *sel;
+
+		sel = gdk_x11_window_foreign_new_for_display(disp, selwin);
+		gdk_window_add_filter(sel, selwin_handler, screens);
+		g_object_unref(G_OBJECT(sel));
+	}
 	gdk_window_add_filter(NULL, events_handler, NULL);
 
 	for (s = 0, xscr = screens; s < nscr; s++, xscr++) {
-		snprintf(selection, sizeof(selection), XA_SELECTION_NAME, s);
 		xscr->index = s;
-		xscr->atom = XInternAtom(dpy, selection, False);
+		if (selwin) {
+			char selection[65] = { 0, };
+
+			snprintf(selection, sizeof(selection), XA_SELECTION_NAME, s);
+			xscr->atom = XInternAtom(dpy, selection, False);
+			xscr->selwin = selwin;
+		}
 		xscr->scrn = gdk_display_get_screen(disp, s);
 		xscr->root = gdk_screen_get_root_window(xscr->scrn);
-		xscr->selwin = selwin;
 		xscr->width = gdk_screen_get_width(xscr->scrn);
 		xscr->height = gdk_screen_get_height(xscr->scrn);
 #ifdef STARTUP_NOTIFICATION
@@ -6241,8 +6276,13 @@ get_selection(Bool replace, Window selwin)
 		}
 		if (selwin) {
 			XEvent ev = { 0, };
+			Atom manager = XInternAtom(dpy, "MANAGER", False);
+			GdkScreen *scrn;
+			Window root;
 
 			for (s = 0; s < nscr; s++) {
+				scrn = gdk_display_get_screen(disp, s);
+				root = GDK_WINDOW_XID(gdk_screen_get_root_window(scrn));
 				snprintf(selection, sizeof(selection), XA_SELECTION_NAME, s);
 				atom = XInternAtom(dpy, selection, False);
 
@@ -6250,16 +6290,16 @@ get_selection(Bool replace, Window selwin)
 				ev.xclient.serial = 0;
 				ev.xclient.send_event = False;
 				ev.xclient.display = dpy;
-				ev.xclient.window = RootWindow(dpy, s);
-				ev.xclient.message_type = XInternAtom(dpy, "MANAGER", False);
+				ev.xclient.window = root;
+				ev.xclient.message_type = manager;
 				ev.xclient.format = 32;
 				ev.xclient.data.l[0] = CurrentTime;	/* FIXME */
-				ev.xclient.data.l[1] = XInternAtom(dpy, selection, False);
+				ev.xclient.data.l[1] = atom;
 				ev.xclient.data.l[2] = selwin;
 				ev.xclient.data.l[3] = 0;
 				ev.xclient.data.l[4] = 0;
 
-				XSendEvent(dpy, RootWindow(dpy, s), False, StructureNotifyMask, &ev);
+				XSendEvent(dpy, root, False, StructureNotifyMask, &ev);
 				XFlush(dpy);
 			}
 		}
@@ -6609,8 +6649,6 @@ Usage:\n\
     %1$s {-V|--version}\n\
     %1$s {-C|--copying}\n\
 Command options:\n\
-    -m, --monitor\n\
-        generate a menu and monitor for changes and requests\n\
     -R, --replace\n\
         replace a running instance\n\
     -E, --refresh\n\
@@ -6619,6 +6657,8 @@ Command options:\n\
         ask a running instance to reexecute itself\n\
     -q, --quit\n\
         ask a running instance to quit\n\
+    -e, --editor\n\
+        run an instance of the settings editor\n\
     -h, --help, -?, --?\n\
         print this usage information and exit\n\
     -V, --version\n\
@@ -6628,8 +6668,6 @@ Command options:\n\
 Options:\n\
     -r, --replace\n\
         replace a running instance [default: %15$s]\n\
-    -e, --editor\n\
-        launch the settings editor [default: %22$s]\n\
     -d, --display DISPLAY\n\
         specify the X display, DISPLAY, to use [default: %4$s]\n\
     -s, --screen SCREEN\n\
@@ -6669,25 +6707,25 @@ Options:\n\
     -p, --proxy\n\
         respond to button proxy [default: %21$s]\n\
     -c, --cycle\n\
-        show a window cycle list [default: %24$s]\n\
+        show a window cycle list [default: %23$s]\n\
     --normal\n\
-        list normal windows as well [default: %25$s]\n\
+        list normal windows as well [default: %24$s]\n\
     --hidden\n\
-        list hidden windows as well [default: %26$s]\n\
+        list hidden windows as well [default: %25$s]\n\
     --minimized\n\
-        list minimized windows as well [default: %27$s]\n\
+        list minimized windows as well [default: %26$s]\n\
     --all-monitors\n\
-        list windows on all monitors [deefault: %28$s]\n\
+        list windows on all monitors [deefault: %27$s]\n\
     --all-workspaces\n\
-        list windows on all workspaces [default: %29$s]\n\
+        list windows on all workspaces [default: %28$s]\n\
     -n, --noactivate\n\
-        do not activate windows [default: %30$s]\n\
+        do not activate windows [default: %29$s]\n\
     --raise\n\
-        raise windows when selected/cycling [default: %31$s]\n\
+        raise windows when selected/cycling [default: %30$s]\n\
     -R, --restore\n\
-        restore previous windows when cycling [default: %32$s]\n\
+        restore previous windows when cycling [default: %31$s]\n\
     -n, --dry-run\n\
-        do not change anything, just report actions [default: %23$s]\n\
+        do not change anything, just report actions [default: %22$s]\n\
     -D, --debug [LEVEL]\n\
         increment or set debug LEVEL [default: %2$d]\n\
         this option may be repeated.\n\
@@ -6720,7 +6758,6 @@ Session Management:\n\
 	, options.timestamp
 	, options.keys ?: "AS+Tab:A+Tab"
 	, show_bool(options.proxy)
-	, show_bool(options.editor)
 	, show_bool(options.dryrun)
 	, show_bool(options.cycle)
 	, show_bool(options.normal)
@@ -6777,7 +6814,7 @@ set_defaults(void)
 	}
 	if ((env = getenv("XDE_DEBUG")))
 		options.debug = atoi(env);
-	file = g_build_filename(g_get_home_dir(), ".config", RESNAME, "rc", NULL);
+	file = g_build_filename(g_get_user_config_dir(), RESNAME, "rc", NULL);
 	free(options.filename);
 	options.filename = strdup(file);
 	g_free(file);
@@ -7260,7 +7297,7 @@ main(int argc, char *argv[])
 			{"border",		required_argument,	NULL,	'B'},
 			{"filename",		required_argument,	NULL,	'f'},
 			{"timestamp",		required_argument,	NULL,	'T'},
-			{"pointer",		no_argument,		NULL,	'p'},
+			{"pointer",		no_argument,		NULL,	'P'},
 			{"keyboard",		no_argument,		NULL,	'K'},
 			{"keypress",		optional_argument,	NULL,	'k'},
 			{"button",		required_argument,	NULL,	'b'},
@@ -7366,7 +7403,7 @@ main(int argc, char *argv[])
 			options.pointer = False;
 			options.button = 0;
 			break;
-		case 'p':	/* -P, --pointer */
+		case 'P':	/* -P, --pointer */
 			options.pointer = True;
 			options.keyboard = False;
 			if (!options.button)
@@ -7459,6 +7496,9 @@ main(int argc, char *argv[])
 			free(options.keys);
 			options.keys = strdup(optarg);
 			break;
+		case 'p':	/* -p, --proxy */
+			options.proxy = True;
+			break;
 		case 'c':	/* -c, --cycle */
 			options.cycle = True;
 			break;
@@ -7490,11 +7530,8 @@ main(int argc, char *argv[])
 		case 'y':	/* -y, --systray */
 			options.systray = True;
 			break;
-		case 'e':	/* -e, --editor */
-			options.editor = True;
-			break;
 
-		case 'P':	/* -P, --popmenu */
+		case 'e':	/* -e, --editor */
 			if (options.command != CommandDefault)
 				goto bad_command;
 			if (command == CommandDefault)
@@ -7637,39 +7674,39 @@ main(int argc, char *argv[])
 	switch (command) {
 	case CommandDefault:
 	case CommandRun:
-		DPRINTF(1, "%s: running a %s instance\n", argv[0], options.replace ? "replacement" : "new");
+		DPRINTF(1, "running a %s instance\n", options.replace ? "replacement" : "new");
 		do_run(argc, argv);
 		break;
 	case CommandRefresh:
-		DPRINTF(1, "%s: asking existing instance to refresh\n", argv[0]);
+		DPRINTF(1, "asking existing instance to refresh\n");
 		do_run(argc, argv);
 		break;
 	case CommandRestart:
-		DPRINTF(1, "%s: asking existing instance to restart\n", argv[0]);
+		DPRINTF(1, "asking existing instance to restart\n");
 		do_run(argc, argv);
 		break;
 	case CommandPopMenu:
-		DPRINTF(1, "%s: asking existing instance to pop menu\n", argv[0]);
+		DPRINTF(1, "asking existing instance to pop menu\n");
 		do_run(argc, argv);
 		break;
 	case CommandQuit:
 		if (!options.display) {
-			EPRINTF("%s: cannot ask instance to quit without DISPLAY\n", argv[0]);
+			EPRINTF("cannot ask instance to quit without DISPLAY\n");
 			exit(EXIT_FAILURE);
 		}
-		DPRINTF(1, "%s: asking existing instance to quit\n", argv[0]);
+		DPRINTF(1, "asking existing instance to quit\n");
 		do_quit(argc, argv);
 		break;
 	case CommandHelp:
-		DPRINTF(1, "%s: printing help message\n", argv[0]);
+		DPRINTF(1, "printing help message\n");
 		help(argc, argv);
 		break;
 	case CommandVersion:
-		DPRINTF(1, "%s: printing version message\n", argv[0]);
+		DPRINTF(1, "printing version message\n");
 		version(argc, argv);
 		break;
 	case CommandCopying:
-		DPRINTF(1, "%s: printing copying message\n", argv[0]);
+		DPRINTF(1, "printing copying message\n");
 		copying(argc, argv);
 		break;
 	default:
