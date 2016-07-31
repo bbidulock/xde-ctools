@@ -31,6 +31,15 @@ of the program:
 When no command option is specified, the default is to run the program
 without replacing an existing instance.
 
+=item B<--trayicon>, B<-y>
+
+Ask the running instance to install a status icon in the system tray.
+
+=item B<--editor>, B<-e>
+
+Ask the running instance to launch the editor.  See L</EDITOR OPTIONS>,
+below.
+
 =item B<--replace>, B<-r>
 
 Replace a running instance of the program with a new instance.
@@ -75,6 +84,14 @@ workspace.  The default is either specified by the B<DISPLAY>
 environment variable (when that variable specifies a screen); otherwise,
 all screens will be considered.
 
+=item B<--timeout>, B<-t> I<MILLISECONDS>
+
+=item B<--border>, B<-B> I<PIXELS>
+
+=item B<--filename>, B<-f> I<FILENAME>
+
+=item B<--key>, B<-k> [I<KEY>]:[I<KEY>]
+
 =item B<--proxy>, B<-p>
 
 Normally the program will not translate scroll wheel events received on
@@ -94,6 +111,40 @@ otherwise, the output verbosity is set to I<LEVEL>.
 Print debugging information on standard error while running.  When
 I<LEVEL> is not specified, simply increments the debug level; otherwise,
 the debug level is set to I<LEVEL>.
+
+=back
+
+=head2 EDITOR OPTIONS
+
+=over
+
+=item B<--screen>, B<-s> I<SCREEN>
+
+Specify the screen to use, I<SCREEN>, when launching the editor.
+
+=item B<--monitor>, B<-M> I<MONITOR>
+
+Specify the monitor to use, I<MONITOR>, when launching the editor.
+
+=item B<--keyboard>, B<-K>
+
+Specifies that the editor was launched using the keyboard.
+
+=item B<--pointer>, B<-P>
+
+Specifies that the editor was launched using the pointer.
+
+=item B<--button>, B<-b> I<BUTTON>
+
+Specifies the button number, I<BUTTON>, that was used to launch the
+editor.  When I<BUTTON> is zero, specifies that the keyboard was used to
+launch the editor.
+
+=item B<--which>, B<-w> I<WHICH>
+
+=item B<--where>, B<-W> I<WHERE>
+
+=item B<--timestamp>, B<-T> I<TIMESTAMP>
 
 =back
 

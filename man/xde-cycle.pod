@@ -18,19 +18,37 @@ accessed with a hot key.
 
 =head1 OPTIONS
 
+The options detailed below are recognized by B<xde-cycle>.  B<xde-cycle>
+uses L<getopt_long_only(3)>, so unambiguous abbreviations of long
+options and long options with a single dash are also supported.
+
 B<xde-cycle> accepts the following options:
 
 =head2 COMMAND OPTIONS
 
-When specified, the following options alter the primary operating mode
-of the program:
+When no command is specified, B<xde-cycle> attempts to start a new
+instance of the program.  When specified, the following options alter
+the primary operating mode of the program:
 
 =over
 
-=item [B<--cycle>, B<-c>]
+=item []
 
-Begin a window cycle by popping up the cycle window.  This is the normal
-and default operating mode of the program.
+Run as a cycle detection process.  This is the default when no other
+command option is specified.  It is an error if an instance of
+B<xde-cycle> is already running and the program will exit with an error
+code and diagnostic.
+
+=item B<-r>, B<--replace>
+
+Replace a running instance of the program with this one (if one is
+indeed running).  It is not an error if no instance is currently
+running.
+
+=item B<--quit>, B<-q>
+
+Ask a running instance of the program to quit (if one is indeed
+running).  It is not an error if no instance is currently running.
 
 =item B<--help>, B<-h>
 
@@ -51,78 +69,119 @@ Prints the long copying permission statement and exits.
 
 =head2 GENERAL OPTIONS
 
-The following options are general options:
+In addition to command options, B<xde-cycle> accepts the following
+general options:
 
 =over
 
-=item B<--display>, B<-d> I<DISPLAY>
+=item B<-d>, B<--display> I<DISPLAY>
 
 Specify the display to use (overriding the B<DISPLAY> environment
 variable).  The default is the value of the B<DISPLAY> environment
 variable.
 
-=item B<--screen>, B<-s> I<SCREEN>
+=item B<-s>, B<--screen> I<SCREEN>
 
 Specify the screen number to use when locating the current window and
 workspace.  The default is either specified by the B<DISPLAY>
-environment variable (which that variable specifies a screen);
-otherwise, all screens will be considered.
+environment variable (when that variable specifies a screen); otherwise,
+all screens will be considered.
+
+=item B<-M>, B<--monitor> I<MONITOR>
+
+Specify the monitor number to use when locating the current window and
+workspace.  The default is either specified by location; otherwise, all
+monitors will be considered.
+
+=item B<-t>, B<--timeout> I<MILLISECONDS>
+
+=item B<-B>, B<--border> I<PIXELS>
+
+=item B<-f>, B<--filename> I<FILENAME>
+
+=item B<-P>, B<--pointer>
+
+=item B<-K>, B<--keyboard>
+
+=item B<-b>, B<--button> I<BUTTON>
 
 =item B<--timestamp>, B<-T> I<TIMESTAMP>
 
 Provides the X11 server time-stamp of the event that initiated the
 window cycle.
 
-=item B<--which>, B<-w> {B<active>|B<focused>|B<pointer>|B<select>|I<WINDOW>}
+=item B<-w>, B<--which> {B<default>|B<active>|B<focused>|B<pointer>|I<SCREEN>}
 
-Specifies which window to use as the current window for cycling.  This
-can be one of the following values (case insensitive, may be
+Specifies the screen and monitor to use for current window cycling.
+This can be one of the following values (case insensitive, may be
 abbreviated):
 
 =over
 
+=item C<default>
+
+Uses the value of other options to automatically determine which screen
+and monitor on which to place the pop-up.
+
+When the B<--button> option is specified with a non-zero I<BUTTON>
+argument, or when the B<--pointer> option is specified, the screen and
+monitor is determined as though C<pointer> was specified.
+
+When the B<--button> option is specified with a zero I<BUTTON> argument,
+or when the B<--keyboard> option is specified, the screen and monitor is
+determined as though C<focused> was specified (and failing a focused
+window, as though C<active> was specified).
+
 =item C<active>
 
-Use the active window (in the EWMH sense) as the current window.  This
-is the window specified by the B<_NET_ACTIVE_WINDOW> property on the
-root window.
+Use the screen and monitor with the active window (in the EWMH sense).
+This is the screen and monitor which contain the window specified by the
+B<_NET_ACTIVE_WINDOW> property on the root window.
 
 =item C<focused>
 
-Use the focused window (in the EWMH sense or simply the client with the
-keyboard focus) as the current window.  This is the client with a
+Use the screen and monitor with the focused window (in the EWMH sense or
+simply the client with the keyboard focus).  This is the client with a
 B<_NET_WM_STATE_FOCUSED> atom set in B<_NET_WM_STATE>, or the client
 (visible client with the B<WM_STATE> property set to state C<Normal>)
 that has the keyboard focus according to the X server.
 
 If no focused client can be found (e.g. focus is on the root window),
-current window selection falls back to C<active>, as described above.
+screen and monitor selection falls back to C<active>, as described
+above.
 
 =item C<pointer>
 
-Use the client holding a pointer grab or the client or window manager
-frame directly under the pointer as the current window.
+Use the screen and monitor containing the pointer.
 
-=item I<WINDOW>
+=item I<SCREEN>
 
-Specifies the XID of a window to use as the current window.
+Use the screen specified by I<SCREEN> and the monitor specified with the
+B<--monitor> option, or the default monitor for the screen.
 
 =back
 
-When a client window cannot be found to use as the current window, no
-current window is selected until the first cycle.
+When unspecified, the default is C<default>.
 
-=item B<--id>, B<-x> I<WINDOW>
-
-Specify the X window identifier (XID) of the EWMH/NetWM client window to
-use as the current window.  Can also be specified with B<--which>.
-
-=item B<--where>, B<-W> (B<pointer>|B<center>|B<topleft>|B<bottomright>|I<GEOMETRY>
+=item B<-W>, B<--where> {B<default>|B<pointer>|B<center>|B<topleft>|B<bottomright>|I<GEOMETRY>}
 
 Specifies the position of the cycle window.  This can be one of the
 following values (case insensitive, may be abbreviated):
 
 =over
+
+=item C<default>
+
+Uses the value of other options to automatically determine the position
+of the cycle menu.
+
+When the B<--button> option is specified with a non-zero I<BUTTON>
+argument, or when the B<--pointer> option is specified, the position is
+determined as though C<pointer> was specified.
+
+When the B<--button> option is specified with a zero
+I<BUTTON> argument, or when the B<--keyboard> option is specified, the
+position is determined as though C<center> was specified.
 
 =item C<pointer>
 
@@ -134,29 +193,90 @@ Place the cycle window in the centre of the active monitor.
 
 =item C<topleft>
 
-Place the cycle window in the top-left corner of the active monitor.
+Place the cycle window in the top-left corner of the work area of the
+active monitor.
 
 =item C<bottomright>
 
-Place the cycle window in the bottom-left corner of the active monitor.
+Place the cycle window in the bottom-left corner of the work area of the
+active monitor.
 
 =item I<GEOMETRY>
 
 Specify the position of the menu by geometry specification, I<GEOMETRY>.
 
+When only an C<x> and C<y> position is specified in I<GEOMETRY> (see
+L<XParseGeometry(3)>), the upper left corner of the pop-up is positioned
+at the specified point.
+
+When C<x> and C<y> and C<width> and C<height> are specified in
+I<GEOMETRY> (see L<XParseGeometry(3)>), the geometry is interpreted as a
+button alongside which the pop-up should be positioned as though the
+button were a menu button.
+
+To locate the menu user a button that was pressed in, for example, an
+external panel, where the button has the geometry C<55x20+30+0>, specify
+the B<--where='55x20+30+0'> option.  This will property position the
+menu under the button.
+
 =back
 
-When unspecified, the default is C<center>.
+When unspecified, the default is C<default>.
+
+=item B<-k>, B<--key> [I<KEY>]:[I<KEY>]
+
+=item B<--order>, B<-O> [I<ORDERTYPE>]
+
+Specify the order of the windows in the cycle list.  The I<ORDERTYPE>
+specifies which windows to cycle through and the order in which to
+cycle.  The windows in the cycle list can also be adjusted using the
+B<--all-monitors>, B<--all-workspaces>, B<--hidden> and B<--minimized>
+options.  The I<ORDERTYPE> can be one of the following:
+
+=over
+
+=item C<default>
+
+The program will detect both cycling using the client list
+(B<_NET_CLIENT_LIST> or equivalent) as well as cycling using the
+stacking order client list (B<_NET_CLIENT_LIST_STACKING> or equivalent).
+
+=item C<client>
+
+Cycle through the windows in the client list in client order.  The
+program will only detect cycling using the client list
+(B<_NET_CLIENT_LIST> or equivalent).  See also the B<--group> option.
+
+=item C<stacking>
+
+Cycle through the windows in the client list in stacking order.  The
+program will only detect cycling using the stacking order client list
+(B<_NET_CLIENT_LIST_STACKING> or equivalent).  See also the B<--group>
+option.
+
+=back
+
+When unspecified, the I<ORDERTYPE> defaults to C<default>.
+
+=item B<-c>, B<--cycle>
+
+=item B<--normal>
+
+When listing hidden and minimized windows, also list normal windows.
+The default when B<--hidden> and B<--minimized> options are not
+specified is to list normal windows; when either B<--hidden> or
+B<--minimized>, or both, are specified, the default is to not list
+normal windows.
 
 =item B<--hidden>
 
-Also list hidden windows when cycling.  The default is to skip hidden
-windows.
+Also list and detect hidden windows when cycling.  The default is to
+skip hidden windows.
 
-=item B<--minimized>
+=item B<-m>, B<--minimized>
 
-Also list minimized windows when cycling.  The default is to skip
-minimized windows.
+Also list and detect minimized windows when cycling.  The default is to
+skip minimized windows.
 
 =item B<--all-monitors>
 
@@ -170,27 +290,15 @@ When cycling windows, also cycle through windows displayed on workspaces
 other than the current one.  As windows are cycled, the current
 workspace may change as windows from other workspaces are cycled.
 
-=item B<--order>, B<-O> [I<ORDERTYPE>]
+=item B<-n>, B<--noactivate>
 
-Specify the order of the windows in the cycle list.  The I<ORDERTYPE>
-specifies which windows to cycle through and the order in which to
-cycle.  The windows in the cycle list can also be adjusted using the
-B<--all-monitors>, B<--all-workspaces>, B<--hidden> and B<--minimized>
-options.  The I<ORDERTYPE> can be one of the following:
+=item B<--raise>
 
-=over
+=item B<-R>, B<--restore>
 
-=item C<client>
+=item B<-y>, B<--trayicon>
 
-Cycle through the windows in the client list in client order.  See also
-the B<--group> option.
-
-=item C<stacking>
-
-Cycle through the windows in the client list in stacking order.  See
-also the B<--group> option.
-
-=back
+=item B<-e>, B<--editor>
 
 =item B<--group>, B<-G> [I<GROUPTYPE>]
 
@@ -354,4 +462,4 @@ L<xde-keys(1)>
 
 =cut
 
-# vim: set sw=4 tw=72 nocin spell spelllang=en_ca:
+# vim: set sw=4 tw=72 nocin spell
