@@ -35,6 +35,17 @@ xde-dock: doesn't work so well yet
       and do nice things like autohide the panel and choose
       configurations
 
+xde-feedback: not fully functional yet
+
+- [ ] Supposed to do what five other feedback programs do.
+- [ ] Complete documentation (manual page)
+
+xde-input: partially functional
+
+- [X] Supposed to do what xset does and more.
+- [X] Complete documentation (manual page)
+- [ ] Fix problems with DPMS, Blanking and Exposures.
+
 xde-keys: not fully functional yet
 
 - [X] Start documentation (manual page)
@@ -44,6 +55,12 @@ xde-keys: not fully functional yet
       on the window manager internals could be specified in
       a single location
 - [ ] haven't really done that much work yet.
+
+xde-monitor: works good now
+
+- [X] Displays a list of starting applications while they are
+      in startup notification.
+- [ ] Complete documentation (manual page)
 
 xde-pager: works pretty good
 
@@ -89,12 +106,20 @@ xde-setbg: works really good
 - [ ] this is a multiple backdrop changer that changes backdrop
       according to a style or theme when the desktop changes.
 
+xde-tasks: not fully functional
+
+- [ ] Supposed to list and edit running tasks.
+- [X] Complete documentation (manual page)
+- [ ] Finish writing this command.
+
 xde-winlist: works pretty good.
 
 - [X] Start documentation (manual page)
 - [X] Complete documentation (manual page)
 - [ ] the purpose of this program was to display a graphical window
       list a feedback when cycling windows using the keyboard.
+- [ ] convert to consider monitors when listing windows.  Unless all
+      monitors are selected, only show windows on the active monitor.
 
 xde-winmenu: works pretty good
 
@@ -106,6 +131,8 @@ xde-winmenu: works pretty good
       click on the titlebar or menu button uses this program to
       pop the window menu.  It think that it is finished.
 - [X] Works like a charm.  Use it all the time.
+- [ ] convert to consider monitors when listing windows.  Unless all
+      monitors are selected, only show windows on the active monitor.
 
 xde-wkspmenu: works well
 
