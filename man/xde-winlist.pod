@@ -31,33 +31,27 @@ of the program:
 
 =over
 
-=item I<unspecified>
+=item [B<--popup>, B<-p>]
 
-When no command option is specified, the default is to run the window
-list without replacing an existing instance.
-
-=item B<--replace>, B<-r>
-
-Run the window list, but replace a running instance of B<xde-winlist>.
-
-=item B<--quit>, B<-q>
-
-Ask a running instance of B<xde-winlist> to quit.
+Post a pop-up menu.  Depending on the setting of the B<--button> option,
+this will either post the pop-up menu at the current pointer position,
+or centred on the workspace (screen and monitor) to which it corresponds.
 
 =item B<--help>, B<-h>
 
 Prints usage information and the current options settings and defaults
-and exits.
+to standard output, then exits.
 
 =item B<--version>, B<-V>
 
-Prints the version of the program and a brief copyright statement and
-exits.  Parts the first line with L<awk(1)> to obtain just the version
-number.
+Prints the version of the program and a brief copyright statement to
+standard output, then exits.  Parse the first line with L<awk(1)> to
+obtain just the version number.
 
 =item B<--copying>, B<-C>
 
-Prints the long copying permission statement and exits.
+Prints the long copying permissions statement to standard output, then
+exits.
 
 =back
 
@@ -75,22 +69,31 @@ variable.
 
 =item B<--screen>, B<-s> I<SCREEN>
 
-Specify the screen number to use when locating the current window and
-workspace.  The default is either specified by the B<DISPLAY>
-environment variable (which that variable specifies a screen);
-otherwise, all screens will be considered.
+Specify the screen number, I<SCREEN>, to use when positioning the menu.
+The default is either specified by the C<DISPLAY> environment variable
+(when that variable specifies a screen); otherwise, all screens will be
+considered, and the screen containing the selected monitor will be used.
 
-=item B<--timeout>, B<-t> I<TIMEOUT>
+=item B<--monitor>, B<-M> I<MONITOR>
 
-When cycling windows with the mouse or other than a modified keystroke,
-or if a key is pressed that does not result in a active window change,
-the feedback window will persist for I<TIMEOUT> milliseconds.  The
-default is 1000 (or 1 second).
+Specify the monitor number, I<MONITOR>, to use when positioning the
+menu.  The default depends on other options.
 
-=item B<--border>, B<-B> I<WIDTH>
+=item B<--filename>, B<-f> I<FILENAME>
 
-Places a border around the window list of I<WIDTH> pixels.  The default
-is 5 pixels.
+Specify the file name, I<FILENAME>, of an alternate configuration file
+from which to read option settings.  The default is
+F<$XDG_CONFIG_HOME/xde-winlist/rc>. When the configuration file
+specified does not exist, B<xde-winlist> reads the file
+F</usr/share/X11/app-defaults/XDE-WinList>.
+
+=item B<--pointer>, B<-p>
+
+An alternate way of specifying B<--button=1>.
+
+=item B<--keyboard>, B<-K>
+
+An alternate way of specifying B<--button=0>.
 
 =item B<--button>, B<-b> I<BUTTON>
 
@@ -102,64 +105,220 @@ menu so that the popped up menu can grab the button.  A I<BUTTON> of
 zero (0) means that the program was invoked with a key-press instead of
 a button.
 
+=item B<--which>, B<-w> {B<default>|B<active>|B<focused>|B<pointer>|I<MONITOR>}
+
+Specifies the monitor on which to pop the menu.  The default is to
+determine the monitor based on other options (such as the B<--button>
+option).  The option argument can be one of the following (case
+insensitive, may be abbreviated):
+
+=over
+
+=item C<default>
+
+When unspecified or specified as C<default>, the default monitor
+selection algorithm is used as follows:
+
+=over 4
+
+=item 1.
+
+When the B<--button> or B<--pointer> option is specified and non-zero,
+select the monitor containing the pointer.
+
+=item 2.
+
+When neither B<--button> nor B<--pointer> option is specified, or
+B<--button> is specified as zero, or B<--keypress> or B<--keyboard> is
+specified, select the monitor with the keyboard focus.
+
+=item 3.
+
+When there is no monitor with the keyboard focus, select the monitor
+with the active window.
+
+=item 4.
+
+When there is no active window and no window with the keyboard focus,
+select the monitor containing (or nearest to) the pointer.
+
+=back
+
+=item C<active>
+
+Use the monitor containing the active client.
+
+=item C<focused>
+
+Use the monitor containing the window with the keyboard focus (focused
+client).
+
+=item C<pointer>
+
+Use the monitor containing (or closest to) the pointer.
+
+=item I<MONITOR>
+
+Use the specified monitor number, I<MONITOR>, indexed from zero (0),
+specifying the screen and monitor on which to pop the menu.  When
+there is one screen and multiple monitors (typical case for Xinerama or
+RANDR multi-head setups), I<MONITOR> specifies the monitor, indexed from
+zero (0).  When there are multiple screens, the B<--screen> option
+specifies the screen and I<MONITOR> specifies the monitor.
+
+=back
+
+=item B<--where>, B<-W> {B<default>|B<pointer>|B<center>|B<topleft>|B<bottomright>|I<WHERE>}
+
+Specifies the position for the pop-up menu.  This can be one of the
+following values (case insensitive, may be abbreviated):
+
+=over
+
+=item C<default>
+
+Place the menu automatically based on other information, such as the
+button or key pressed to invoke the menu.  This is the default when
+unspecified.  The default placement algorithm is as follows:
+
+=over
+
+=item 1.
+
+If B<--button> is specified and non-zero, or B<--pointer> is specified,
+place the menu at the pointer regardless of the screen and monitor
+currently containing the pointer.  If the pointer is positioned outside
+an active monitor, fall back to the behaviour as if B<--button> or
+B<--pointer> was not specified.
+
+=item 2.
+
+If B<--button> is unspecified or zero (0), or B<--keyboard> is
+specified, place the menu in the centre (considering work area) of the
+screen and monitor which currently contains the keyboard focus or active
+window.
+
+=item 3.
+
+Place the menu in the top left corner of the current work area.
+
+=back
+
+=item C<pointer>
+
+Place the northwest corner of the menu under the mouse pointer.  This
+will always succeed.  This is the default when B<--button> is specified
+and non-zero.
+
+=item C<center>
+
+Place the menu in the centre of the current monitor belonging to the
+current screen.  The current monitor and screen is the monitor which
+contains (or is closest to the location of) the pointer.
+
+=item C<topleft>
+
+Place the menu in the top-left corner of the work area (excluding panels
+and docks) for the current screen.  The current screen is the screen
+specified by the B<--display> or B<--screen> options, or the screen that
+currently contains the pointer.
+
+=item I<WHERE>
+
+Place the menu at the location specified by I<WHERE>, which should be a
+string containing a screen geometry that can be parsed by
+L<XParseGeometry(3)>.  This is useful when the menu is launched from a
+menu button in an external program and the menu should be positioned
+adjacent to the button.  The geometry should be the geometry of the
+widget against which the menu should be placed.  When the width and
+height of the geometry are zero (or unspecified), it describes the point
+at which the menu should be placed.
+
+=back
+
+=item B<--order>, B<-O> I<ORDERTYPE>
+
+Specify the order of the selection list or cycle list.  The I<ORDERTYPE>
+specifies which windows to list or cycle through and the order in which
+to list or cycle them.  The windows in the list can also be adjusted
+using the B<--normal>, B<--all-monitors>, B<--all-workspaces>,
+B<--hidden> and B<--minimized> options.  The I<ORDERTYPE> can be one of
+the following:
+
+=over
+
+=item C<client>
+
+Clients are listed in client order.  This is the same order that is
+presented in the C<_NET_CLIENT_LIST> property on the root window of EWMH
+compliant window managers.
+
+=item C<stacking>
+
+Clients are listed in stacking order.  This is the same order that is
+presented in the C<_NET_CLIENT_LIST_STACKING> property on the root
+window of EWMH compliant window managers (or when not supported,
+determine stacking order directly and use the client list in the
+determined stacking order).
+
+=back
+
+When unspecified, the default is client order (or whichever order is
+supported when the window manager does not support both).
+
 =item B<--timestamp>, B<-T> I<TIMESTAMP>
 
 Provides the X11 server time-stamp of the event that caused the pop up.
+This is the X11 server time stamp of the button or key press that
+invoked the pop-up.  When the program is launched with startup
+notification, the time stamp will be take from the B<DESKTOP_STARTUP_ID>
+environment variable.
+
+=item B<--key>, B<-k> [I<KEY>:I<KEY>]
+
+Specify the key combination used to pop up the cycle list.  Modifier
+keys have to be specified, only the forward and reverse cycle keys need
+be specified.  Pressing the forward key will cycle forward through the
+selection; the reverse key, backward.  Only useful when B<--cycle> is
+also specified.  The default is C<Alt+Tab:Shift+Alt+Tab>.
 
 =item B<--cycle>, B<-c>.
 
 Provide a cycle list pop up instead of a list.  Cycle list pop up lists
 will not be dismissed until a modifier key is released.
 
-=item B<--hidden>
+=item B<--normal>, B<-n>
+
+When listing or cycling windows, also list or cycle through normal
+windows.  The default is to include normal windows unless one of the
+other window-specifying options is used, in which case, the default is
+to not include normal windows.
+
+=item B<--hidden>, B<-H>
 
 When listing or cycling windows, also list or cycle through hidden
 windows.  The default is to skip hidden windows or windows that have the
 skip-window-list attribute.
 
-=item B<--minimized>
+=item B<--minimized>, B<-m>
 
 When listing or cycling windows, also list or cycle through minimized
 windows.  The default is to skip minimized windows or windows that have
 the skip-window-list attribute.
 
-=item B<--all-monitors>
+=item B<--all-monitors>, B<-a>
 
 When listing or cycling windows, also list or cycle through windows
 displayed on monitors other than the current one.  This includes windows
 on workspaces that are currently visible on a monitor.
 
-=item B<--all-workspaces>
+=item B<--all-workspaces>, B<-A>
 
 When cycling windows, also cycle through windows displayed on workspaces
 other than the current one.  As windows are cycled, the current
 workspace may change as windows from other workspaces are cycled.
 
-=item B<--order>, B<-O> [I<ORDERTYPE>]
-
-Specify the order of the selection list or cycle list.  The I<ORDERTYPE>
-specifies which windows to list or cycle through and the order in which
-to list or cycle them.  The windows in the list can also be adjusted
-using the B<--all-monitors>, B<--all-workspaces>, B<--hidden> and
-B<--minimized> options.  The I<ORDERTYPE> can be one of the following:
-
-=over
-
-=item C<client>
-
-Cycle through the windows in the client list in client order.
-
-=item C<stacking>
-
-Cycle through the windows in the stacking order client list in stacking
-order (or when not supported, determine stacking order directly and use
-the client list in the determined stacking order).
-
-=back
-
-The default is client list order.
-
-=item B<--noactivate>, B<-n>
+=item B<--noactivate>, B<-N>
 
 When selecting or cycling windows, do not activate them.  The default is
 to activate the selected or cycled window.   When neither B<--raise> nor
@@ -167,7 +326,7 @@ B<--focus> are specified, this results in only highlighting the menu
 selection.  Activation of the window will still occur; however, when the
 window is selected (a modifier key is released).
 
-=item B<--raise>, B<-r>
+=item B<--raise>, B<-U>
 
 When selecting or cycling windows, raise the window.  The default is to
 only activate the selected or cycled window and not to explicitly raise
@@ -182,13 +341,9 @@ windows are hidden or minimized and included in the list using the
 B<--hidden> or B<--minimized> options.  Only iconification will be
 restored: window stacking is not restored.
 
-=item B<--key>, B<-k> [I<KEY>:I<KEY>]
+=item B<--tooltips>, B<-t>
 
-Specify the key combination used to pop up the cycle list.  Modifier
-keys have to be specified, only the forward and reverse cycle keys need
-be specified.  Pressing the forward key will cycle forward through the
-selection; the reverse key, backward.  Only useful when B<--cycle> is
-also specified.  The default is C<Alt+Tab:Shift+Alt+Tab>.
+Provide more detailed tool tips on menu items.
 
 =item B<--verbose>, B<-v> [I<LEVEL>]
 
@@ -201,26 +356,6 @@ option may be repeated.
 Increases or sets the debugging verbosity level to I<LEVEL>.  The
 default level is C<0>.  Debugging output is printed to standard error.
 This option may be repeated.
-
-=back
-
-=head2 SESSION MANAGEMENT OPTIONS
-
-X session management options are not used by another user other than the
-X11 Session Manager.  The following options are used by X session
-management:
-
-=over
-
-=item B<-clientId> I<CLIENTID>
-
-Specifies the X Session Management client identifier of the previously
-running session of B<xde-winlist>.
-
-=item B<-restore> I<SAVEFILE>
-
-Specifies the X Session Management filename of a file to which to save
-session information.
 
 =back
 
@@ -240,6 +375,10 @@ the C<--where='55x20+30+0'> option.  This will properly position the
 menu under the button.
 
 =head2 WINDOW MANAGERS
+
+B<xde-wkspmenu> provides a number of formats consistent with the use of
+workspace menus in various lightweight window managers.  The formats are
+as follows:
 
 =over
 
@@ -488,8 +627,10 @@ Brian Bidulock L<mailto:bidulock@openss7.org>.
 
 L<getopt_long_only(3)>,
 L<xde-ctools(1)>
-L<xde-keys(1)>
+L<xde-pager(1)>,
+L<xde-wkspmenu(1)>,
+L<xde-keys(1)>.
 
 =cut
 
-# vim: set sw=4 tw=72 nocin spell spelllang=en_ca:
+# vim: set sw=4 tw=72 nocin spell:

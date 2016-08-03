@@ -78,12 +78,14 @@
 
 #include <assert.h>
 #include <locale.h>
+#include <langinfo.h>
 #include <stdarg.h>
 #include <strings.h>
 #include <regex.h>
 #include <wordexp.h>
 #include <execinfo.h>
 #include <math.h>
+#include <dlfcn.h>
 
 #include <X11/Xatom.h>
 #include <X11/Xlib.h>
@@ -97,6 +99,9 @@
 #ifdef XINERAMA
 #include <X11/extensions/Xinerama.h>
 #endif
+#ifdef VNC_SUPPORTED
+#include <X11/extensions/Xvnc.h>
+#endif
 #include <X11/extensions/scrnsaver.h>
 #include <X11/extensions/dpms.h>
 #include <X11/extensions/xf86misc.h>
@@ -105,6 +110,8 @@
 #define SN_API_NOT_YET_FROZEN
 #include <libsn/sn.h>
 #endif
+#include <X11/Xdmcp.h>
+#include <X11/Xauth.h>
 #include <X11/SM/SMlib.h>
 #include <gio/gio.h>
 #include <gio/gdesktopappinfo.h>
@@ -120,6 +127,8 @@
 #include <libwnck/libwnck.h>
 
 #include <pwd.h>
+#include <fontconfig/fontconfig.h>
+#include <pango/pangofc-fontmap.h>
 
 #ifdef _GNU_SOURCE
 #include <getopt.h>
@@ -177,7 +186,7 @@ const char *program = NAME;
 #define XA_PREFIX		"_XDE_MONITOR"
 #define XA_SELECTION_NAME	XA_PREFIX "_S%d"
 #define XA_NET_DESKTOP_LAYOUT	"_NET_DESKTOP_LAYOUT_S%d"
-#define LOGO_NAME		"launcher"
+#define LOGO_NAME		"gnome-panel-launcher"
 
 static int saveArgc;
 static char **saveArgv;
@@ -186,51 +195,101 @@ static char **saveArgv;
 #define RESCLAS "XDE-Monitor"
 #define RESTITL "XDG Launch Feedback"
 
-#define USRDFLT "%s/.config/" RESNAME "/rc"
 #define APPDFLT "/usr/share/X11/app-defaults/" RESCLAS
+
+SmcConn smcConn = NULL;
+
+int cmdArgc;
+char **cmdArgv;
 
 /** @} */
 
 /** @section Globals and Structures
   * @{ */
 
-static Atom _XA_XDE_THEME_NAME;
 static Atom _XA_GTK_READ_RCFILES;
-static Atom _XA_NET_DESKTOP_LAYOUT;
-static Atom _XA_NET_CURRENT_DESKTOP;
-static Atom _XA_WIN_WORKSPACE;
-static Atom _XA_WM_DESKTOP;
-static Atom _XA_XROOTPMAP_ID;
-static Atom _XA_ESETROOT_PMAP_ID;
-static Atom _XA_NET_DESKTOP_NAMES;
-static Atom _XA_NET_NUMBER_OF_DESKTOPS;
-static Atom _XA_WIN_WORKSPACE_COUNT;
-static Atom _XA_WIN_DESKTOP_BUTTON_PROXY;
-#if 0
-static Atom _XA_WIN_AREA;
-static Atom _XA_WIN_AREA_COUNT;
-#endif
+
 static Atom _XA_NET_ACTIVE_WINDOW;
 static Atom _XA_NET_CLIENT_LIST;
 static Atom _XA_NET_CLIENT_LIST_STACKING;
-static Atom _XA_WIN_FOCUS;
+static Atom _XA_NET_CURRENT_DESKTOP;
+static Atom _XA_NET_DESKTOP_LAYOUT;
+static Atom _XA_NET_DESKTOP_NAMES;
+static Atom _XA_NET_NUMBER_OF_DESKTOPS;
+
+static Atom _XA_WIN_AREA;
+static Atom _XA_WIN_AREA_COUNT;
 static Atom _XA_WIN_CLIENT_LIST;
+static Atom _XA_WIN_DESKTOP_BUTTON_PROXY;
+static Atom _XA_WIN_FOCUS;
+static Atom _XA_WIN_WORKSPACE;
+static Atom _XA_WIN_WORKSPACE_COUNT;
+
+static Atom _XA_WM_DESKTOP;
+
+static Atom _XA_ESETROOT_PMAP_ID;
+static Atom _XA_XROOTPMAP_ID;
+
+static Atom _XA_XDE_ICON_THEME_NAME;		/* XXX */
+static Atom _XA_XDE_THEME_NAME;
+static Atom _XA_XDE_WM_CLASS;
+static Atom _XA_XDE_WM_CMDLINE;
+static Atom _XA_XDE_WM_COMMAND;
+static Atom _XA_XDE_WM_ETCDIR;
+static Atom _XA_XDE_WM_HOST;
+static Atom _XA_XDE_WM_HOSTNAME;
+static Atom _XA_XDE_WM_ICCCM_SUPPORT;
+static Atom _XA_XDE_WM_ICON;
+static Atom _XA_XDE_WM_ICONTHEME;		/* XXX */
+static Atom _XA_XDE_WM_INFO;
+static Atom _XA_XDE_WM_MENU;
+static Atom _XA_XDE_WM_NAME;
+static Atom _XA_XDE_WM_NETWM_SUPPORT;
+static Atom _XA_XDE_WM_PID;
+static Atom _XA_XDE_WM_PRVDIR;
+static Atom _XA_XDE_WM_RCFILE;
+static Atom _XA_XDE_WM_REDIR_SUPPORT;
+static Atom _XA_XDE_WM_STYLE;
+static Atom _XA_XDE_WM_STYLENAME;
+static Atom _XA_XDE_WM_SYSDIR;
+static Atom _XA_XDE_WM_THEME;
+static Atom _XA_XDE_WM_THEMEFILE;
+static Atom _XA_XDE_WM_USRDIR;
+static Atom _XA_XDE_WM_VERSION;
+
+static Atom _XA_PREFIX_REFRESH;
+static Atom _XA_PREFIX_RESTART;
+static Atom _XA_PREFIX_EDITOR;
+
 #ifdef STARTUP_NOTIFICATION
 static Atom _XA_NET_STARTUP_INFO;
 static Atom _XA_NET_STARTUP_INFO_BEGIN;
 #endif				/* STARTUP_NOTIFICATION */
 
-static Atom _XA_PREFIX_EDIT;
-static Atom _XA_PREFIX_TRAY;
-
 typedef enum {
 	CommandDefault,
 	CommandRun,
-	CommandQuit,
-	CommandHelp,
-	CommandVersion,
-	CommandCopying,
+	CommandQuit,			/* ask running instance to quit */
+	CommandRestart,			/* ask running instance to restart */
+	CommandRefresh,			/* ask running instance to refresh menu */
+	CommandPopMenu,			/* ask running instance to pop menu */
+	CommandHelp,			/* print usage info and exit */
+	CommandVersion,			/* print version info and exit */
+	CommandCopying,			/* print copying info and exit */
 } Command;
+
+typedef enum {
+	StyleFullmenu,
+	StyleAppmenu,
+	StyleSubmenu,
+	StyleEntries,
+} Style;
+
+typedef enum {
+	XdeStyleSystem,
+	XdeStyleUser,
+	XdeStyleMixed,
+} Which;
 
 typedef enum {
 	UseScreenDefault,		/* default screen by button */
@@ -256,6 +315,29 @@ typedef enum {
 } WindowOrder;
 
 typedef enum {
+	SortByDefault,			/* default sorting */
+	SortByRecent,			/* sort from most recent */
+	SortByFavorite,			/* sort from most frequent */
+} Sorting;
+
+typedef enum {
+	IncludeDefault,			/* default things */
+	IncludeDocs,			/* documents (files) only */
+	IncludeApps,			/* applications only */
+	IncludeBoth,			/* both documents and applications */
+} Include;
+
+typedef enum {
+	OrganizeDefault,
+	OrganizeNone,
+	OrganizeDate,
+	OrganizeFreq,
+	OrganizeGroup,
+	OrganizeContent,
+	OrganizeApp,
+} Organize;
+
+typedef enum {
 	PopupPager,			/* desktop pager feedback */
 	PopupTasks,			/* task list feedback */
 	PopupCycle,			/* window cycling feedback */
@@ -276,6 +358,8 @@ typedef struct {
 	int screen;
 	int monitor;
 	Time timeout;
+	unsigned iconsize;
+	double fontsize;
 	int border;
 	Bool keyboard;
 	Bool pointer;
@@ -287,8 +371,7 @@ typedef struct {
 	WindowOrder order;
 	char *filename;
 	Bool replace;
-	Bool editor;
-	Bool trayicon;
+	Bool systray;
 	char *keys;
 	Bool proxy;
 	Bool cycle;
@@ -302,7 +385,6 @@ typedef struct {
 	Bool restore;
 	Command command;
 	Bool tooltips;
-	Bool dryrun;
 	char *clientId;
 	char *saveFile;
 	union {
@@ -315,7 +397,28 @@ typedef struct {
 		} show;
 		Bool popups[PopupLast];
 	};
+	Bool fileout;
+	Bool noicons;
+	Bool launch;
+	Bool generate;
+	Bool actions;
 } Options;
+
+#define XDE_MENU_FLAG_DIEONERR		(1<< 0)
+#define XDE_MENU_FLAG_FILEOUT		(1<< 1)
+#define XDE_MENU_FLAG_NOICONS		(1<< 2)
+#define XDE_MENU_FLAG_LAUNCH		(1<< 3)
+#define XDE_MENU_FLAG_TRAY		(1<< 4)
+#define XDE_MENU_FLAG_GENERATE		(1<< 5)
+#define XDE_MENU_FLAG_TOOLTIPS		(1<< 6)
+#define XDE_MENU_FLAG_ACTIONS		(1<< 7)
+#define XDE_MENU_FLAG_UNIQUE		(1<< 8)
+#define XDE_MENU_FLAG_EXCLUDED		(1<< 9)
+#define XDE_MENU_FLAG_NODISPLAY		(1<<10)
+#define XDE_MENU_FLAG_UNALLOCATED	(1<<11)
+#define XDE_MENU_FLAG_EMPTY		(1<<12)
+#define XDE_MENU_FLAG_SEPARATORS	(1<<13)
+#define XDE_MENU_FLAG_SORT		(1<<14)
 
 Options options = {
 	.debug = 0,
@@ -324,7 +427,9 @@ Options options = {
 	.screen = -1,
 	.monitor = 0,
 	.timeout = 1000,
-	.border = 5,
+	.iconsize = 48,
+	.fontsize = 12.0,
+	.border = 3,
 	.keyboard = False,
 	.pointer = False,
 	.button = 0,
@@ -332,17 +437,16 @@ Options options = {
 	.which = UseScreenDefault,
 	.where = PositionDefault,
 	.geom = {
-		.mask = 0,
-		.x = 0,
-		.y = 0,
-		.w = 0,
-		.h = 0,
-	},
+		 .mask = 0,
+		 .x = 0,
+		 .y = 0,
+		 .w = 0,
+		 .h = 0,
+		 },
 	.order = WindowOrderDefault,
 	.filename = NULL,
 	.replace = False,
-	.editor = False,
-	.trayicon = False,
+	.systray = False,
 	.keys = NULL,
 	.proxy = False,
 	.cycle = False,
@@ -356,16 +460,15 @@ Options options = {
 	.restore = True,
 	.command = CommandDefault,
 	.tooltips = False,
-	.dryrun = False,
 	.clientId = NULL,
 	.saveFile = NULL,
 	.show = {
-		.pager = False,
-		.tasks = False,
-		.cycle = False,
-		.setbg = False,
-		.start = True,
-	},
+		 .pager = False,
+		 .tasks = False,
+		 .cycle = False,
+		 .setbg = False,
+		 .start = True,
+		 },
 };
 
 Display *dpy = NULL;
@@ -429,6 +532,7 @@ struct XdePopup {
 	Bool inside;			/* pointer inside popup */
 	Bool keyboard;			/* have a keyboard grab */
 	Bool pointer;			/* have a pointer grab */
+	Bool popped;			/* popup is popped */
 	GdkModifierType mask;
 };
 
@@ -471,6 +575,7 @@ struct XdeScreen {
 	Bool mhaware;			/* multi-head aware NetWM */
 	Pixmap pixmap;			/* current pixmap for the entire screen */
 	char *theme;			/* XDE theme name */
+	char *itheme;			/* XDE icon theme name */
 	GKeyFile *entry;		/* XDE theme file entry */
 	int nimg;			/* number of images */
 	XdeImage **sources;		/* the images for the theme */
@@ -595,7 +700,7 @@ add_deferred_refresh_monitor(XdeMonitor *xmon)
   * @{ */
 
 /** @brief find the specified monitor
-  * 
+  *
   * Either specified with options.screen and options.monitor, or if the DISPLAY
   * environment variable specifies a screen, use that screen; otherwise, return
   * NULL.
@@ -664,8 +769,6 @@ find_monitor(void)
 {
 	XdeMonitor *xmon = NULL;
 
-	if ((xmon = find_specific_monitor()))
-		return (xmon);
 	switch (options.which) {
 	case UseScreenDefault:
 		if (options.button) {
@@ -691,6 +794,8 @@ find_monitor(void)
 			return (xmon);
 		break;
 	case UseScreenSpecified:
+		if ((xmon = find_specific_monitor()))
+			return (xmon);
 		break;
 	}
 
@@ -705,7 +810,7 @@ find_monitor(void)
   * @{ */
 
 static gboolean
-position_pointer(GtkMenu *menu, XdeMonitor *xmon, gint *x, gint *y)
+position_pointer(GtkWidget *widget, XdeMonitor *xmon, gint *x, gint *y)
 {
 	PTRACE(5);
 	gdk_display_get_pointer(disp, NULL, x, y, NULL);
@@ -713,12 +818,12 @@ position_pointer(GtkMenu *menu, XdeMonitor *xmon, gint *x, gint *y)
 }
 
 static gboolean
-position_center_monitor(GtkMenu *menu, XdeMonitor *xmon, gint *x, gint *y)
+position_center_monitor(GtkWidget *widget, XdeMonitor *xmon, gint *x, gint *y)
 {
 	GtkRequisition req;
 
 	PTRACE(5);
-	gtk_widget_get_requisition(GTK_WIDGET(menu), &req);
+	gtk_widget_get_requisition(widget, &req);
 
 	*x = xmon->geom.x + (xmon->geom.width - req.width) / 2;
 	*y = xmon->geom.y + (xmon->geom.height - req.height) / 2;
@@ -727,7 +832,7 @@ position_center_monitor(GtkMenu *menu, XdeMonitor *xmon, gint *x, gint *y)
 }
 
 static gboolean
-position_topleft_workarea(GtkMenu *menu, XdeMonitor *xmon, gint *x, gint *y)
+position_topleft_workarea(GtkWidget *widget, XdeMonitor *xmon, gint *x, gint *y)
 {
 #if 1
 	WnckWorkspace *wkspc;
@@ -754,7 +859,7 @@ position_topleft_workarea(GtkMenu *menu, XdeMonitor *xmon, gint *x, gint *y)
 }
 
 static gboolean
-position_bottomright_workarea(GtkMenu *menu, XdeMonitor *xmon, gint *x, gint *y)
+position_bottomright_workarea(GtkWidget *widget, XdeMonitor *xmon, gint *x, gint *y)
 {
 #if 1
 	WnckWorkspace *wkspc;
@@ -762,11 +867,9 @@ position_bottomright_workarea(GtkMenu *menu, XdeMonitor *xmon, gint *x, gint *y)
 
 	/* XXX: not sure this is what we want... */
 	wkspc = wnck_screen_get_active_workspace(xmon->xscr->wnck);
-	gtk_widget_get_requisition(GTK_WIDGET(menu), &req);
-	*x = wnck_workspace_get_viewport_x(wkspc) +
-		wnck_workspace_get_width(wkspc) - req.width;
-	*y = wnck_workspace_get_viewport_y(wkspc) +
-		wnck_workspace_get_height(wkspc) - req.height;
+	gtk_widget_get_requisition(widget, &req);
+	*x = wnck_workspace_get_viewport_x(wkspc) + wnck_workspace_get_width(wkspc) - req.width;
+	*y = wnck_workspace_get_viewport_y(wkspc) + wnck_workspace_get_height(wkspc) - req.height;
 #else
 	GdkScreen *scrn;
 	GdkRectangle rect;
@@ -777,7 +880,7 @@ position_bottomright_workarea(GtkMenu *menu, XdeMonitor *xmon, gint *x, gint *y)
 	gdk_display_get_pointer(disp, &scrn, &px, &py, NULL);
 	nmon = gdk_screen_get_monitor_at_point(scrn, px, py);
 	gdk_screen_get_monitor_geometry(scrn, nmon, &rect);
-	gtk_widget_get_requisition(GTK_WIDGET(menu), &req);
+	gtk_widget_get_requisition(widget, &req);
 
 	*x = rect.x + rect.width - req.width;
 	*y = rect.y + rect.height - req.height;
@@ -787,15 +890,22 @@ position_bottomright_workarea(GtkMenu *menu, XdeMonitor *xmon, gint *x, gint *y)
 }
 
 static gboolean
-position_specified(GtkMenu *menu, XdeMonitor *xmon, gint *x, gint *y)
+position_specified(GtkWidget *widget, XdeMonitor *xmon, gint *x, gint *y)
 {
 	int x1, y1, sw, sh;
 
-	sw = wnck_screen_get_width(xmon->xscr->wnck);
-	sh = wnck_screen_get_height(xmon->xscr->wnck);
+	sw = xmon->xscr->width;
+	sh = xmon->xscr->height;
+	DPRINTF(1, "screen width = %d\n", sw);
+	DPRINTF(1, "screen height = %d\n", sh);
 
 	x1 = (options.geom.mask & XNegative) ? sw - options.geom.x : options.geom.x;
 	y1 = (options.geom.mask & YNegative) ? sh - options.geom.y : options.geom.y;
+
+	DPRINTF(1, "geometry x1 = %d\n", x1);
+	DPRINTF(1, "geometry y1 = %d\n", y1);
+	DPRINTF(1, "geometry w = %d\n", options.geom.w);
+	DPRINTF(1, "geometry h = %d\n", options.geom.h);
 
 	if (!(options.geom.mask & (WidthValue | HeightValue))) {
 		*x = x1;
@@ -804,9 +914,11 @@ position_specified(GtkMenu *menu, XdeMonitor *xmon, gint *x, gint *y)
 		GtkRequisition req;
 		int x2, y2;
 
-		gtk_widget_size_request(GTK_WIDGET(menu), &req);
+		gtk_widget_size_request(widget, &req);
 		x2 = x1 + options.geom.w;
 		y2 = y1 + options.geom.h;
+		DPRINTF(1, "geometry x2 = %d\n", x2);
+		DPRINTF(1, "geometry y2 = %d\n", y2);
 
 		if (x1 + req.width < sw)
 			*x = x1;
@@ -822,7 +934,38 @@ position_specified(GtkMenu *menu, XdeMonitor *xmon, gint *x, gint *y)
 		else
 			*y = 0;
 	}
+	DPRINTF(1, "placing window at +%d+%d\n", *x, *y);
 	return TRUE;
+}
+
+void
+position_widget(GtkWidget *widget, gint *x, gint *y, XdeMonitor *xmon)
+{
+	if (options.button) {
+		position_pointer(widget, xmon, x, y);
+		return;
+	}
+	switch (options.where) {
+	case PositionDefault:
+	default:
+		position_center_monitor(widget, xmon, x, y);
+		break;
+	case PositionPointer:
+		position_pointer(widget, xmon, x, y);
+		break;
+	case PositionCenter:
+		position_center_monitor(widget, xmon, x, y);
+		break;
+	case PositionTopLeft:
+		position_topleft_workarea(widget, xmon, x, y);
+		break;
+	case PositionBottomRight:
+		position_bottomright_workarea(widget, xmon, x, y);
+		break;
+	case PositionSpecified:
+		position_specified(widget, xmon, x, y);
+		break;
+	}
 }
 
 void
@@ -830,31 +973,195 @@ position_menu(GtkMenu *menu, gint *x, gint *y, gboolean *push_in, gpointer user_
 {
 	XdeMonitor *xmon = user_data;
 
-	*push_in = FALSE;
-	if (options.button) {
-		position_pointer(menu, xmon, x, y);
-		return;
-	}
-	switch (options.where) {
-	case PositionDefault:
-		position_center_monitor(menu, xmon, x, y);
-		break;
-	case PositionPointer:
-		position_pointer(menu, xmon, x, y);
-		break;
-	case PositionCenter:
-		position_center_monitor(menu, xmon, x, y);
-		break;
-	case PositionTopLeft:
-		position_topleft_workarea(menu, xmon, x, y);
-		break;
-	case PositionBottomRight:
-		position_bottomright_workarea(menu, xmon, x, y);
-		break;
-	case PositionSpecified:
-		position_specified(menu, xmon, x, y);
-		break;
-	}
+	if (push_in)
+		*push_in = FALSE;
+	position_widget(GTK_WIDGET(menu), x, y, xmon);
+}
+
+/** @} */
+
+/** @section Setting and Getting Arguments
+  * @{ */
+
+/** @section Setting Arguments
+  * @{ */
+
+#if 1
+static void
+set_scmon(long scmon)
+{
+	options.monitor = (short) ((scmon >> 0) & 0xffff);
+	options.screen = (short) ((scmon >> 16) & 0xffff);
+}
+
+static void
+set_flags(long flags)
+{
+	options.fileout = (flags & XDE_MENU_FLAG_FILEOUT) ? True : False;
+	options.noicons = (flags & XDE_MENU_FLAG_NOICONS) ? True : False;
+	options.launch = (flags & XDE_MENU_FLAG_LAUNCH) ? True : False;
+	options.systray = (flags & XDE_MENU_FLAG_TRAY) ? True : False;
+	options.generate = (flags & XDE_MENU_FLAG_GENERATE) ? True : False;
+	options.tooltips = (flags & XDE_MENU_FLAG_TOOLTIPS) ? True : False;
+	options.actions = (flags & XDE_MENU_FLAG_ACTIONS) ? True : False;
+#if 0
+	if (flags & XDE_MENU_FLAG_EXCLUDED)
+		options.treeflags |= GMENU_TREE_FLAGS_INCLUDE_EXCLUDED;
+	else
+		options.treeflags &= ~GMENU_TREE_FLAGS_INCLUDE_EXCLUDED;
+	if (flags & XDE_MENU_FLAG_NODISPLAY)
+		options.treeflags |= GMENU_TREE_FLAGS_INCLUDE_NODISPLAY;
+	else
+		options.treeflags &= ~GMENU_TREE_FLAGS_INCLUDE_NODISPLAY;
+	if (flags & XDE_MENU_FLAG_UNALLOCATED)
+		options.treeflags |= GMENU_TREE_FLAGS_INCLUDE_UNALLOCATED;
+	else
+		options.treeflags &= ~GMENU_TREE_FLAGS_INCLUDE_UNALLOCATED;
+	if (flags & XDE_MENU_FLAG_EMPTY)
+		options.treeflags |= GMENU_TREE_FLAGS_SHOW_EMPTY;
+	else
+		options.treeflags &= ~GMENU_TREE_FLAGS_SHOW_EMPTY;
+	if (flags & XDE_MENU_FLAG_SEPARATORS)
+		options.treeflags |= GMENU_TREE_FLAGS_SHOW_ALL_SEPARATORS;
+	else
+		options.treeflags &= ~GMENU_TREE_FLAGS_SHOW_ALL_SEPARATORS;
+	if (flags & XDE_MENU_FLAG_SORT)
+		options.treeflags |= GMENU_TREE_FLAGS_SORT_DISPLAY_NAME;
+	else
+		options.treeflags &= ~GMENU_TREE_FLAGS_SORT_DISPLAY_NAME;
+#endif
+	options.button = (flags >> 16) & 0x0f;
+	options.which = (flags >> 20) & 0x0f;
+	options.screen = (flags >> 24) & 0x0f;
+	options.where = (flags >> 28) & 0x0f;
+}
+
+static void
+set_word1(long word1)
+{
+	options.geom.mask &= ~(WidthValue|HeightValue);
+	options.geom.w = (word1 >> 0) & 0x07f;
+	options.geom.mask |= ((word1 >> 15) & 0x01) ? WidthValue : 0;
+	options.geom.h = (word1 >> 16) & 0x07f;
+	options.geom.mask |= ((word1 >> 31) & 0x01) ? HeightValue : 0;
+}
+
+static void
+set_word2(long word2)
+{
+	options.geom.mask &= ~(XValue|YValue|XNegative|YNegative);
+	options.geom.x = (word2 >> 0) & 0x03f;
+	options.geom.mask |= ((word2 >> 14) & 0x01) ? XValue : 0;
+	options.geom.mask |= ((word2 >> 15) & 0x01) ? XNegative : 0;
+	options.geom.y = (word2 >> 16) & 0x03f;
+	options.geom.mask |= ((word2 >> 30) & 0x01) ? YValue : 0;
+	options.geom.mask |= ((word2 >> 31) & 0x01) ? YNegative : 0;
+}
+#endif
+
+/** @} */
+
+/** @section Getting Arguments
+  * @{ */
+
+#if 1
+static long
+get_scmon(void)
+{
+	long scmon = 0;
+
+	scmon |= ((long) (options.monitor & 0xffff) << 0);
+	scmon |= ((long) (options.screen & 0xffff) << 16);
+	return (scmon);
+}
+
+static long
+get_flags(void)
+{
+	long flags = 0;
+
+	if (options.fileout)
+		flags |= XDE_MENU_FLAG_FILEOUT;
+	if (options.noicons)
+		flags |= XDE_MENU_FLAG_NOICONS;
+	if (options.launch)
+		flags |= XDE_MENU_FLAG_LAUNCH;
+	if (options.systray)
+		flags |= XDE_MENU_FLAG_TRAY;
+	if (options.generate)
+		flags |= XDE_MENU_FLAG_GENERATE;
+	if (options.tooltips)
+		flags |= XDE_MENU_FLAG_TOOLTIPS;
+	if (options.actions)
+		flags |= XDE_MENU_FLAG_ACTIONS;
+#if 0
+	if (options.treeflags & GMENU_TREE_FLAGS_INCLUDE_EXCLUDED)
+		flags |= XDE_MENU_FLAG_EXCLUDED;
+	if (options.treeflags & GMENU_TREE_FLAGS_INCLUDE_NODISPLAY)
+		flags |= XDE_MENU_FLAG_NODISPLAY;
+	if (options.treeflags & GMENU_TREE_FLAGS_INCLUDE_UNALLOCATED)
+		flags |= XDE_MENU_FLAG_UNALLOCATED;
+	if (options.treeflags & GMENU_TREE_FLAGS_SHOW_EMPTY)
+		flags |= XDE_MENU_FLAG_EMPTY;
+	if (options.treeflags & GMENU_TREE_FLAGS_SHOW_ALL_SEPARATORS)
+		flags |= XDE_MENU_FLAG_SEPARATORS;
+	if (options.treeflags & GMENU_TREE_FLAGS_SORT_DISPLAY_NAME)
+		flags |= XDE_MENU_FLAG_SORT;
+#endif
+	flags |= ((long) (options.button & 0x0f) << 16);
+	flags |= ((long) (options.which & 0x0f) << 20);
+	flags |= ((long) (options.screen & 0x0f) << 24);
+	flags |= ((long) (options.where & 0x0f) << 28);
+	return (flags);
+}
+
+static long
+get_word1(void)
+{
+	long word1 = 0;
+
+	word1 |= ((long) (options.geom.w & 0x07f) << 0);
+	word1 |= ((long) (options.geom.mask & WidthValue ? 1 : 0) << 15);
+	word1 |= ((long) (options.geom.h & 0x07f) << 16);
+	word1 |= ((long) (options.geom.mask & HeightValue ? 1 : 0) << 31);
+	return (word1);
+}
+
+static long
+get_word2(void)
+{
+	long word2 = 0;
+
+	word2 |= ((long) (options.geom.x & 0x03f) << 0);
+	word2 |= ((long) (options.geom.mask & XValue ? 1 : 0) << 14);
+	word2 |= ((long) (options.geom.mask & XNegative ? 1 : 0) << 15);
+	word2 |= ((long) (options.geom.y & 0x03f) << 16);
+	word2 |= ((long) (options.geom.mask & YValue ? 1 : 0) << 30);
+	word2 |= ((long) (options.geom.mask & YNegative ? 1 : 0) << 31);
+	return (word2);
+}
+#endif
+
+/** @} */
+
+GMainLoop *loop = NULL;
+
+static void
+mainloop(void)
+{
+	if (options.display)
+		gtk_main();
+	else
+		g_main_loop_run(loop);
+}
+
+static void
+mainloop_quit(void)
+{
+	if (options.display)
+		gtk_main_quit();
+	else
+		g_main_loop_quit(loop);
 }
 
 /** @} */
@@ -862,6 +1169,7 @@ position_menu(GtkMenu *menu, gint *x, gint *y, gboolean *push_in, gpointer user_
 /** @section Background Theme Handling
   * @{ */
 
+#if 1
 void
 xde_pixmap_ref(XdePixmap *pixmap)
 {
@@ -1352,120 +1660,6 @@ get_temporary_pixmap(XdeScreen *xscr)
 	return (pmap);
 }
 
-/** @brief refresh desktop
-  *
-  * The current desktop has changed for the screen.  Update the root pixmaps for
-  * the screen.  Whether the window manager is multihead aware can be determined
-  * by checking the mhaware boolean on the screen structure.
-  */
-static void
-refresh_desktop(XdeScreen *xscr)
-{
-	GdkWindow *root = gdk_screen_get_root_window(xscr->scrn);
-	GdkColormap *cmap = gdk_drawable_get_colormap(GDK_DRAWABLE(root));
-	GdkPixmap *pixmap;
-	cairo_t *cr;
-	XdeMonitor *xmon;
-	XdeImage *im;
-	XdePixmap *pm;
-	int d, m;
-	Pixmap pmap;
-
-	/* render the current desktop on the screen */
-	pmap = get_temporary_pixmap(xscr);
-	DPRINTF(1, "using temporary pixmap (0x%08lx)\n", pmap);
-	DPRINTF(1, "creating temporary pixmap contents\n");
-	pixmap = gdk_pixmap_foreign_new_for_display(disp, pmap);
-	gdk_drawable_set_colormap(GDK_DRAWABLE(pixmap), cmap);
-	cr = gdk_cairo_create(GDK_DRAWABLE(pixmap));
-	for (m = 0, xmon = xscr->mons; m < xscr->nmon; m++, xmon++) {
-		DPRINTF(1, "adding monitor %d to pixmap\n", m);
-		d = xmon->current;
-		DPRINTF(1, "monitor %d current destop is %d\n", m, d);
-		if ((im = xscr->backdrops[d]) && (im->pixbuf || im->file)) {
-			DPRINTF(1, "monitor %d desktop %d has an image\n", m, d);
-			for (pm = im->pixmaps; pm; pm = pm->next) {
-				if (pm->geom.width == xmon->geom.width && pm->geom.height == xmon->geom.height)
-					break;
-			}
-			if (!pm && !im->pixbuf) {
-				DPRINTF(1, "creating pixbuf from file %s\n", im->file);
-				im->pixbuf = gdk_pixbuf_new_from_file(im->file, NULL);
-			}
-			if (!pm && im->pixbuf) {
-				GdkPixbuf *scaled;
-				cairo_t *cr;
-
-				DPRINTF(1, "allocating a new pixmap for image\n");
-				pm = calloc(1, sizeof(*pm));
-				pm->refs = 1;
-				pm->index = im->index;
-				if ((pm->next = im->pixmaps))
-					pm->next->pprev = &pm->next;
-				pm->pprev = &im->pixmaps;
-				im->pixmaps = pm;
-				pm->geom = xmon->geom;
-				pm->pixmap =
-				    gdk_pixmap_new(GDK_DRAWABLE(root), xmon->geom.width, xmon->geom.height, -1);
-				gdk_drawable_set_colormap(GDK_DRAWABLE(pm->pixmap), cmap);
-				cr = gdk_cairo_create(GDK_DRAWABLE(pm->pixmap));
-				/* FIXME: tiling and other things.... */
-				scaled = gdk_pixbuf_scale_simple(im->pixbuf,
-								 pm->geom.width,
-								 pm->geom.height, GDK_INTERP_BILINEAR);
-				gdk_cairo_set_source_pixbuf(cr, scaled, 0, 0);
-				cairo_paint(cr);
-				cairo_set_source_rgb(cr, 0.0, 0.0, 0.0);
-				cairo_destroy(cr);
-				g_object_unref(scaled);
-				if (im->pixbuf && im->file) {
-					g_object_unref(im->pixbuf);
-					im->pixbuf = NULL;
-					/* save some resident memory */
-				}
-			} else
-				DPRINTF(1, "using existing pixmap for image\n");
-			gdk_cairo_rectangle(cr, &xmon->geom);
-			if (pm) {
-				DPRINTF(1, "painting pixmap into screen image\n");
-				gdk_cairo_set_source_pixmap(cr, pm->pixmap, 0, 0);
-				cairo_pattern_set_extend(cairo_get_source(cr), CAIRO_EXTEND_REPEAT);
-				cairo_paint(cr);
-			} else {
-				/* FIXME: use color for desktop */
-				DPRINTF(1, "painting color into screen image\n");
-				cairo_set_source_rgb(cr, 0.0, 0.0, 0.0);
-				cairo_paint(cr);
-			}
-		} else {
-			DPRINTF(1, "monitor %d desktop %d has no image\n", m, d);
-		}
-	}
-	cairo_destroy(cr);
-	DPRINTF(1, "installing pixmap 0x%08lx as root pixmap\n", pmap);
-	XChangeProperty(GDK_DISPLAY_XDISPLAY(disp), GDK_WINDOW_XID(root), _XA_XROOTPMAP_ID,
-			XA_PIXMAP, 32, PropModeReplace, (unsigned char *) &pmap, 1);
-	gdk_window_set_back_pixmap(root, pixmap, FALSE);
-	gdk_window_clear(root);
-	if (xscr->pixmap) {
-		DPRINTF(1, "killing old unused temporary pixmap 0x%08lx\n", xscr->pixmap);
-		XKillClient(GDK_DISPLAY_XDISPLAY(disp), xscr->pixmap);
-	}
-	xscr->pixmap = pmap;
-}
-
-/** @brief refresh monitor
-  *
-  * The current view for a multi-head aware window manager has changed.  Update
-  * the background for the monitor.
-  */
-static void
-refresh_monitor(XdeMonitor *xmon)
-{
-	/* for now */
-	refresh_desktop(xmon->xscr);
-}
-
 gboolean
 test_icon_ext(const char *icon)
 {
@@ -1489,14 +1683,14 @@ test_icon_ext(const char *icon)
 }
 
 GdkPixbuf *
-get_icons(GIcon * gicon, const char *const *inames)
+get_icons(GIcon *gicon, const char *const *inames)
 {
 	GtkIconTheme *theme;
 	GtkIconInfo *info;
 	const char *const *iname;
 
 	if ((theme = gtk_icon_theme_get_default())) {
-		if (gicon && (info = gtk_icon_theme_lookup_by_gicon(theme, gicon, 48,
+		if (gicon && (info = gtk_icon_theme_lookup_by_gicon(theme, gicon, options.iconsize,
 								    GTK_ICON_LOOKUP_USE_BUILTIN |
 								    GTK_ICON_LOOKUP_GENERIC_FALLBACK |
 								    GTK_ICON_LOOKUP_FORCE_SIZE))) {
@@ -1506,7 +1700,7 @@ get_icons(GIcon * gicon, const char *const *inames)
 		}
 		for (iname = inames; iname && *iname; iname++) {
 			DPRINTF(2, "Testing for icon name: %s\n", *iname);
-			if ((info = gtk_icon_theme_lookup_icon(theme, *iname, 48,
+			if ((info = gtk_icon_theme_lookup_icon(theme, *iname, options.iconsize,
 							       GTK_ICON_LOOKUP_USE_BUILTIN |
 							       GTK_ICON_LOOKUP_GENERIC_FALLBACK |
 							       GTK_ICON_LOOKUP_FORCE_SIZE))) {
@@ -1586,12 +1780,14 @@ get_sequence_pixbuf(Sequence *seq)
 		g_object_unref(G_OBJECT(gicon));
 	return (pixbuf);
 }
+#endif
 
 /** @} */
 
 /** @section Popup Window Event Handlers
   * @{ */
 
+#if 1
 static gboolean
 stop_popup_timer(XdePopup *xpop)
 {
@@ -1631,10 +1827,11 @@ static void
 drop_popup(XdePopup *xpop)
 {
 	PTRACE(5);
-	if (gtk_widget_get_mapped(xpop->popup)) {
+	if (xpop->popped) {
 		stop_popup_timer(xpop);
 		release_grabs(xpop);
 		gtk_widget_hide(xpop->popup);
+		xpop->popped = False;
 	}
 }
 
@@ -1679,14 +1876,19 @@ show_popup(XdeScreen *xscr, XdePopup *xpop, gboolean grab_p, gboolean grab_k)
 	DPRINTF(1, "popping the window\n");
 	gdk_display_get_pointer(disp, NULL, NULL, NULL, &xpop->mask);
 	stop_popup_timer(xpop);
-	if (xpop->type == PopupStart) {
-		gtk_window_set_default_size(GTK_WINDOW(xpop->popup), -1, -1);
-		gtk_widget_set_size_request(GTK_WIDGET(xpop->popup), -1, -1);
+	if (xpop->popped)
+		gtk_window_reshow_with_initial_size(GTK_WINDOW(xpop->popup));
+	else {
+		if (xpop->type == PopupStart) {
+			gtk_window_set_default_size(GTK_WINDOW(xpop->popup), -1, -1);
+			gtk_widget_set_size_request(GTK_WIDGET(xpop->popup), -1, -1);
+		}
+		gtk_window_set_screen(GTK_WINDOW(xpop->popup), gdk_display_get_screen(disp, xscr->index));
+		gtk_window_set_position(GTK_WINDOW(xpop->popup), GTK_WIN_POS_CENTER_ALWAYS);
+		gtk_window_present(GTK_WINDOW(xpop->popup));
+		gtk_widget_show_now(GTK_WIDGET(xpop->popup));
+		xpop->popped = True;
 	}
-	gtk_window_set_screen(GTK_WINDOW(xpop->popup), gdk_display_get_screen(disp, xscr->index));
-	gtk_window_set_position(GTK_WINDOW(xpop->popup), GTK_WIN_POS_CENTER_ALWAYS);
-	gtk_window_present(GTK_WINDOW(xpop->popup));
-	gtk_widget_show_now(GTK_WIDGET(xpop->popup));
 	win = GDK_WINDOW_XID(xpop->popup->window);
 
 	if (grab_p && !xpop->pointer) {
@@ -1702,16 +1904,16 @@ show_popup(XdeScreen *xscr, XdePopup *xpop, gboolean grab_p, gboolean grab_k)
 			xpop->pointer = True;
 			break;
 		case GDK_GRAB_ALREADY_GRABBED:
-			DPRINTF(1, "%s: pointer already grabbed\n", NAME);
+			DPRINTF(1, "pointer already grabbed\n");
 			break;
 		case GDK_GRAB_INVALID_TIME:
-			EPRINTF("%s: pointer grab invalid time\n", NAME);
+			EPRINTF("pointer grab invalid time\n");
 			break;
 		case GDK_GRAB_NOT_VIEWABLE:
-			EPRINTF("%s: pointer grab on unviewable window\n", NAME);
+			EPRINTF("pointer grab on unviewable window\n");
 			break;
 		case GDK_GRAB_FROZEN:
-			EPRINTF("%s: pointer grab on frozen pointer\n", NAME);
+			EPRINTF("pointer grab on frozen pointer\n");
 			break;
 		}
 	}
@@ -1724,16 +1926,16 @@ show_popup(XdeScreen *xscr, XdePopup *xpop, gboolean grab_p, gboolean grab_k)
 			xpop->keyboard = True;
 			break;
 		case GDK_GRAB_ALREADY_GRABBED:
-			DPRINTF(1, "%s: keyboard already grabbed\n", NAME);
+			DPRINTF(1, "keyboard already grabbed\n");
 			break;
 		case GDK_GRAB_INVALID_TIME:
-			EPRINTF("%s: keyboard grab invalid time\n", NAME);
+			EPRINTF("keyboard grab invalid time\n");
 			break;
 		case GDK_GRAB_NOT_VIEWABLE:
-			EPRINTF("%s: keyboard grab on unviewable window\n", NAME);
+			EPRINTF("keyboard grab on unviewable window\n");
 			break;
 		case GDK_GRAB_FROZEN:
-			EPRINTF("%s: keyboard grab on frozen keyboard\n", NAME);
+			EPRINTF("keyboard grab on frozen keyboard\n");
 			break;
 		}
 	}
@@ -2110,7 +2312,7 @@ grab_broken_event(GtkWidget *widget, GdkEvent *event, gpointer user)
 	if (ev->keyboard) {
 		DPRINTF(1, "keyboard grab was broken\n");
 		xpop->keyboard = False;
-		/* IF we lost a keyboard grab, it is because another hot-key was pressed, 
+		/* IF we lost a keyboard grab, it is because another hot-key was pressed,
 		   either doing something else or moving to another desktop.  Start the
 		   timeout in this case. */
 		start_popup_timer(xpop);
@@ -2118,7 +2320,7 @@ grab_broken_event(GtkWidget *widget, GdkEvent *event, gpointer user)
 		DPRINTF(1, "pointer grab was broken\n");
 		xpop->pointer = False;
 		/* If we lost a pointer grab, it is because somebody clicked on another
-		   window.  In this case we want to drop the popup altogether.  This will 
+		   window.  In this case we want to drop the popup altogether.  This will
 		   break the keyboard grab if any. */
 		drop_popup(xpop);
 	}
@@ -2243,6 +2445,8 @@ visibility_notify_event(GtkWidget *popup, GdkEvent *event, gpointer xpop)
 }
 
 /** @} */
+
+#endif
 
 /** @} */
 
@@ -2416,19 +2620,19 @@ cha_sequence(XdeScreen *xscr, Sequence *seq)
 		desc = sn_startup_sequence_get_description(seq->seq);
 	if (!desc && seq->info)
 		desc = g_app_info_get_description(G_APP_INFO(seq->info));
-	markup = g_markup_printf_escaped("<b>%s</b>\n%s", name ? : "", desc ? : "");
+	markup = g_markup_printf_escaped("<span font=\"%.1f\"><b>%s</b>\n%s</span>", options.fontsize, name ? : "", desc ? : "");
 	/* for now, ellipsize later */
 	tip = desc;
-		/* *INDENT-OFF* */
-		gtk_list_store_set(xpop->model, &seq->iter,
-				0, pixbuf,
-				1, name,
-				2, desc,
-				3, markup,
-				4, tip,
-				5, seq,
-				-1);
-		/* *INDENT-ON* */
+	/* *INDENT-OFF* */
+	gtk_list_store_set(xpop->model, &seq->iter,
+			0, pixbuf,
+			1, name,
+			2, desc,
+			3, markup,
+			4, tip,
+			5, seq,
+			-1);
+	/* *INDENT-ON* */
 	g_object_unref(pixbuf);
 	g_free(markup);
 }
@@ -2482,6 +2686,7 @@ add_sequence(XdeScreen *xscr, const char *id, SnStartupSequence *sn_seq)
 /** @section Session Management
   * @{ */
 
+#if 1
 static void
 clientSetProperties(SmcConn smcConn, SmPointer data)
 {
@@ -2503,7 +2708,7 @@ clientSetProperties(SmcConn smcConn, SmPointer data)
 
 	j = 0;
 
-	/* CloneCommand: This is like the RestartCommand except it restarts a copy of the 
+	/* CloneCommand: This is like the RestartCommand except it restarts a copy of the
 	   application.  The only difference is that the application doesn't supply its
 	   client id at register time.  On POSIX systems the type should be a
 	   LISTofARRAY8. */
@@ -2522,7 +2727,7 @@ clientSetProperties(SmcConn smcConn, SmPointer data)
 	}
 	j++;
 
-#if 0
+#if 1
 	/* CurrentDirectory: On POSIX-based systems, specifies the value of the current
 	   directory that needs to be set up prior to starting the program and should be
 	   of type ARRAY8. */
@@ -2561,7 +2766,7 @@ clientSetProperties(SmcConn smcConn, SmPointer data)
 	j++;
 #endif
 
-#if 0
+#if 1
 	char **env;
 
 	/* Environment: On POSIX based systems, this will be of type LISTofARRAY8 where
@@ -2590,7 +2795,7 @@ clientSetProperties(SmcConn smcConn, SmPointer data)
 	j++;
 #endif
 
-#if 0
+#if 1
 	char procID[20];
 
 	/* ProcessID: This specifies an OS-specific identifier for the process. On POSIX
@@ -2621,7 +2826,7 @@ clientSetProperties(SmcConn smcConn, SmPointer data)
 
 	/* RestartCommand: The restart command contains a command that when delivered to
 	   the host that the client is running on (determined from the connection), will
-	   cause the client to restart in its current state.  On POSIX-based systems this 
+	   cause the client to restart in its current state.  On POSIX-based systems this
 	   if of type LISTofARRAY8 and each of the elements in the array represents an
 	   element in the argv[] array.  This restart command should ensure that the
 	   client restarts with the specified client-ID.  */
@@ -2663,11 +2868,11 @@ clientSetProperties(SmcConn smcConn, SmPointer data)
 	prop[j].vals[1].length = strlen("-quit");
 	j++;
 
-	/* RestartStyleHint: If the RestartStyleHint property is present, it will contain 
+	/* RestartStyleHint: If the RestartStyleHint property is present, it will contain
 	   the style of restarting the client prefers.  If this flag is not specified,
 	   RestartIfRunning is assumed.  The possible values are as follows:
-	   RestartIfRunning(0), RestartAnyway(1), RestartImmediately(2), RestartNever(3). 
-	   The RestartIfRunning(0) style is used in the usual case.  The client should be 
+	   RestartIfRunning(0), RestartAnyway(1), RestartImmediately(2), RestartNever(3).
+	   The RestartIfRunning(0) style is used in the usual case.  The client should be
 	   restarted in the next session if it is connected to the session manager at the
 	   end of the current session. The RestartAnyway(1) style is used to tell the SM
 	   that the application should be restarted in the next session even if it exits
@@ -2677,9 +2882,9 @@ clientSetProperties(SmcConn smcConn, SmPointer data)
 	   should also set the ResignCommand and ShutdownCommand properties to the
 	   commands that undo the state of the client after it exits.  The
 	   RestartImmediately(2) style is like RestartAnyway(1) but in addition, the
-	   client is meant to run continuously.  If the client exits, the SM should try to 
-	   restart it in the current session.  The RestartNever(3) style specifies that
-	   the client does not wish to be restarted in the next session. */
+	   client is meant to run continuously.  If the client exits, the SM should try to
+	   restart it in the current session.  The RestartNever(3) style specifies that the
+	   client does not wish to be restarted in the next session. */
 	prop[j].name = SmRestartStyleHint;
 	prop[j].type = SmARRAY8;
 	prop[j].vals = &propval[0];
@@ -2690,7 +2895,7 @@ clientSetProperties(SmcConn smcConn, SmPointer data)
 	propval[j].length = 1;
 	j++;
 
-	/* ShutdownCommand: This command is executed at shutdown time to clean up after a 
+	/* ShutdownCommand: This command is executed at shutdown time to clean up after a
 	   client that is no longer running but retained its state by setting
 	   RestartStyleHint to RestartAnyway(1).  The command must not remove any saved
 	   state as the client is still part of the session. */
@@ -2705,7 +2910,7 @@ clientSetProperties(SmcConn smcConn, SmPointer data)
 	prop[j].vals[1].length = strlen("-quit");
 	j++;
 
-	/* UserID: Specifies the user's ID.  On POSIX-based systems this will contain the 
+	/* UserID: Specifies the user's ID.  On POSIX-based systems this will contain the
 	   user's name (the pw_name field of struct passwd).  */
 	errno = 0;
 	prop[j].name = SmUserID;
@@ -2784,7 +2989,7 @@ clientDieCB(SmcConn smcConn, SmPointer data)
 {
 	SmcCloseConnection(smcConn, 0, NULL);
 	shutting_down = False;
-	gtk_main_quit();
+	mainloop_quit();
 }
 
 static void
@@ -2792,7 +2997,7 @@ clientSaveCompleteCB(SmcConn smcConn, SmPointer data)
 {
 	if (saving_yourself) {
 		saving_yourself = False;
-		gtk_main_quit();
+		mainloop_quit();
 	}
 
 }
@@ -2812,7 +3017,7 @@ static void
 clientShutdownCancelledCB(SmcConn smcConn, SmPointer data)
 {
 	shutting_down = False;
-	gtk_main_quit();
+	mainloop_quit();
 }
 
 static unsigned long clientCBMask = SmcSaveYourselfProcMask |
@@ -2824,6 +3029,7 @@ static SmcCallbacks clientCBs = {
 	.save_complete = {.callback = &clientSaveCompleteCB,.client_data = NULL,},
 	.shutdown_cancelled = {.callback = &clientShutdownCancelledCB,.client_data = NULL,},
 };
+#endif
 
 /** @} */
 
@@ -2847,6 +3053,18 @@ put_resource(XrmDatabase xrdb, const char *resource, char *value)
 {
 	put_nc_resource(xrdb, RESCLAS, resource, value);
 	g_free(value);
+}
+
+char *
+putXrmColor(const GdkColor * color)
+{
+	return gdk_color_to_string(color);
+}
+
+char *
+putXrmFont(const PangoFontDescription * font)
+{
+	return pango_font_description_to_string(font);
 }
 
 char *
@@ -3001,9 +3219,9 @@ putXrmWhere(MenuPosition where, XdeGeometry *geom)
 	case PositionCenter:
 		return g_strdup("center");
 	case PositionTopLeft:
-		return g_strdup("pointer");
-	case PositionPointer:
 		return g_strdup("topleft");
+	case PositionPointer:
+		return g_strdup("pointer");
 	case PositionBottomRight:
 		return g_strdup("bottomright");
 	case PositionSpecified:
@@ -3029,12 +3247,21 @@ putXrmOrder(WindowOrder order)
 void
 put_resources(void)
 {
-	XrmDatabase rdb;
-	char *val, *usrdb;
+	char *usrdb;
+	XrmDatabase rdb = NULL;
+	Display *dpy;
+	char *val;
 
-	usrdb = g_strdup_printf("%s/.config/xde/inputrc", getenv("HOME"));
+	if (!options.display)
+		return;
 
-	rdb = XrmGetStringDatabase("");
+	usrdb = g_build_filename(g_get_user_config_dir(), RESNAME, "rc", NULL);
+
+	if (!(dpy = XOpenDisplay(NULL))) {
+		EPRINTF("could not open display %s\n", options.display);
+		exit(EXIT_FAILURE);
+	}
+	rdb = XrmGetDatabase(dpy);
 	if (!rdb) {
 		DPRINTF(1, "no resource manager database allocated\n");
 		return;
@@ -3042,12 +3269,14 @@ put_resources(void)
 	if ((val = putXrmInt(options.debug)))
 		put_resource(rdb, "debug", val);
 	if ((val = putXrmInt(options.output)))
-		put_resource(rdb, "output", val);
+		put_resource(rdb, "verbose", val);
 	/* put a bunch of resources */
-	if ((val = putXrmBool(options.trayicon)))
-		put_resource(rdb, "trayIcon", val);
 	if ((val = putXrmTime(options.timeout)))
 		put_resource(rdb, "timeout", val);
+	if ((val = putXrmUint(options.iconsize)))
+		put_resource(rdb, "iconSize", val);
+	if ((val = putXrmDouble(options.fontsize)))
+		put_resource(rdb, "fontSize", val);
 	if ((val = putXrmInt(options.border)))
 		put_resource(rdb, "border", val);
 
@@ -3055,14 +3284,16 @@ put_resources(void)
 		put_resource(rdb, "which", val);
 	if ((val = putXrmWhere(options.where, &options.geom)))
 		put_resource(rdb, "where", val);
+	if ((val = putXrmString(options.keys)))
+		put_resource(rdb, "key", val);
 	if ((val = putXrmOrder(options.order)))
 		put_resource(rdb, "order", val);
-	if ((val = putXrmString(options.keys)))
-		put_resource(rdb, "keys", val);
 	if ((val = putXrmBool(options.cycle)))
 		put_resource(rdb, "cycle", val);
 	if ((val = putXrmBool(options.normal)))
 		put_resource(rdb, "normal", val);
+	if ((val = putXrmBool(options.hidden)))
+		put_resource(rdb, "hidden", val);
 	if ((val = putXrmBool(options.minimized)))
 		put_resource(rdb, "minimized", val);
 	if ((val = putXrmBool(options.monitors)))
@@ -3075,10 +3306,16 @@ put_resources(void)
 		put_resource(rdb, "raise", val);
 	if ((val = putXrmBool(options.restore)))
 		put_resource(rdb, "restore", val);
+	if ((val = putXrmBool(options.systray)))
+		put_resource(rdb, "sysTray", val);
+	if ((val = putXrmBool(options.tooltips)))
+		put_resource(rdb, "toolTips", val);
 
 	XrmPutFileDatabase(rdb, usrdb);
+	XrmSetDatabase(dpy, rdb);
 	XrmDestroyDatabase(rdb);
-	return;
+	XCloseDisplay(dpy);
+	g_free(usrdb);
 }
 
 /** @} */
@@ -3115,6 +3352,40 @@ get_resource(XrmDatabase xrdb, const char *resource, const char *dflt)
 	if (!(value = get_nc_resource(xrdb, RESNAME, RESCLAS, resource)))
 		value = dflt;
 	return (value);
+}
+
+Bool
+getXrmColor(const char *val, GdkColor ** color)
+{
+	GdkColor c, *p;
+
+	if (gdk_color_parse(val, &c) && (p = calloc(1, sizeof(*p)))) {
+		*p = c;
+		free(*color);
+		*color = p;
+		return True;
+	}
+	EPRINTF("could not parse color '%s'\n", val);
+	return False;
+}
+
+Bool
+getXrmFont(const char *val, PangoFontDescription ** face)
+{
+	FcPattern *pattern;
+	PangoFontDescription *font;
+
+	if ((pattern = FcNameParse((FcChar8 *) val))) {
+		if ((font = pango_fc_font_description_from_pattern(pattern, True))) {
+			pango_font_description_free(*face);
+			*face = font;
+			DPRINTF(1, "Font description is: %s\n", pango_font_description_to_string(font));
+			return True;
+		}
+		FcPatternDestroy(pattern);
+	}
+	EPRINTF("could not parse font descriptikon '%s'\n", val);
+	return False;
 }
 
 Bool
@@ -3377,17 +3648,18 @@ getXrmOrder(const char *val, WindowOrder *order)
 	return False;
 }
 
-void
-get_resources(int argc, char *argv[])
+static void
+get_resources(void)
 {
 	XrmDatabase rdb;
-	Display *dpy;
 	const char *val;
 	char *usrdflt;
 
 	PTRACE(5);
 	XrmInitialize();
 	if (getenv("DISPLAY")) {
+		Display *dpy;
+
 		if (!(dpy = XOpenDisplay(NULL))) {
 			EPRINTF("could not open display %s\n", getenv("DISPLAY"));
 			exit(EXIT_FAILURE);
@@ -3400,7 +3672,7 @@ get_resources(int argc, char *argv[])
 	if (options.filename)
 		if (!XrmCombineFileDatabase(options.filename, &rdb, False))
 			DPRINTF(1, "could not open rcfile %s\n", options.filename);
-	usrdflt = g_strdup_printf(USRDFLT, getenv("HOME"));
+	usrdflt = g_build_filename(g_get_user_config_dir(), RESNAME, "rc", NULL);
 	if (!options.filename || strcmp(options.filename, usrdflt))
 		if (!XrmCombineFileDatabase(usrdflt, &rdb, False))
 			DPRINTF(1, "could not open rcfile %s\n", usrdflt);
@@ -3416,25 +3688,29 @@ get_resources(int argc, char *argv[])
 	if ((val = get_resource(rdb, "verbose", "1")))
 		getXrmInt(val, &options.output);
 	/* get a bunch of resources */
-	if ((val = get_resource(rdb, "trayIcon", NULL)))
-		getXrmBool(val, &options.trayicon);
 	if ((val = get_resource(rdb, "timeout", "1000")))
 		getXrmTime(val, &options.timeout);
-	if ((val = get_resource(rdb, "border", "5")))
+	if ((val = get_resource(rdb, "iconSize", "48")))
+		getXrmUint(val, &options.iconsize);
+	if ((val = get_resource(rdb, "fontSize", "12.0")))
+		getXrmDouble(val, &options.fontsize);
+	if ((val = get_resource(rdb, "border", "3")))
 		getXrmInt(val, &options.border);
 
 	if ((val = get_resource(rdb, "which", "default")))
 		getXrmWhich(val, &options.which, &options.screen);
 	if ((val = get_resource(rdb, "where", "default")))
 		getXrmWhere(val, &options.where, &options.geom);
+	if ((val = get_resource(rdb, "key", NULL)))
+		getXrmString(val, &options.keys);
 	if ((val = get_resource(rdb, "order", "default")))
 		getXrmOrder(val, &options.order);
-	if ((val = get_resource(rdb, "keys", NULL)))
-		getXrmString(val, &options.keys);
 	if ((val = get_resource(rdb, "cycle", "false")))
 		getXrmBool(val, &options.cycle);
 	if ((val = get_resource(rdb, "normal", "false")))
 		getXrmBool(val, &options.normal);
+	if ((val = get_resource(rdb, "hidden", "false")))
+		getXrmBool(val, &options.hidden);
 	if ((val = get_resource(rdb, "minimized", "false")))
 		getXrmBool(val, &options.minimized);
 	if ((val = get_resource(rdb, "allMonitors", "false")))
@@ -3447,11 +3723,127 @@ get_resources(int argc, char *argv[])
 		getXrmBool(val, &options.raise);
 	if ((val = get_resource(rdb, "restore", "false")))
 		getXrmBool(val, &options.restore);
+	if ((val = get_resource(rdb, "sysTray", NULL)))
+		getXrmBool(val, &options.systray);
+	if ((val = get_resource(rdb, "toolTips", "false")))
+		getXrmBool(val, &options.tooltips);
 
 	XrmDestroyDatabase(rdb);
 }
 
 /** @} */
+
+/** @} */
+
+/** @section System Tray Icon
+  * @{ */
+
+#if 1
+static gboolean
+button_press(GtkStatusIcon *icon, GdkEvent *event, gpointer user_data)
+{
+	XdeScreen *xscr = user_data;
+
+	(void) xscr;
+	/* FIXME: do something on icon button press */
+	return GTK_EVENT_PROPAGATE;
+}
+
+static void
+popup_refresh(XdeScreen *xscr)
+{
+}
+
+void
+refresh_selected(GtkMenuItem *item, gpointer user_data)
+{
+	XdeScreen *xscr = user_data;
+
+	popup_refresh(xscr);
+	return;
+}
+
+void
+about_selected(GtkMenuItem *item, gpointer user_data)
+{
+	gchar *authors[] = { "Brian F. G. Bidulock <bidulock@openss7.org>", NULL };
+	gtk_show_about_dialog(NULL,
+			      "authors", authors,
+			      "comments", "An XDG startup notification monitor.",
+			      "copyright", "Copyright (c) 2013, 2014, 2015, 2016  OpenSS7 Corporation",
+			      "license", "Do what thou wilt shall be the whole of the law.\n\n-- Aleister Crowley",
+			      "logo-icon-name", LOGO_NAME,
+			      "program-name", NAME,
+			      "version", VERSION,
+			      "website", "http://www.unexicon.com/",
+			      "website-label", "Unexicon - Linux spun for telecom", NULL);
+	return;
+}
+
+static void
+popup_restart(void)
+{
+}
+
+void
+redo_selected(GtkMenuItem *item, gpointer user_data)
+{
+	popup_restart();
+}
+
+void
+quit_selected(GtkMenuItem *item, gpointer user_data)
+{
+	mainloop_quit();
+}
+
+static void
+popup_menu(GtkStatusIcon *icon, guint button, guint time, gpointer user_data)
+{
+	XdeScreen *xscr = user_data;
+	GtkWidget *menu, *item;
+
+	menu = gtk_menu_new();
+	item = gtk_image_menu_item_new_from_stock("gtk-refresh", NULL);
+	g_signal_connect(G_OBJECT(item), "activate", G_CALLBACK(refresh_selected), xscr);
+	gtk_widget_show(item);
+	gtk_menu_append(menu, item);
+
+	item = gtk_image_menu_item_new_from_stock("gtk-about", NULL);
+	g_signal_connect(G_OBJECT(item), "activate", G_CALLBACK(about_selected), xscr);
+	gtk_widget_show(item);
+	gtk_menu_append(menu, item);
+
+	item = gtk_separator_menu_item_new();
+	gtk_widget_show(item);
+	gtk_menu_append(menu, item);
+
+	item = gtk_image_menu_item_new_from_stock("gtk-redo", NULL);
+	g_signal_connect(G_OBJECT(item), "activate", G_CALLBACK(redo_selected), xscr);
+	gtk_widget_show(item);
+	gtk_menu_append(menu, item);
+
+	item = gtk_image_menu_item_new_from_stock("gtk-quit", NULL);
+	g_signal_connect(G_OBJECT(item), "activate", G_CALLBACK(quit_selected), xscr);
+	gtk_widget_show(item);
+	gtk_menu_append(menu, item);
+
+	gtk_menu_popup(GTK_MENU(menu), NULL, NULL, gtk_status_icon_position_menu, icon, button, time);
+	return;
+}
+
+static void
+systray_show(XdeScreen *xscr)
+{
+	GtkStatusIcon *icon;
+
+	icon = gtk_status_icon_new_from_icon_name(LOGO_NAME);
+	gtk_status_icon_set_tooltip_text(icon, "Click for menu...");
+	gtk_status_icon_set_visible(icon, TRUE);
+	g_signal_connect(G_OBJECT(icon), "button_press_event", G_CALLBACK(button_press), xscr);
+	g_signal_connect(G_OBJECT(icon), "popup_menu", G_CALLBACK(popup_menu), xscr);
+}
+#endif
 
 /** @} */
 
@@ -3464,6 +3856,7 @@ get_resources(int argc, char *argv[])
 /** @section Workspace Events
   * @{ */
 
+#if 1
 static Bool
 good_window_manager(XdeScreen *xscr)
 {
@@ -3570,8 +3963,8 @@ good_window_manager(XdeScreen *xscr)
 	/* XXX: matwm2(1) is supported and works well. */
 	if (!strcasecmp(xscr->wmname, "matwm2"))
 		return True;
-	/* XXX: metacity(1) provides its own competent desktop switching feedback pop-up. 
-	   When xde-pager detects that it is running under metacity(1), it will simply do 
+	/* XXX: metacity(1) provides its own competent desktop switching feedback pop-up.
+	   When xde-pager detects that it is running under metacity(1), it will simply do
 	   nothing. */
 	if (!strcasecmp(xscr->wmname, "metacity")) {
 		xscr->pager = False;
@@ -3579,16 +3972,16 @@ good_window_manager(XdeScreen *xscr)
 		xscr->cycle = False;
 		return True;
 	}
-	/* XXX: mwm(1) only supports OSF/Motif and does not support multiple desktops. It 
+	/* XXX: mwm(1) only supports OSF/Motif and does not support multiple desktops. It
 	   is not supported. */
 	if (!strcasecmp(xscr->wmname, "mwm"))
 		return False;
 	/* XXX: mutter(1) has not been tested. */
 	if (!strcasecmp(xscr->wmname, "mutter"))
 		return True;
-	/* XXX: openbox(1) provides its own meager desktop switching feedback pop-up.  It 
+	/* XXX: openbox(1) provides its own meager desktop switching feedback pop-up.  It
 	   does respect _NET_DESKTOP_LAYOUT but does not provide any of the contents of
-	   the desktop. When both are running it is a little confusing, so when xde-pager 
+	   the desktop. When both are running it is a little confusing, so when xde-pager
 	   detects that it is running under openbox(1), it will simply do nothing. */
 	if (!strcasecmp(xscr->wmname, "openbox")) {
 		xscr->pager = False;
@@ -3621,9 +4014,9 @@ good_window_manager(XdeScreen *xscr)
 	   instead. */
 	if (!strcasecmp(xscr->wmname, "vtwm"))
 		return False;
-	/* XXX: waimea(1) is supported; however, waimea(1) defaults to triple-sized large 
+	/* XXX: waimea(1) is supported; however, waimea(1) defaults to triple-sized large
 	   desktops in a 2x2 arrangement.  With large virtual desktops, libwnck+ gets
-	   confused just as with afterstep(1).  fvwm(1) must be doing something right. It 
+	   confused just as with afterstep(1).  fvwm(1) must be doing something right. It
 	   appears to be _NET_DESKTOP_VIEWPORT, which is supposed to be set to the
 	   viewport position of each desktop (and isn't).  Use the waimea at
 	   https://github.com/bbidulock/waimea for a corrected version. */
@@ -3639,7 +4032,7 @@ good_window_manager(XdeScreen *xscr)
 		xscr->cycle = False;
 		return True;
 	}
-	/* XXX: wmii(1) is supported and works well.  wmii(1) was stealing the focus back 
+	/* XXX: wmii(1) is supported and works well.  wmii(1) was stealing the focus back
 	   from the pop-up, but this was fixed. */
 	if (!strcasecmp(xscr->wmname, "wmii"))
 		return True;
@@ -3665,6 +4058,9 @@ window_manager_changed(WnckScreen *wnck, gpointer user)
 	const char *name;
 
 	PTRACE(5);
+	/* I suppose that what we should do here is set a timer and wait before doing
+	   anything; however, I think that libwnck++ already does this (waits before even
+	   giving us the signal). */
 	wnck_screen_force_update(wnck);
 	if (options.proxy)
 		setup_button_proxy(xscr);
@@ -3733,12 +4129,14 @@ active_workspace_changed(WnckScreen *wnck, WnckWorkspace *prev, gpointer data)
 {
 	/* XXX: should be handled by update_current_desktop */
 }
+#endif
 
 /** @} */
 
 /** @section Specific Window Events
   * @{ */
 
+#if 1
 static void
 actions_changed(WnckWindow *window, WnckWindowActions changed, WnckWindowActions state, gpointer xscr)
 {
@@ -3768,12 +4166,14 @@ static void
 workspace_changed(WnckWindow *window, gpointer xscr)
 {
 }
+#endif
 
 /** @} */
 
 /** @section Window Events
   * @{ */
 
+#if 1
 static WnckWorkspace *
 same_desk(WnckScreen *wnck, WnckWindow *win1, WnckWindow *win2)
 {
@@ -3963,6 +4363,7 @@ static void
 showing_desktop_changed(WnckScreen *wnck, gpointer xscr)
 {
 }
+#endif
 
 /** @} */
 
@@ -3973,7 +4374,7 @@ showing_desktop_changed(WnckScreen *wnck, gpointer xscr)
 
 #ifdef STARTUP_NOTIFICATION
 static void
-sn_handler(SnMonitorEvent * event, void *data)
+sn_handler(SnMonitorEvent *event, void *data)
 {
 	SnStartupSequence *sn_seq = NULL;
 	XdeScreen *xscr = data;
@@ -4000,9 +4401,239 @@ sn_handler(SnMonitorEvent * event, void *data)
 }
 #endif				/* STARTUP_NOTIFICATION */
 
+#if 1
+/** @brief refresh desktop
+  *
+  * The current desktop has changed for the screen.  Update the root pixmaps for
+  * the screen.  Whether the window manager is multihead aware can be determined
+  * by checking the mhaware boolean on the screen structure.
+  */
+static void
+refresh_desktop(XdeScreen *xscr)
+{
+	GdkWindow *root = gdk_screen_get_root_window(xscr->scrn);
+	GdkColormap *cmap = gdk_drawable_get_colormap(GDK_DRAWABLE(root));
+	GdkPixmap *pixmap;
+	cairo_t *cr;
+	XdeMonitor *xmon;
+	XdeImage *im;
+	XdePixmap *pm;
+	int d, m;
+	Pixmap pmap;
+
+	/* render the current desktop on the screen */
+	pmap = get_temporary_pixmap(xscr);
+	DPRINTF(1, "using temporary pixmap (0x%08lx)\n", pmap);
+	DPRINTF(1, "creating temporary pixmap contents\n");
+	pixmap = gdk_pixmap_foreign_new_for_display(disp, pmap);
+	gdk_drawable_set_colormap(GDK_DRAWABLE(pixmap), cmap);
+	cr = gdk_cairo_create(GDK_DRAWABLE(pixmap));
+	for (m = 0, xmon = xscr->mons; m < xscr->nmon; m++, xmon++) {
+		DPRINTF(1, "adding monitor %d to pixmap\n", m);
+		d = xmon->current;
+		DPRINTF(1, "monitor %d current destop is %d\n", m, d);
+		if ((im = xscr->backdrops[d]) && (im->pixbuf || im->file)) {
+			DPRINTF(1, "monitor %d desktop %d has an image\n", m, d);
+			for (pm = im->pixmaps; pm; pm = pm->next) {
+				if (pm->geom.width == xmon->geom.width && pm->geom.height == xmon->geom.height)
+					break;
+			}
+			if (!pm && !im->pixbuf) {
+				DPRINTF(1, "creating pixbuf from file %s\n", im->file);
+				im->pixbuf = gdk_pixbuf_new_from_file(im->file, NULL);
+			}
+			if (!pm && im->pixbuf) {
+				GdkPixbuf *scaled;
+				cairo_t *cr;
+
+				DPRINTF(1, "allocating a new pixmap for image\n");
+				pm = calloc(1, sizeof(*pm));
+				pm->refs = 1;
+				pm->index = im->index;
+				if ((pm->next = im->pixmaps))
+					pm->next->pprev = &pm->next;
+				pm->pprev = &im->pixmaps;
+				im->pixmaps = pm;
+				pm->geom = xmon->geom;
+				pm->pixmap =
+				    gdk_pixmap_new(GDK_DRAWABLE(root), xmon->geom.width, xmon->geom.height, -1);
+				gdk_drawable_set_colormap(GDK_DRAWABLE(pm->pixmap), cmap);
+				cr = gdk_cairo_create(GDK_DRAWABLE(pm->pixmap));
+				/* FIXME: tiling and other things.... */
+				scaled = gdk_pixbuf_scale_simple(im->pixbuf,
+								 pm->geom.width,
+								 pm->geom.height, GDK_INTERP_BILINEAR);
+				gdk_cairo_set_source_pixbuf(cr, scaled, 0, 0);
+				cairo_paint(cr);
+				cairo_set_source_rgb(cr, 0.0, 0.0, 0.0);
+				cairo_destroy(cr);
+				g_object_unref(scaled);
+				if (im->pixbuf && im->file) {
+					g_object_unref(im->pixbuf);
+					im->pixbuf = NULL;
+					/* save some resident memory */
+				}
+			} else
+				DPRINTF(1, "using existing pixmap for image\n");
+			gdk_cairo_rectangle(cr, &xmon->geom);
+			if (pm) {
+				DPRINTF(1, "painting pixmap into screen image\n");
+				gdk_cairo_set_source_pixmap(cr, pm->pixmap, 0, 0);
+				cairo_pattern_set_extend(cairo_get_source(cr), CAIRO_EXTEND_REPEAT);
+				cairo_paint(cr);
+			} else {
+				/* FIXME: use color for desktop */
+				DPRINTF(1, "painting color into screen image\n");
+				cairo_set_source_rgb(cr, 0.0, 0.0, 0.0);
+				cairo_paint(cr);
+			}
+		} else {
+			DPRINTF(1, "monitor %d desktop %d has no image\n", m, d);
+		}
+	}
+	cairo_destroy(cr);
+	DPRINTF(1, "installing pixmap 0x%08lx as root pixmap\n", pmap);
+	XChangeProperty(GDK_DISPLAY_XDISPLAY(disp), GDK_WINDOW_XID(root), _XA_XROOTPMAP_ID,
+			XA_PIXMAP, 32, PropModeReplace, (unsigned char *) &pmap, 1);
+	gdk_window_set_back_pixmap(root, pixmap, FALSE);
+	gdk_window_clear(root);
+	if (xscr->pixmap) {
+		DPRINTF(1, "killing old unused temporary pixmap 0x%08lx\n", xscr->pixmap);
+		XKillClient(GDK_DISPLAY_XDISPLAY(disp), xscr->pixmap);
+	}
+	xscr->pixmap = pmap;
+}
+
+/** @brief refresh monitor
+  *
+  * The current view for a multi-head aware window manager has changed.  Update
+  * the background for the monitor.
+  */
+static void
+refresh_monitor(XdeMonitor *xmon)
+{
+	/* for now */
+	refresh_desktop(xmon->xscr);
+}
+#endif
+
 static void
 update_client_list(XdeScreen *xscr, Atom prop)
 {
+#if 0
+	Window root = RootWindow(dpy, xscr->index);
+	Atom actual = None;
+	int format = 0;
+	unsigned long nitems = 0, after = 0, num;
+	unsigned long *data = NULL;
+	GdkWindow *window;
+	GdkWindowState state;
+	GList *oldlist = NULL, **moldlist;
+	GList *clients = NULL, **mclients;
+	GList *stacked = NULL, **mstacked;
+	GList *l;
+	int i, m;
+
+	if (prop == None || prop == _XA_WIN_CLIENT_LIST) {
+	      try_harder1:
+		if (XGetWindowProperty(dpy, root, _XA_WIN_CLIENT_LIST, 0L, 16,
+				       False, XA_CARDINAL, &actual, &format,
+				       &nitems, &after, (unsigned char **) &data)
+		    == Success && format == 32) {
+			if (after) {
+				num += ((after + 1) >> 2);
+				if (data) {
+					XFree(data);
+					data = NULL;
+				}
+				goto try_harder1;
+			}
+			for (i = 0; i < nitems; i++)
+				if ((window = gdk_x11_window_foreign_new_for_display(disp, data[i])))
+					oldlist = g_list_append(oldlist, window);
+			if (data)
+				XFree(data);
+		}
+	}
+	if (prop == None || prop == _XA_NET_CLIENT_LIST) {
+	      try_harder2:
+		if (XGetWindowProperty(dpy, root, _XA_NET_CLIENT_LIST, 0L, 16,
+				       False, XA_WINDOW, &actual, &format,
+				       &nitems, &after, (unsigned char **) &data)
+		    == Success && format == 32) {
+			if (after) {
+				num += ((after + 1) >> 2);
+				if (data) {
+					XFree(data);
+					data = NULL;
+				}
+				goto try_harder2;
+			}
+			for (i = 0; i < nitems; i++)
+				if ((window = gdk_x11_window_foreign_new_for_display(disp, data[i])))
+					clients = g_list_append(clients, window);
+			if (data)
+				XFree(data);
+		}
+	}
+	if (prop == None || prop == _XA_NET_CLIENT_LIST_STACKING) {
+	      try_harder3:
+		if (XGetWindowProperty(dpy, root, _XA_NET_CLIENT_LIST, 0L, 16,
+				       False, XA_WINDOW, &actual, &format,
+				       &nitems, &after, (unsigned char **) &data)
+		    == Success && format == 32) {
+			if (after) {
+				num += ((after + 1) >> 2);
+				if (data) {
+					XFree(data);
+					data = NULL;
+				}
+				goto try_harder3;
+			}
+			for (i = 0; i < nitems; i++)
+				if ((window = gdk_x11_window_foreign_new_for_display(disp, data[i])))
+					stacked = g_list_append(stacked, window);
+			if (data)
+				XFree(data);
+		}
+	}
+	moldlist = calloc(xscr->nmon, sizeof(*moldlist));
+	for (i = 0; i < xscr->nmon; i++) {
+		for (l = oldlist; l; l = l->next) {
+			window = l->data;
+			state = gdk_window_get_state(window);
+			if (state & (GDK_WINDOW_STATE_WITHDRAWN | GDK_WINDOW_STATE_ICONIFIED))
+				continue;
+			m = gdk_screen_get_monitor_at_window(xscr->scrn, window);
+			g_object_ref(G_OBJECT(window));
+			moldlist[m] = g_list_append(moldlist[m], window);
+		}
+	}
+	mclients = calloc(xscr->nmon, sizeof(*mclients));
+	for (i = 0; i < xscr->nmon; i++) {
+		for (l = clients; l; l = l->next) {
+			window = l->data;
+			state = gdk_window_get_state(window);
+			if (state & (GDK_WINDOW_STATE_WITHDRAWN | GDK_WINDOW_STATE_ICONIFIED))
+				continue;
+			m = gdk_screen_get_monitor_at_window(xscr->scrn, window);
+			g_object_ref(G_OBJECT(window));
+			mclients[m] = g_list_append(mclients[m], window);
+		}
+	}
+	mstacked = calloc(xscr->nmon, sizeof(*mstacked));
+	for (i = 0; i < xscr->nmon; i++) {
+		for (l = stacked; l; l = l->next) {
+			window = l->data;
+			state = gdk_window_get_state(window);
+			if (state & (GDK_WINDOW_STATE_WITHDRAWN | GDK_WINDOW_STATE_ICONIFIED))
+				continue;
+			m = gdk_screen_get_monitor_at_window(xscr->scrn, window);
+			g_object_ref(G_OBJECT(window));
+			mstacked[m] = g_list_append(mstacked[m], window);
+		}
+	}
+#endif
 }
 
 static void
@@ -4115,6 +4746,7 @@ update_monitor(XdeScreen *xscr, XdeMonitor *mon, int m)
 	gdk_screen_get_monitor_geometry(xscr->scrn, m, &mon->geom);
 }
 
+#if 1
 static void
 update_root_pixmap(XdeScreen *xscr, Atom prop)
 {
@@ -4155,12 +4787,14 @@ update_root_pixmap(XdeScreen *xscr, Atom prop)
 		xscr->pixmap = pmap;
 		/* FIXME: do more */
 		/* Adjust the style of the desktop to use the pixmap specified by
-		   _XROOTPMAP_ID as the background.  Uses GTK+ 2.0 styles to do this. The 
+		   _XROOTPMAP_ID as the background.  Uses GTK+ 2.0 styles to do this. The
 		   root _XROOTPMAP_ID must be retrieved before calling this function for
 		   it to work correctly.  */
 	}
 }
+#endif
 
+#if 1
 static void
 update_current_desktop(XdeScreen *xscr, Atom prop)
 {
@@ -4372,7 +5006,9 @@ refresh_layout(XdeScreen *xscr)
 		refresh_desktop(xscr);
 	}
 }
+#endif
 
+#if 1
 static void
 update_layout(XdeScreen *xscr, Atom prop)
 {
@@ -4461,9 +5097,67 @@ update_layout(XdeScreen *xscr, Atom prop)
 			for (num = xscr->desks; num > 0; xscr->cols++, num -= xscr->rows) ;
 		if (xscr->rows == 0)
 			for (num = xscr->desks; num > 0; xscr->rows++, num -= xscr->cols) ;
-
+#if 1
 		// refresh_layout(xscr); /* XXX: should be deferred */
 		add_deferred_refresh_layout(xscr);
+#endif
+	}
+}
+#endif
+
+static void
+update_icon_theme(XdeScreen *xscr, Atom prop)
+{
+	Window root = RootWindow(dpy, xscr->index);
+	XTextProperty xtp = { NULL, };
+	Bool changed = False;
+	GtkSettings *set;
+
+	gtk_rc_reparse_all();
+	if (!prop || prop == _XA_GTK_READ_RCFILES)
+		prop = _XA_XDE_ICON_THEME_NAME;
+	if (XGetTextProperty(dpy, root, &xtp, prop)) {
+		char **list = NULL;
+		int strings = 0;
+
+		if (Xutf8TextPropertyToTextList(dpy, &xtp, &list, &strings) == Success) {
+			if (strings >= 1) {
+				char *rc_string;
+
+				rc_string = g_strdup_printf("gtk-icon-theme-name=\"%s\"", list[0]);
+				gtk_rc_parse_string(rc_string);
+				g_free(rc_string);
+				if (!xscr->itheme || strcmp(xscr->itheme, list[0])) {
+					free(xscr->itheme);
+					xscr->itheme = strdup(list[0]);
+					changed = True;
+				}
+			}
+			if (list)
+				XFreeStringList(list);
+		} else
+			DPRINTF(1, "could not get text list for property\n");
+		if (xtp.value)
+			XFree(xtp.value);
+	} else
+		DPRINTF(1, "could not get %s for root 0x%lx\n", XGetAtomName(dpy, prop), root);
+	if ((set = gtk_settings_get_for_screen(xscr->scrn))) {
+		GValue theme_v = G_VALUE_INIT;
+		const char *itheme;
+
+		g_value_init(&theme_v, G_TYPE_STRING);
+		g_object_get_property(G_OBJECT(set), "gtk-icon-theme-name", &theme_v);
+		itheme = g_value_get_string(&theme_v);
+		if (itheme && (!xscr->itheme || strcmp(xscr->itheme, itheme))) {
+			free(xscr->itheme);
+			xscr->itheme = strdup(itheme);
+			changed = True;
+		}
+		g_value_unset(&theme_v);
+	}
+	if (changed) {
+		DPRINTF(1, "New icon theme is %s\n", xscr->itheme);
+		/* FIXME: do something more about it. */
 	}
 }
 
@@ -4472,14 +5166,17 @@ update_theme(XdeScreen *xscr, Atom prop)
 {
 	Window root = RootWindow(dpy, xscr->index);
 	XTextProperty xtp = { NULL, };
-	char **list = NULL;
-	int strings = 0;
 	Bool changed = False;
 	GtkSettings *set;
 
 	PTRACE(5);
 	gtk_rc_reparse_all();
-	if (XGetTextProperty(dpy, root, &xtp, _XA_XDE_THEME_NAME)) {
+	if (!prop || prop == _XA_GTK_READ_RCFILES)
+		prop = _XA_XDE_THEME_NAME;
+	if (XGetTextProperty(dpy, root, &xtp, prop)) {
+		char **list = NULL;
+		int strings = 0;
+
 		if (Xutf8TextPropertyToTextList(dpy, &xtp, &list, &strings) == Success) {
 			if (strings >= 1) {
 				char *rc_string;
@@ -4496,11 +5193,11 @@ update_theme(XdeScreen *xscr, Atom prop)
 			if (list)
 				XFreeStringList(list);
 		} else
-			EPRINTF("could not get text list for property\n");
+			DPRINTF(1, "could not get text list for property\n");
 		if (xtp.value)
 			XFree(xtp.value);
 	} else
-		DPRINTF(1, "could not get _XDE_THEME_NAME for root 0x%lx\n", root);
+		DPRINTF(1, "could not get %s for root 0x%lx\n", XGetAtomName(dpy, prop), root);
 	if ((set = gtk_settings_get_for_screen(xscr->scrn))) {
 		GValue theme_v = G_VALUE_INIT;
 		const char *theme;
@@ -4518,8 +5215,10 @@ update_theme(XdeScreen *xscr, Atom prop)
 	if (changed) {
 		DPRINTF(1, "New theme is %s\n", xscr->theme);
 		/* FIXME: do something more about it. */
+#if 1
 		if (options.show.setbg)
 			read_theme(xscr);
+#endif
 	} else
 		DPRINTF(1, "No change in current theme %s\n", xscr->theme);
 }
@@ -4527,11 +5226,14 @@ update_theme(XdeScreen *xscr, Atom prop)
 static void
 update_screen(XdeScreen *xscr)
 {
+#if 1
 	if (options.show.setbg)
 		update_root_pixmap(xscr, None);
 	update_layout(xscr, None);
 	update_current_desktop(xscr, None);
+#endif
 	update_theme(xscr, None);
+	update_icon_theme(xscr, None);
 }
 
 static void
@@ -4596,9 +5298,11 @@ monitors_changed(GdkScreen *scrn, gpointer user_data)
 
 	wnck_screen_force_update(xscr->wnck);
 	refresh_screen(xscr, scrn);
+#if 1
 	refresh_layout(xscr);
 	if (options.show.setbg)
 		read_theme(xscr);
+#endif
 }
 
 /** @brief screen size changed
@@ -4614,18 +5318,15 @@ size_changed(GdkScreen *scrn, gpointer user_data)
 
 	wnck_screen_force_update(xscr->wnck);
 	refresh_screen(xscr, scrn);
+#if 1
 	refresh_layout(xscr);
 	if (options.show.setbg)
 		read_theme(xscr);
+#endif
 }
 
 static void
-edit_input(XdeMonitor *xmon)
-{
-}
-
-static void
-show_stray(XdeMonitor *xmon)
+popup_show(XdeScreen *xscr)
 {
 }
 
@@ -4634,18 +5335,27 @@ event_handler_ClientMessage(XEvent *xev)
 {
 	XdeScreen *xscr = NULL;
 	int s, nscr = ScreenCount(dpy);
+	Atom type = xev->xclient.message_type;
+	char *name = NULL;
 
+	PTRACE(5);
 	for (s = 0; s < nscr; s++)
 		if (xev->xclient.window == RootWindow(dpy, s)) {
 			xscr = screens + s;
 			break;
 		}
-
-	PTRACE(5);
+	if (!xscr) {
+#ifdef STARTUP_NOTIFICATION
+		if (type != _XA_NET_STARTUP_INFO && type != _XA_NET_STARTUP_INFO_BEGIN)
+#endif
+			EPRINTF("could not find screen for client message %s with window 0%08lx\n",
+				name ? : (name = XGetAtomName(dpy, type)), xev->xclient.window);
+		xscr = screens;
+	}
 	if (options.debug > 1) {
 		fprintf(stderr, "==> ClientMessage: %p\n", xscr);
 		fprintf(stderr, "    --> window = 0x%08lx\n", xev->xclient.window);
-		fprintf(stderr, "    --> message_type = %s\n", XGetAtomName(dpy, xev->xclient.message_type));
+		fprintf(stderr, "    --> message_type = %s\n", name ? : (name = XGetAtomName(dpy, type)));
 		fprintf(stderr, "    --> format = %d\n", xev->xclient.format);
 		switch (xev->xclient.format) {
 			int i;
@@ -4653,13 +5363,13 @@ event_handler_ClientMessage(XEvent *xev)
 		case 8:
 			fprintf(stderr, "    --> data =");
 			for (i = 0; i < 20; i++)
-				fprintf(stderr, " %02x", xev->xclient.data.b[i]);
+				fprintf(stderr, " %02x", (int) xev->xclient.data.b[i]);
 			fprintf(stderr, "\n");
 			break;
 		case 16:
 			fprintf(stderr, "    --> data =");
 			for (i = 0; i < 10; i++)
-				fprintf(stderr, " %04x", xev->xclient.data.s[i]);
+				fprintf(stderr, " %04x", (int) xev->xclient.data.s[i]);
 			fprintf(stderr, "\n");
 			break;
 		case 32:
@@ -4671,23 +5381,40 @@ event_handler_ClientMessage(XEvent *xev)
 		}
 		fprintf(stderr, "<== ClientMessage: %p\n", xscr);
 	}
-	if (xscr) {
-		if (xev->xclient.message_type == _XA_GTK_READ_RCFILES) {
-			update_theme(xscr, xev->xclient.message_type);
-			return GDK_FILTER_REMOVE;	/* event handled */
-		} else if (xev->xclient.message_type == _XA_PREFIX_EDIT) {
-			edit_input(xscr->mons);
-			return GDK_FILTER_REMOVE;
-		} else if (xev->xclient.message_type == _XA_PREFIX_TRAY) {
-			show_stray(xscr->mons);
-			return GDK_FILTER_REMOVE;
-		}
-	} else
-		xscr = screens;
+	if (name) {
+		XFree(name);
+		name = NULL;
+	}
+	if (type == _XA_GTK_READ_RCFILES) {
+		update_theme(xscr, type);
+		update_icon_theme(xscr, type);
+		return GDK_FILTER_REMOVE;	/* event handled */
+	} else if (type == _XA_PREFIX_REFRESH) {
+		set_scmon(xev->xclient.data.l[1]);
+		set_flags(xev->xclient.data.l[2]);
+		set_word1(xev->xclient.data.l[3]);
+		set_word2(xev->xclient.data.l[4]);
+		popup_refresh(xscr);
+		return GDK_FILTER_REMOVE;
+	} else if (type == _XA_PREFIX_RESTART) {
+		set_scmon(xev->xclient.data.l[1]);
+		set_flags(xev->xclient.data.l[2]);
+		set_word1(xev->xclient.data.l[3]);
+		set_word2(xev->xclient.data.l[4]);
+		popup_restart();
+		return GDK_FILTER_REMOVE;
+	} else if (type == _XA_PREFIX_EDITOR) {
+		set_scmon(xev->xclient.data.l[1]);
+		set_flags(xev->xclient.data.l[2]);
+		set_word1(xev->xclient.data.l[3]);
+		set_word2(xev->xclient.data.l[4]);
+		popup_show(xscr);
+		return GDK_FILTER_REMOVE;
+	}
 #ifdef STARTUP_NOTIFICATION
-	if (xev->xclient.message_type == _XA_NET_STARTUP_INFO) {
+	if (type == _XA_NET_STARTUP_INFO) {
 		return sn_display_process_event(sn_dpy, xev);
-	} else if (xev->xclient.message_type == _XA_NET_STARTUP_INFO_BEGIN) {
+	} else if (type == _XA_NET_STARTUP_INFO_BEGIN) {
 		return sn_display_process_event(sn_dpy, xev);
 	}
 #endif
@@ -4709,7 +5436,7 @@ client_handler(GdkXEvent *xevent, GdkEvent *event, gpointer data)
 }
 
 static GdkFilterReturn
-event_handler_SelectionClear(Display *dpy, XEvent *xev, XdeScreen *xscr)
+event_handler_SelectionClear(XEvent *xev, XdeScreen *xscr)
 {
 	PTRACE(5);
 	if (options.debug > 1) {
@@ -4723,7 +5450,18 @@ event_handler_SelectionClear(Display *dpy, XEvent *xev, XdeScreen *xscr)
 	if (xscr && xev->xselectionclear.window == xscr->selwin) {
 		XDestroyWindow(dpy, xscr->selwin);
 		EPRINTF("selection cleared, exiting\n");
-		gtk_main_quit();
+#if 1
+		if (smcConn) {
+			/* Care must be taken where if we are running under a session
+			   manager. We set the restart hint to SmRestartImmediately which
+			   means that the session manager will re-execute us if we exit.
+			   We should really request a local shutdown. */
+			SmcRequestSaveYourself(smcConn, SmSaveLocal, True, SmInteractStyleNone, False, False);
+			return GDK_FILTER_CONTINUE;
+		}
+		exit(EXIT_SUCCESS);
+#endif
+		mainloop_quit();
 		return GDK_FILTER_REMOVE;
 	}
 	if (xscr && xev->xselectionclear.window == xscr->laywin) {
@@ -4742,7 +5480,7 @@ selwin_handler(GdkXEvent *xevent, GdkEvent *event, gpointer data)
 	PTRACE(5);
 	switch (xev->type) {
 	case SelectionClear:
-		return event_handler_SelectionClear(dpy, xev, xscr);
+		return event_handler_SelectionClear(xev, xscr);
 	}
 	EPRINTF("wrong message type for handler %d\n", xev->type);
 	return GDK_FILTER_CONTINUE;
@@ -4761,15 +5499,17 @@ laywin_handler(GdkXEvent *xevent, GdkEvent *event, gpointer data)
 	}
 	switch (xev->type) {
 	case SelectionClear:
-		return event_handler_SelectionClear(dpy, xev, xscr);
+		return event_handler_SelectionClear(xev, xscr);
 	}
 	EPRINTF("wrong message type for handler %d\n", xev->type);
 	return GDK_FILTER_CONTINUE;
 }
 
 static GdkFilterReturn
-event_handler_PropertyNotify(Display *dpy, XEvent *xev, XdeScreen *xscr)
+event_handler_PropertyNotify(XEvent *xev, XdeScreen *xscr)
 {
+	Atom atom;
+
 	PTRACE(5);
 	if (options.debug > 2) {
 		fprintf(stderr, "==> PropertyNotify:\n");
@@ -4780,49 +5520,51 @@ event_handler_PropertyNotify(Display *dpy, XEvent *xev, XdeScreen *xscr)
 			(xev->xproperty.state == PropertyNewValue) ? "NewValue" : "Delete");
 		fprintf(stderr, "<== PropertyNotify:\n");
 	}
-	if (xev->xproperty.atom == _XA_XDE_THEME_NAME && xev->xproperty.state == PropertyNewValue) {
-		PTRACE(5);
-		update_theme(xscr, xev->xproperty.atom);
-		return GDK_FILTER_REMOVE;	/* event handled */
-	} else if (xev->xproperty.atom == _XA_NET_DESKTOP_LAYOUT && xev->xproperty.state == PropertyNewValue) {
-		PTRACE(5);
-		update_layout(xscr, xev->xproperty.atom);
-	} else if (xev->xproperty.atom == _XA_NET_NUMBER_OF_DESKTOPS && xev->xproperty.state == PropertyNewValue) {
-		PTRACE(5);
-		update_layout(xscr, xev->xproperty.atom);
-	} else if (xev->xproperty.atom == _XA_WIN_WORKSPACE_COUNT && xev->xproperty.state == PropertyNewValue) {
-		PTRACE(5);
-		update_layout(xscr, xev->xproperty.atom);
-	} else if (xev->xproperty.atom == _XA_NET_CURRENT_DESKTOP && xev->xproperty.state == PropertyNewValue) {
-		PTRACE(5);
-		update_current_desktop(xscr, xev->xproperty.atom);
-	} else if (xev->xproperty.atom == _XA_WIN_WORKSPACE && xev->xproperty.state == PropertyNewValue) {
-		PTRACE(5);
-		update_current_desktop(xscr, xev->xproperty.atom);
-	} else if (xev->xproperty.atom == _XA_WM_DESKTOP && xev->xproperty.state == PropertyNewValue) {
-		PTRACE(5);
-		update_current_desktop(xscr, xev->xproperty.atom);
-	} else if (xev->xproperty.atom == _XA_XROOTPMAP_ID && xev->xproperty.state == PropertyNewValue) {
-		PTRACE(5);
-		update_root_pixmap(xscr, xev->xproperty.atom);
-	} else if (xev->xproperty.atom == _XA_ESETROOT_PMAP_ID && xev->xproperty.state == PropertyNewValue) {
-		PTRACE(5);
-		update_root_pixmap(xscr, xev->xproperty.atom);
-	} else if (xev->xproperty.atom == _XA_NET_ACTIVE_WINDOW && xev->xproperty.state == PropertyNewValue) {
-		PTRACE(5);
-		update_active_window(xscr, xev->xproperty.atom);
-	} else if (xev->xproperty.atom == _XA_NET_CLIENT_LIST && xev->xproperty.state == PropertyNewValue) {
-		PTRACE(5);
-		update_client_list(xscr, xev->xproperty.atom);
-	} else if (xev->xproperty.atom == _XA_NET_CLIENT_LIST_STACKING && xev->xproperty.state == PropertyNewValue) {
-		PTRACE(5);
-		update_client_list(xscr, xev->xproperty.atom);
-	} else if (xev->xproperty.atom == _XA_WIN_FOCUS && xev->xproperty.state == PropertyNewValue) {
-		PTRACE(5);
-		update_active_window(xscr, xev->xproperty.atom);
-	} else if (xev->xproperty.atom == _XA_WIN_CLIENT_LIST && xev->xproperty.state == PropertyNewValue) {
-		PTRACE(5);
-		update_client_list(xscr, xev->xproperty.atom);
+	atom = xev->xproperty.atom;
+	if (xev->xproperty.state == PropertyNewValue) {
+		if (atom == _XA_XDE_THEME_NAME || atom == _XA_XDE_WM_THEME) {
+			update_theme(xscr, atom);
+			return GDK_FILTER_REMOVE;	/* event handled */
+		} else if (atom == _XA_XDE_ICON_THEME_NAME || atom == _XA_XDE_WM_ICONTHEME) {
+			update_icon_theme(xscr, atom);
+			return GDK_FILTER_REMOVE;	/* event handled */
+#if 1
+		} else if (atom == _XA_NET_DESKTOP_LAYOUT) {
+			update_layout(xscr, atom);
+		} else if (atom == _XA_NET_NUMBER_OF_DESKTOPS) {
+			update_layout(xscr, atom);
+		} else if (atom == _XA_WIN_WORKSPACE_COUNT) {
+			update_layout(xscr, atom);
+#endif
+#if 1
+		} else if (atom == _XA_NET_CURRENT_DESKTOP) {
+			update_current_desktop(xscr, atom);
+		} else if (atom == _XA_WIN_WORKSPACE) {
+			update_current_desktop(xscr, atom);
+		} else if (atom == _XA_WM_DESKTOP) {
+			update_current_desktop(xscr, atom);
+#endif
+#if 1
+		} else if (atom == _XA_XROOTPMAP_ID) {
+			update_root_pixmap(xscr, atom);
+		} else if (atom == _XA_ESETROOT_PMAP_ID) {
+			update_root_pixmap(xscr, atom);
+#endif
+		} else if (atom == _XA_NET_ACTIVE_WINDOW) {
+			update_active_window(xscr, atom);
+#if 1
+		} else if (atom == _XA_NET_CLIENT_LIST) {
+			update_client_list(xscr, atom);
+		} else if (atom == _XA_NET_CLIENT_LIST_STACKING) {
+			update_client_list(xscr, atom);
+#endif
+		} else if (atom == _XA_WIN_FOCUS) {
+			update_active_window(xscr, atom);
+#if 1
+		} else if (atom == _XA_WIN_CLIENT_LIST) {
+			update_client_list(xscr, atom);
+#endif
+		}
 	}
 	return GDK_FILTER_CONTINUE;	/* event not handled */
 }
@@ -4836,7 +5578,7 @@ root_handler(GdkXEvent *xevent, GdkEvent *event, gpointer data)
 	PTRACE(5);
 	switch (xev->type) {
 	case PropertyNotify:
-		return event_handler_PropertyNotify(dpy, xev, xscr);
+		return event_handler_PropertyNotify(xev, xscr);
 	}
 	return GDK_FILTER_CONTINUE;
 }
@@ -4855,7 +5597,7 @@ handler(Display *display, XErrorEvent *xev)
 
 		snprintf(num, sizeof(num), "%d", xev->request_code);
 		snprintf(def, sizeof(def), "[request_code=%d]", xev->request_code);
-		XGetErrorDatabaseText(dpy, "xdg-launch", num, def, req, sizeof(req));
+		XGetErrorDatabaseText(dpy, NAME, num, def, req, sizeof(req));
 		if (XGetErrorText(dpy, xev->error_code, msg, sizeof(msg)) != Success)
 			msg[0] = '\0';
 		fprintf(stderr, "X error %s(0x%08lx): %s\n", req, xev->resourceid, msg);
@@ -4891,7 +5633,7 @@ int_signal_handler(gpointer data)
 gboolean
 term_signal_handler(gpointer data)
 {
-	gtk_main_quit();
+	mainloop_quit();
 	return G_SOURCE_CONTINUE;
 }
 
@@ -4913,9 +5655,9 @@ add_pager(XdeScreen *xscr, XdePopup *xpop, GtkWidget *popup)
 	wnck_pager_set_display_mode(WNCK_PAGER(pager), WNCK_PAGER_DISPLAY_CONTENT);
 	wnck_pager_set_show_all(WNCK_PAGER(pager), TRUE);
 	wnck_pager_set_shadow_type(WNCK_PAGER(pager), GTK_SHADOW_IN);
+	gtk_widget_show_all(GTK_WIDGET(pager));
 	gtk_container_add(GTK_CONTAINER(popup), GTK_WIDGET(pager));
 	gtk_window_set_position(GTK_WINDOW(popup), GTK_WIN_POS_CENTER_ALWAYS);
-	gtk_widget_show_all(GTK_WIDGET(popup));
 	xpop->content = pager;
 }
 
@@ -4929,10 +5671,20 @@ add_tasks(XdeScreen *xscr, XdePopup *xpop, GtkWidget *popup)
 	wnck_tasklist_set_switch_workspace_on_unminimize(WNCK_TASKLIST(tasks), FALSE);
 	wnck_tasklist_set_button_relief(WNCK_TASKLIST(tasks), GTK_RELIEF_HALF);
 	/* use wnck_tasklist_get_size_hint_list() to size tasks */
+	gtk_widget_show_all(GTK_WIDGET(tasks));
 	gtk_container_add(GTK_CONTAINER(popup), GTK_WIDGET(tasks));
 	gtk_window_set_position(GTK_WINDOW(popup), GTK_WIN_POS_CENTER_ALWAYS);
-	gtk_widget_show_all(GTK_WIDGET(popup));
 	xpop->content = tasks;
+}
+
+static void
+size_request(GtkWidget *widget, GtkRequisition *requisition, gpointer user_data)
+{
+	XdePopup *xpop = user_data;
+
+	DPRINTF(1, "view requested size %dx%d\n", requisition->width, requisition->height);
+	if (xpop->popped)
+		gtk_window_reshow_with_initial_size(GTK_WINDOW(xpop->popup));
 }
 
 static void
@@ -4952,7 +5704,7 @@ add_cycle(XdeScreen *xscr, XdePopup *xpop, GtkWidget *popup)
 			);
 	/* *INDENT-ON* */
 
-	xpop->content = view = gtk_icon_view_new_with_model(GTK_TREE_MODEL(model));
+	view = gtk_icon_view_new_with_model(GTK_TREE_MODEL(model));
 	gtk_icon_view_set_pixbuf_column(GTK_ICON_VIEW(view), 0);
 	gtk_icon_view_set_markup_column(GTK_ICON_VIEW(view), 3);
 	gtk_icon_view_set_tooltip_column(GTK_ICON_VIEW(view), 4);
@@ -4960,16 +5712,19 @@ add_cycle(XdeScreen *xscr, XdePopup *xpop, GtkWidget *popup)
 	gtk_icon_view_set_item_orientation(GTK_ICON_VIEW(view), GTK_ORIENTATION_HORIZONTAL);
 	gtk_icon_view_set_columns(GTK_ICON_VIEW(view), -1);
 	gtk_icon_view_set_item_width(GTK_ICON_VIEW(view), -1);
-	gtk_icon_view_set_spacing(GTK_ICON_VIEW(view), 5);
-	gtk_icon_view_set_row_spacing(GTK_ICON_VIEW(view), 2);
-	gtk_icon_view_set_column_spacing(GTK_ICON_VIEW(view), 2);
-	gtk_icon_view_set_margin(GTK_ICON_VIEW(view), 5);
-	gtk_icon_view_set_item_padding(GTK_ICON_VIEW(view), 3);
+	gtk_icon_view_set_spacing(GTK_ICON_VIEW(view), 1);
+	gtk_icon_view_set_row_spacing(GTK_ICON_VIEW(view), 1);
+	gtk_icon_view_set_column_spacing(GTK_ICON_VIEW(view), 1);
+	gtk_icon_view_set_margin(GTK_ICON_VIEW(view), 1);
+	gtk_icon_view_set_item_padding(GTK_ICON_VIEW(view), 1);
+	gtk_widget_show_all(GTK_WIDGET(view));
+
+	g_signal_connect(G_OBJECT(view), "size_request", G_CALLBACK(size_request), xpop);
 
 	gtk_container_add(GTK_CONTAINER(popup), view);
 	gtk_window_set_default_size(GTK_WINDOW(popup), -1, -1);
 	gtk_widget_set_size_request(GTK_WIDGET(popup), -1, -1);
-	gtk_widget_show_all(GTK_WIDGET(popup));
+	xpop->content = view;
 }
 
 static void
@@ -4994,7 +5749,7 @@ add_start(XdeScreen *xscr, XdePopup *xpop, GtkWidget *popup)
 			);
 	/* *INDENT-ON* */
 
-	xpop->content = view = gtk_icon_view_new_with_model(GTK_TREE_MODEL(model));
+	view = gtk_icon_view_new_with_model(GTK_TREE_MODEL(model));
 	gtk_icon_view_set_pixbuf_column(GTK_ICON_VIEW(view), 0);
 	gtk_icon_view_set_markup_column(GTK_ICON_VIEW(view), 3);
 	gtk_icon_view_set_tooltip_column(GTK_ICON_VIEW(view), 4);
@@ -5002,16 +5757,19 @@ add_start(XdeScreen *xscr, XdePopup *xpop, GtkWidget *popup)
 	gtk_icon_view_set_item_orientation(GTK_ICON_VIEW(view), GTK_ORIENTATION_HORIZONTAL);
 	gtk_icon_view_set_columns(GTK_ICON_VIEW(view), -1);
 	gtk_icon_view_set_item_width(GTK_ICON_VIEW(view), -1);
-	gtk_icon_view_set_spacing(GTK_ICON_VIEW(view), 5);
-	gtk_icon_view_set_row_spacing(GTK_ICON_VIEW(view), 2);
-	gtk_icon_view_set_column_spacing(GTK_ICON_VIEW(view), 2);
-	gtk_icon_view_set_margin(GTK_ICON_VIEW(view), 5);
-	gtk_icon_view_set_item_padding(GTK_ICON_VIEW(view), 3);
+	gtk_icon_view_set_spacing(GTK_ICON_VIEW(view), 1);
+	gtk_icon_view_set_row_spacing(GTK_ICON_VIEW(view), 1);
+	gtk_icon_view_set_column_spacing(GTK_ICON_VIEW(view), 1);
+	gtk_icon_view_set_margin(GTK_ICON_VIEW(view), 1);
+	gtk_icon_view_set_item_padding(GTK_ICON_VIEW(view), 1);
+	gtk_widget_show_all(GTK_WIDGET(view));
+
+	g_signal_connect(G_OBJECT(view), "size_request", G_CALLBACK(size_request), xpop);
 
 	gtk_container_add(GTK_CONTAINER(popup), view);
 	gtk_window_set_default_size(GTK_WINDOW(popup), -1, -1);
 	gtk_widget_set_size_request(GTK_WIDGET(popup), -1, -1);
-	gtk_widget_show_all(GTK_WIDGET(popup));
+	xpop->content = view;
 }
 
 static void
@@ -5151,7 +5909,9 @@ init_wnck(XdeScreen *xscr)
 	g_signal_connect(G_OBJECT(wnck), "viewports_changed", G_CALLBACK(viewports_changed), xscr);
 	g_signal_connect(G_OBJECT(wnck), "background_changed", G_CALLBACK(background_changed), xscr);
 	g_signal_connect(G_OBJECT(wnck), "active_workspace_changed", G_CALLBACK(active_workspace_changed), xscr);
+#if 1
 	g_signal_connect(G_OBJECT(wnck), "active_window_changed", G_CALLBACK(active_window_changed), xscr);
+#endif
 	g_signal_connect(G_OBJECT(wnck), "application_closed", G_CALLBACK(application_closed), xscr);
 	g_signal_connect(G_OBJECT(wnck), "application_opened", G_CALLBACK(application_opened), xscr);
 	g_signal_connect(G_OBJECT(wnck), "class_group_closed", G_CALLBACK(class_group_closed), xscr);
@@ -5166,7 +5926,7 @@ init_wnck(XdeScreen *xscr)
 }
 
 static gboolean
-ifd_watch(GIOChannel *chan, GIOCondition cond, pointer data)
+ifd_watch(GIOChannel *chan, GIOCondition cond, gpointer data)
 {
 	SmcConn smcConn = data;
 	IceConn iceConn = SmcGetIceConnection(smcConn);
@@ -5189,7 +5949,6 @@ init_smclient(void)
 	GIOChannel *chan;
 	int ifd, mask = G_IO_IN | G_IO_ERR | G_IO_HUP | G_IO_PRI;
 	char *env;
-	SmcConn smcConn;
 	IceConn iceConn;
 
 	if (!(env = getenv("SESSION_MANAGER"))) {
@@ -5210,6 +5969,11 @@ init_smclient(void)
 	g_io_add_watch(chan, mask, ifd_watch, smcConn);
 }
 
+/*
+ *  This startup function starts up the X11 protocol connection and initializes GTK+.  Note that the
+ *  program can still be run from a console, in which case the "DISPLAY" environment variables should
+ *  not be defined: in which case, we will not start up X11 at all.
+ */
 static void
 startup(int argc, char *argv[])
 {
@@ -5224,31 +5988,115 @@ startup(int argc, char *argv[])
 	gtk_rc_add_default_file(file);
 	g_free(file);
 
+#if 1
+	/* We can start session management without a display; however, we then need to
+	   run a GLIB event loop instead of a GTK event loop.  */
 	init_smclient();
+
+	/* do not start up X11 connection unless DISPLAY is defined */
+	if (!options.display) {
+		loop = g_main_loop_new(NULL, FALSE);
+		return;
+	}
+#endif
 
 	gtk_init(&argc, &argv);
 
 	disp = gdk_display_get_default();
 	nscr = gdk_display_get_n_screens(disp);
+	dpy = GDK_DISPLAY_XDISPLAY(disp);
 
 	if (options.screen >= 0 && options.screen >= nscr) {
 		EPRINTF("bad screen specified: %d\n", options.screen);
 		exit(EXIT_FAILURE);
 	}
 
-	dpy = GDK_DISPLAY_XDISPLAY(disp);
-
 #ifdef STARTUP_NOTIFICATION
 	sn_dpy = sn_display_new(dpy, NULL, NULL);
 #endif
 
+	atom = gdk_atom_intern_static_string("_XDE_ICON_THEME_NAME");
+	_XA_XDE_ICON_THEME_NAME = gdk_x11_atom_to_xatom_for_display(disp, atom);
+
 	atom = gdk_atom_intern_static_string("_XDE_THEME_NAME");
 	_XA_XDE_THEME_NAME = gdk_x11_atom_to_xatom_for_display(disp, atom);
+
+	atom = gdk_atom_intern_static_string("_XDE_WM_CLASS");
+	_XA_XDE_WM_CLASS = gdk_x11_atom_to_xatom_for_display(disp, atom);
+
+	atom = gdk_atom_intern_static_string("_XDE_WM_CMDLINE");
+	_XA_XDE_WM_CMDLINE = gdk_x11_atom_to_xatom_for_display(disp, atom);
+
+	atom = gdk_atom_intern_static_string("_XDE_WM_COMMAND");
+	_XA_XDE_WM_COMMAND = gdk_x11_atom_to_xatom_for_display(disp, atom);
+
+	atom = gdk_atom_intern_static_string("_XDE_WM_ETCDIR");
+	_XA_XDE_WM_ETCDIR = gdk_x11_atom_to_xatom_for_display(disp, atom);
+
+	atom = gdk_atom_intern_static_string("_XDE_WM_HOST");
+	_XA_XDE_WM_HOST = gdk_x11_atom_to_xatom_for_display(disp, atom);
+
+	atom = gdk_atom_intern_static_string("_XDE_WM_HOSTNAME");
+	_XA_XDE_WM_HOSTNAME = gdk_x11_atom_to_xatom_for_display(disp, atom);
+
+	atom = gdk_atom_intern_static_string("_XDE_WM_ICCCM_SUPPORT");
+	_XA_XDE_WM_ICCCM_SUPPORT = gdk_x11_atom_to_xatom_for_display(disp, atom);
+
+	atom = gdk_atom_intern_static_string("_XDE_WM_ICON");
+	_XA_XDE_WM_ICON = gdk_x11_atom_to_xatom_for_display(disp, atom);
+
+	atom = gdk_atom_intern_static_string("_XDE_WM_ICONTHEME");
+	_XA_XDE_WM_ICONTHEME = gdk_x11_atom_to_xatom_for_display(disp, atom);
+
+	atom = gdk_atom_intern_static_string("_XDE_WM_INFO");
+	_XA_XDE_WM_INFO = gdk_x11_atom_to_xatom_for_display(disp, atom);
+
+	atom = gdk_atom_intern_static_string("_XDE_WM_MENU");
+	_XA_XDE_WM_MENU = gdk_x11_atom_to_xatom_for_display(disp, atom);
+
+	atom = gdk_atom_intern_static_string("_XDE_WM_NAME");
+	_XA_XDE_WM_NAME = gdk_x11_atom_to_xatom_for_display(disp, atom);
+
+	atom = gdk_atom_intern_static_string("_XDE_WM_NETWM_SUPPORT");
+	_XA_XDE_WM_NETWM_SUPPORT = gdk_x11_atom_to_xatom_for_display(disp, atom);
+
+	atom = gdk_atom_intern_static_string("_XDE_WM_PID");
+	_XA_XDE_WM_PID = gdk_x11_atom_to_xatom_for_display(disp, atom);
+
+	atom = gdk_atom_intern_static_string("_XDE_WM_PRVDIR");
+	_XA_XDE_WM_PRVDIR = gdk_x11_atom_to_xatom_for_display(disp, atom);
+
+	atom = gdk_atom_intern_static_string("_XDE_WM_RCFILE");
+	_XA_XDE_WM_RCFILE = gdk_x11_atom_to_xatom_for_display(disp, atom);
+
+	atom = gdk_atom_intern_static_string("_XDE_WM_REDIR_SUPPORT");
+	_XA_XDE_WM_REDIR_SUPPORT = gdk_x11_atom_to_xatom_for_display(disp, atom);
+
+	atom = gdk_atom_intern_static_string("_XDE_WM_STYLE");
+	_XA_XDE_WM_STYLE = gdk_x11_atom_to_xatom_for_display(disp, atom);
+
+	atom = gdk_atom_intern_static_string("_XDE_WM_STYLENAME");
+	_XA_XDE_WM_STYLENAME = gdk_x11_atom_to_xatom_for_display(disp, atom);
+
+	atom = gdk_atom_intern_static_string("_XDE_WM_SYSDIR");
+	_XA_XDE_WM_SYSDIR = gdk_x11_atom_to_xatom_for_display(disp, atom);
+
+	atom = gdk_atom_intern_static_string("_XDE_WM_THEME");
+	_XA_XDE_WM_THEME = gdk_x11_atom_to_xatom_for_display(disp, atom);
+
+	atom = gdk_atom_intern_static_string("_XDE_WM_THEMEFILE");
+	_XA_XDE_WM_THEMEFILE = gdk_x11_atom_to_xatom_for_display(disp, atom);
+
+	atom = gdk_atom_intern_static_string("_XDE_WM_USRDIR");
+	_XA_XDE_WM_USRDIR = gdk_x11_atom_to_xatom_for_display(disp, atom);
+
+	atom = gdk_atom_intern_static_string("_XDE_WM_VERSION");
+	_XA_XDE_WM_VERSION = gdk_x11_atom_to_xatom_for_display(disp, atom);
 
 	atom = gdk_atom_intern_static_string("_GTK_READ_RCFILES");
 	_XA_GTK_READ_RCFILES = gdk_x11_atom_to_xatom_for_display(disp, atom);
 	gdk_display_add_client_message_filter(disp, atom, client_handler, NULL);
-
+#if 1
 	atom = gdk_atom_intern_static_string("_NET_DESKTOP_LAYOUT");
 	_XA_NET_DESKTOP_LAYOUT = gdk_x11_atom_to_xatom_for_display(disp, atom);
 
@@ -5293,7 +6141,7 @@ startup(int argc, char *argv[])
 
 	atom = gdk_atom_intern_static_string("_WIN_CLIENT_LIST");
 	_XA_WIN_CLIENT_LIST = gdk_x11_atom_to_xatom_for_display(disp, atom);
-
+#endif
 #ifdef STARTUP_NOTIFICATION
 	atom = gdk_atom_intern_static_string("_NET_STARTUP_INFO");
 	_XA_NET_STARTUP_INFO = gdk_x11_atom_to_xatom_for_display(disp, atom);
@@ -5303,13 +6151,22 @@ startup(int argc, char *argv[])
 	_XA_NET_STARTUP_INFO_BEGIN = gdk_x11_atom_to_xatom_for_display(disp, atom);
 	gdk_display_add_client_message_filter(disp, atom, client_handler, NULL);
 #endif				/* STARTUP_NOTIFICATION */
+	atom = gdk_atom_intern_static_string("_WIN_AREA");
+	_XA_WIN_AREA = gdk_x11_atom_to_xatom_for_display(disp, atom);
 
-	atom = gdk_atom_intern_static_string(XA_PREFIX "_EDIT");
-	_XA_PREFIX_EDIT = gdk_x11_atom_to_xatom_for_display(disp, atom);
+	atom = gdk_atom_intern_static_string("_WIN_AREA_COUNT");
+	_XA_WIN_AREA_COUNT = gdk_x11_atom_to_xatom_for_display(disp, atom);
+
+	atom = gdk_atom_intern_static_string(XA_PREFIX "_REFRESH");
+	_XA_PREFIX_REFRESH = gdk_x11_atom_to_xatom_for_display(disp, atom);
 	gdk_display_add_client_message_filter(disp, atom, client_handler, NULL);
 
-	atom = gdk_atom_intern_static_string(XA_PREFIX "_TRAY");
-	_XA_PREFIX_TRAY = gdk_x11_atom_to_xatom_for_display(disp, atom);
+	atom = gdk_atom_intern_static_string(XA_PREFIX "_RESTART");
+	_XA_PREFIX_RESTART = gdk_x11_atom_to_xatom_for_display(disp, atom);
+	gdk_display_add_client_message_filter(disp, atom, client_handler, NULL);
+
+	atom = gdk_atom_intern_static_string(XA_PREFIX "_EDITOR");
+	_XA_PREFIX_EDITOR = gdk_x11_atom_to_xatom_for_display(disp, atom);
 	gdk_display_add_client_message_filter(disp, atom, client_handler, NULL);
 
 	scrn = gdk_display_get_default_screen(disp);
@@ -5324,8 +6181,6 @@ startup(int argc, char *argv[])
 XdeMonitor *
 init_screens(Window selwin)
 {
-	GdkWindow *sel;
-	char selection[65] = { 0, };
 	XdeMonitor *xmon = NULL;
 	XdeScreen *xscr;
 	int s, nscr;
@@ -5333,18 +6188,26 @@ init_screens(Window selwin)
 	nscr = gdk_display_get_n_screens(disp);
 	screens = calloc(nscr, sizeof(*screens));
 
-	sel = gdk_x11_window_foreign_new_for_display(disp, selwin);
-	gdk_window_add_filter(sel, selwin_handler, screens);
-	g_object_unref(G_OBJECT(sel));
+	if (selwin) {
+		GdkWindow *sel;
+
+		sel = gdk_x11_window_foreign_new_for_display(disp, selwin);
+		gdk_window_add_filter(sel, selwin_handler, screens);
+		g_object_unref(G_OBJECT(sel));
+	}
 	gdk_window_add_filter(NULL, events_handler, NULL);
 
 	for (s = 0, xscr = screens; s < nscr; s++, xscr++) {
-		snprintf(selection, sizeof(selection), XA_SELECTION_NAME, s);
 		xscr->index = s;
-		xscr->atom = XInternAtom(dpy, selection, False);
+		if (selwin) {
+			char selection[65] = { 0, };
+
+			snprintf(selection, sizeof(selection), XA_SELECTION_NAME, s);
+			xscr->atom = XInternAtom(dpy, selection, False);
+			xscr->selwin = selwin;
+		}
 		xscr->scrn = gdk_display_get_screen(disp, s);
 		xscr->root = gdk_screen_get_root_window(xscr->scrn);
-		xscr->selwin = selwin;
 		xscr->width = gdk_screen_get_width(xscr->scrn);
 		xscr->height = gdk_screen_get_height(xscr->scrn);
 #ifdef STARTUP_NOTIFICATION
@@ -5353,15 +6216,22 @@ init_screens(Window selwin)
 		gdk_window_add_filter(xscr->root, root_handler, xscr);
 		init_wnck(xscr);
 		init_monitors(xscr);
+#if 1
+#if 1
 		if (options.proxy)
 			setup_button_proxy(xscr);
 		if (options.show.setbg)
 			update_root_pixmap(xscr, None);
+#endif
 		update_layout(xscr, None);
 		update_current_desktop(xscr, None);
+#endif
 		update_theme(xscr, None);
+		update_icon_theme(xscr, None);
+#if 1
 		update_active_window(xscr, None);
 		update_client_list(xscr, None);
+#endif
 	}
 	xmon = find_monitor();
 	return (xmon);
@@ -5417,9 +6287,8 @@ get_selection(Bool replace, Window selwin)
 {
 	char selection[64] = { 0, };
 	int s, nscr;
-	Window owner;
 	Atom atom;
-	Window gotone = None;
+	Window owner, gotone = None;
 
 	PTRACE(5);
 	nscr = gdk_display_get_n_screens(disp);
@@ -5433,6 +6302,7 @@ get_selection(Bool replace, Window selwin)
 			DPRINTF(1, "Setting owner of %s to 0x%08lx from 0x%08lx\n", selection, selwin, owner);
 			XSetSelectionOwner(dpy, atom, selwin, CurrentTime);
 			XSync(dpy, False);
+			/* XXX: should do XIfEvent for owner window destruction */
 		}
 		if (!gotone && owner)
 			gotone = owner;
@@ -5440,14 +6310,14 @@ get_selection(Bool replace, Window selwin)
 	if (replace) {
 		if (gotone) {
 			if (selwin)
-				DPRINTF(1, "%s: replacing running instance\n", NAME);
+				DPRINTF(1, "replacing running instance\n");
 			else
-				DPRINTF(1, "%s: quitting running instance\n", NAME);
+				DPRINTF(1, "quitting running instance\n");
 		} else {
 			if (selwin)
-				DPRINTF(1, "%s: no running instance to replace\n", NAME);
+				DPRINTF(1, "no running instance to replace\n");
 			else
-				DPRINTF(1, "%s: no running instance to quit\n", NAME);
+				DPRINTF(1, "no running instance to quit\n");
 		}
 		if (selwin) {
 			XEvent ev = { 0, };
@@ -5468,8 +6338,7 @@ get_selection(Bool replace, Window selwin)
 				ev.xclient.window = root;
 				ev.xclient.message_type = manager;
 				ev.xclient.format = 32;
-				ev.xclient.data.l[0] = CurrentTime;	/* FIXME:
-									   mimestamp */
+				ev.xclient.data.l[0] = CurrentTime;	/* FIXME */
 				ev.xclient.data.l[1] = atom;
 				ev.xclient.data.l[2] = selwin;
 				ev.xclient.data.l[3] = 0;
@@ -5480,75 +6349,108 @@ get_selection(Bool replace, Window selwin)
 			}
 		}
 	} else if (gotone)
-		DPRINTF(1, "%s: not replacing running instance\n", NAME);
+		DPRINTF(1, "not replacing running instance\n");
 	return (gotone);
 }
 
 static void
-do_run(int argc, char *argv[], Bool replace)
+fork_and_exit(void)
+{
+	pid_t pid = getpid();
+
+	if ((pid = fork()) < 0) {
+		EPRINTF("%s\n", strerror(errno));
+		exit(EXIT_FAILURE);
+	}
+	if (!pid)
+		/* child continues */
+		return;
+	/* parent exits */
+	exit(EXIT_SUCCESS);
+}
+
+static void
+do_run(int argc, char *argv[])
 {
 	GdkScreen *scrn = gdk_display_get_default_screen(disp);
 	GdkWindow *root = gdk_screen_get_root_window(scrn);
 	Window selwin, owner, broadcast = GDK_WINDOW_XID(root);
+	long mask = StructureNotifyMask | SubstructureNotifyMask | PropertyChangeMask;
 	XdeMonitor *xmon;
 
 	PTRACE(5);
 	selwin = XCreateSimpleWindow(dpy, broadcast, 0, 0, 1, 1, 0, 0, 0);
 
-	if ((owner = get_selection(replace, selwin))) {
-		if (!replace) {
+	if ((owner = get_selection(options.replace, selwin))) {
+		if (!options.replace) {
+			XEvent ev = { 0, };
+
 			XDestroyWindow(dpy, selwin);
-			if (!options.editor && !options.trayicon) {
-				EPRINTF("%s: instance already running\n", NAME);
-				exit(EXIT_FAILURE);
-			}
 			if (options.screen >= 0) {
 				scrn = gdk_display_get_screen(disp, options.screen);
 				root = gdk_screen_get_root_window(scrn);
 			}
 			broadcast = GDK_WINDOW_XID(root);
-			if (options.editor) {
-				XEvent ev = { 0, };
-
-				DPRINTF(1, "instance running: asking it to launch editor\n");
+			switch (options.command) {
+			default:
+				EPRINTF("instance already running\n");
+				exit(EXIT_FAILURE);
+			case CommandRestart:
+				DPRINTF(1, "instance running: asking it to restart\n");
 				ev.xclient.type = ClientMessage;
 				ev.xclient.serial = 0;
 				ev.xclient.send_event = False;
 				ev.xclient.display = dpy;
 				ev.xclient.window = broadcast;
-				ev.xclient.message_type = _XA_PREFIX_EDIT;
+				ev.xclient.message_type = _XA_PREFIX_RESTART;
 				ev.xclient.format = 32;
-				ev.xclient.data.l[0] = CurrentTime;
-				ev.xclient.data.l[1] = owner;
-				ev.xclient.data.l[2] = 0;
-				ev.xclient.data.l[3] = 0;
-				ev.xclient.data.l[4] = 0;
-				XSendEvent(dpy, broadcast, False, NoEventMask, &ev);
+				ev.xclient.data.l[0] = options.timestamp;
+				ev.xclient.data.l[1] = get_scmon();
+				ev.xclient.data.l[2] = get_flags();
+				ev.xclient.data.l[3] = get_word1();
+				ev.xclient.data.l[4] = get_word2();
+				XSendEvent(dpy, broadcast, False, mask, &ev);
 				XSync(dpy, False);
-			}
-			if (options.trayicon) {
-				XEvent ev = { 0, };
-
-				DPRINTF(1, "instance running: asking it to install trayicon\n");
+				break;
+			case CommandRefresh:
+				DPRINTF(1, "instance running: asking it to refresh\n");
 				ev.xclient.type = ClientMessage;
 				ev.xclient.serial = 0;
 				ev.xclient.send_event = False;
 				ev.xclient.display = dpy;
 				ev.xclient.window = broadcast;
-				ev.xclient.message_type = _XA_PREFIX_TRAY;
+				ev.xclient.message_type = _XA_PREFIX_REFRESH;
 				ev.xclient.format = 32;
-				ev.xclient.data.l[0] = CurrentTime;
-				ev.xclient.data.l[1] = owner;
-				ev.xclient.data.l[2] = 0;
-				ev.xclient.data.l[3] = 0;
-				ev.xclient.data.l[4] = 0;
-				XSendEvent(dpy, broadcast, False, NoEventMask, &ev);
+				ev.xclient.data.l[0] = options.timestamp;
+				ev.xclient.data.l[1] = get_scmon();
+				ev.xclient.data.l[2] = get_flags();
+				ev.xclient.data.l[3] = get_word1();
+				ev.xclient.data.l[4] = get_word2();
+				XSendEvent(dpy, broadcast, False, mask, &ev);
 				XSync(dpy, False);
+				break;
+			case CommandPopMenu:
+				DPRINTF(1, "instance running: asking it to launch popmenu\n");
+				ev.xclient.type = ClientMessage;
+				ev.xclient.serial = 0;
+				ev.xclient.send_event = False;
+				ev.xclient.display = dpy;
+				ev.xclient.window = broadcast;
+				ev.xclient.message_type = _XA_PREFIX_EDITOR;
+				ev.xclient.format = 32;
+				ev.xclient.data.l[0] = options.timestamp;
+				ev.xclient.data.l[1] = get_scmon();
+				ev.xclient.data.l[2] = get_flags();
+				ev.xclient.data.l[3] = get_word1();
+				ev.xclient.data.l[4] = get_word2();
+				XSendEvent(dpy, broadcast, False, mask, &ev);
+				XSync(dpy, False);
+				break;
 			}
 			exit(EXIT_SUCCESS);
 		}
 	}
-	XSelectInput(dpy, selwin, StructureNotifyMask | SubstructureNotifyMask | PropertyChangeMask);
+	XSelectInput(dpy, selwin, mask);
 
 	oldhandler = XSetErrorHandler(handler);
 	oldiohandler = XSetIOErrorHandler(iohandler);
@@ -5558,11 +6460,27 @@ do_run(int argc, char *argv[], Bool replace)
 	g_unix_signal_add(SIGTERM, &term_signal_handler, NULL);
 	g_unix_signal_add(SIGINT, &int_signal_handler, NULL);
 	g_unix_signal_add(SIGHUP, &hup_signal_handler, NULL);
-	if (options.trayicon)
-		show_stray(xmon);
-	if (options.editor)
-		edit_input(xmon);
-	gtk_main();
+
+	if (options.systray)
+		systray_show(xmon->xscr);
+
+	if (options.command == CommandPopMenu)
+		popup_show(xmon->xscr);
+
+	if (!options.replace) {
+		switch (options.command) {
+		case CommandRestart:
+		case CommandRefresh:
+		case CommandPopMenu:
+			/* not expecting to run these ourselves */
+			fork_and_exit();
+			break;
+		default:
+			break;
+		}
+	}
+
+	mainloop();
 }
 
 /** @brief Ask a running instance to quit.
@@ -5656,7 +6574,10 @@ usage(int argc, char *argv[])
 	(void) fprintf(stderr, "\
 Usage:\n\
     %1$s [options]\n\
+    %1$s {-E|--refresh} [options]\n\
+    %1$s {-S|--restart} [options]\n\
     %1$s {-q|--quit} [options]\n\
+    %1$s {-e|--editor} [options]\n\
     %1$s {-h|--help} [options]\n\
     %1$s {-V|--version}\n\
     %1$s {-C|--copying}\n\
@@ -5671,6 +6592,7 @@ show_bool(Bool value)
 	return ("false");
 }
 
+#if 1
 static const char *
 show_order(WindowOrder order)
 {
@@ -5684,16 +6606,33 @@ show_order(WindowOrder order)
 	}
 	return NULL;
 }
+#endif
 
 static const char *
 show_screen(int snum)
 {
 	static char screen[64] = { 0, };
 
-	if (options.screen == -1)
+	if (snum == -1)
 		return ("None");
-	snprintf(screen, sizeof(screen), "%d", options.screen);
+	snprintf(screen, sizeof(screen), "%d", snum);
 	return (screen);
+}
+
+const char *
+show_style(Style style)
+{
+	switch (style) {
+	case StyleFullmenu:
+		return ("fullmenu");
+	case StyleAppmenu:
+		return ("appmenu");
+	case StyleEntries:
+		return ("entries");
+	case StyleSubmenu:
+		return ("submenu");
+	}
+	return ("(unknown)");
 }
 
 static const char *
@@ -5740,6 +6679,55 @@ show_where(MenuPosition where)
 	return NULL;
 }
 
+const char *
+show_include(Include include)
+{
+	switch (include) {
+	case IncludeDefault:
+	case IncludeDocs:
+		return ("documents");
+	case IncludeApps:
+		return ("applications");
+	case IncludeBoth:
+		return ("both");
+	}
+	return NULL;
+}
+
+const char *
+show_sorting(Sorting sorting)
+{
+	switch (sorting) {
+	case SortByDefault:
+	case SortByRecent:
+		return ("recent");
+	case SortByFavorite:
+		return ("favorite");
+	}
+	return NULL;
+}
+
+const char *
+show_organize(Organize organize)
+{
+	switch (organize) {
+	case OrganizeDefault:
+	case OrganizeNone:
+		return ("none");
+	case OrganizeDate:
+		return ("date");
+	case OrganizeFreq:
+		return ("freq");
+	case OrganizeGroup:
+		return ("group");
+	case OrganizeContent:
+		return ("content");
+	case OrganizeApp:
+		return ("app");
+	}
+	return NULL;
+}
+
 static void
 help(int argc, char *argv[])
 {
@@ -5749,13 +6737,22 @@ help(int argc, char *argv[])
 	(void) fprintf(stdout, "\
 Usage:\n\
     %1$s [options]\n\
+    %1$s {-R|--replace} [options]\n\
+    %1$s {-E|--refresh} [options]\n\
+    %1$s {-S|--restart} [options]\n\
     %1$s {-q|--quit} [options]\n\
     %1$s {-h|--help} [options]\n\
     %1$s {-V|--version}\n\
     %1$s {-C|--copying}\n\
 Command options:\n\
+    -E, --refresh\n\
+        ask a running instance to refresh the menus\n\
+    -S, --restart\n\
+        ask a running instance to reexecute itself\n\
     -q, --quit\n\
         ask a running instance to quit\n\
+    -e, --editor\n\
+        run an instance of the settings editor\n\
     -h, --help, -?, --?\n\
         print this usage information and exit\n\
     -V, --version\n\
@@ -5764,67 +6761,69 @@ Command options:\n\
         print copying permission and exit\n\
 Options:\n\
     -r, --replace\n\
-        replace a running instance [default: %15$s]\n\
-    -e, --editor\n\
-        launch the settings editor [default: %22$s]\n\
+        replace a running instance [default: %28$s]\n\
     -d, --display DISPLAY\n\
         specify the X display, DISPLAY, to use [default: %4$s]\n\
     -s, --screen SCREEN\n\
         specify the screen number, SCREEN, to use [default: %5$s]\n\
     -M, --monitor MONITOR\n\
-        specify the monitor numer, MONITOR, to use [default: %16$d]\n\
+        specify the monitor numer, MONITOR, to use [default: %6$s]\n\
     -f, --filename FILENAME\n\
-        use the file, FILENAME, for configuration [default: %8$s]\n\
+        use the file, FILENAME, for configuration [default: %7$s]\n\
     -t, --timeout MILLISECONDS\n\
-        specify timeout when not modifier [default: %6$lu]\n\
+        specify timeout when not modifier [default: %29$lu]\n\
+    -z, --iconsize PIXELS\n\
+        specify the size of icons in pixels [default: %30$u]\n\
+    -Z, --fontsize POINTS\n\
+        specify the size of fonts in points [default: %31$.1f]\n\
     -B, --border PIXELS\n\
-        border surrounding feedback popup [default: %7$d]\n\
-    -K, --keyboard\n\
-        indicate that the keyboard was used to launch [default: %17$s]\n\
-    -P, --pointer\n\
-        indicate that the pointer was used to launch [default: %18$s]\n\
+        border surrounding feedback popup [default: %32$d]\n\
+    -p, --proxy\n\
+        respond to button proxy [default: %33$s]\n\
     -b, --button BUTTON\n\
-        specify the mouse button number, BUTTON, for popup [default: %9$d]\n\
+        specify the mouse button number, BUTTON, for popup [default: %8$d]\n\
     -w, --which {active|focused|pointer|SCREEN}\n\
-        specify the screen for which to pop the menu [default: %10$s]\n\
+        specify the screen for which to pop the menu [default: %9$s]\n\
         \"active\"   - the screen with EWMH/NetWM active client\n\
         \"focused\"  - the screen with EWMH/NetWM focused client\n\
         \"pointer\"  - the screen with EWMH/NetWM pointer\n\
         \"SCREEN\"   - the specified screen number\n\
     -W, --where {pointer|center|topleft|GEOMETRY}\n\
-        specify where to place the menu [default: %11$s]\n\
+        specify where to place the menu [default: %10$s]\n\
         \"pointer\"  - northwest corner under the pointer\n\
         \"center\"   - center of associated monitor\n\
         \"topleft\"  - northwest corner of work area\n\
         GEOMETRY   - postion on screen as X geometry\n\
     -O, --order {client|stacking}\n\
-        specify the order of windows [default: %12$s]\n\
+        specify the order of windows [default: %15$s]\n\
+    -K, --keyboard\n\
+        indicate that the keyboard was used to launch [default: %11$s]\n\
+    -P, --pointer\n\
+        indicate that the pointer was used to launch [default: %12$s]\n\
     -T, --timestamp TIMESTAMP\n\
-        use the time, TIMESTAMP, for button/keyboard event [default: %19$lu]\n\
-    -k, --keys FORWARD:REVERSE\n\
-        specify keys for cycling [default: %20$s]\n\
-    -p, --proxy\n\
-        respond to button proxy [default: %21$s]\n\
+        use the time, TIMESTAMP, for button/keyboard event [default: %13$lu]\n\
+    -k, --key [FORWARD:REVERSE]\n\
+        specify keys for cycling [default: %16$s]\n\
     -c, --cycle\n\
-        show a window cycle list [default: %24$s]\n\
-    --normal\n\
-        list normal windows as well [default: %25$s]\n\
-    --hidden\n\
-        list hidden windows as well [default: %26$s]\n\
-    --minimized\n\
-        list minimized windows as well [default: %27$s]\n\
-    --all-monitors\n\
-        list windows on all monitors [deefault: %28$s]\n\
-    --all-workspaces\n\
-        list windows on all workspaces [default: %29$s]\n\
-    -n, --noactivate\n\
-        do not activate windows [default: %30$s]\n\
-    --raise\n\
-        raise windows when selected/cycling [default: %31$s]\n\
+        show a window cycle list [default: %17$s]\n\
+    -n, --normal\n\
+        list normal windows as well [default: %18$s]\n\
+    -H, --hidden\n\
+        list hidden windows as well [default: %19$s]\n\
+    -m, --minimized\n\
+        list minimized windows as well [default: %20$s]\n\
+    -a, --all-monitors\n\
+        list windows on all monitors [deefault: %21$s]\n\
+    -A, --all-workspaces\n\
+        list windows on all workspaces [default: %22$s]\n\
+    -N, --noactivate\n\
+        do not activate windows [default: %23$s]\n\
+    -U, --raise\n\
+        raise windows when selected/cycling [default: %24$s]\n\
     -R, --restore\n\
-        restore previous windows when cycling [default: %32$s]\n\
-    -n, --dry-run\n\
-        do not change anything, just report actions [default: %23$s]\n\
+        restore previous windows when cycling [default: %25$s]\n\
+    -t, --tooltips\n\
+        provide detailed tooltips on menu items [default: %14$s]\n\
     -D, --debug [LEVEL]\n\
         increment or set debug LEVEL [default: %2$d]\n\
         this option may be repeated.\n\
@@ -5833,32 +6832,25 @@ Options:\n\
         this option may be repeated.\n\
 Session Management:\n\
     -clientID CLIENTID\n\
-        client id for session management [default: %13$s]\n\
+        client id for session management [default: %26$s]\n\
     -restore SAVEFILE\n\
-        file in which to save session info [default: %14$s]\n\
+        file in which to save session info [default: %27$s]\n\
 ", argv[0]
 	, options.debug
 	, options.output
 	, options.display
 	, show_screen(options.screen)
-	, options.timeout
-	, options.border
+	, show_screen(options.monitor)
 	, options.filename
 	, options.button
 	, show_which(options.which)
 	, show_where(options.where)
-	, show_order(options.order)
-	, options.clientId
-	, options.saveFile
-	, show_bool(options.replace)
-	, options.monitor
 	, show_bool(options.keyboard)
 	, show_bool(options.pointer)
 	, options.timestamp
+	, show_bool(options.tooltips)
+	, show_order(options.order)
 	, options.keys ?: "AS+Tab:A+Tab"
-	, show_bool(options.proxy)
-	, show_bool(options.editor)
-	, show_bool(options.dryrun)
 	, show_bool(options.cycle)
 	, show_bool(options.normal)
 	, show_bool(options.hidden)
@@ -5868,27 +6860,59 @@ Session Management:\n\
 	, show_bool(!options.activate)
 	, show_bool(options.raise)
 	, show_bool(options.restore)
+	, options.clientId
+	, options.saveFile
+	, show_bool(options.replace)
+	, options.timeout
+	, options.iconsize
+	, options.fontsize
+	, options.border
+	, show_bool(options.proxy)
 );
 	/* *INDENT-ON* */
 }
 
+/*
+ * Set options in the "options" structure.  The defaults are determined by preset defaults,
+ * environment variables and other startup information, but not information from the X Server.  All
+ * options are set in this way, only the ones that depend on environment variables or other startup
+ * information.
+ */
 static void
 set_defaults(void)
 {
-	const char *env, *p;
-	char *file;
-	int n;
+	const char *env, *p, *q;
+	char *file, *endptr = NULL;
+	int n, monitor;
+	Time timestamp;
 
 	if ((env = getenv("DISPLAY"))) {
+		free(options.display);
 		options.display = strdup(env);
 		if (options.screen < 0 && (p = strrchr(options.display, '.'))
 		    && (n = strspn(++p, "0123456789")) && *(p + n) == '\0')
 			options.screen = atoi(p);
 	}
-	if ((p = getenv("XDE_DEBUG")))
-		options.debug = atoi(p);
-	file = g_build_filename(g_get_home_dir(), ".config", RESNAME, "rc", NULL);
-	options.filename = g_strdup(file);
+	if ((env = getenv("DESKTOP_STARTUP_ID"))) {
+		/* we can get the timestamp from the startup id */
+		if ((p = strstr(env, "_TIME"))) {
+			timestamp = strtoul(p + 5, &endptr, 10);
+			if (endptr && *endptr)
+				options.timestamp = timestamp;
+		}
+		/* we can get the monitor number from the startup id */
+		if ((p = strstr(env, "xdg-launch/")) == env &&
+		    (p = strchr(p + 11, '/')) && (p = strchr(p + 1, '-')) && (q = strchr(p + 1, '-'))) {
+			monitor = strtoul(p, &endptr, 10);
+			if (endptr == q)
+				options.monitor = monitor;
+		}
+	}
+	if ((env = getenv("XDE_DEBUG")))
+		options.debug = atoi(env);
+	file = g_build_filename(g_get_user_config_dir(), RESNAME, "rc", NULL);
+	free(options.filename);
+	options.filename = strdup(file);
 	g_free(file);
 }
 
@@ -5900,13 +6924,11 @@ get_defaults(void)
 
 	if (options.command == CommandDefault)
 		options.command = CommandRun;
-	if (!options.display) {
-		EPRINTF("No DISPLAY environment variable nor --display option\n");
-		return;
+	if (options.display) {
+		if (options.screen < 0 && (p = strrchr(options.display, '.'))
+		    && (n = strspn(++p, "0123456789")) && *(p + n) == '\0')
+			options.screen = atoi(p);
 	}
-	if (options.screen < 0 && (p = strrchr(options.display, '.'))
-	    && (n = strspn(++p, "0123456789")) && *(p + n) == '\0')
-		options.screen = atoi(p);
 	if (!options.hidden && !options.minimized)
 		options.normal = True;
 }
@@ -5915,15 +6937,25 @@ int
 main(int argc, char *argv[])
 {
 	Command command = CommandDefault;
+	char *p;
+
+	saveArgc = argc;
+	saveArgv = g_strdupv(argv);
 
 	setlocale(LC_ALL, "");
 
 	set_defaults();
 
-	saveArgc = argc;
-	saveArgv = g_strdupv(argv);
+	get_resources();
 
-	get_resources(argc, argv);
+	if ((p = strstr(argv[0], "-editor")) && !p[6])
+		options.command = CommandPopMenu;
+	else if ((p = strstr(argv[0], "-refresh")) && !p[8])
+		options.command = CommandRefresh;
+	else if ((p = strstr(argv[0], "-restart")) && !p[8])
+		options.command = CommandRestart;
+	else if ((p = strstr(argv[0], "-quit")) && !p[5])
+		options.command = CommandQuit;
 
 	while (1) {
 		int c, val, len;
@@ -5938,8 +6970,11 @@ main(int argc, char *argv[])
 			{"monitor",		required_argument,	NULL,	'M'},
 
 			{"timeout",		required_argument,	NULL,	't'},
+			{"iconsize",		required_argument,	NULL,	'z'},
+			{"fontsize",		required_argument,	NULL,	'Z'},
 			{"border",		required_argument,	NULL,	'B'},
 			{"filename",		required_argument,	NULL,	'f'},
+			{"timestamp",		required_argument,	NULL,	'T'},
 			{"pointer",		no_argument,		NULL,	'P'},
 			{"keyboard",		no_argument,		NULL,	'K'},
 			{"button",		required_argument,	NULL,	'b'},
@@ -5947,44 +6982,44 @@ main(int argc, char *argv[])
 			{"where",		required_argument,	NULL,	'W'},
 
 			{"proxy",		no_argument,		NULL,	'p'},
-			{"timestamp",		required_argument,	NULL,	'T'},
 
 			{"key",			required_argument,	NULL,	'k'},
 			{"order",		required_argument,	NULL,	'O'},
 			{"cycle",		no_argument,		NULL,	'c'},
-			{"normal",		no_argument,		NULL,	'4'},
-			{"hidden",		no_argument,		NULL,	'1'},
+			{"normal",		no_argument,		NULL,	'n'},
+			{"hidden",		no_argument,		NULL,	'H'},
 			{"minimized",		no_argument,		NULL,	'm'},
-			{"all-monitors",	no_argument,		NULL,	'2'},
-			{"all-workspaces",	no_argument,		NULL,	'3'},
-			{"noactivate",		no_argument,		NULL,	'n'},
-			{"raise",		no_argument,		NULL,	'5'},
+			{"all-monitors",	no_argument,		NULL,	'a'},
+			{"all-workspaces",	no_argument,		NULL,	'A'},
+			{"noactivate",		no_argument,		NULL,	'N'},
+			{"raise",		no_argument,		NULL,	'U'},
 			{"restore",		no_argument,		NULL,	'R'},
 
-			{"trayicon",		no_argument,		NULL,	'y'},
+			{"systray",		no_argument,		NULL,	'y'},
 			{"editor",		no_argument,		NULL,	'e'},
-
-			{"quit",		no_argument,		NULL,	'q'},
+			{"refresh",		no_argument,		NULL,	'F'},
+			{"restart",		no_argument,		NULL,	'S'},
 			{"replace",		no_argument,		NULL,	'r'},
+			{"quit",		no_argument,		NULL,	'q'},
 
 			{"clientId",		required_argument,	NULL,	'8'},
 			{"restore",		required_argument,	NULL,	'9'},
 
 			{"tooltips",		no_argument,		NULL,	'6'},
-			{"dry-run",		no_argument,		NULL,	'N'},
 			{"debug",		optional_argument,	NULL,	'D'},
 			{"verbose",		optional_argument,	NULL,	'v'},
 			{"help",		no_argument,		NULL,	'h'},
 			{"version",		no_argument,		NULL,	'V'},
 			{"copying",		no_argument,		NULL,	'C'},
-			{"?",			no_argument,		NULL,	'H'},
+			{"?",			no_argument,		NULL,	'h'},
 			{ 0, }
 		};
 		/* *INDENT-ON* */
 
-		c = getopt_long_only(argc, argv, "d:s:M:f:t:B:PKb:w:W:O:pT:k:cmnRyeqrND::v::hVCH?", long_options, &option_index);
+		c = getopt_long_only(argc, argv, "d:s:M:t:z:Z:B:f:T:PKb:w:W:pk:O:cnHmaANURyeFSrqD::v::hVC?", long_options,
+				     &option_index);
 #else				/* _GNU_SOURCE */
-		c = getopt(argc, argv, "d:s:M:f:t:B:PKb:w:W:O:pT:k:cmnRyeqrND:vhVCH?");
+		c = getopt(argc, argv, "d:s:M:t:z:Z:B:f:T:PKb:w:W:pk:O:cnHmaANURyeFSrqD:vhVC?");
 #endif				/* _GNU_SOURCE */
 		if (c == -1) {
 			if (options.debug > 0)
@@ -6019,6 +7054,20 @@ main(int argc, char *argv[])
 				goto bad_option;
 			options.timeout = val;
 			break;
+		case 'z':	/* -z, --iconsize SIZE */
+			val = strtoul(optarg, &endptr, 10);
+			if (endptr && *endptr)
+				goto bad_option;
+			if (val < 12)
+				val = 12;
+			if (val > 64)
+				val = 64;
+			break;
+		case 'Z':	/* -Z, --fontsize POINTS */
+			options.fontsize = strtod(optarg, &endptr);
+			if (endptr && *endptr)
+				goto bad_option;
+			break;
 		case 'B':	/* -B, --border PIXELS */
 			val = strtoul(optarg, &endptr, 0);
 			if (endptr && *endptr)
@@ -6043,12 +7092,15 @@ main(int argc, char *argv[])
 				options.button = 1;
 			break;
 
-		case 'b':	/* -b, --button BUTTON */
-			val = strtoul(optarg, &endptr, 0);
-			if (endptr && *endptr)
-				goto bad_option;
-			if (val < 0 || val > 8)
-				goto bad_option;
+		case 'b':	/* -b, --button [BUTTON] */
+			if (optarg) {
+				val = strtoul(optarg, &endptr, 0);
+				if (endptr && *endptr)
+					goto bad_option;
+				if (val < 0 || val > 8)
+					goto bad_option;
+			} else
+				val = 1;
 			if (val) {
 				options.keyboard = False;
 				options.pointer = True;
@@ -6063,7 +7115,9 @@ main(int argc, char *argv[])
 				goto bad_option;
 			if (!(len = strlen(optarg)))
 				goto bad_option;
-			if (!strncasecmp("active", optarg, len))
+			if (!strncasecmp("default", optarg, len))
+				options.which = UseScreenDefault;
+			else if (!strncasecmp("active", optarg, len))
 				options.which = UseScreenActive;
 			else if (!strncasecmp("focused", optarg, len))
 				options.which = UseScreenFocused;
@@ -6081,7 +7135,9 @@ main(int argc, char *argv[])
 				goto bad_option;
 			if (!(len = strlen(optarg)))
 				goto bad_option;
-			if (!strncasecmp("pointer", optarg, len))
+			if (!strncasecmp("default", optarg, len))
+				options.where = PositionDefault;
+			else if (!strncasecmp("pointer", optarg, len))
 				options.where = PositionPointer;
 			else if (!strncasecmp("center", optarg, len))
 				options.where = PositionCenter;
@@ -6133,38 +7189,56 @@ main(int argc, char *argv[])
 		case 'c':	/* -c, --cycle */
 			options.cycle = True;
 			break;
-		case '4':	/* --normal */
+		case 'n':	/* -n, --normal */
 			options.normal = True;
 			break;
-		case '1':	/* --hidden */
+		case 'H':	/* -H, --hidden */
 			options.hidden = True;
 			break;
 		case 'm':	/* -m, --minimized */
 			options.minimized = True;
 			break;
-		case '2':	/* --all-monitors */
+		case 'a':	/* -a, --all-monitors */
 			options.monitors = True;
 			break;
-		case '3':	/* --all-workspaces */
+		case 'A':	/* -A, --all-workspaces */
 			options.workspaces = True;
 			break;
-		case 'n':	/* -n, --noactivate */
+		case 'N':	/* -N, --noactivate */
 			options.activate = False;
 			break;
-		case '5':	/* --raise */
+		case 'U':	/* -U, --raise */
 			options.raise = True;
 			break;
 		case 'R':	/* -R, --restore */
 			options.restore = True;
 			break;
 
-		case 'y':	/* -y, --trayicon */
-			options.trayicon = True;
-			break;
-		case 'e':	/* -e, --editor */
-			options.editor = True;
+		case 'y':	/* -y, --systray */
+			options.systray = True;
 			break;
 
+		case 'e':	/* -e, --editor */
+			if (options.command != CommandDefault)
+				goto bad_command;
+			if (command == CommandDefault)
+				command = CommandPopMenu;
+			options.command = CommandPopMenu;
+			break;
+		case 'F':	/* -F, --refresh */
+			if (options.command != CommandDefault)
+				goto bad_command;
+			if (command == CommandDefault)
+				command = CommandRefresh;
+			options.command = CommandRefresh;
+			break;
+		case 'S':	/* -S, --restart */
+			if (options.command != CommandDefault)
+				goto bad_command;
+			if (command == CommandDefault)
+				command = CommandRestart;
+			options.command = CommandRestart;
+			break;
 		case 'q':	/* -q, --quit */
 			if (options.command != CommandDefault)
 				goto bad_command;
@@ -6188,12 +7262,9 @@ main(int argc, char *argv[])
 		case '6':	/* --tooltips */
 			options.tooltips = True;
 			break;
-		case 'N':	/* -N, --dry-run */
-			options.dryrun = True;
-			break;
+
 		case 'D':	/* -D, --debug [LEVEL] */
-			if (options.debug > 0)
-				fprintf(stderr, "%s: increasing debug verbosity\n", argv[0]);
+			DPRINTF(1, "increasing debug verbosity\n");
 			if (optarg == NULL) {
 				options.debug++;
 				break;
@@ -6205,8 +7276,7 @@ main(int argc, char *argv[])
 			options.debug = val;
 			break;
 		case 'v':	/* -v, --verbose [LEVEL] */
-			if (options.debug > 0)
-				fprintf(stderr, "%s: increasing output verbosity\n", argv[0]);
+			DPRINTF(1, "increasing output verbosity\n");
 			if (optarg == NULL) {
 				options.output++;
 				break;
@@ -6217,8 +7287,8 @@ main(int argc, char *argv[])
 				goto bad_option;
 			options.output = val;
 			break;
-		case 'h':	/* -h, --help */
-		case 'H':	/* -H, --? */
+		case 'h':	/* -h, --help, -?, --? */
+			DPRINTF(1, "Setting command to CommandHelp\n");
 			command = CommandHelp;
 			break;
 		case 'V':	/* -V, --version */
@@ -6243,14 +7313,14 @@ main(int argc, char *argv[])
 		      bad_nonopt:
 			if (options.output || options.debug) {
 				if (optind < argc) {
-					fprintf(stderr, "%s: syntax error near '", argv[0]);
+					EPRINTF("syntax error near '");
 					while (optind < argc) {
 						fprintf(stderr, "%s", argv[optind++]);
 						fprintf(stderr, "%s", (optind < argc) ? " " : "");
 					}
 					fprintf(stderr, "'\n");
 				} else {
-					fprintf(stderr, "%s: missing option or argument", argv[0]);
+					EPRINTF("missing option or argument");
 					fprintf(stderr, "\n");
 				}
 				fflush(stderr);
@@ -6266,7 +7336,7 @@ main(int argc, char *argv[])
 	DPRINTF(1, "%s: option index = %d\n", argv[0], optind);
 	DPRINTF(1, "%s: option count = %d\n", argv[0], argc);
 	if (optind < argc) {
-		fprintf(stderr, "%s: excess non-option arguments near '", argv[0]);
+		EPRINTF("excess non-option arguments near '");
 		while (optind < argc) {
 			fprintf(stderr, "%s", argv[optind++]);
 			fprintf(stderr, "%s", (optind < argc) ? " " : "");
@@ -6275,29 +7345,45 @@ main(int argc, char *argv[])
 		usage(argc, argv);
 		exit(EXIT_SYNTAXERR);
 	}
+	startup(argc, argv);
 	get_defaults();
+
 	switch (command) {
 	case CommandDefault:
 	case CommandRun:
-		DPRINTF(1, "%s: running a %s instance\n", argv[0], options.replace ? "replacement" : "new");
-		startup(argc, argv);
-		do_run(argc, argv, options.replace);
+		DPRINTF(1, "running a %s instance\n", options.replace ? "replacement" : "new");
+		do_run(argc, argv);
+		break;
+	case CommandRefresh:
+		DPRINTF(1, "asking existing instance to refresh\n");
+		do_run(argc, argv);
+		break;
+	case CommandRestart:
+		DPRINTF(1, "asking existing instance to restart\n");
+		do_run(argc, argv);
+		break;
+	case CommandPopMenu:
+		DPRINTF(1, "asking existing instance to pop menu\n");
+		do_run(argc, argv);
 		break;
 	case CommandQuit:
-		DPRINTF(1, "%s: asking existing instance to quit\n", argv[0]);
-		startup(argc, argv);
+		if (!options.display) {
+			EPRINTF("cannot ask instance to quit without DISPLAY\n");
+			exit(EXIT_FAILURE);
+		}
+		DPRINTF(1, "asking existing instance to quit\n");
 		do_quit(argc, argv);
 		break;
 	case CommandHelp:
-		DPRINTF(1, "%s: printing help message\n", argv[0]);
+		DPRINTF(1, "printing help message\n");
 		help(argc, argv);
 		break;
 	case CommandVersion:
-		DPRINTF(1, "%s: printing version message\n", argv[0]);
+		DPRINTF(1, "printing version message\n");
 		version(argc, argv);
 		break;
 	case CommandCopying:
-		DPRINTF(1, "%s: printing copying message\n", argv[0]);
+		DPRINTF(1, "printing copying message\n");
 		copying(argc, argv);
 		break;
 	default:
@@ -6309,4 +7395,4 @@ main(int argc, char *argv[])
 
 /** @} */
 
-// vim: set sw=8 tw=100 com=srO\:/**,mb\:*,ex\:*/,srO\:/*,mb\:*,ex\:*/,b\:TRANS fo+=tcqlorn foldmarker=@{,@} foldmethod=marker:
+// vim: set sw=8 tw=80 com=srO\:/**,mb\:*,ex\:*/,srO\:/*,mb\:*,ex\:*/,b\:TRANS fo+=tcqlorn foldmarker=@{,@} foldmethod=marker:

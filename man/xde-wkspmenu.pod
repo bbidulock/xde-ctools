@@ -66,13 +66,35 @@ variable.
 
 =item B<--screen>, B<-s> I<SCREEN>
 
-Specify the screen number to use.  The default is either specified by
-the B<DISPLAY> environment variable (when that variable specifies a
-screen); otherwise, all screens will be considered.
+Specify the screen number, I<SCREEN>, to use when positioning the menu.
+The default is either specified by the C<DISPLAY> environment variable
+(when that variable specifies a screen); otherwise, all screens will be
+considered, and the screen containing the selected monitor will be used.
+
+=item B<--monitor>, B<-M> I<MONITOR>
+
+Specify the monitor number, I<MONITOR>, to use when positioning the
+menu.  The default depends on other options.
+
+=item B<--filename>, B<-f> I<FILENAME>
+
+Specify the file name, I<FILENAME>, of an alternate configuration file
+from which to read option settings.  The default is
+F<$XDG_CONFIG_HOME/xde-wkspmenu/rc>. When the configuration file
+specified does not exist, B<xde-wkspmenu> reads the file
+F</usr/share/X11/app-defaults/XDE-WkspMenu>.
+
+=item B<--pointer>, B<-p>
+
+An alternate way of specifying B<--button=1>.
+
+=item B<--keyboard>, B<-K>
+
+An alternate way of specifying B<--button=0>.
 
 =item B<--button>, B<-b> I<BUTTON>
 
-Specifies the button that was used to invoke the pop-up.  Defaults to
+Specifies the button that was used to invoke the pop up.  Defaults to
 zero (0).  This should be the button that was used to pop the menu.  A
 window manager that invokes this command in response to a button press
 should release its passive grab on the button before invoking the window
@@ -80,66 +102,104 @@ menu so that the popped up menu can grab the button.  A I<BUTTON> of
 zero (0) means that the program was invoked with a key-press instead of
 a button.
 
-=item B<--timestamp>, B<-T> I<TIMESTAMP>
+=item B<--which>, B<-w> {B<default>|B<active>|B<focused>|B<pointer>|I<MONITOR>}
 
-Provides the X11 server time-stamp of the event that caused the pop-up.
-
-=item B<--which>, B<-w> {B<active>|B<focused>|B<pointer>|I<SCREEN>}
-
-Specifies the screen on which to pop the menu.  The default is to
-determine the which screen based on other options (such as B<--button>
-option).  The option argument can be on of the following:
+Specifies the monitor on which to pop the menu.  The default is to
+determine the monitor based on other options (such as the B<--button>
+option).  The option argument can be one of the following (case
+insensitive, may be abbreviated):
 
 =over
 
+=item C<default>
+
+When unspecified or specified as C<default>, the default monitor
+selection algorithm is used as follows:
+
+=over 4
+
+=item 1.
+
+When the B<--button> or B<--pointer> option is specified and non-zero,
+select the monitor containing the pointer.
+
+=item 2.
+
+When neither B<--button> nor B<--pointer> option is specified, or
+B<--button> is specified as zero, or B<--keypress> or B<--keyboard> is
+specified, select the monitor with the keyboard focus.
+
+=item 3.
+
+When there is no monitor with the keyboard focus, select the monitor
+with the active window.
+
+=item 4.
+
+When there is no active window and no window with the keyboard focus,
+select the monitor containing (or nearest to) the pointer.
+
+=back
+
 =item C<active>
 
-The screen containing the active client.
+Use the monitor containing the active client.
 
 =item C<focused>
 
-The screen containing the window with the keyboard focus (focused
+Use the monitor containing the window with the keyboard focus (focused
 client).
 
 =item C<pointer>
 
-The screen containing (or closest to) the pointer.
+Use the monitor containing (or closest to) the pointer.
 
-=item I<SCREEN>
+=item I<MONITOR>
 
-A screen number (indexed from zero (0)) specifying the screen on which
-to pop the menu.
-
-=back
-
-When unspecified, (which is the normal case), the default screen
-selection algorithm is as follows:
-
-=over
-
-=item 1.
-
-If B<--button> is specified and non-zero, select the monitor or screen
-containing the pointer.
-
-=item 2.
-
-If B<--button> is not specified or is specified as zero (0), select the
-monitor with the keyboard focus.
-
-=item 3.
-
-If there is no screen with the keyboard focus, select the screen with
-the active window.
+Use the specified monitor number, I<MONITOR>, indexed from zero (0),
+specifying the screen and monitor on which to pop the menu.  When
+there is one screen and multiple monitors (typical case for Xinerama or
+RANDR multi-head setups), I<MONITOR> specifies the monitor, indexed from
+zero (0).  When there are multiple screens, the B<--screen> option
+specifies the screen and I<MONITOR> specifies the monitor.
 
 =back
 
-=item B<--where>, B<-W> {B<pointer>|B<center>|B<topleft>|I<WHERE>}
+=item B<--where>, B<-W> {B<default>|B<pointer>|B<center>|B<topleft>|B<bottomright>|I<WHERE>}
 
 Specifies the position for the pop-up menu.  This can be one of the
 following values (case insensitive, may be abbreviated):
 
 =over
+
+=item C<default>
+
+Place the menu automatically based on other information, such as the
+button or key pressed to invoke the menu.  This is the default when
+unspecified.  The default placement algorithm is as follows:
+
+=over
+
+=item 1.
+
+If B<--button> is specified and non-zero, or B<--pointer> is specified,
+place the menu at the pointer regardless of the screen and monitor
+currently containing the pointer.  If the pointer is positioned outside
+an active monitor, fall back to the behaviour as if B<--button> or
+B<--pointer> was not specified.
+
+=item 2.
+
+If B<--button> is unspecified or zero (0), or B<--keyboard> is
+specified, place the menu in the centre (considering work area) of the
+screen and monitor which currently contains the keyboard focus or active
+window.
+
+=item 3.
+
+Place the menu in the top left corner of the current work area.
+
+=back
 
 =item C<pointer>
 
@@ -168,34 +228,19 @@ L<XParseGeometry(3)>.  This is useful when the menu is launched from a
 menu button in an external program and the menu should be positioned
 adjacent to the button.  The geometry should be the geometry of the
 widget against which the menu should be placed.  When the width and
-height of the geometry are zero, it describes the point at which the
-menu should be placed.
+height of the geometry are zero (or unspecified), it describes the point
+at which the menu should be placed.
 
 =back
 
-When unspecified (which is the normal case), the default placement
-algorithm is as follows:
+=item B<--order>, B<-O> I<ORDERTYPE>
 
-=over
-
-=item 1.
-
-If B<--button> is specified and non-zero, place the menu at the pointer
-regardless of the work area, monitor or screen.
-
-=item 2.
-
-Place the menu in the centre of the current monitor or screen.
-
-=item 3.
-
-Place the menu in the top left corner of the current work area.
-
-=back
-
-=item B<--order>, B<-O> {B<client>|B<stacking>}
-
-Specify the order in which clients are shown, as follows:
+Specify the order of the selection list or cycle list.  The I<ORDERTYPE>
+specifies which windows to list or cycle through and the order in which
+to list or cycle them.  The windows in the list can also be adjusted
+using the B<--normal>, B<--all-monitors>, B<--all-workspaces>,
+B<--hidden> and B<--minimized> options.  The I<ORDERTYPE> can be one of
+the following:
 
 =over
 
@@ -209,12 +254,93 @@ compliant window managers.
 
 Clients are listed in stacking order.  This is the same order that is
 presented in the C<_NET_CLIENT_LIST_STACKING> property on the root
-window of EWMH compliant window managers.
+window of EWMH compliant window managers (or when not supported,
+determine stacking order directly and use the client list in the
+determined stacking order).
 
 =back
 
 When unspecified, the default is client order (or whichever order is
 supported when the window manager does not support both).
+
+=item B<--timestamp>, B<-T> I<TIMESTAMP>
+
+Provides the X11 server time-stamp of the event that caused the pop up.
+This is the X11 server time stamp of the button or key press that
+invoked the pop-up.  When the program is launched with startup
+notification, the time stamp will be take from the B<DESKTOP_STARTUP_ID>
+environment variable.
+
+=item B<--key>, B<-k> [I<KEY>:I<KEY>]
+
+Specify the key combination used to pop up the cycle list.  Modifier
+keys have to be specified, only the forward and reverse cycle keys need
+be specified.  Pressing the forward key will cycle forward through the
+selection; the reverse key, backward.  Only useful when B<--cycle> is
+also specified.  The default is C<Alt+Tab:Shift+Alt+Tab>.
+
+=item B<--cycle>, B<-c>.
+
+Provide a cycle list pop up instead of a list.  Cycle list pop up lists
+will not be dismissed until a modifier key is released.
+
+=item B<--normal>, B<-n>
+
+When listing or cycling windows, also list or cycle through normal
+windows.  The default is to include normal windows unless one of the
+other window-specifying options is used, in which case, the default is
+to not include normal windows.
+
+=item B<--hidden>, B<-H>
+
+When listing or cycling windows, also list or cycle through hidden
+windows.  The default is to skip hidden windows or windows that have the
+skip-window-list attribute.
+
+=item B<--minimized>, B<-m>
+
+When listing or cycling windows, also list or cycle through minimized
+windows.  The default is to skip minimized windows or windows that have
+the skip-window-list attribute.
+
+=item B<--all-monitors>, B<-a>
+
+When listing or cycling windows, also list or cycle through windows
+displayed on monitors other than the current one.  This includes windows
+on workspaces that are currently visible on a monitor.
+
+=item B<--all-workspaces>, B<-A>
+
+When cycling windows, also cycle through windows displayed on workspaces
+other than the current one.  As windows are cycled, the current
+workspace may change as windows from other workspaces are cycled.
+
+=item B<--noactivate>, B<-N>
+
+When selecting or cycling windows, do not activate them.  The default is
+to activate the selected or cycled window.   When neither B<--raise> nor
+B<--focus> are specified, this results in only highlighting the menu
+selection.  Activation of the window will still occur; however, when the
+window is selected (a modifier key is released).
+
+=item B<--raise>, B<-U>
+
+When selecting or cycling windows, raise the window.  The default is to
+only activate the selected or cycled window and not to explicitly raise
+it.  Some window managers raise windows when activated (others do not).
+This provides a modicum of control.
+
+=item B<--restore>, B<-R>
+
+When cycling windows, restore the previous cycled window to its former
+state before activating or raising the next window.  This is useful when
+windows are hidden or minimized and included in the list using the
+B<--hidden> or B<--minimized> options.  Only iconification will be
+restored: window stacking is not restored.
+
+=item B<--tooltips>, B<-t>
+
+Provide more detailed tool tips on menu items.
 
 =item B<--verbose>, B<-v> [I<LEVEL>]
 
@@ -253,10 +379,230 @@ as follows:
 
 =over
 
-=item B<--format=>blackbox
+=item L<2bwm(1)>
 
-L<blackbox(1)> provides a workspace menu that follow a specific format.
-This format mimics the L<blackbox(1)> workspace menu format.
+L<2bwm(1)> does not provide window cycling feedback of its own.
+L<2bwm(1)> is supported and should work well.
+
+=item L<adwm(1)>
+
+L<adwm(1)> does not provide window cycling feedback of its own.
+L<adwm(1)> is supported and should work well.
+
+=item L<aewm(1)>
+
+L<aewm(1)> does not provide window cycling feedback of its own.
+L<aewm(1)> is supported and should work well.
+
+=item L<aewm++(1)>
+
+L<aewm++(1)> is barely ICCCM compliant.  It does not support EWMH/NetWM
+nor GNOME/WinWM hints and is, therefore, not supported.
+
+=item L<afterstep(1)>
+
+=item L<awesome(1)>
+
+L<awesome(1)> does not provide window cycling feedback of its own.
+L<awesome(1)> is supported and should work well.
+
+=item L<blackbox(1)>
+
+L<blackbox(1)>, when run with L<bbkeys(1)>, provides an adequate window
+cycling feedback pop-up of its own and it follows the style of the
+window manager.  (Its only real shortcoming is that the feedback window
+cannot be centred on the screen or monitor and must be absolutely placed
+in the L<bbkeys(1)> configuration file.) When running under
+L<blackbox(1)>, B<xde-wkspmenu> will do nothing.
+
+=item L<bspwm(1)>
+
+L<bspwm(1)> does not provide window cycling feedback of its own.
+L<bspwm(1)> is supported and should work well.
+
+=item L<ctwm(1)>
+
+L<ctwm(1)> is only GNOME/WinWM compliant and is not yet supported by
+F<libwnck+>.  B<xde-wkspmenu> mitigates this to some extent; however, use
+L<etwm(1)> instead.
+
+=item L<cwm(1)>
+
+L<cwm(1)> is supported, but it doesn't work that well because L<cwm(1)>
+is not placing B<_NET_WM_STATE> on client windows, so F<libwnck+> cannot
+locate them.
+
+=item L<dtwm(1)>
+
+L<dtwm(1)> is only ICCCM and OSF/Motif compliant.  F<libwnck+> does not
+yet support OSF/Motif/CDE, but B<xde-wkspmenu> mitigates this to some
+extent.
+
+=item L<dwm(1)>
+
+L<dwm(1)> is barely ICCCM compliant.  It is not supported.
+
+=item L<echinus(1)>
+
+L<echinus(1)> does not provide window cycling feedback of its own.
+L<echinus(1)> is supported and should work well.
+
+=item L<etwm(1)>
+
+L<etwm(1)> does not provide window cycling feedback of its own.
+L<etwm(1)> is supported and should work well.
+
+=item L<failsafewm(1)>
+
+L<failsafewm(1)> is minimal and not supported.
+
+=item L<fluxbox(1)>
+
+L<fluxbox(1)> does not provide window cycling feedback of its own.
+L<fluxbox(1)> is supported and should work well.
+
+=item L<flwm(1)>
+
+L<flwm(1)> supports GNOME/WinWM but not EWMH/NetWM and is not currently
+supported by F<libwnck+>.  B<xde-wkspmenu> mitigates this to some extent.
+
+=item L<fvwm(1)>
+
+L<fvwm(1)> does not provide window cycling feedback of its own.
+L<fvwm(1)> is supported and should work well.
+
+=item L<glasswm(1)>
+
+L<glasswm(1)> provides some window control atoms of its own; however,
+B<xde-wkspmenu> does not support these at this time.
+
+=item L<goomwwm(1)>
+
+L<goomwwm(1)> does not provide window cycling feedback of its own.
+L<goomwwm(1)> is supported and should work well.
+
+=item L<herbstluftwm(1)>
+
+L<herbstluftwm(1)> does not provide window cycling feedback of its own.
+L<herbstluftwm(1)> is supported and should work well.
+
+=item L<i3(1)>
+
+L<i3(1)> does not provide window cycling feedback of its own.
+L<i3(1)> is supported and should work well.
+
+=item L<icewm(1)>
+
+L<icewm(1)> provides an adequate window cycling feedback pop-up of its
+own and it follows the style of the window manager.  Therefore, when
+running under L<icewm(1)>, B<xde-wkspmenu> will do nothing.
+
+=item L<jwm(1)>
+
+L<jwm(1)> does not provide window cycling feedback of its own.
+L<jwm(1)> is supported and should work well.
+
+=item L<larswm(1)>
+
+L<larswm(1)> is barely ICCCM compliant and is, therefore, not supported.
+
+=item L<matwm2(1)>
+
+L<matwm2(1)> does not provide window cycling feedback of its own.
+L<matwm2(1)> is supported and should work well.
+
+=item L<metacity(1)>
+
+L<metacity(1)> provides an adequate window cycling feedback pop-up of its
+own and it follows the style of the window manager.  Therefore, when
+running under L<metacity(1)>, B<xde-wkspmenu> will do nothing.
+
+=item L<mvwm(1)>
+
+L<mvwm(1)> does not provide window cycling feedback of its own.
+L<mvwm(1)> is supported and should work well.
+
+=item L<mwm(1)>
+
+L<mwm(1)> only supports ICCCM and OSF/Motif and does not support
+multiple desktops.  It is not supported.
+
+=item L<openbox(1)>
+
+L<openbox(1)> does not provide window cycling feedback of its own.
+L<openbox(1)> is supported and should work well.
+
+=item L<pekwm(1)>
+
+L<pekwm(1)> does not provide window cycling feedback of its own.
+L<pekwm(1)> is supported and should work well.
+
+=item L<spectrwm(1)>
+
+L<spectrwm(1)> is supported, but it doesn't work that well because, like
+L<cwm(1)>, L<spectrwm(1)> is not placing B<_NET_WM_STATE> on client
+windows, so F<libwnck+> cannot locate them.  This may have been fixed in
+more current versions of L<spectrwm(1)>.
+
+=item L<twm(1)>
+
+L<twm(1)> only supports part of ICCCM and is not supported.
+
+=item L<uwm(1)>
+
+L<uwm(1)> does not provide window cycling feedback of its own.
+L<uwm(1)> is supported and should work well.
+
+=item L<velox(1)>
+
+L<velox(1)> is untested.
+
+=item L<vtwm(1)>
+
+L<vtwm(1)> is barely ICCCM compliant and currently unsupported: use
+L<etwm(1)> instead.
+
+=item L<waimea(1)>
+
+L<waimea(1)> does not provide window cycling feedback of its own.
+L<waimea(1)> is supported and should work well.  Because L<waimea(1)>
+has other issues, use the version at
+L<https://github.com/bbidulock/waimea> for a corrected version.
+
+=item L<wind(1)>
+
+L<wind(1)> does not provide window cycling feedback of its own.
+L<wind(1)> is supported and should work well.
+
+=item L<wm2(1)>
+
+L<wm2(1)> is barely ICCCM compliant and currently unsupported: use its
+L<wmx(1)> derivative.
+
+=item L<wmaker(1)>
+
+L<wmaker(1)> provides an adequate window cycling feedback pop-up of its
+own and it follows the theme of the window manager.  When running under
+L<wmaker(1)>, B<xde-wkspmenu> will do nothing.
+
+=item L<wmii(1)>
+
+L<wmii(1)> does not provide window cycling feedback of its own.
+L<wmii(1)> is supported and should work well.
+
+=item L<wmx(1)>
+
+L<wmx(1)> does not provide window cycling feedback of its own.
+L<wmx(1)> is supported and should work well.
+
+=item L<xdwm(1)>
+
+L<xdwm(1)> has minimal EWMH/NetWM support.  It should still work
+somewhat.
+
+=item L<yeahwm(1)>
+
+L<yeahwm(1)> is barely ICCCM compliant and is currently unsupported.
 
 =back
 
@@ -282,4 +628,4 @@ L<xde-keys(1)>.
 
 =cut
 
-# vim: set sw=4 tw=72 nocin spell spelllang=en_ca:
+# vim: set sw=4 tw=72 nocin spell:
