@@ -743,6 +743,12 @@ popup_menu_new(XdeMonitor *xmon)
 		windows = wnck_screen_get_windows_stacked(scrn);
 		break;
 	}
+	/* FIXME: wnck does not know about multi-head EWMH/NetWM support.  Need to get
+	   the active workspace for the monitor (which with multi-head EWMH/NetWM support 
+	   is the n+1'th entry in _NET_CURRENT_DESKTOP, where n is the monitor index
+	   (from zero).  Then, when selecting windows (except when --all-monitors is
+	   specified) only select windows that are on the active monitor.  The active
+	   monitor is already passed in as xmon.  */
 	active = wnck_screen_get_active_workspace(scrn);
 	anum = wnck_workspace_get_number(active);
 	{

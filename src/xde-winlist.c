@@ -763,6 +763,12 @@ popup_menu_new(XdeMonitor *xmon)
 		windows = wnck_screen_get_windows_stacked(scrn);
 		break;
 	}
+	/* FIXME: wnck does not know about multi-head EWMH/NetWM support.  Need to get
+	   the active workspace for the monitor (which with multi-head EWMH/NetWM support 
+	   is the n+1'th entry in _NET_CURRENT_DESKTOP, where n is the monitor index
+	   (from zero).  Then, when selecting windows (except when --all-monitors is
+	   specified) only select windows that are on the active monitor.  The active
+	   monitor is already passed in as xmon.  */
 	active = wnck_screen_get_active_workspace(scrn);
 	anum = wnck_workspace_get_number(active);
 	for (workspace = workspaces; workspace; workspace = workspace->next) {
@@ -926,8 +932,7 @@ popup_menu_new(XdeMonitor *xmon)
 				    && GTK_IS_LABEL(gtk_bin_get_child(GTK_BIN(witem)))) {
 					GtkWidget *child = gtk_bin_get_child(GTK_BIN(witem));
 
-					gtk_label_set_ellipsize(GTK_LABEL(child),
-								PANGO_ELLIPSIZE_MIDDLE);
+					gtk_label_set_ellipsize(GTK_LABEL(child), PANGO_ELLIPSIZE_MIDDLE);
 					gtk_label_set_max_width_chars(GTK_LABEL(child), 40);
 					need_tooltip = TRUE;
 				} else {
@@ -950,9 +955,8 @@ popup_menu_new(XdeMonitor *xmon)
 			g_object_set_data(G_OBJECT(witem), "window", win);
 #if 0
 			g_object_set(gtk_widget_get_settings(GTK_WIDGET(witem)),
-					"gtk-menu-popup-delay", (gint) 5000000,
-					"gtk-menu-popdown-delay", (gint) 5000000,
-					NULL);
+				     "gtk-menu-popup-delay", (gint) 5000000,
+				     "gtk-menu-popdown-delay", (gint) 5000000, NULL);
 #endif
 		}
 
