@@ -668,6 +668,7 @@ deferred_refresh_monitor(gpointer data)
 static void
 add_deferred_refresh_layout(XdeScreen *xscr)
 {
+	PTRACE(5);
 	if (!xscr->deferred.refresh_layout)
 		xscr->deferred.refresh_layout = g_idle_add(deferred_refresh_layout, xscr);
 	if (xscr->deferred.refresh_desktop) {
@@ -679,6 +680,7 @@ add_deferred_refresh_layout(XdeScreen *xscr)
 static void
 add_deferred_refresh_desktop(XdeScreen *xscr)
 {
+	PTRACE(5);
 	if (xscr->deferred.refresh_layout)
 		return;
 	if (xscr->deferred.refresh_desktop)
@@ -689,6 +691,7 @@ add_deferred_refresh_desktop(XdeScreen *xscr)
 static void
 add_deferred_refresh_monitor(XdeMonitor *xmon)
 {
+	PTRACE(5);
 	if (xmon->deferred.refresh_monitor)
 		return;
 	xmon->deferred.refresh_monitor = g_idle_add(deferred_refresh_monitor, xmon);
@@ -4421,6 +4424,7 @@ refresh_desktop(XdeScreen *xscr)
 	int d, m;
 	Pixmap pmap;
 
+	PTRACE(5);
 	/* render the current desktop on the screen */
 	pmap = get_temporary_pixmap(xscr);
 	DPRINTF(1, "using temporary pixmap (0x%08lx)\n", pmap);
@@ -4512,6 +4516,7 @@ refresh_desktop(XdeScreen *xscr)
 static void
 refresh_monitor(XdeMonitor *xmon)
 {
+	PTRACE(5);
 	/* for now */
 	refresh_desktop(xmon->xscr);
 }
@@ -4969,6 +4974,7 @@ proxy_handler(GdkXEvent *xevent, GdkEvent *event, gpointer data)
 static void
 refresh_layout(XdeScreen *xscr)
 {
+	PTRACE(5);
 	if (options.show.pager) {
 		unsigned int w, h, f, wmax, hmax;
 		int i;

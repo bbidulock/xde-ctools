@@ -338,6 +338,7 @@ typedef enum {
 } Organize;
 
 typedef enum {
+	PopupInput,			/* desktop input manager */
 	PopupPager,			/* desktop pager feedback */
 	PopupTasks,			/* task list feedback */
 	PopupCycle,			/* window cycling feedback */
@@ -394,6 +395,7 @@ typedef struct {
 			Bool cycle;
 			Bool setbg;
 			Bool start;
+			Bool input;
 		} show;
 		Bool popups[PopupLast];
 	};
@@ -468,6 +470,7 @@ Options options = {
 		 .cycle = True,
 		 .setbg = True,
 		 .start = True,
+		 .input = True,
 		 },
 };
 
@@ -557,6 +560,7 @@ struct XdeMonitor {
 			XdePopup cycle;
 			XdePopup setbg;
 			XdePopup start;
+			XdePopup input;
 		};
 		XdePopup popups[PopupLast];
 	};
@@ -600,6 +604,7 @@ struct XdeScreen {
 			Bool cycle;	/* can window manager use cycle? */
 			Bool setbg;	/* can window manager use setbg? */
 			Bool start;	/* can window manager use start? */
+			Bool input;	/* can window manager use input? */
 		};
 		Bool flags[PopupLast];
 	};
@@ -618,6 +623,8 @@ struct XdeScreen {
 #endif
 	GtkWindow *desktop;
 	GdkWindow *proxy;
+	GtkWidget* ttwindow;		/* tooltip window for status icon */
+	GtkStatusIcon *icon;		/* system tray status icon this screen */
 	struct {
 		guint refresh_layout;
 		guint refresh_desktop;
@@ -626,10 +633,307 @@ struct XdeScreen {
 
 XdeScreen *screens = NULL;		/* array of screens */
 
+typedef struct {
+	Bool Keyboard;			/* support for core Keyboard */
+	Bool Pointer;			/* support for core Pointer */
+	Bool ScreenSaver;		/* support for extension ScreenSaver */
+	Bool DPMS;			/* support for extension DPMS */
+	Bool XKeyboard;			/* support for extension XKEYBOARD */
+	Bool XF86Misc;			/* support for extension XF86MISC */
+	Bool RANDR;			/* suppott for extension RANDR */
+} Support;
+
+Support support;
+
+typedef struct {
+	XKeyboardState Keyboard;
+	struct {
+		int accel_numerator;
+		int accel_denominator;
+		int threshold;
+	} Pointer;
+	struct {
+		int opcode;
+		int event;
+		int error;
+		int major_version;
+		int minor_version;
+		XkbDescPtr desc;
+	} XKeyboard;
+	struct {
+		int event;		/* event base */
+		int error;		/* error base */
+		int major_version;
+		int minor_version;
+		int timeout;
+		int interval;
+		int prefer_blanking;
+		int allow_exposures;
+		XScreenSaverInfo info;
+	} ScreenSaver;
+	struct {
+		int event;		/* event base */
+		int error;		/* error base */
+		int major_version;
+		int minor_version;
+		CARD16 power_level;
+		BOOL state;
+		CARD16 standby;
+		CARD16 suspend;
+		CARD16 off;
+	} DPMS;
+	struct {
+		int event;		/* event base */
+		int error;		/* error base */
+		int major_version;
+		int minor_version;
+		XF86MiscMouseSettings mouse;
+		XF86MiscKbdSettings keyboard;
+	} XF86Misc;
+	struct {
+		int event;		/* event base */
+		int error;		/* error base */
+		int major_version;
+		int minor_version;
+	} RANDR;
+} State;
+
+State state;
+
+GKeyFile *file = NULL;
+
+typedef struct {
+	struct {
+		GtkWidget *BellPercent;
+	} Icon;
+	struct {
+		GtkWidget *GlobalAutoRepeat;
+		GtkWidget *KeyClickPercent;
+		GtkWidget *BellPercent;
+		GtkWidget *BellPitch;
+		GtkWidget *BellDuration;
+	} Keyboard;
+	struct {
+		GtkWidget *AccelerationNumerator;
+		GtkWidget *AccelerationDenominator;
+		GtkWidget *Threshold;
+	} Pointer;
+	struct {
+		GtkWidget *Timeout;
+		GtkWidget *Interval;
+		GtkWidget *Preferblanking[3];
+		GtkWidget *Allowexposures[3];
+	} ScreenSaver;
+	struct {
+		GtkWidget *State;
+		GtkWidget *StandbyTimeout;
+		GtkWidget *SuspendTimeout;
+		GtkWidget *OffTimeout;
+	} DPMS;
+	struct {
+		GtkWidget *RepeatKeysEnabled;
+		GtkWidget *RepeatDelay;
+		GtkWidget *RepeatInterval;
+		GtkWidget *SlowKeysEnabled;
+		GtkWidget *SlowKeysDelay;
+		GtkWidget *BounceKeysEnabled;
+		GtkWidget *DebounceDelay;
+		GtkWidget *StickyKeysEnabled;
+		GtkWidget *MouseKeysEnabled;
+		GtkWidget *MouseKeysDfltBtn;
+		GtkWidget *MouseKeysAccelEnabled;
+		GtkWidget *MouseKeysDelay;
+		GtkWidget *MouseKeysInterval;
+		GtkWidget *MouseKeysTimeToMax;
+		GtkWidget *MouseKeysMaxSpeed;
+		GtkWidget *MouseKeysCurve;
+	} XKeyboard;
+	struct {
+		GtkWidget *KeyboardRate;
+		GtkWidget *KeyboardDelay;
+		GtkWidget *MouseEmulate3Buttons;
+		GtkWidget *MouseEmulate3Timeout;
+		GtkWidget *MouseChordMiddle;
+	} XF86Misc;
+} Controls;
+
+Controls controls;
+
+GtkWindow *editor = NULL;
+
+typedef struct {
+	struct {
+		Bool GlobalAutoRepeat;
+		int KeyClickPercent;
+		int BellPercent;
+		unsigned int BellPitch;
+		unsigned int BellDuration;
+	} Keyboard;
+	struct {
+		unsigned int AccelerationNumerator;
+		unsigned int AccelerationDenominator;
+		unsigned int Threshold;
+	} Pointer;
+	struct {
+		unsigned int Timeout;
+		unsigned int Interval;
+		unsigned int Preferblanking;
+		unsigned int Allowexposures;
+	} ScreenSaver;
+	struct {
+		int State;
+		unsigned int StandbyTimeout;
+		unsigned int SuspendTimeout;
+		unsigned int OffTimeout;
+	} DPMS;
+	struct {
+		Bool RepeatKeysEnabled;
+		unsigned int RepeatDelay;
+		unsigned int RepeatInterval;
+		Bool SlowKeysEnabled;
+		unsigned int SlowKeysDelay;
+		Bool BounceKeysEnabled;
+		unsigned int DebounceDelay;
+		Bool StickyKeysEnabled;
+		Bool MouseKeysEnabled;
+		unsigned int MouseKeysDfltBtn;
+		Bool MouseKeysAccelEnabled;
+		unsigned int MouseKeysDelay;
+		unsigned int MouseKeysInterval;
+		unsigned int MouseKeysTimeToMax;
+		unsigned int MouseKeysMaxSpeed;
+		unsigned int MouseKeysCurve;
+	} XKeyboard;
+	struct {
+		unsigned int KeyboardRate;
+		unsigned int KeyboardDelay;
+		Bool MouseEmulate3Buttons;
+		unsigned int MouseEmulate3Timeout;
+		Bool MouseChordMiddle;
+	} XF86Misc;
+} Resources;
+
+Resources resources = {
+};
+
+#if 0
+static const char *KFG_Pointer = "Pointer";
+static const char *KFG_Keyboard = "Keyboard";
+static const char *KFG_XKeyboard = "XKeyboard";
+static const char *KFG_ScreenSaver = "ScreenSaver";
+static const char *KFG_DPMS = "DPMS";
+static const char *KFG_XF86Misc = "XF86Misc";
+
+static const char *KFK_Pointer_AccelerationDenominator = "AccelerationDenominator";
+static const char *KFK_Pointer_AccelerationNumerator = "AccelerationNumerator";
+static const char *KFK_Pointer_Threshold = "Threshold";
+
+const char *KFK_Keyboard_AutoRepeats = "AutoRepeats";
+static const char *KFK_Keyboard_BellDuration = "BellDuration";
+static const char *KFK_Keyboard_BellPercent = "BellPercent";
+static const char *KFK_Keyboard_BellPitch = "BellPitch";
+static const char *KFK_Keyboard_GlobalAutoRepeat = "GlobalAutoRepeat";
+static const char *KFK_Keyboard_KeyClickPercent = "KeyClickPercent";
+const char *KFK_Keyboard_LEDMask = "LEDMask";
+
+static const char *KFK_XKeyboard_AccessXFeedbackMaskEnabled = "AccessXFeedbackMaskEnabled";
+static const char *KFK_XKeyboard_AccessXKeysEnabled = "AccessXKeysEnabled";
+static const char *KFK_XKeyboard_AccessXOptions = "AccessXOptions";
+static const char *KFK_XKeyboard_AccessXOptionsEnabled = "AccessXOptionsEnabled";
+static const char *KFK_XKeyboard_AccessXTimeout = "AccessXTimeout";
+static const char *KFK_XKeyboard_AccessXTimeoutMask = "AccessXTimeoutMask";
+static const char *KFK_XKeyboard_AccessXTimeoutMaskEnabled = "AccessXTimeoutMaskEnabled";
+static const char *KFK_XKeyboard_AccessXTimeoutOptionsMask = "AccessXTimeoutOptionsMask";
+static const char *KFK_XKeyboard_AccessXTimeoutOptionsValues = "AccessXTimeoutOptionsValues";
+static const char *KFK_XKeyboard_AccessXTimeoutValues = "AccessXTimeoutValues";
+static const char *KFK_XKeyboard_AudibleBellMaskEnabled = "AudibleBellMaskEnabled";
+static const char *KFK_XKeyboard_BounceKeysEnabled = "BounceKeysEnabled";
+static const char *KFK_XKeyboard_ControlsEnabledEnabled = "ControlsEnabledEnabled";
+static const char *KFK_XKeyboard_DebounceDelay = "DebounceDelay";
+static const char *KFK_XKeyboard_GroupsWrapEnabled = "GroupsWrapEnabled";
+static const char *KFK_XKeyboard_IgnoreGroupLockModsEnabled = "IgnoreGroupLockModsEnabled";
+static const char *KFK_XKeyboard_IgnoreLockModsEnabled = "IgnoreLockModsEnabled";
+static const char *KFK_XKeyboard_InternalModsEnabled = "InternalModsEnabled";
+static const char *KFK_XKeyboard_MouseKeysAccelEnabled = "MouseKeysAccelEnabled";
+static const char *KFK_XKeyboard_MouseKeysCurve = "MouseKeysCurve";
+static const char *KFK_XKeyboard_MouseKeysDelay = "MouseKeysDelay";
+static const char *KFK_XKeyboard_MouseKeysDfltBtn = "MouseKeysDfltBtn";
+static const char *KFK_XKeyboard_MouseKeysEnabled = "MouseKeysEnabled";
+static const char *KFK_XKeyboard_MouseKeysInterval = "MouseKeysInterval";
+static const char *KFK_XKeyboard_MouseKeysMaxSpeed = "MouseKeysMaxSpeed";
+static const char *KFK_XKeyboard_MouseKeysTimeToMax = "MouseKeysTimeToMax";
+static const char *KFK_XKeyboard_Overlay1MaskEnabled = "Overlay1MaskEnabled";
+static const char *KFK_XKeyboard_Overlay2MaskEnabled = "Overlay2MaskENabled";
+static const char *KFK_XKeyboard_PerKeyRepeatEnabled = "PerKeyRepeatEnabled";
+const char *KFK_XKeyboard_PerKeyRepeat = "PerKeyRepeat";
+static const char *KFK_XKeyboard_RepeatDelay = "RepeatDelay";
+static const char *KFK_XKeyboard_RepeatInterval = "RepeatInterval";
+static const char *KFK_XKeyboard_RepeatKeysEnabled = "RepeatKeysEnabled";
+const char *KFK_XKeyboard_RepeatRate = "RepeatRate";
+static const char *KFK_XKeyboard_SlowKeysDelay = "SlowKeysDelay";
+static const char *KFK_XKeyboard_SlowKeysEnabled = "SlowKeysEnabled";
+static const char *KFK_XKeyboard_StickyKeysEnabled = "StickyKeysEnabled";
+
+static const char *KFK_ScreenSaver_AllowExposures = "AllowExposures";
+static const char *KFK_ScreenSaver_Interval = "Interval";
+static const char *KFK_ScreenSaver_PreferBlanking = "PreferBlanking";
+static const char *KFK_ScreenSaver_Timeout = "Timeout";
+
+static const char *KFK_DPMS_OffTimeout = "OffTimeout";
+static const char *KFK_DPMS_PowerLevel = "PowerLevel";
+static const char *KFK_DPMS_StandbyTimeout = "StandbyTimeout";
+static const char *KFK_DPMS_State = "State";
+static const char *KFK_DPMS_SuspendTimeout = "SuspendTimeout";
+
+static const char *KFK_XF86Misc_KeyboardRate = "KeyboardRate";
+static const char *KFK_XF86Misc_KeyboardDelay = "KeyboardDelay";
+static const char *KFK_XF86Misc_MouseEmulate3Buttons = "MouseEmulate3Buttons";
+static const char *KFK_XF86Misc_MouseEmulate3Timeout = "MouseEmulate3Timeout";
+static const char *KFK_XF86Misc_MouseChordMiddle = "MouseChordMiddle";
+#endif
+
 /** @} */
+
+gchar *
+format_value_milliseconds(GtkScale * scale, gdouble value, gpointer user_data)
+{
+	return g_strdup_printf("%.6g ms", /* gtk_scale_get_digits(scale), */ value);
+}
+
+gchar *
+format_value_seconds(GtkScale * scale, gdouble value, gpointer user_data)
+{
+	return g_strdup_printf("%.6g s", /* gtk_scale_get_digits(scale), */ value);
+}
+
+gchar *
+format_value_percent(GtkScale * scale, gdouble value, gpointer user_data)
+{
+	return g_strdup_printf("%.6g%%", /* gtk_scale_get_digits(scale), */ value);
+}
+
+char *
+format_value_hertz(GtkScale * scale, gdouble value, gpointer user_data)
+{
+	return g_strdup_printf("%.6g Hz", /* gtk_scale_get_digits(scale), */ value);
+}
 
 /** @section Deferred Actions
   * @{ */
+
+static guint deferred = 0;
+
+static gboolean
+deferred_update_settings(gpointer user_data)
+{
+	deferred = 0;
+#if 0
+	edit_get_values();
+	if (editor)
+		edit_set_values();
+#endif
+	return G_SOURCE_REMOVE;
+}
 
 static void refresh_layout(XdeScreen *xscr);
 static void refresh_desktop(XdeScreen *xscr);
@@ -3323,6 +3627,12 @@ put_resources(void)
 /** @section Getting X Resources
   * @{ */
 
+
+/** @} */
+
+/** @section Getting X Resources
+  * @{ */
+
 const char *
 get_nc_resource(XrmDatabase xrdb, const char *res_name, const char *res_class, const char *resource)
 {
@@ -3733,6 +4043,14 @@ get_resources(void)
 
 /** @} */
 
+/** @section Getting Key File
+  * @{ */
+
+void
+get_keyfile(void)
+{
+}
+
 /** @} */
 
 /** @section System Tray Icon
@@ -3832,17 +4150,69 @@ popup_menu(GtkStatusIcon *icon, guint button, guint time, gpointer user_data)
 	return;
 }
 
+void
+systray_tooltip(XdeScreen *xscr)
+{
+#if 0
+	GtkWidget *w, *h, *f, *s;
+
+	if (xscr->ttwindow)
+		return;
+
+	w = gtk_window_new(GTK_WINDOW_POPUP);
+	gtk_widget_add_events(w, GDK_ALL_EVENTS_MASK);
+	gtk_window_set_accept_focus(GTK_WINDOW(w), TRUE);
+	gtk_window_set_focus_on_map(GTK_WINDOW(w), TRUE);
+	// gtk_window_set_type_hint(GTK_WINDOW(w), GDK_WINDOW_TEMP);
+	gtk_window_stick(GTK_WINDOW(w));
+	gtk_window_set_keep_above(GTK_WINDOW(w), TRUE);
+
+	h = gtk_hbox_new(FALSE, 5);
+	gtk_container_set_border_width(GTK_CONTAINER(h), 3);
+	f = gtk_frame_new("Bell");
+	gtk_container_set_border_width(GTK_CONTAINER(f), 3);
+	gtk_frame_set_label_align(GTK_FRAME(f), 0.5, 0.5);
+	gtk_box_pack_start(GTK_BOX(h), f, FALSE, FALSE, 0);
+	s = gtk_vscale_new_with_range(0.0, 100.0, 1.0);
+	gtk_scale_set_draw_value(GTK_SCALE(s), TRUE);
+	gtk_scale_set_value_pos(GTK_SCALE(s), GTK_POS_TOP);
+	g_signal_connect(G_OBJECT(s), "format-value", G_CALLBACK(format_value_percent), NULL);
+	gtk_container_add(GTK_CONTAINER(f), s);
+	gtk_widget_set_tooltip_markup(s, "\
+Set the bell volume as a percentage of\n\
+maximum volume: from 0% to 100%.");
+	g_signal_connect(G_OBJECT(s), "value-changed", G_CALLBACK(bell_percent_value_changed), NULL);
+	controls.Icon.BellPercent = s;
+
+	gtk_container_add(GTK_CONTAINER(w), h);
+	gtk_widget_show_all(h);
+
+	gtk_window_set_position(GTK_WINDOW(w), GTK_WIN_POS_MOUSE);
+	gtk_container_set_border_width(GTK_CONTAINER(w), 3);
+	gtk_window_set_default_size(GTK_WINDOW(w), -1, 200);
+	gtk_widget_set_size_request(w, -1, 200);
+
+	g_signal_connect(G_OBJECT(w), "grab_broken_event", G_CALLBACK(popup_grab_broken_event), xscr);
+	g_signal_connect(G_OBJECT(w), "realize", G_CALLBACK(popup_widget_realize), xscr);
+
+	xscr->ttwindow = w;
+#endif
+}
+
 static void
 systray_show(XdeScreen *xscr)
 {
-	GtkStatusIcon *icon;
-
-	icon = gtk_status_icon_new_from_icon_name(LOGO_NAME);
-	gtk_status_icon_set_tooltip_text(icon, "Click for menu...");
-	gtk_status_icon_set_visible(icon, TRUE);
-	g_signal_connect(G_OBJECT(icon), "button_press_event", G_CALLBACK(button_press), xscr);
-	g_signal_connect(G_OBJECT(icon), "popup_menu", G_CALLBACK(popup_menu), xscr);
+	if (!xscr->icon) {
+		xscr->icon = gtk_status_icon_new_from_icon_name(LOGO_NAME);
+		gtk_status_icon_set_tooltip_text(xscr->icon, "Click for menu...");
+		g_signal_connect(G_OBJECT(xscr->icon), "button_press_event", G_CALLBACK(button_press), xscr);
+		g_signal_connect(G_OBJECT(xscr->icon), "popup_menu", G_CALLBACK(popup_menu), xscr);
+		// g_signal_connect(xscr->icon, "query_tooltip", G_CALLBACK(query_tooltip), xscr);
+		systray_tooltip(xscr);
+	}
+	gtk_status_icon_set_visible(xscr->icon, TRUE);
 }
+
 #endif
 
 /** @} */
@@ -3906,11 +4276,23 @@ good_window_manager(XdeScreen *xscr)
 	/* XXX: dtwm(1) is only OSF/Motif compliant and does support multiple desktops;
 	   however, libwnck+ does not yet support OSF/Motif/CDE.  This is not mitigated
 	   by xde-pager. */
-	if (!strcasecmp(xscr->wmname, "dtwm"))
-		return False;
+	if (!strcasecmp(xscr->wmname, "dtwm")) {
+		xscr->pager = False;
+		xscr->tasks = False;
+		xscr->cycle = False;
+		xscr->setbg = False;
+		xscr->start = False;
+		return True;
+	}
 	/* XXX: dwm(1) is barely ICCCM compliant.  It is not supported. */
-	if (!strcasecmp(xscr->wmname, "dwm"))
-		return False;
+	if (!strcasecmp(xscr->wmname, "dwm")) {
+		xscr->pager = False;
+		xscr->tasks = False;
+		xscr->cycle = False;
+		xscr->setbg = False;
+		xscr->start = False;
+		return True;
+	}
 	/* XXX: echinus(1) is supported and works well. */
 	if (!strcasecmp(xscr->wmname, "echinus"))
 		return True;
@@ -3918,8 +4300,14 @@ good_window_manager(XdeScreen *xscr)
 	if (!strcasecmp(xscr->wmname, "etwm"))
 		return True;
 	/* XXX: failsafewm(1) has no desktops and is not supported. */
-	if (!strcasecmp(xscr->wmname, "failsafewm"))
-		return False;
+	if (!strcasecmp(xscr->wmname, "failsafewm")) {
+		xscr->pager = False;
+		xscr->tasks = False;
+		xscr->cycle = False;
+		xscr->setbg = False;
+		xscr->start = False;
+		return True;
+	}
 	/* XXX: fluxbox(1) provides its own window cycling feedback.  When running under
 	   fluxbox(1), xde-cycle does nothing. Otherwise, fluxbox(1) is supported and
 	   works well. */
@@ -4005,15 +4393,27 @@ good_window_manager(XdeScreen *xscr)
 	if (!strcasecmp(xscr->wmname, "spectrwm"))
 		return True;
 	/* XXX: twm(1) does not support multiple desktops and is not supported. */
-	if (!strcasecmp(xscr->wmname, "twm"))
-		return False;
+	if (!strcasecmp(xscr->wmname, "twm")) {
+		xscr->pager = False;
+		xscr->tasks = False;
+		xscr->cycle = False;
+		xscr->setbg = False;
+		xscr->start = False;
+		return True;
+	}
 	/* XXX: uwm(1) is supported and works well. */
 	if (!strcasecmp(xscr->wmname, "uwm"))
 		return True;
 	/* XXX: vtwm(1) is barely ICCCM compliant and currently unsupported: use etwm
 	   instead. */
-	if (!strcasecmp(xscr->wmname, "vtwm"))
-		return False;
+	if (!strcasecmp(xscr->wmname, "vtwm")) {
+		xscr->pager = False;
+		xscr->tasks = False;
+		xscr->cycle = False;
+		xscr->setbg = False;
+		xscr->start = False;
+		return True;
+	}
 	/* XXX: waimea(1) is supported; however, waimea(1) defaults to triple-sized large
 	   desktops in a 2x2 arrangement.  With large virtual desktops, libwnck+ gets
 	   confused just as with afterstep(1).  fvwm(1) must be doing something right. It
@@ -4040,12 +4440,21 @@ good_window_manager(XdeScreen *xscr)
 	if (!strcasecmp(xscr->wmname, "wmx"))
 		return True;
 	/* XXX: xdwm(1) does not support EWMH/NetWM for desktops. */
-	if (!strcasecmp(xscr->wmname, "xdwm"))	/* XXX */
-		return False;
+	if (!strcasecmp(xscr->wmname, "xdwm")) {	/* XXX */
+		xscr->pager = False;
+		xscr->setbg = False;
+		return True;
+	}
 	/* XXX: yeahwm(1) does not support EWMH/NetWM and is currently unsupported.  The
 	   pager will simply not do anything while this window manager is running. */
-	if (!strcasecmp(xscr->wmname, "yeahwm"))
-		return False;
+	if (!strcasecmp(xscr->wmname, "yeahwm")) {
+		xscr->pager = False;
+		xscr->tasks = False;
+		xscr->cycle = False;
+		xscr->setbg = False;
+		xscr->start = False;
+		return True;
+	}
 	return True;
 }
 
@@ -4073,6 +4482,7 @@ window_manager_changed(WnckScreen *wnck, gpointer user)
 	xscr->cycle = options.show.cycle;
 	xscr->setbg = options.show.setbg;
 	xscr->start = options.show.start;
+	xscr->input = options.show.input;
 	if ((name = wnck_screen_get_window_manager_name(wnck))) {
 		xscr->wmname = strdup(name);
 		*strchrnul(xscr->wmname, ' ') = '\0';
@@ -4094,6 +4504,7 @@ window_manager_changed(WnckScreen *wnck, gpointer user)
 			xscr->cycle = False;
 			xscr->setbg = False;
 			xscr->start = False;
+			xscr->input = False;
 		}
 	}
 	DPRINTF(1, "window manager is '%s'\n", xscr->wmname);
@@ -5586,6 +5997,14 @@ root_handler(GdkXEvent *xevent, GdkEvent *event, gpointer data)
 static GdkFilterReturn
 events_handler(GdkXEvent *xevent, GdkEvent *event, gpointer data)
 {
+	XEvent *xev = (typeof(xev)) xevent;
+
+	/* defer action in case we get a burst of events */
+	if (xev->type == state.XKeyboard.event) {
+		DPRINTF(1, "got XKB event %d\n", xev->type);
+		if (!deferred)
+			deferred = g_timeout_add(1, &deferred_update_settings, NULL);
+	}
 	return GDK_FILTER_CONTINUE;
 }
 
@@ -5773,6 +6192,11 @@ add_start(XdeScreen *xscr, XdePopup *xpop, GtkWidget *popup)
 }
 
 static void
+add_input(XdeScreen *xscr, XdePopup *xpop, GtkWidget *popup)
+{
+}
+
+static void
 add_items(XdeScreen *xscr, XdePopup *xpop, GtkWidget *popup)
 {
 	switch (xpop->type) {
@@ -5791,11 +6215,13 @@ add_items(XdeScreen *xscr, XdePopup *xpop, GtkWidget *popup)
 	case PopupStart:
 		add_start(xscr, xpop, popup);
 		break;
+	case PopupInput:
+		add_input(xscr, xpop, popup);
+		break;
 	default:
 		EPRINTF("bad popup type %d\n", xpop->type);
 		break;
 	}
-	return;
 }
 
 static void
@@ -5885,6 +6311,8 @@ init_monitors(XdeScreen *xscr)
 		gdk_screen_get_monitor_geometry(xscr->scrn, m, &xmon->geom);
 		for (int p = 0; p < PopupLast; p++)
 			xmon->popups[p].type = p;
+		if (options.show.input)
+			init_window(xscr, &xmon->input);
 		if (options.show.pager)
 			init_window(xscr, &xmon->pager);
 		if (options.show.tasks)
@@ -5895,6 +6323,8 @@ init_monitors(XdeScreen *xscr)
 			init_window(xscr, &xmon->setbg);
 		if (options.show.start)
 			init_window(xscr, &xmon->start);
+		if (options.show.input)
+			init_window(xscr, &xmon->input);
 	}
 }
 
