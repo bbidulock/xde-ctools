@@ -338,12 +338,12 @@ typedef enum {
 } Organize;
 
 typedef enum {
-	PopupInput,			/* desktop input manager */
 	PopupPager,			/* desktop pager feedback */
 	PopupTasks,			/* task list feedback */
 	PopupCycle,			/* window cycling feedback */
 	PopupSetBG,			/* workspace background feedback */
 	PopupStart,			/* startup notification feedback */
+	PopupInput,			/* desktop input manager */
 	PopupLast,
 } PopupType;
 
@@ -442,11 +442,11 @@ Options options = {
 	.clientId = NULL,
 	.saveFile = NULL,
 	.show = {
-		 .pager = True,
-		 .tasks = True,
-		 .cycle = True,
-		 .setbg = True,
-		 .start = True,
+		 .pager = False,
+		 .tasks = False,
+		 .cycle = False,
+		 .setbg = False,
+		 .start = False,
 		 .input = True,
 		 },
 };
@@ -798,7 +798,7 @@ static const char *KFG_Keyboard = "Keyboard";
 static const char *KFG_XKeyboard = "XKeyboard";
 static const char *KFG_ScreenSaver = "ScreenSaver";
 static const char *KFG_DPMS = "DPMS";
-static const char *KFG_XF86Misc = "XF86Misc";
+const char *KFG_XF86Misc = "XF86Misc";
 
 static const char *KFK_Pointer_AccelerationDenominator = "AccelerationDenominator";
 static const char *KFK_Pointer_AccelerationNumerator = "AccelerationNumerator";
@@ -814,14 +814,14 @@ const char *KFK_Keyboard_LEDMask = "LEDMask";
 
 static const char *KFK_XKeyboard_AccessXFeedbackMaskEnabled = "AccessXFeedbackMaskEnabled";
 static const char *KFK_XKeyboard_AccessXKeysEnabled = "AccessXKeysEnabled";
-static const char *KFK_XKeyboard_AccessXOptions = "AccessXOptions";
+const char *KFK_XKeyboard_AccessXOptions = "AccessXOptions";
 static const char *KFK_XKeyboard_AccessXOptionsEnabled = "AccessXOptionsEnabled";
-static const char *KFK_XKeyboard_AccessXTimeout = "AccessXTimeout";
-static const char *KFK_XKeyboard_AccessXTimeoutMask = "AccessXTimeoutMask";
+const char *KFK_XKeyboard_AccessXTimeout = "AccessXTimeout";
+const char *KFK_XKeyboard_AccessXTimeoutMask = "AccessXTimeoutMask";
 static const char *KFK_XKeyboard_AccessXTimeoutMaskEnabled = "AccessXTimeoutMaskEnabled";
-static const char *KFK_XKeyboard_AccessXTimeoutOptionsMask = "AccessXTimeoutOptionsMask";
-static const char *KFK_XKeyboard_AccessXTimeoutOptionsValues = "AccessXTimeoutOptionsValues";
-static const char *KFK_XKeyboard_AccessXTimeoutValues = "AccessXTimeoutValues";
+const char *KFK_XKeyboard_AccessXTimeoutOptionsMask = "AccessXTimeoutOptionsMask";
+const char *KFK_XKeyboard_AccessXTimeoutOptionsValues = "AccessXTimeoutOptionsValues";
+const char *KFK_XKeyboard_AccessXTimeoutValues = "AccessXTimeoutValues";
 static const char *KFK_XKeyboard_AudibleBellMaskEnabled = "AudibleBellMaskEnabled";
 static const char *KFK_XKeyboard_BounceKeysEnabled = "BounceKeysEnabled";
 static const char *KFK_XKeyboard_ControlsEnabledEnabled = "ControlsEnabledEnabled";
@@ -861,11 +861,11 @@ static const char *KFK_DPMS_StandbyTimeout = "StandbyTimeout";
 static const char *KFK_DPMS_State = "State";
 static const char *KFK_DPMS_SuspendTimeout = "SuspendTimeout";
 
-static const char *KFK_XF86Misc_KeyboardRate = "KeyboardRate";
-static const char *KFK_XF86Misc_KeyboardDelay = "KeyboardDelay";
-static const char *KFK_XF86Misc_MouseEmulate3Buttons = "MouseEmulate3Buttons";
-static const char *KFK_XF86Misc_MouseEmulate3Timeout = "MouseEmulate3Timeout";
-static const char *KFK_XF86Misc_MouseChordMiddle = "MouseChordMiddle";
+const char *KFK_XF86Misc_KeyboardRate = "KeyboardRate";
+const char *KFK_XF86Misc_KeyboardDelay = "KeyboardDelay";
+const char *KFK_XF86Misc_MouseEmulate3Buttons = "MouseEmulate3Buttons";
+const char *KFK_XF86Misc_MouseEmulate3Timeout = "MouseEmulate3Timeout";
+const char *KFK_XF86Misc_MouseChordMiddle = "MouseChordMiddle";
 
 /** @} */
 
@@ -3126,8 +3126,10 @@ edit_sav_values(void)
 /** @section Deferred Actions
   * @{ */
 
+#if 1
 static void edit_set_values(void);
 static void edit_get_values(void);
+#endif
 
 static guint deferred = 0;
 
@@ -3135,9 +3137,11 @@ static gboolean
 deferred_update_settings(gpointer user_data)
 {
 	deferred = 0;
+#if 1
 	edit_get_values();
 	if (editor)
 		edit_set_values();
+#endif
 	return G_SOURCE_REMOVE;
 }
 
@@ -6547,7 +6551,9 @@ edit_selected(GtkMenuItem *item, gpointer user_data)
 void
 save_selected(GtkMenuItem *item, gpointer user_data)
 {
+#if 1
 	edit_sav_values();
+#endif
 }
 
 static void
@@ -6715,6 +6721,7 @@ popup_grab_broken_event(GtkWidget *widget, GdkEvent *event, gpointer user)
 void
 systray_tooltip(XdeScreen *xscr)
 {
+#if 1
 	GtkWidget *w, *h, *f, *s;
 
 	if (xscr->ttwindow)
@@ -6742,7 +6749,9 @@ systray_tooltip(XdeScreen *xscr)
 	gtk_widget_set_tooltip_markup(s, "\
 Set the bell volume as a percentage of\n\
 maximum volume: from 0% to 100%.");
+#if 1
 	g_signal_connect(G_OBJECT(s), "value-changed", G_CALLBACK(bell_percent_value_changed), NULL);
+#endif
 	controls.Icon.BellPercent = s;
 
 	gtk_container_add(GTK_CONTAINER(w), h);
@@ -6759,6 +6768,7 @@ maximum volume: from 0% to 100%.");
 	g_signal_connect(G_OBJECT(w), "realize", G_CALLBACK(popup_widget_realize), xscr);
 
 	xscr->ttwindow = w;
+#endif
 }
 
 static void
@@ -7485,6 +7495,7 @@ refresh_desktop(XdeScreen *xscr)
 static void
 refresh_monitor(XdeMonitor *xmon)
 {
+	PTRACE(5);
 	/* for now */
 	refresh_desktop(xmon->xscr);
 }
@@ -8763,6 +8774,7 @@ add_start(XdeScreen *xscr, XdePopup *xpop, GtkWidget *popup)
 static void
 add_input(XdeScreen *xscr, XdePopup *xpop, GtkWidget *popup)
 {
+	/* FIXME: port create_window() */
 }
 
 static void
@@ -8880,8 +8892,6 @@ init_monitors(XdeScreen *xscr)
 		gdk_screen_get_monitor_geometry(xscr->scrn, m, &xmon->geom);
 		for (int p = 0; p < PopupLast; p++)
 			xmon->popups[p].type = p;
-		if (options.show.input)
-			init_window(xscr, &xmon->input);
 		if (options.show.pager)
 			init_window(xscr, &xmon->pager);
 		if (options.show.tasks)

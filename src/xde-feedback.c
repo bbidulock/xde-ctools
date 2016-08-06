@@ -338,12 +338,12 @@ typedef enum {
 } Organize;
 
 typedef enum {
-	PopupInput,			/* desktop input manager */
 	PopupPager,			/* desktop pager feedback */
 	PopupTasks,			/* task list feedback */
 	PopupCycle,			/* window cycling feedback */
 	PopupSetBG,			/* workspace background feedback */
 	PopupStart,			/* startup notification feedback */
+	PopupInput,			/* desktop input manager */
 	PopupLast,
 } PopupType;
 
@@ -816,13 +816,12 @@ typedef struct {
 Resources resources = {
 };
 
-#if 0
 static const char *KFG_Pointer = "Pointer";
 static const char *KFG_Keyboard = "Keyboard";
 static const char *KFG_XKeyboard = "XKeyboard";
 static const char *KFG_ScreenSaver = "ScreenSaver";
 static const char *KFG_DPMS = "DPMS";
-static const char *KFG_XF86Misc = "XF86Misc";
+const char *KFG_XF86Misc = "XF86Misc";
 
 static const char *KFK_Pointer_AccelerationDenominator = "AccelerationDenominator";
 static const char *KFK_Pointer_AccelerationNumerator = "AccelerationNumerator";
@@ -838,14 +837,14 @@ const char *KFK_Keyboard_LEDMask = "LEDMask";
 
 static const char *KFK_XKeyboard_AccessXFeedbackMaskEnabled = "AccessXFeedbackMaskEnabled";
 static const char *KFK_XKeyboard_AccessXKeysEnabled = "AccessXKeysEnabled";
-static const char *KFK_XKeyboard_AccessXOptions = "AccessXOptions";
+const char *KFK_XKeyboard_AccessXOptions = "AccessXOptions";
 static const char *KFK_XKeyboard_AccessXOptionsEnabled = "AccessXOptionsEnabled";
-static const char *KFK_XKeyboard_AccessXTimeout = "AccessXTimeout";
-static const char *KFK_XKeyboard_AccessXTimeoutMask = "AccessXTimeoutMask";
+const char *KFK_XKeyboard_AccessXTimeout = "AccessXTimeout";
+const char *KFK_XKeyboard_AccessXTimeoutMask = "AccessXTimeoutMask";
 static const char *KFK_XKeyboard_AccessXTimeoutMaskEnabled = "AccessXTimeoutMaskEnabled";
-static const char *KFK_XKeyboard_AccessXTimeoutOptionsMask = "AccessXTimeoutOptionsMask";
-static const char *KFK_XKeyboard_AccessXTimeoutOptionsValues = "AccessXTimeoutOptionsValues";
-static const char *KFK_XKeyboard_AccessXTimeoutValues = "AccessXTimeoutValues";
+const char *KFK_XKeyboard_AccessXTimeoutOptionsMask = "AccessXTimeoutOptionsMask";
+const char *KFK_XKeyboard_AccessXTimeoutOptionsValues = "AccessXTimeoutOptionsValues";
+const char *KFK_XKeyboard_AccessXTimeoutValues = "AccessXTimeoutValues";
 static const char *KFK_XKeyboard_AudibleBellMaskEnabled = "AudibleBellMaskEnabled";
 static const char *KFK_XKeyboard_BounceKeysEnabled = "BounceKeysEnabled";
 static const char *KFK_XKeyboard_ControlsEnabledEnabled = "ControlsEnabledEnabled";
@@ -885,12 +884,11 @@ static const char *KFK_DPMS_StandbyTimeout = "StandbyTimeout";
 static const char *KFK_DPMS_State = "State";
 static const char *KFK_DPMS_SuspendTimeout = "SuspendTimeout";
 
-static const char *KFK_XF86Misc_KeyboardRate = "KeyboardRate";
-static const char *KFK_XF86Misc_KeyboardDelay = "KeyboardDelay";
-static const char *KFK_XF86Misc_MouseEmulate3Buttons = "MouseEmulate3Buttons";
-static const char *KFK_XF86Misc_MouseEmulate3Timeout = "MouseEmulate3Timeout";
-static const char *KFK_XF86Misc_MouseChordMiddle = "MouseChordMiddle";
-#endif
+const char *KFK_XF86Misc_KeyboardRate = "KeyboardRate";
+const char *KFK_XF86Misc_KeyboardDelay = "KeyboardDelay";
+const char *KFK_XF86Misc_MouseEmulate3Buttons = "MouseEmulate3Buttons";
+const char *KFK_XF86Misc_MouseEmulate3Timeout = "MouseEmulate3Timeout";
+const char *KFK_XF86Misc_MouseChordMiddle = "MouseChordMiddle";
 
 /** @} */
 
@@ -920,6 +918,11 @@ format_value_hertz(GtkScale * scale, gdouble value, gpointer user_data)
 
 /** @section Deferred Actions
   * @{ */
+
+#if 0
+static void edit_set_values(void);
+static void edit_get_values(void);
+#endif
 
 static guint deferred = 0;
 
@@ -1301,13 +1304,19 @@ set_scmon(long scmon)
 static void
 set_flags(long flags)
 {
+#if 1
 	options.fileout = (flags & XDE_MENU_FLAG_FILEOUT) ? True : False;
 	options.noicons = (flags & XDE_MENU_FLAG_NOICONS) ? True : False;
 	options.launch = (flags & XDE_MENU_FLAG_LAUNCH) ? True : False;
+#endif
 	options.systray = (flags & XDE_MENU_FLAG_TRAY) ? True : False;
+#if 1
 	options.generate = (flags & XDE_MENU_FLAG_GENERATE) ? True : False;
+#endif
 	options.tooltips = (flags & XDE_MENU_FLAG_TOOLTIPS) ? True : False;
+#if 1
 	options.actions = (flags & XDE_MENU_FLAG_ACTIONS) ? True : False;
+#endif
 #if 0
 	if (flags & XDE_MENU_FLAG_EXCLUDED)
 		options.treeflags |= GMENU_TREE_FLAGS_INCLUDE_EXCLUDED;
@@ -1384,20 +1393,26 @@ get_flags(void)
 {
 	long flags = 0;
 
+#if 1
 	if (options.fileout)
 		flags |= XDE_MENU_FLAG_FILEOUT;
 	if (options.noicons)
 		flags |= XDE_MENU_FLAG_NOICONS;
 	if (options.launch)
 		flags |= XDE_MENU_FLAG_LAUNCH;
+#endif
 	if (options.systray)
 		flags |= XDE_MENU_FLAG_TRAY;
+#if 1
 	if (options.generate)
 		flags |= XDE_MENU_FLAG_GENERATE;
+#endif
 	if (options.tooltips)
 		flags |= XDE_MENU_FLAG_TOOLTIPS;
+#if 1
 	if (options.actions)
 		flags |= XDE_MENU_FLAG_ACTIONS;
+#endif
 #if 0
 	if (options.treeflags & GMENU_TREE_FLAGS_INCLUDE_EXCLUDED)
 		flags |= XDE_MENU_FLAG_EXCLUDED;
@@ -3624,9 +3639,164 @@ put_resources(void)
 
 /** @} */
 
-/** @section Getting X Resources
+/** @section Putting Key File
   * @{ */
 
+void
+put_keyfile(void)
+{
+	char *val, buf[256] = { 0, };
+
+	if (!file) {
+		EPRINTF("no key file!\n");
+		return;
+	}
+	if (support.Keyboard) {
+		int i, j;
+
+		g_key_file_set_integer(file, KFG_Keyboard,
+				       KFK_Keyboard_KeyClickPercent, state.Keyboard.key_click_percent);
+		g_key_file_set_integer(file, KFG_Keyboard, KFK_Keyboard_BellPercent, state.Keyboard.bell_percent);
+		g_key_file_set_integer(file, KFG_Keyboard, KFK_Keyboard_BellPitch, state.Keyboard.bell_pitch);
+		g_key_file_set_integer(file, KFG_Keyboard,
+				       KFK_Keyboard_BellDuration, state.Keyboard.bell_duration);
+		g_key_file_set_integer(file, KFG_Keyboard, KFK_Keyboard_LEDMask, state.Keyboard.led_mask);
+		g_key_file_set_boolean(file, KFG_Keyboard,
+				       KFK_Keyboard_GlobalAutoRepeat, state.Keyboard.global_auto_repeat);
+		for (i = 0, j = 0; i < 32; i++, j += 2)
+			snprintf(buf + j, sizeof(buf) - j, "%02X", state.Keyboard.auto_repeats[i]);
+		g_key_file_set_value(file, KFG_Keyboard, KFK_Keyboard_AutoRepeats, buf);
+	}
+	if (support.Pointer) {
+		g_key_file_set_integer(file, KFG_Pointer,
+				       KFK_Pointer_AccelerationDenominator, state.Pointer.accel_denominator);
+		g_key_file_set_integer(file, KFG_Pointer,
+				       KFK_Pointer_AccelerationNumerator, state.Pointer.accel_numerator);
+		g_key_file_set_integer(file, KFG_Pointer, KFK_Pointer_Threshold, state.Pointer.threshold);
+	}
+	if (support.ScreenSaver) {
+		if ((val = putXrmExposures(state.ScreenSaver.allow_exposures))) {
+			g_key_file_set_value(file, KFG_ScreenSaver, KFK_ScreenSaver_AllowExposures, val);
+			g_free(val);
+		}
+		g_key_file_set_integer(file, KFG_ScreenSaver,
+				       KFK_ScreenSaver_Interval, state.ScreenSaver.interval);
+		if ((val = putXrmBlanking(state.ScreenSaver.prefer_blanking))) {
+			g_key_file_set_value(file, KFG_ScreenSaver, KFK_ScreenSaver_PreferBlanking, val);
+			g_free(val);
+		}
+		g_key_file_set_integer(file, KFG_ScreenSaver, KFK_ScreenSaver_Timeout, state.ScreenSaver.timeout);
+	}
+	if (support.DPMS) {
+		if ((val = putXrmPowerLevel(state.DPMS.power_level))) {
+			g_key_file_set_value(file, KFG_DPMS, KFK_DPMS_PowerLevel, val);
+			g_free(val);
+		}
+		g_key_file_set_boolean(file, KFG_DPMS, KFK_DPMS_State, state.DPMS.state ? TRUE : FALSE);
+		g_key_file_set_integer(file, KFG_DPMS, KFK_DPMS_StandbyTimeout, state.DPMS.standby);
+		g_key_file_set_integer(file, KFG_DPMS, KFK_DPMS_SuspendTimeout, state.DPMS.suspend);
+		g_key_file_set_integer(file, KFG_DPMS, KFK_DPMS_OffTimeout, state.DPMS.off);
+	}
+	if (support.XKeyboard) {
+		g_key_file_set_integer(file, KFG_XKeyboard,
+				       KFK_XKeyboard_MouseKeysDfltBtn, state.XKeyboard.desc->ctrls->mk_dflt_btn);
+		g_key_file_set_boolean(file, KFG_XKeyboard,
+				       KFK_XKeyboard_RepeatKeysEnabled,
+				       state.XKeyboard.desc->ctrls->enabled_ctrls &
+				       XkbRepeatKeysMask ? TRUE : FALSE);
+		g_key_file_set_boolean(file, KFG_XKeyboard,
+				       KFK_XKeyboard_SlowKeysEnabled,
+				       state.XKeyboard.desc->ctrls->enabled_ctrls &
+				       XkbSlowKeysMask ? TRUE : FALSE);
+		g_key_file_set_boolean(file, KFG_XKeyboard,
+				       KFK_XKeyboard_BounceKeysEnabled,
+				       state.XKeyboard.desc->ctrls->enabled_ctrls &
+				       XkbBounceKeysMask ? TRUE : FALSE);
+		g_key_file_set_boolean(file, KFG_XKeyboard,
+				       KFK_XKeyboard_StickyKeysEnabled,
+				       state.XKeyboard.desc->ctrls->enabled_ctrls &
+				       XkbStickyKeysMask ? TRUE : FALSE);
+		g_key_file_set_boolean(file, KFG_XKeyboard,
+				       KFK_XKeyboard_MouseKeysEnabled,
+				       state.XKeyboard.desc->ctrls->enabled_ctrls &
+				       XkbMouseKeysMask ? TRUE : FALSE);
+		g_key_file_set_boolean(file, KFG_XKeyboard,
+				       KFK_XKeyboard_MouseKeysAccelEnabled,
+				       state.XKeyboard.desc->ctrls->enabled_ctrls &
+				       XkbMouseKeysAccelMask ? TRUE : FALSE);
+		g_key_file_set_boolean(file, KFG_XKeyboard,
+				       KFK_XKeyboard_AccessXKeysEnabled,
+				       state.XKeyboard.desc->ctrls->enabled_ctrls &
+				       XkbAccessXKeysMask ? TRUE : FALSE);
+		g_key_file_set_boolean(file, KFG_XKeyboard,
+				       KFK_XKeyboard_AccessXTimeoutMaskEnabled,
+				       state.XKeyboard.desc->ctrls->enabled_ctrls &
+				       XkbAccessXTimeoutMask ? TRUE : FALSE);
+		g_key_file_set_boolean(file, KFG_XKeyboard,
+				       KFK_XKeyboard_AccessXFeedbackMaskEnabled,
+				       state.XKeyboard.desc->ctrls->enabled_ctrls &
+				       XkbAccessXFeedbackMask ? TRUE : FALSE);
+		g_key_file_set_boolean(file, KFG_XKeyboard,
+				       KFK_XKeyboard_AudibleBellMaskEnabled,
+				       state.XKeyboard.desc->ctrls->enabled_ctrls &
+				       XkbAudibleBellMask ? TRUE : FALSE);
+		g_key_file_set_boolean(file, KFG_XKeyboard,
+				       KFK_XKeyboard_Overlay1MaskEnabled,
+				       state.XKeyboard.desc->ctrls->enabled_ctrls &
+				       XkbOverlay1Mask ? TRUE : FALSE);
+		g_key_file_set_boolean(file, KFG_XKeyboard,
+				       KFK_XKeyboard_Overlay2MaskEnabled,
+				       state.XKeyboard.desc->ctrls->enabled_ctrls &
+				       XkbOverlay2Mask ? TRUE : FALSE);
+		g_key_file_set_boolean(file, KFG_XKeyboard,
+				       KFK_XKeyboard_IgnoreGroupLockModsEnabled,
+				       state.XKeyboard.desc->ctrls->enabled_ctrls &
+				       XkbIgnoreGroupLockMask ? TRUE : FALSE);
+		g_key_file_set_boolean(file, KFG_XKeyboard,
+				       KFK_XKeyboard_GroupsWrapEnabled,
+				       state.XKeyboard.desc->ctrls->enabled_ctrls &
+				       XkbGroupsWrapMask ? TRUE : FALSE);
+		g_key_file_set_boolean(file, KFG_XKeyboard,
+				       KFK_XKeyboard_InternalModsEnabled,
+				       state.XKeyboard.desc->ctrls->enabled_ctrls &
+				       XkbInternalModsMask ? TRUE : FALSE);
+		g_key_file_set_boolean(file, KFG_XKeyboard,
+				       KFK_XKeyboard_IgnoreLockModsEnabled,
+				       state.XKeyboard.desc->ctrls->enabled_ctrls &
+				       XkbIgnoreLockModsMask ? TRUE : FALSE);
+		g_key_file_set_boolean(file, KFG_XKeyboard,
+				       KFK_XKeyboard_PerKeyRepeatEnabled,
+				       state.XKeyboard.desc->ctrls->enabled_ctrls &
+				       XkbPerKeyRepeatMask ? TRUE : FALSE);
+		g_key_file_set_boolean(file, KFG_XKeyboard,
+				       KFK_XKeyboard_ControlsEnabledEnabled,
+				       state.XKeyboard.desc->ctrls->enabled_ctrls &
+				       XkbControlsEnabledMask ? TRUE : FALSE);
+		g_key_file_set_boolean(file, KFG_XKeyboard,
+				       KFK_XKeyboard_AccessXOptionsEnabled,
+				       state.XKeyboard.desc->ctrls->enabled_ctrls &
+				       XkbAccessXOptionsMask ? TRUE : FALSE);
+		g_key_file_set_integer(file, KFG_XKeyboard,
+				       KFK_XKeyboard_RepeatDelay, state.XKeyboard.desc->ctrls->repeat_delay);
+		g_key_file_set_integer(file, KFG_XKeyboard,
+				       KFK_XKeyboard_RepeatInterval, state.XKeyboard.desc->ctrls->repeat_interval);
+		g_key_file_set_integer(file, KFG_XKeyboard,
+				       KFK_XKeyboard_SlowKeysDelay, state.XKeyboard.desc->ctrls->slow_keys_delay);
+		g_key_file_set_integer(file, KFG_XKeyboard,
+				       KFK_XKeyboard_DebounceDelay, state.XKeyboard.desc->ctrls->debounce_delay);
+		g_key_file_set_integer(file, KFG_XKeyboard,
+				       KFK_XKeyboard_MouseKeysDelay, state.XKeyboard.desc->ctrls->mk_delay);
+		g_key_file_set_integer(file, KFG_XKeyboard,
+				       KFK_XKeyboard_MouseKeysInterval, state.XKeyboard.desc->ctrls->mk_interval);
+		g_key_file_set_integer(file, KFG_XKeyboard,
+				       KFK_XKeyboard_MouseKeysTimeToMax,
+				       state.XKeyboard.desc->ctrls->mk_time_to_max);
+		g_key_file_set_integer(file, KFG_XKeyboard,
+				       KFK_XKeyboard_MouseKeysMaxSpeed, state.XKeyboard.desc->ctrls->mk_max_speed);
+		g_key_file_set_integer(file, KFG_XKeyboard,
+				       KFK_XKeyboard_MouseKeysCurve, state.XKeyboard.desc->ctrls->mk_curve);
+	}
+}
 
 /** @} */
 
@@ -4067,6 +4237,22 @@ button_press(GtkStatusIcon *icon, GdkEvent *event, gpointer user_data)
 	return GTK_EVENT_PROPAGATE;
 }
 
+static void popup_show(XdeScreen *xscr);
+
+void
+edit_selected(GtkMenuItem *item, gpointer user_data)
+{
+	popup_show(user_data);
+}
+
+void
+save_selected(GtkMenuItem *item, gpointer user_data)
+{
+#if 0
+	edit_sav_values();
+#endif
+}
+
 static void
 popup_refresh(XdeScreen *xscr)
 {
@@ -4122,6 +4308,17 @@ popup_menu(GtkStatusIcon *icon, guint button, guint time, gpointer user_data)
 	GtkWidget *menu, *item;
 
 	menu = gtk_menu_new();
+
+	item = gtk_image_menu_item_new_from_stock("gtk-edit", NULL);
+	g_signal_connect(item, "activate", G_CALLBACK(edit_selected), xscr);
+	gtk_widget_show(item);
+	gtk_menu_append(menu, item);
+
+	item = gtk_image_menu_item_new_from_stock("gtk-save", NULL);
+	g_signal_connect(item, "activate", G_CALLBACK(save_selected), xscr);
+	gtk_widget_show(item);
+	gtk_menu_append(menu, item);
+
 	item = gtk_image_menu_item_new_from_stock("gtk-refresh", NULL);
 	g_signal_connect(G_OBJECT(item), "activate", G_CALLBACK(refresh_selected), xscr);
 	gtk_widget_show(item);
@@ -4150,10 +4347,78 @@ popup_menu(GtkStatusIcon *icon, guint button, guint time, gpointer user_data)
 	return;
 }
 
+#if 0
+void
+present_popup(XdeScreen *xscr)
+{
+	if (!gtk_widget_get_mapped(xscr->ttwindow)) {
+#if 0
+		GdkEventMask mask =
+		    GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK |
+		    GDK_BUTTON_MOTION_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK |
+		    GDK_ENTER_NOTIFY_MASK | GDK_LEAVE_NOTIFY_MASK;
+#endif
+		gtk_window_set_position(GTK_WINDOW(xscr->ttwindow), GTK_WIN_POS_MOUSE);
+		gtk_window_present(GTK_WINDOW(xscr->ttwindow));
+		gtk_widget_show_now(GTK_WIDGET(xscr->ttwindow));
+		gdk_window_focus(xscr->ttwindow->window, GDK_CURRENT_TIME);
+
+#if 0
+		gdk_keyboard_grab(xscr->ttwindow->window, TRUE, GDK_CURRENT_TIME);
+		gdk_pointer_grab(xscr->ttwindow->window, FALSE, mask, NULL, NULL, GDK_CURRENT_TIME);
+#endif
+		stop_popup_timer(xscr);
+		inside = TRUE;
+	}
+}
+#endif
+
+gboolean
+query_tooltip(GtkStatusIcon *icon, gint x, gint y, gboolean keyboard_mode,
+		 GtkTooltip *tooltip, gpointer user_data)
+{
+	XdeScreen *xscr = user_data;
+
+	(void) xscr;
+#if 0
+	if (xscr->ttwindow) {
+		present_popup(xscr);
+		start_popup_timer(xscr);
+		return FALSE;
+	}
+#endif
+	return TRUE;		/* show it now */
+}
+
+static void
+popup_widget_realize(GtkWidget *popup, gpointer user)
+{
+	gdk_window_add_filter(popup->window, popup_handler, user);
+	gdk_window_set_override_redirect(popup->window, TRUE);
+	// gdk_window_set_accept_focus(popup->window, TRUE);
+	// gdk_window_set_focus_on_map(popup->window, TRUE);
+}
+
+#if 0
+static gboolean
+popup_grab_broken_event(GtkWidget *widget, GdkEvent *event, gpointer user)
+{
+	XdeScreen *xscr = (typeof(xscr)) user;
+	GdkEventGrabBroken *ev = (typeof(ev)) event;
+
+	if (ev->keyboard) {
+		start_popup_timer(xscr);
+	} else {
+		drop_popup(xscr);
+	}
+	return GTK_EVENT_STOP;	/* event handled */
+}
+#endif
+
 void
 systray_tooltip(XdeScreen *xscr)
 {
-#if 0
+#if 1
 	GtkWidget *w, *h, *f, *s;
 
 	if (xscr->ttwindow)
@@ -4181,7 +4446,9 @@ systray_tooltip(XdeScreen *xscr)
 	gtk_widget_set_tooltip_markup(s, "\
 Set the bell volume as a percentage of\n\
 maximum volume: from 0% to 100%.");
+#if 0
 	g_signal_connect(G_OBJECT(s), "value-changed", G_CALLBACK(bell_percent_value_changed), NULL);
+#endif
 	controls.Icon.BellPercent = s;
 
 	gtk_container_add(GTK_CONTAINER(w), h);
@@ -4192,7 +4459,9 @@ maximum volume: from 0% to 100%.");
 	gtk_window_set_default_size(GTK_WINDOW(w), -1, 200);
 	gtk_widget_set_size_request(w, -1, 200);
 
+#if 0
 	g_signal_connect(G_OBJECT(w), "grab_broken_event", G_CALLBACK(popup_grab_broken_event), xscr);
+#endif
 	g_signal_connect(G_OBJECT(w), "realize", G_CALLBACK(popup_widget_realize), xscr);
 
 	xscr->ttwindow = w;
@@ -4923,6 +5192,7 @@ refresh_desktop(XdeScreen *xscr)
 static void
 refresh_monitor(XdeMonitor *xmon)
 {
+	PTRACE(5);
 	/* for now */
 	refresh_desktop(xmon->xscr);
 }
@@ -6194,6 +6464,7 @@ add_start(XdeScreen *xscr, XdePopup *xpop, GtkWidget *popup)
 static void
 add_input(XdeScreen *xscr, XdePopup *xpop, GtkWidget *popup)
 {
+	/* FIXME: port create_window() */
 }
 
 static void
@@ -6311,8 +6582,6 @@ init_monitors(XdeScreen *xscr)
 		gdk_screen_get_monitor_geometry(xscr->scrn, m, &xmon->geom);
 		for (int p = 0; p < PopupLast; p++)
 			xmon->popups[p].type = p;
-		if (options.show.input)
-			init_window(xscr, &xmon->input);
 		if (options.show.pager)
 			init_window(xscr, &xmon->pager);
 		if (options.show.tasks)
