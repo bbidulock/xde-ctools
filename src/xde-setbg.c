@@ -192,7 +192,7 @@ static int saveArgc;
 static char **saveArgv;
 
 #define RESNAME "xde-setbg"
-#define RESCLAS "XDE-setbg"
+#define RESCLAS "XDE-SetBG"
 #define RESTITL "XDG Desktop Background Setter"
 
 #define APPDFLT "/usr/share/X11/app-defaults/" RESCLAS

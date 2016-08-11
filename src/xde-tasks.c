@@ -192,7 +192,7 @@ static int saveArgc;
 static char **saveArgv;
 
 #define RESNAME "xde-tasks"
-#define RESCLAS "XDE-tasks"
+#define RESCLAS "XDE-Tasks"
 #define RESTITL "XDG Task List Feedback"
 
 #define APPDFLT "/usr/share/X11/app-defaults/" RESCLAS

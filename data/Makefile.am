@@ -18,12 +18,14 @@ dist_applications_DATA = \
 
 dist_appdefaults_DATA = \
 	XDE-Cycle \
+	XDE-Feedback \
 	XDE-Input \
 	XDE-Monitor \
 	XDE-Pager \
 	XDE-Places \
 	XDE-Recent \
-	XDE-SetBg \
+	XDE-SetBG \
 	XDE-Tasks \
-	XDE-WinList
+	XDE-WinList \
+	XDE-WkspMenu
 

@@ -192,7 +192,7 @@ static int saveArgc;
 static char **saveArgv;
 
 #define RESNAME "xde-pager"
-#define RESCLAS "XDE-pager"
+#define RESCLAS "XDE-Pager"
 #define RESTITL "XDG Desktop Pager"
 
 #define APPDFLT "/usr/share/X11/app-defaults/" RESCLAS
