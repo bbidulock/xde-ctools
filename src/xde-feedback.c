@@ -8593,7 +8593,7 @@ main(int argc, char *argv[])
 		do_run(argc, argv);
 		break;
 	case CommandPopMenu:
-		DPRINTF(1, "popping the menu\n");
+		DPRINTF(1, "asking existing instance to pop menu\n");
 		do_run(argc, argv);
 		break;
 	case CommandRefresh:
