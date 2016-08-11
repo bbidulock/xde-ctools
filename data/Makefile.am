@@ -16,3 +16,14 @@ dist_applications_DATA = \
 	xde-winmenu.desktop \
 	xde-wkspmenu.desktop
 
+dist_appdefaults_DATA = \
+	XDE-Cycle \
+	XDE-Input \
+	XDE-Monitor \
+	XDE-Pager \
+	XDE-Places \
+	XDE-Recent \
+	XDE-SetBg \
+	XDE-Tasks \
+	XDE-WinList
+
