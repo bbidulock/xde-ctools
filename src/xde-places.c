@@ -3539,12 +3539,14 @@ put_resources(void)
 	if ((val = putXrmInt(options.output)))
 		put_resource(rdb, "verbose", val);
 	/* put a bunch of resources */
+	if ((val = putXrmString(options.theme)))
+		put_resource(rdb, "theme", val);
+	if ((val = putXrmString(options.itheme)))
+		put_resource(rdb, "icontheme", val);
 	if ((val = putXrmWhich(options.which, options.screen)))
 		put_resource(rdb, "which", val);
 	if ((val = putXrmWhere(options.where, &options.geom)))
 		put_resource(rdb, "where", val);
-	/* FIXME: more */
-
 	XrmPutFileDatabase(rdb, usrdb);
 	XrmSetDatabase(dpy, rdb);
 	XrmDestroyDatabase(rdb);
@@ -4265,17 +4267,143 @@ popup_menu(GtkStatusIcon *icon, guint button, guint time, gpointer user_data)
 	return;
 }
 
+#if 0
+void
+present_popup(XdeScreen *xscr)
+{
+	if (!gtk_widget_get_mapped(xscr->ttwindow)) {
+#if 0
+		GdkEventMask mask =
+		    GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK |
+		    GDK_BUTTON_MOTION_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK |
+		    GDK_ENTER_NOTIFY_MASK | GDK_LEAVE_NOTIFY_MASK;
+#endif
+		gtk_window_set_position(GTK_WINDOW(xscr->ttwindow), GTK_WIN_POS_MOUSE);
+		gtk_window_present(GTK_WINDOW(xscr->ttwindow));
+		gtk_widget_show_now(GTK_WIDGET(xscr->ttwindow));
+		gdk_window_focus(xscr->ttwindow->window, GDK_CURRENT_TIME);
+
+#if 0
+		gdk_keyboard_grab(xscr->ttwindow->window, TRUE, GDK_CURRENT_TIME);
+		gdk_pointer_grab(xscr->ttwindow->window, FALSE, mask, NULL, NULL, GDK_CURRENT_TIME);
+#endif
+		stop_popup_timer(xscr);
+		inside = TRUE;
+	}
+}
+#endif
+
+gboolean
+query_tooltip(GtkStatusIcon *icon, gint x, gint y, gboolean keyboard_mode,
+		 GtkTooltip *tooltip, gpointer user_data)
+{
+	XdeScreen *xscr = user_data;
+
+	(void) xscr;
+#if 0
+	if (xscr->ttwindow) {
+		present_popup(xscr);
+		start_popup_timer(xscr);
+		return FALSE;
+	}
+#endif
+	return TRUE;		/* show it now */
+}
+
+#if 1
+static void
+popup_widget_realize(GtkWidget *popup, gpointer user)
+{
+	gdk_window_add_filter(popup->window, popup_handler, user);
+	gdk_window_set_override_redirect(popup->window, TRUE);
+	// gdk_window_set_accept_focus(popup->window, TRUE);
+	// gdk_window_set_focus_on_map(popup->window, TRUE);
+}
+#endif
+
+#if 0
+static gboolean
+popup_grab_broken_event(GtkWidget *widget, GdkEvent *event, gpointer user)
+{
+	XdeScreen *xscr = (typeof(xscr)) user;
+	GdkEventGrabBroken *ev = (typeof(ev)) event;
+
+	if (ev->keyboard) {
+		start_popup_timer(xscr);
+	} else {
+		drop_popup(xscr);
+	}
+	return GTK_EVENT_STOP;	/* event handled */
+}
+#endif
+
+void
+systray_tooltip(XdeScreen *xscr)
+{
+#if 1
+	GtkWidget *w, *h, *f, *s;
+
+	if (xscr->ttwindow)
+		return;
+
+	w = gtk_window_new(GTK_WINDOW_POPUP);
+	gtk_widget_add_events(w, GDK_ALL_EVENTS_MASK);
+	gtk_window_set_accept_focus(GTK_WINDOW(w), TRUE);
+	gtk_window_set_focus_on_map(GTK_WINDOW(w), TRUE);
+	// gtk_window_set_type_hint(GTK_WINDOW(w), GDK_WINDOW_TEMP);
+	gtk_window_stick(GTK_WINDOW(w));
+	gtk_window_set_keep_above(GTK_WINDOW(w), TRUE);
+
+	h = gtk_hbox_new(FALSE, 5);
+	gtk_container_set_border_width(GTK_CONTAINER(h), 3);
+	f = gtk_frame_new("Bell");
+	gtk_container_set_border_width(GTK_CONTAINER(f), 3);
+	gtk_frame_set_label_align(GTK_FRAME(f), 0.5, 0.5);
+	gtk_box_pack_start(GTK_BOX(h), f, FALSE, FALSE, 0);
+	s = gtk_vscale_new_with_range(0.0, 100.0, 1.0);
+	gtk_scale_set_draw_value(GTK_SCALE(s), TRUE);
+	gtk_scale_set_value_pos(GTK_SCALE(s), GTK_POS_TOP);
+	g_signal_connect(G_OBJECT(s), "format-value", G_CALLBACK(format_value_percent), NULL);
+	gtk_container_add(GTK_CONTAINER(f), s);
+	gtk_widget_set_tooltip_markup(s, "\
+Set the bell volume as a percentage of\n\
+maximum volume: from 0% to 100%.");
+#if 0
+	g_signal_connect(G_OBJECT(s), "value-changed", G_CALLBACK(bell_percent_value_changed), NULL);
+#endif
+	controls.Icon.BellPercent = s;
+
+	gtk_container_add(GTK_CONTAINER(w), h);
+	gtk_widget_show_all(h);
+
+	gtk_window_set_position(GTK_WINDOW(w), GTK_WIN_POS_MOUSE);
+	gtk_container_set_border_width(GTK_CONTAINER(w), 3);
+	gtk_window_set_default_size(GTK_WINDOW(w), -1, 200);
+	gtk_widget_set_size_request(w, -1, 200);
+
+#if 0
+	g_signal_connect(G_OBJECT(w), "grab_broken_event", G_CALLBACK(popup_grab_broken_event), xscr);
+#endif
+	g_signal_connect(G_OBJECT(w), "realize", G_CALLBACK(popup_widget_realize), xscr);
+
+	xscr->ttwindow = w;
+#endif
+}
+
 static void
 systray_show(XdeScreen *xscr)
 {
-	GtkStatusIcon *icon;
-
-	icon = gtk_status_icon_new_from_icon_name(LOGO_NAME);
-	gtk_status_icon_set_tooltip_text(icon, "Click for menu...");
-	gtk_status_icon_set_visible(icon, TRUE);
-	g_signal_connect(G_OBJECT(icon), "button_press_event", G_CALLBACK(button_press), xscr);
-	g_signal_connect(G_OBJECT(icon), "popup_menu", G_CALLBACK(popup_menu), xscr);
+	if (!xscr->icon) {
+		xscr->icon = gtk_status_icon_new_from_icon_name(LOGO_NAME);
+		gtk_status_icon_set_tooltip_text(xscr->icon, "Click for menu...");
+		g_signal_connect(G_OBJECT(xscr->icon), "button_press_event", G_CALLBACK(button_press), xscr);
+		g_signal_connect(G_OBJECT(xscr->icon), "popup_menu", G_CALLBACK(popup_menu), xscr);
+		// g_signal_connect(xscr->icon, "query_tooltip", G_CALLBACK(query_tooltip), xscr);
+		systray_tooltip(xscr);
+	}
+	gtk_status_icon_set_visible(xscr->icon, TRUE);
 }
+
 #endif
 
 /** @} */
@@ -5163,6 +5291,7 @@ update_root_pixmap(XdeScreen *xscr, Atom prop)
 }
 #endif
 
+#if 1
 static void
 update_current_desktop(XdeScreen *xscr, Atom prop)
 {
@@ -5234,6 +5363,8 @@ update_current_desktop(XdeScreen *xscr, Atom prop)
 	}
 	free(current);
 }
+
+#endif
 
 #if 1
 static void
@@ -5748,7 +5879,7 @@ selwin_handler(GdkXEvent *xevent, GdkEvent *event, gpointer data)
 	return GDK_FILTER_CONTINUE;
 }
 
-#if 0
+#if 1
 static GdkFilterReturn
 laywin_handler(GdkXEvent *xevent, GdkEvent *event, gpointer data)
 {
@@ -6202,6 +6333,140 @@ init_screens(Window selwin)
 	xmon = find_monitor();
 	return (xmon);
 }
+
+Window
+get_desktop_layout_selection(XdeScreen *xscr)
+{
+	Window root = RootWindow(dpy, xscr->index);
+	char selection[64] = { 0, };
+	GdkWindow *lay;
+	Window owner;
+	Atom atom;
+
+	if (xscr->laywin)
+		return None;
+
+	xscr->laywin = XCreateSimpleWindow(dpy, root, 0, 0, 1, 1, 0, 0, 0);
+	XSelectInput(dpy, xscr->laywin, StructureNotifyMask | SubstructureNotifyMask | PropertyChangeMask);
+	lay = gdk_x11_window_foreign_new_for_display(disp, xscr->laywin);
+	gdk_window_add_filter(lay, laywin_handler, xscr);
+	snprintf(selection, sizeof(selection), XA_NET_DESKTOP_LAYOUT, xscr->index);
+	atom = XInternAtom(dpy, selection, False);
+	if (!(owner = XGetSelectionOwner(dpy, atom)))
+		DPRINTF(1, "No owner for %s\n", selection);
+	XSetSelectionOwner(dpy, atom, xscr->laywin, CurrentTime);
+	XSync(dpy, False);
+
+	if (xscr->laywin) {
+		XEvent ev;
+
+		ev.xclient.type = ClientMessage;
+		ev.xclient.serial = 0;
+		ev.xclient.send_event = False;
+		ev.xclient.display = dpy;
+		ev.xclient.window = root;
+		ev.xclient.message_type = XInternAtom(dpy, "MANAGER", False);
+		ev.xclient.format = 32;
+		ev.xclient.data.l[0] = CurrentTime;
+		ev.xclient.data.l[1] = atom;
+		ev.xclient.data.l[2] = xscr->laywin;
+		ev.xclient.data.l[3] = 0;
+		ev.xclient.data.l[4] = 0;
+
+		XSendEvent(dpy, root, False, StructureNotifyMask, &ev);
+		XFlush(dpy);
+	}
+	return (owner);
+}
+
+#if 0
+static Window
+get_selection(Bool replace, Window selwin)
+{
+	char selection[64] = { 0, };
+	int s, nscr;
+	Atom atom;
+	Window owner, gotone = None;
+
+	PTRACE(5);
+	nscr = gdk_display_get_n_screens(disp);
+
+	for (s = 0; s < nscr; s++) {
+		snprintf(selection, sizeof(selection), XA_SELECTION_NAME, s);
+		atom = XInternAtom(dpy, selection, False);
+		if (!(owner = XGetSelectionOwner(dpy, atom)))
+			DPRINTF(1, "No owner for %s\n", selection);
+		if ((owner && replace) || (!owner && selwin)) {
+			DPRINTF(1, "Setting owner of %s to 0x%08lx from 0x%08lx\n", selection, selwin, owner);
+			XSetSelectionOwner(dpy, atom, selwin, CurrentTime);
+			XSync(dpy, False);
+			/* XXX: should do XIfEvent for owner window destruction */
+		}
+		if (!gotone && owner)
+			gotone = owner;
+	}
+	if (replace) {
+		if (gotone) {
+			if (selwin)
+				DPRINTF(1, "replacing running instance\n");
+			else
+				DPRINTF(1, "quitting running instance\n");
+		} else {
+			if (selwin)
+				DPRINTF(1, "no running instance to replace\n");
+			else
+				DPRINTF(1, "no running instance to quit\n");
+		}
+		if (selwin) {
+			XEvent ev = { 0, };
+			Atom manager = XInternAtom(dpy, "MANAGER", False);
+			GdkScreen *scrn;
+			Window root;
+
+			for (s = 0; s < nscr; s++) {
+				scrn = gdk_display_get_screen(disp, s);
+				root = GDK_WINDOW_XID(gdk_screen_get_root_window(scrn));
+				snprintf(selection, sizeof(selection), XA_SELECTION_NAME, s);
+				atom = XInternAtom(dpy, selection, False);
+
+				ev.xclient.type = ClientMessage;
+				ev.xclient.serial = 0;
+				ev.xclient.send_event = False;
+				ev.xclient.display = dpy;
+				ev.xclient.window = root;
+				ev.xclient.message_type = manager;
+				ev.xclient.format = 32;
+				ev.xclient.data.l[0] = CurrentTime;	/* FIXME */
+				ev.xclient.data.l[1] = atom;
+				ev.xclient.data.l[2] = selwin;
+				ev.xclient.data.l[3] = 0;
+				ev.xclient.data.l[4] = 0;
+
+				XSendEvent(dpy, root, False, StructureNotifyMask, &ev);
+				XFlush(dpy);
+			}
+		}
+	} else if (gotone)
+		DPRINTF(1, "not replacing running instance\n");
+	return (gotone);
+}
+
+static void
+fork_and_exit(void)
+{
+	pid_t pid = getpid();
+
+	if ((pid = fork()) < 0) {
+		EPRINTF("%s\n", strerror(errno));
+		exit(EXIT_FAILURE);
+	}
+	if (!pid)
+		/* child continues */
+		return;
+	/* parent exits */
+	exit(EXIT_SUCCESS);
+}
+#endif
 
 static void
 do_run(int argc, char *argv[])

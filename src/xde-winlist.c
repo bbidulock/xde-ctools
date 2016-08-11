@@ -7552,7 +7552,7 @@ main(int argc, char *argv[])
 	case CommandDefault:
 		options.command = CommandRun;
 	case CommandRun:
-		DPRINTF(1, "running a %s instance\n", options.replace ? "replacement" : "new");
+		DPRINTF(1, "popping the menu\n");
 		do_run(argc, argv);
 		break;
 	case CommandPopMenu:
