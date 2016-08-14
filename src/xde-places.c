@@ -5284,10 +5284,78 @@ update_active_window(XdeScreen *xscr, Atom prop)
 	free(window);
 }
 
-#if 1
+#if 0
+static void
+update_screen_size(XdeScreen *xscr, int new_width, int new_height)
+{
+}
+
+static void
+create_monitor(XdeScreen *xscr, XdeMonitor *xmon, int m)
+{
+	memset(xmon, 0, sizeof(*xmon));
+	xmon->index = m;
+	xmon->xscr = xscr;
+	gdk_screen_get_monitor_geometry(xscr->scrn, m, &xmon->geom);
+}
+
+static void
+delete_monitor(XdeScreen *xscr, XdeMonitor *mon, int m)
+{
+}
+
+static void
+update_monitor(XdeScreen *xscr, XdeMonitor *mon, int m)
+{
+	gdk_screen_get_monitor_geometry(xscr->scrn, m, &mon->geom);
+}
+#endif
+
+#if 0
 static void
 update_root_pixmap(XdeScreen *xscr, Atom prop)
 {
+	Window root = RootWindow(dpy, xscr->index);
+	Atom actual = None;
+	int format = 0;
+	unsigned long nitems = 0, after = 0;
+	unsigned long *data = NULL;
+	Pixmap pmap = None;
+
+	PTRACE(5);
+	if (prop == None || prop == _XA_ESETROOT_PMAP_ID) {
+		if (XGetWindowProperty
+		    (dpy, root, _XA_ESETROOT_PMAP_ID, 0, 1, False, AnyPropertyType, &actual,
+		     &format, &nitems, &after, (unsigned char **) &data) == Success
+		    && format == 32 && actual && nitems >= 1 && data) {
+			pmap = data[0];
+		}
+		if (data) {
+			XFree(data);
+			data = NULL;
+		}
+	}
+	if (prop == None || prop == _XA_XROOTPMAP_ID) {
+		if (XGetWindowProperty
+		    (dpy, root, _XA_XROOTPMAP_ID, 0, 1, False, AnyPropertyType, &actual,
+		     &format, &nitems, &after, (unsigned char **) &data) == Success
+		    && format == 32 && actual && nitems >= 1 && data) {
+			pmap = data[0];
+		}
+		if (data) {
+			XFree(data);
+			data = NULL;
+		}
+	}
+	if (pmap && xscr->pixmap != pmap) {
+		DPRINTF(1, "root pixmap changed from 0x%08lx to 0x%08lx\n", xscr->pixmap, pmap);
+		xscr->pixmap = pmap;
+		/* FIXME: do more */
+		/* Adjust the style of the desktop to use the pixmap specified by
+		   _XROOTPMAP_ID as the background.  Uses GTK+ 2.0 styles to do this. The
+		   root _XROOTPMAP_ID must be retrieved before calling this function for
+		   it to work correctly.  */
+	}
 }
 #endif
 
@@ -5879,7 +5947,6 @@ selwin_handler(GdkXEvent *xevent, GdkEvent *event, gpointer data)
 	return GDK_FILTER_CONTINUE;
 }
 
-#if 1
 static GdkFilterReturn
 laywin_handler(GdkXEvent *xevent, GdkEvent *event, gpointer data)
 {
@@ -5894,7 +5961,6 @@ laywin_handler(GdkXEvent *xevent, GdkEvent *event, gpointer data)
 	EPRINTF("wrong message type for handler %d\n", xev->type);
 	return GDK_FILTER_CONTINUE;
 }
-#endif
 
 static GdkFilterReturn
 event_handler_PropertyNotify(XEvent *xev, XdeScreen *xscr)
@@ -5939,7 +6005,7 @@ event_handler_PropertyNotify(XEvent *xev, XdeScreen *xscr)
 		} else if (atom == _XA_WM_DESKTOP) {
 			update_current_desktop(xscr, atom);
 #endif
-#if 1
+#if 0
 		} else if (atom == _XA_XROOTPMAP_ID) {
 			update_root_pixmap(xscr, atom);
 		} else if (atom == _XA_ESETROOT_PMAP_ID) {

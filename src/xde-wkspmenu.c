@@ -422,9 +422,9 @@ Options options = {
 	.filename = NULL,
 	.keys = NULL,
 	.cycle = False,
+	.normal = False,
 	.hidden = False,
 	.minimized = False,
-	.normal = False,
 	.monitors = False,
 	.workspaces = False,
 	.activate = True,
@@ -753,26 +753,27 @@ show_child(GtkWidget *child, gpointer user_data)
 static GtkWidget *
 popup_menu_new(XdeMonitor *xmon)
 {
-	WnckScreen *scrn = xmon->xscr->wnck;
+	WnckScreen *wnck;
 	GtkWidget *menu, *sep;
 	GList *workspaces, *workspace;
 	GList *windows, *window;
 	WnckWorkspace *active;
 	int anum;
-	GSList *group = NULL;
 
+	wnck = xmon->xscr->wnck;
+	wnck_screen_force_update(wnck);
 	menu = gtk_menu_new();
 	g_signal_connect(G_OBJECT(menu), "key_press_event", G_CALLBACK(workspace_menu_key_press), NULL);
 	g_signal_connect(G_OBJECT(menu), "selection_done", G_CALLBACK(selection_done), NULL);
-	workspaces = wnck_screen_get_workspaces(scrn);
+	workspaces = wnck_screen_get_workspaces(wnck);
 	switch (options.order) {
 	default:
 	case WindowOrderDefault:
 	case WindowOrderClient:
-		windows = wnck_screen_get_windows(scrn);
+		windows = wnck_screen_get_windows(wnck);
 		break;
 	case WindowOrderStacking:
-		windows = wnck_screen_get_windows_stacked(scrn);
+		windows = wnck_screen_get_windows_stacked(wnck);
 		break;
 	}
 	/* FIXME: wnck does not know about multi-head EWMH/NetWM support.  Need to get
@@ -781,14 +782,13 @@ popup_menu_new(XdeMonitor *xmon)
 	   (from zero).  Then, when selecting windows (except when --all-monitors is
 	   specified) only select windows that are on the active monitor.  The active
 	   monitor is already passed in as xmon.  */
-	active = wnck_screen_get_active_workspace(scrn);
+	active = wnck_screen_get_active_workspace(wnck);
 	anum = wnck_workspace_get_number(active);
 	{
 		GtkWidget *item, *submenu, *icon;
 		int window_count = 0;
 
-		icon =
-		    gtk_image_new_from_icon_name("preferences-system-windows", GTK_ICON_SIZE_MENU);
+		icon = gtk_image_new_from_icon_name("preferences-system-windows", GTK_ICON_SIZE_MENU);
 		item = gtk_image_menu_item_new_with_label("Iconified Windows");
 		gtk_image_menu_item_set_image(GTK_IMAGE_MENU_ITEM(item), icon);
 		gtk_menu_append(menu, item);
@@ -824,6 +824,10 @@ popup_menu_new(XdeMonitor *xmon)
 				*p = '\0';
 				need_tooltip = TRUE;
 			}
+			if ((p = strstr(label, " - Geeqie"))) {
+				*p = '\0';
+				need_tooltip = TRUE;
+			}
 			if ((p = strstr(label, " - Mozilla Firefox"))) {
 				*p = '\0';
 				need_tooltip = TRUE;
@@ -837,8 +841,7 @@ popup_menu_new(XdeMonitor *xmon)
 				    && GTK_IS_LABEL(gtk_bin_get_child(GTK_BIN(witem)))) {
 					GtkWidget *child = gtk_bin_get_child(GTK_BIN(witem));
 
-					gtk_label_set_ellipsize(GTK_LABEL(child),
-								PANGO_ELLIPSIZE_MIDDLE);
+					gtk_label_set_ellipsize(GTK_LABEL(child), PANGO_ELLIPSIZE_MIDDLE);
 					gtk_label_set_max_width_chars(GTK_LABEL(child), 40);
 					need_tooltip = TRUE;
 				} else {
@@ -861,9 +864,8 @@ popup_menu_new(XdeMonitor *xmon)
 			g_object_set_data(G_OBJECT(witem), "window", win);
 #if 0
 			g_object_set(gtk_widget_get_settings(GTK_WIDGET(witem)),
-					"gtk-menu-popup-delay", (gint) 5000000,
-					"gtk-menu-popdown-delay", (gint) 5000000,
-					NULL);
+				     "gtk-menu-popup-delay", (gint) 5000000,
+				     "gtk-menu-popdown-delay", (gint) 5000000, NULL);
 #endif
 			window_count++;
 		}
@@ -884,7 +886,7 @@ popup_menu_new(XdeMonitor *xmon)
 
 		work = workspace->data;
 		wnum = wnck_workspace_get_number(work);
-		if  ((name = wnck_workspace_get_name(work)))
+		if ((name = wnck_workspace_get_name(work)))
 			wkname = g_strdup(name);
 		else
 			wkname = g_strdup_printf("Workspace %d", wnum + 1);
@@ -897,14 +899,9 @@ popup_menu_new(XdeMonitor *xmon)
 		else
 			label = g_strdup_printf("[%d] %s", wnum + 1, p);
 		g_free(wkname);
-#if 1
-#if 1
-		(void) group;
-		(void) anum;
 		icon = gtk_image_new_from_icon_name("preferences-system-windows", GTK_ICON_SIZE_MENU);
 		item = gtk_image_menu_item_new_with_label(label);
 		gtk_image_menu_item_set_image(GTK_IMAGE_MENU_ITEM(item), icon);
-#if 1
 		if (wnum == anum && GTK_IS_BIN(item)) {
 			GtkWidget *child = gtk_bin_get_child(GTK_BIN(item));
 
@@ -916,46 +913,6 @@ popup_menu_new(XdeMonitor *xmon)
 				g_free(markup);
 			}
 		}
-#endif
-#else
-#if 1
-		item = gtk_radio_menu_item_new_with_label(group, label);
-		group = gtk_radio_menu_item_get_group(GTK_RADIO_MENU_ITEM(item));
-#else
-		(void) group;
-		item = gtk_check_menu_item_new_with_label(label);
-		gtk_check_menu_item_set_show_toggle(GTK_CHECK_MENU_ITEM(item), TRUE);
-#endif
-		if (wnum == anum) {
-			gtk_check_menu_item_set_active(GTK_CHECK_MENU_ITEM(item), TRUE);
-		} else {
-			gtk_check_menu_item_set_active(GTK_CHECK_MENU_ITEM(item), FALSE);
-		}
-#endif
-#if 0
-		if (GTK_IS_BIN(item)) {
-			GtkWidget *child;
-
-			child = gtk_bin_get_child(GTK_BIN(item));
-			if (GTK_IS_LABEL(child)) {
-				gchar *markup;
-				gint xpad = 0, ypad = 0;
-
-				if (wnum == anum)
-					markup = g_markup_printf_escaped("<b><u>%s</u></b>", label);
-				else
-					markup = g_markup_printf_escaped("<b>%s</b>", label);
-				gtk_label_set_markup(GTK_LABEL(child), markup);
-				g_free(markup);
-				gtk_misc_set_alignment(GTK_MISC(child), 0.5, 0.5);
-				gtk_misc_get_padding(GTK_MISC(child), &xpad, &ypad);
-				if (ypad < 3)
-					ypad = 3;
-				gtk_misc_set_padding(GTK_MISC(child), xpad, ypad);
-			}
-		}
-#endif
-#endif
 		gtk_menu_append(menu, item);
 		gtk_widget_show(item);
 
@@ -965,6 +922,11 @@ popup_menu_new(XdeMonitor *xmon)
 
 #if 1
 		icon = gtk_image_new_from_icon_name("preferences-desktop-display", GTK_ICON_SIZE_MENU);
+#if 0
+		p = label;
+		label = g_strdup_printf("%s ——", p);
+		g_free(p);
+#endif
 		title = gtk_image_menu_item_new_with_label(label);
 		gtk_image_menu_item_set_image(GTK_IMAGE_MENU_ITEM(title), icon);
 		if (GTK_IS_BIN(title)) {
@@ -1056,8 +1018,7 @@ popup_menu_new(XdeMonitor *xmon)
 				    && GTK_IS_LABEL(gtk_bin_get_child(GTK_BIN(witem)))) {
 					GtkWidget *child = gtk_bin_get_child(GTK_BIN(witem));
 
-					gtk_label_set_ellipsize(GTK_LABEL(child),
-								PANGO_ELLIPSIZE_MIDDLE);
+					gtk_label_set_ellipsize(GTK_LABEL(child), PANGO_ELLIPSIZE_MIDDLE);
 					gtk_label_set_max_width_chars(GTK_LABEL(child), 40);
 					need_tooltip = TRUE;
 				} else {
@@ -1080,9 +1041,8 @@ popup_menu_new(XdeMonitor *xmon)
 			g_object_set_data(G_OBJECT(witem), "window", win);
 #if 0
 			g_object_set(gtk_widget_get_settings(GTK_WIDGET(witem)),
-					"gtk-menu-popup-delay", (gint) 5000000,
-					"gtk-menu-popdown-delay", (gint) 5000000,
-					NULL);
+				     "gtk-menu-popup-delay", (gint) 5000000,
+				     "gtk-menu-popdown-delay", (gint) 5000000, NULL);
 #endif
 			window_count++;
 		}
@@ -1098,9 +1058,8 @@ popup_menu_new(XdeMonitor *xmon)
 		g_object_set_data(G_OBJECT(item), "workspace", work);
 #if 0
 		g_object_set(gtk_widget_get_settings(GTK_WIDGET(item)),
-				"gtk-menu-popup-delay", (gint) 5000000,
-				"gtk-menu-popdown-delay", (gint) 5000000,
-				NULL);
+			     "gtk-menu-popup-delay", (gint) 5000000,
+			     "gtk-menu-popdown-delay", (gint) 5000000, NULL);
 #endif
 	}
 	sep = gtk_separator_menu_item_new();
@@ -1110,8 +1069,7 @@ popup_menu_new(XdeMonitor *xmon)
 		GtkWidget *item, *submenu, *icon;
 		int window_count = 0;
 
-		icon =
-		    gtk_image_new_from_icon_name("preferences-system-windows", GTK_ICON_SIZE_MENU);
+		icon = gtk_image_new_from_icon_name("preferences-system-windows", GTK_ICON_SIZE_MENU);
 		item = gtk_image_menu_item_new_with_label("All Workspaces");
 		gtk_image_menu_item_set_image(GTK_IMAGE_MENU_ITEM(item), icon);
 		gtk_menu_append(menu, item);
@@ -1148,9 +1106,8 @@ popup_menu_new(XdeMonitor *xmon)
 			g_object_set_data(G_OBJECT(witem), "window", win);
 #if 0
 			g_object_set(gtk_widget_get_settings(GTK_WIDGET(witem)),
-					"gtk-menu-popup-delay", (gint) 5000000,
-					"gtk-menu-popdown-delay", (gint) 5000000,
-					NULL);
+				     "gtk-menu-popup-delay", (gint) 5000000,
+				     "gtk-menu-popdown-delay", (gint) 5000000, NULL);
 #endif
 			window_count++;
 		}
@@ -1165,25 +1122,21 @@ popup_menu_new(XdeMonitor *xmon)
 		GtkWidget *item, *icon;
 		int count;
 
-		icon =
-		    gtk_image_new_from_icon_name("preferences-desktop-display", GTK_ICON_SIZE_MENU);
+		icon = gtk_image_new_from_icon_name("preferences-desktop-display", GTK_ICON_SIZE_MENU);
 		item = gtk_image_menu_item_new_with_label("Append a workspace");
 		gtk_image_menu_item_set_image(GTK_IMAGE_MENU_ITEM(item), icon);
 		gtk_menu_append(menu, item);
 		gtk_widget_show(item);
-		g_signal_connect(G_OBJECT(item), "activate", G_CALLBACK(add_workspace), scrn);
-		gtk_widget_set_sensitive(item,
-					 ((count = wnck_screen_get_workspace_count(scrn))
-					  && count < 32));
+		g_signal_connect(G_OBJECT(item), "activate", G_CALLBACK(add_workspace), wnck);
+		gtk_widget_set_sensitive(item, ((count = wnck_screen_get_workspace_count(wnck)) && count < 32));
 
 		icon = gtk_image_new_from_icon_name("preferences-desktop-display", GTK_ICON_SIZE_MENU);
 		item = gtk_image_menu_item_new_with_label("Remove last workspace");
 		gtk_image_menu_item_set_image(GTK_IMAGE_MENU_ITEM(item), icon);
 		gtk_menu_append(menu, item);
 		gtk_widget_show(item);
-		g_signal_connect(G_OBJECT(item), "activate", G_CALLBACK(del_workspace), scrn);
-		gtk_widget_set_sensitive(item, ((count = wnck_screen_get_workspace_count(scrn))
-					  && count > 1));
+		g_signal_connect(G_OBJECT(item), "activate", G_CALLBACK(del_workspace), wnck);
+		gtk_widget_set_sensitive(item, ((count = wnck_screen_get_workspace_count(wnck)) && count > 1));
 	}
 
 	gtk_widget_show_all(menu);
@@ -5605,10 +5558,78 @@ update_active_window(XdeScreen *xscr, Atom prop)
 	free(window);
 }
 
-#if 1
+#if 0
+static void
+update_screen_size(XdeScreen *xscr, int new_width, int new_height)
+{
+}
+
+static void
+create_monitor(XdeScreen *xscr, XdeMonitor *xmon, int m)
+{
+	memset(xmon, 0, sizeof(*xmon));
+	xmon->index = m;
+	xmon->xscr = xscr;
+	gdk_screen_get_monitor_geometry(xscr->scrn, m, &xmon->geom);
+}
+
+static void
+delete_monitor(XdeScreen *xscr, XdeMonitor *mon, int m)
+{
+}
+
+static void
+update_monitor(XdeScreen *xscr, XdeMonitor *mon, int m)
+{
+	gdk_screen_get_monitor_geometry(xscr->scrn, m, &mon->geom);
+}
+#endif
+
+#if 0
 static void
 update_root_pixmap(XdeScreen *xscr, Atom prop)
 {
+	Window root = RootWindow(dpy, xscr->index);
+	Atom actual = None;
+	int format = 0;
+	unsigned long nitems = 0, after = 0;
+	unsigned long *data = NULL;
+	Pixmap pmap = None;
+
+	PTRACE(5);
+	if (prop == None || prop == _XA_ESETROOT_PMAP_ID) {
+		if (XGetWindowProperty
+		    (dpy, root, _XA_ESETROOT_PMAP_ID, 0, 1, False, AnyPropertyType, &actual,
+		     &format, &nitems, &after, (unsigned char **) &data) == Success
+		    && format == 32 && actual && nitems >= 1 && data) {
+			pmap = data[0];
+		}
+		if (data) {
+			XFree(data);
+			data = NULL;
+		}
+	}
+	if (prop == None || prop == _XA_XROOTPMAP_ID) {
+		if (XGetWindowProperty
+		    (dpy, root, _XA_XROOTPMAP_ID, 0, 1, False, AnyPropertyType, &actual,
+		     &format, &nitems, &after, (unsigned char **) &data) == Success
+		    && format == 32 && actual && nitems >= 1 && data) {
+			pmap = data[0];
+		}
+		if (data) {
+			XFree(data);
+			data = NULL;
+		}
+	}
+	if (pmap && xscr->pixmap != pmap) {
+		DPRINTF(1, "root pixmap changed from 0x%08lx to 0x%08lx\n", xscr->pixmap, pmap);
+		xscr->pixmap = pmap;
+		/* FIXME: do more */
+		/* Adjust the style of the desktop to use the pixmap specified by
+		   _XROOTPMAP_ID as the background.  Uses GTK+ 2.0 styles to do this. The
+		   root _XROOTPMAP_ID must be retrieved before calling this function for
+		   it to work correctly.  */
+	}
 }
 #endif
 
@@ -6028,6 +6049,7 @@ size_changed(GdkScreen *scrn, gpointer user_data)
 static void
 popup_show(XdeScreen *xscr)
 {
+	menu_show(xscr);
 }
 #endif
 
@@ -6110,7 +6132,7 @@ event_handler_ClientMessage(XEvent *xev)
 		set_flags(xev->xclient.data.l[2]);
 		set_word1(xev->xclient.data.l[3]);
 		set_word2(xev->xclient.data.l[4]);
-		popup_show(xscr); /* FIXME: should be menu_show() */
+		menu_show(xscr);
 		return GDK_FILTER_REMOVE;
 	} else if (type == _XA_PREFIX_EDITOR) {
 		set_scmon(xev->xclient.data.l[1]);
@@ -6200,7 +6222,6 @@ selwin_handler(GdkXEvent *xevent, GdkEvent *event, gpointer data)
 	return GDK_FILTER_CONTINUE;
 }
 
-#if 1
 static GdkFilterReturn
 laywin_handler(GdkXEvent *xevent, GdkEvent *event, gpointer data)
 {
@@ -6215,7 +6236,6 @@ laywin_handler(GdkXEvent *xevent, GdkEvent *event, gpointer data)
 	EPRINTF("wrong message type for handler %d\n", xev->type);
 	return GDK_FILTER_CONTINUE;
 }
-#endif
 
 static GdkFilterReturn
 event_handler_PropertyNotify(XEvent *xev, XdeScreen *xscr)
@@ -6260,7 +6280,7 @@ event_handler_PropertyNotify(XEvent *xev, XdeScreen *xscr)
 		} else if (atom == _XA_WM_DESKTOP) {
 			update_current_desktop(xscr, atom);
 #endif
-#if 1
+#if 0
 		} else if (atom == _XA_XROOTPMAP_ID) {
 			update_root_pixmap(xscr, atom);
 		} else if (atom == _XA_ESETROOT_PMAP_ID) {
