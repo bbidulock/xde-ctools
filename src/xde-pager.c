@@ -5585,15 +5585,20 @@ update_current_desktop(XdeScreen *xscr, Atom prop)
 	unsigned long *data = NULL;
 	XdeMonitor *xmon;
 	unsigned long *current;
+	char *name = NULL;
+	Bool gotone = False;
+
+	DPRINTF(1, "updating current desktop for %s\n", prop ? (name = XGetAtomName(dpy, prop)) : "None");
 
 	PTRACE(5);
 	current = calloc(xscr->nmon + 1, sizeof(*current));
 
 	if (prop == None || prop == _XA_WM_DESKTOP) {
 		if (XGetWindowProperty(dpy, root, _XA_WM_DESKTOP, 0, 64, False,
-				       XA_CARDINAL, &actual, &format, &nitems, &after,
+				       _XA_WM_DESKTOP, &actual, &format, &nitems, &after,
 				       (unsigned char **) &data) == Success &&
 		    format == 32 && actual && nitems >= 1 && data) {
+			gotone = True;
 			current[0] = data[0];
 			x = (xscr->mhaware = (nitems >= xscr->nmon)) ? &i : &j;
 			for (i = 0; i < xscr->nmon; i++)
@@ -5609,6 +5614,7 @@ update_current_desktop(XdeScreen *xscr, Atom prop)
 				       XA_CARDINAL, &actual, &format, &nitems, &after,
 				       (unsigned char **) &data) == Success &&
 		    format == 32 && actual && nitems >= 1 && data) {
+			gotone = True;
 			current[0] = data[0];
 			x = (xscr->mhaware = (nitems >= xscr->nmon)) ? &i : &j;
 			for (i = 0; i < xscr->nmon; i++)
@@ -5624,6 +5630,7 @@ update_current_desktop(XdeScreen *xscr, Atom prop)
 				       XA_CARDINAL, &actual, &format, &nitems, &after,
 				       (unsigned char **) &data) == Success &&
 		    format == 32 && actual && nitems >= 1 && data) {
+			gotone = True;
 			current[0] = data[0];
 			x = (xscr->mhaware = (nitems >= xscr->nmon)) ? &i : &j;
 			for (i = 0; i < xscr->nmon; i++)
@@ -5634,29 +5641,35 @@ update_current_desktop(XdeScreen *xscr, Atom prop)
 			data = NULL;
 		}
 	}
-	/* There are two things to do when the workspace changes: */
-	/* First off, drop any cycle or task windows that we have open. */
-	/* Second, queue deferred action to refresh pixmaps on the desktop. */
-	/* Third, pop the pager window. */
-	if (xscr->current != current[0]) {
-		xscr->current = current[0];
-		if (xscr->setbg)
-			add_deferred_refresh_desktop(xscr);
-		DPRINTF(1, "Current desktop for screen %d changed.\n", xscr->index);
-		if (xscr->pager) {
-		}
-	}
-	for (i = 0, xmon = xscr->mons; i < xscr->nmon; i++, xmon++) {
-		if (xmon->current != current[i + 1]) {
-			xmon->current = current[i + 1];
+	if (gotone) {
+		/* There are two things to do when the workspace changes: */
+		/* First off, drop any cycle or task windows that we have open. */
+		/* Second, queue deferred action to refresh pixmaps on the desktop. */
+		/* Third, pop the pager window. */
+		if (xscr->current != current[0]) {
 			if (xscr->setbg)
-				add_deferred_refresh_monitor(xmon);
-			DPRINTF(1, "Current view for monitor %d chaged.\n", xmon->index);
+				add_deferred_refresh_desktop(xscr);
+			DPRINTF(1, "Current desktop for screen %d changed from %d to %lu\n", xscr->index,
+				xscr->current, current[0]);
+			xscr->current = current[0];
 			if (xscr->pager) {
+			}
+		}
+		for (i = 0, xmon = xscr->mons; i < xscr->nmon; i++, xmon++) {
+			if (xmon->current != current[i + 1]) {
+				if (xscr->setbg)
+					add_deferred_refresh_monitor(xmon);
+				DPRINTF(1, "Current view for monitor %d changed from %d to %lu\n", xmon->index,
+					xmon->current, current[i + 1]);
+				xmon->current = current[i + 1];
+				if (xscr->pager) {
+				}
 			}
 		}
 	}
 	free(current);
+	if (name)
+		XFree(name);
 }
 
 static GdkFilterReturn
