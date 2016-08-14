@@ -2777,7 +2777,8 @@ key_release_event(GtkWidget *widget, GdkEvent *event, gpointer xpop)
 	if (ev->is_modifier) {
 		DPRINTF(1, "released key is modifier: dropping popup\n");
 		drop_popup(xpop);
-	}
+	} else
+		DPRINTF(1, "released key is not a modifier: not dropping popup\n");
 	return GTK_EVENT_PROPAGATE;
 }
 
@@ -5652,7 +5653,9 @@ update_current_desktop(XdeScreen *xscr, Atom prop)
 			DPRINTF(1, "Current desktop for screen %d changed from %d to %lu\n", xscr->index,
 				xscr->current, current[0]);
 			xscr->current = current[0];
-			if (xscr->pager) {
+			if (prop && xscr->pager) {
+				xmon = xscr->mons;
+				show_popup(xscr, &xmon->pager, TRUE, TRUE);
 			}
 		}
 		for (i = 0, xmon = xscr->mons; i < xscr->nmon; i++, xmon++) {
@@ -5662,7 +5665,8 @@ update_current_desktop(XdeScreen *xscr, Atom prop)
 				DPRINTF(1, "Current view for monitor %d changed from %d to %lu\n", xmon->index,
 					xmon->current, current[i + 1]);
 				xmon->current = current[i + 1];
-				if (xscr->pager) {
+				if (prop && xscr->pager) {
+					show_popup(xscr, &xmon->pager, TRUE, TRUE);
 				}
 			}
 		}
