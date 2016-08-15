@@ -2207,7 +2207,7 @@ show_popup(XdeScreen *xscr, XdePopup *xpop, gboolean grab_p, gboolean grab_k)
 	// if (!xpop->keyboard || !xpop->pointer)
 	if (!(xpop->mask & ~(GDK_LOCK_MASK | GDK_BUTTON1_MASK | GDK_BUTTON2_MASK | GDK_BUTTON3_MASK)))
 		if (!xpop->inside)
-			start_popup_timer(xpop);
+			restart_popup_timer(xpop);
 }
 
 /** @section Popup Window GDK Events
@@ -2238,7 +2238,7 @@ event_handler_KeyPress(Display *dpy, XEvent *xev, XdePopup *xpop)
 	if (!xev->xkey.send_event) {
 		XEvent ev = *xev;
 
-		start_popup_timer(xpop);
+		restart_popup_timer(xpop);
 		ev.xkey.window = ev.xkey.root;
 		XSendEvent(dpy, ev.xkey.root, True, PASSED_EVENT_MASK, &ev);
 		XFlush(dpy);
@@ -2270,7 +2270,7 @@ event_handler_KeyRelease(Display *dpy, XEvent *xev, XdePopup *xpop)
 	if (!xev->xkey.send_event) {
 		XEvent ev = *xev;
 
-		// start_popup_timer(xpop);
+		// restart_popup_timer(xpop);
 		ev.xkey.window = ev.xkey.root;
 		XSendEvent(dpy, ev.xkey.root, True, PASSED_EVENT_MASK, &ev);
 		XFlush(dpy);
@@ -2304,7 +2304,7 @@ event_handler_ButtonPress(Display *dpy, XEvent *xev, XdePopup *xpop)
 
 		if (ev.xbutton.button == 4 || ev.xbutton.button == 5) {
 			if (!xpop->inside)
-				start_popup_timer(xpop);
+				restart_popup_timer(xpop);
 			DPRINTF(1, "ButtonPress = %d passing to root window\n", ev.xbutton.button);
 			ev.xbutton.window = ev.xbutton.root;
 			XSendEvent(dpy, ev.xbutton.root, True, PASSED_EVENT_MASK, &ev);
@@ -2339,7 +2339,7 @@ event_handler_ButtonRelease(Display *dpy, XEvent *xev, XdePopup *xpop)
 		XEvent ev = *xev;
 
 		if (ev.xbutton.button == 4 || ev.xbutton.button == 5) {
-			// start_popup_timer(xpop);
+			// restart_popup_timer(xpop);
 			DPRINTF(1, "ButtonRelease = %d passing to root window\n", ev.xbutton.button);
 			ev.xbutton.window = ev.xbutton.root;
 			XSendEvent(dpy, ev.xbutton.root, True, PASSED_EVENT_MASK, &ev);
@@ -2449,7 +2449,7 @@ event_handler_LeaveNotify(Display *dpy, XEvent *xev, XdePopup *xpop)
 	if (xev->xcrossing.mode == NotifyNormal) {
 		if (xpop->inside) {
 			DPRINTF(1, "left popup\n");
-			start_popup_timer(xpop);
+			restart_popup_timer(xpop);
 			xpop->inside = False;
 		}
 	}
@@ -2494,10 +2494,12 @@ event_handler_FocusOut(Display *dpy, XEvent *xev, XdePopup *xpop)
 	case NotifyGrab:
 	case NotifyWhileGrabbed:
 		DPRINTF(1, "unfocused popup\n");
+#if 0
 		if (!xpop->keyboard) {
 			DPRINTF(1, "no grab or focus\n");
-			start_popup_timer(xpop);
+			restart_popup_timer(xpop);
 		}
+#endif
 		break;
 	}
 	return GDK_FILTER_CONTINUE;
@@ -2578,14 +2580,14 @@ grab_broken_event(GtkWidget *widget, GdkEvent *event, gpointer user)
 	PTRACE(5);
 	if (ev->keyboard) {
 		DPRINTF(1, "keyboard grab was broken\n");
-		xpop->keyboard = False;
+		// xpop->keyboard = False;
 		/* IF we lost a keyboard grab, it is because another hot-key was pressed,
 		   either doing something else or moving to another desktop.  Start the
 		   timeout in this case. */
-		start_popup_timer(xpop);
+		restart_popup_timer(xpop);
 	} else {
 		DPRINTF(1, "pointer grab was broken\n");
-		xpop->pointer = False;
+		// xpop->pointer = False;
 		/* If we lost a pointer grab, it is because somebody clicked on another
 		   window.  In this case we want to drop the popup altogether.  This will
 		   break the keyboard grab if any. */
@@ -2667,7 +2669,8 @@ key_release_event(GtkWidget *widget, GdkEvent *event, gpointer xpop)
 	if (ev->is_modifier) {
 		DPRINTF(1, "released key is modifier: dropping popup\n");
 		drop_popup(xpop);
-	}
+	} else
+		DPRINTF(1, "released key is not a modifier: not dropping popup\n");
 	return GTK_EVENT_PROPAGATE;
 }
 
@@ -2676,7 +2679,7 @@ leave_notify_event(GtkWidget *widget, GdkEvent *event, gpointer xpop)
 {
 #if 0
 	/* currently done by event handler, but considering grab */
-	start_popup_timer(xpop);
+	restart_popup_timer(xpop);
 	xpop->inside = False;
 #endif
 	return GTK_EVENT_PROPAGATE;
@@ -4303,7 +4306,7 @@ query_tooltip(GtkStatusIcon *icon, gint x, gint y, gboolean keyboard_mode,
 #if 0
 	if (xscr->ttwindow) {
 		present_popup(xscr);
-		start_popup_timer(xscr);
+		restart_popup_timer(xscr);
 		return FALSE;
 	}
 #endif
@@ -4329,7 +4332,7 @@ popup_grab_broken_event(GtkWidget *widget, GdkEvent *event, gpointer user)
 	GdkEventGrabBroken *ev = (typeof(ev)) event;
 
 	if (ev->keyboard) {
-		start_popup_timer(xscr);
+		restart_popup_timer(xscr);
 	} else {
 		drop_popup(xscr);
 	}
@@ -5370,15 +5373,20 @@ update_current_desktop(XdeScreen *xscr, Atom prop)
 	unsigned long *data = NULL;
 	XdeMonitor *xmon;
 	unsigned long *current;
+	char *name = NULL;
+	Bool gotone = False;
+
+	DPRINTF(1, "updating current desktop for %s\n", prop ? (name = XGetAtomName(dpy, prop)) : "None");
 
 	PTRACE(5);
 	current = calloc(xscr->nmon + 1, sizeof(*current));
 
 	if (prop == None || prop == _XA_WM_DESKTOP) {
 		if (XGetWindowProperty(dpy, root, _XA_WM_DESKTOP, 0, 64, False,
-				       XA_CARDINAL, &actual, &format, &nitems, &after,
+				       _XA_WM_DESKTOP, &actual, &format, &nitems, &after,
 				       (unsigned char **) &data) == Success &&
 		    format == 32 && actual && nitems >= 1 && data) {
+			gotone = True;
 			current[0] = data[0];
 			x = (xscr->mhaware = (nitems >= xscr->nmon)) ? &i : &j;
 			for (i = 0; i < xscr->nmon; i++)
@@ -5394,6 +5402,7 @@ update_current_desktop(XdeScreen *xscr, Atom prop)
 				       XA_CARDINAL, &actual, &format, &nitems, &after,
 				       (unsigned char **) &data) == Success &&
 		    format == 32 && actual && nitems >= 1 && data) {
+			gotone = True;
 			current[0] = data[0];
 			x = (xscr->mhaware = (nitems >= xscr->nmon)) ? &i : &j;
 			for (i = 0; i < xscr->nmon; i++)
@@ -5409,6 +5418,7 @@ update_current_desktop(XdeScreen *xscr, Atom prop)
 				       XA_CARDINAL, &actual, &format, &nitems, &after,
 				       (unsigned char **) &data) == Success &&
 		    format == 32 && actual && nitems >= 1 && data) {
+			gotone = True;
 			current[0] = data[0];
 			x = (xscr->mhaware = (nitems >= xscr->nmon)) ? &i : &j;
 			for (i = 0; i < xscr->nmon; i++)
@@ -5419,17 +5429,27 @@ update_current_desktop(XdeScreen *xscr, Atom prop)
 			data = NULL;
 		}
 	}
-	if (xscr->current != current[0]) {
-		xscr->current = current[0];
-		DPRINTF(1, "Current desktop for screen %d changed.\n", xscr->index);
-	}
-	for (i = 0, xmon = xscr->mons; i < xscr->nmon; i++, xmon++) {
-		if (xmon->current != current[i + 1]) {
-			xmon->current = current[i + 1];
-			DPRINTF(1, "Current view for monitor %d chaged.\n", xmon->index);
+	if (gotone) {
+		/* There are two things to do when the workspace changes: */
+		/* First off, drop any cycle or task windows that we have open. */
+		/* Second, queue deferred action to refresh pixmaps on the desktop. */
+		/* Third, pop the pager window. */
+		if (xscr->current != current[0]) {
+			DPRINTF(1, "Current desktop for screen %d changed from %d to %lu\n", xscr->index,
+				xscr->current, current[0]);
+			xscr->current = current[0];
+		}
+		for (i = 0, xmon = xscr->mons; i < xscr->nmon; i++, xmon++) {
+			if (xmon->current != current[i + 1]) {
+				DPRINTF(1, "Current view for monitor %d changed from %d to %lu\n", xmon->index,
+					xmon->current, current[i + 1]);
+				xmon->current = current[i + 1];
+			}
 		}
 	}
 	free(current);
+	if (name)
+		XFree(name);
 }
 
 #endif
@@ -5947,6 +5967,7 @@ selwin_handler(GdkXEvent *xevent, GdkEvent *event, gpointer data)
 	return GDK_FILTER_CONTINUE;
 }
 
+#if 1
 static GdkFilterReturn
 laywin_handler(GdkXEvent *xevent, GdkEvent *event, gpointer data)
 {
@@ -5961,6 +5982,7 @@ laywin_handler(GdkXEvent *xevent, GdkEvent *event, gpointer data)
 	EPRINTF("wrong message type for handler %d\n", xev->type);
 	return GDK_FILTER_CONTINUE;
 }
+#endif
 
 static GdkFilterReturn
 event_handler_PropertyNotify(XEvent *xev, XdeScreen *xscr)
