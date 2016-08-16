@@ -31,15 +31,24 @@ of the program:
 =item I<unspecified>
 
 When no command option is specified, the default is to run the pager
-without replacing an existing instance.
+without replacing an existing instance.  It is an error if an instance
+is currently running.
 
 =item B<--replace>, B<-r>
 
-Run the pager, but replace a running instance of B<xde-pager>.
+Run the pager, but replace a running instance of B<xde-pager>.  It is
+not an error when no instance is currently running.
+
+=item B<--restart>, B<-S>
+
+As a running instance to restart.  It is an error if there is no
+instance currently running.  This is useful when the binary has been
+upgraded.
 
 =item B<--quit>, B<-q>
 
-Ask a running instance of B<xde-pager> to quit.
+Ask a running instance of B<xde-pager> to quit.  It is not an error if
+no instance is currently running.
 
 =item B<--help>, B<-h>
 
@@ -104,6 +113,14 @@ window manager that invokes this command in response to a button press
 should release its passive grab on the button before invoking the pager
 so that the popped up menu can grab the button.  A I<BUTTON> of zero (0)
 means that the program was invoked with a key-press instead of a button.
+
+=item B<--pointer>, B<-P>
+
+An alternate way of specifying B<--button>=1.
+
+=item B<--keyboard>, B<-K>
+
+An alternate way of specifying B<--button>=0.
 
 =item B<--timestamp>, B<-T> I<TIMESTAMP>
 
