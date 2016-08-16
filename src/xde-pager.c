@@ -5504,6 +5504,7 @@ update_active_window(XdeScreen *xscr, Atom prop)
 	free(window);
 }
 
+#if 1
 static void
 update_screen_size(XdeScreen *xscr, int new_width, int new_height)
 {
@@ -5528,6 +5529,7 @@ update_monitor(XdeScreen *xscr, XdeMonitor *mon, int m)
 {
 	gdk_screen_get_monitor_geometry(xscr->scrn, m, &mon->geom);
 }
+#endif
 
 #if 1
 static void
