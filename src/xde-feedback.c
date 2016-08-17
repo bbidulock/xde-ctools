@@ -340,6 +340,7 @@ typedef enum {
 } Organize;
 
 typedef enum {
+	PopupWinds,			/* window selection feedback */
 	PopupPager,			/* desktop pager feedback */
 	PopupTasks,			/* task list feedback */
 	PopupCycle,			/* window cycling feedback */
@@ -402,6 +403,7 @@ typedef struct {
 	char *saveFile;
 	union {
 		struct {
+			Bool winds;
 			Bool pager;
 			Bool tasks;
 			Bool cycle;
@@ -488,6 +490,7 @@ Options options = {
 	.clientId = NULL,
 	.saveFile = NULL,
 	.show = {
+		 .winds = True,
 		 .pager = True,
 		 .tasks = True,
 		 .cycle = True,
@@ -584,6 +587,7 @@ struct XdeMonitor {
 	};
 	union {
 		struct {
+			XdePopup winds;
 			XdePopup pager;
 			XdePopup tasks;
 			XdePopup cycle;
@@ -628,6 +632,7 @@ struct XdeScreen {
 	Bool goodwm;			/* is the window manager usable? */
 	union {
 		struct {
+			Bool winds;	/* can window manager use winds? */
 			Bool pager;	/* can window manager use pager? */
 			Bool tasks;	/* can window manager use tasks? */
 			Bool cycle;	/* can window manager use cycle? */
@@ -2092,6 +2097,7 @@ get_icons(GIcon *gicon, const char *const *inames)
 	return (NULL);
 }
 
+#ifdef STARTUP_NOTIFICATION
 GdkPixbuf *
 get_sequence_pixbuf(Sequence *seq)
 {
@@ -2159,6 +2165,8 @@ get_sequence_pixbuf(Sequence *seq)
 		g_object_unref(G_OBJECT(gicon));
 	return (pixbuf);
 }
+#endif				/* STARTUP_NOTIFICATION */
+
 #endif
 
 /** @} */
@@ -2185,7 +2193,7 @@ release_grabs(XdePopup *xpop)
 {
 	PTRACE(5);
 	if (xpop->pointer) {
-#if 0
+#if 1
 		/* will be broken when window unmaps */
 		DPRINTF(1, "ungrabbing pointer\n");
 		gdk_display_pointer_ungrab(disp, GDK_CURRENT_TIME);
@@ -2193,7 +2201,7 @@ release_grabs(XdePopup *xpop)
 		xpop->pointer = False;
 	}
 	if (xpop->keyboard) {
-#if 0
+#if 1
 		/* will be broken when window unmaps */
 		DPRINTF(1, "ungrabbing keyboard\n");
 		gdk_display_keyboard_ungrab(disp, GDK_CURRENT_TIME);
@@ -2249,19 +2257,33 @@ static void
 show_popup(XdeScreen *xscr, XdePopup *xpop, gboolean grab_p, gboolean grab_k)
 {
 	GdkGrabStatus status;
-	Window win;
+	// Window win;
 
 	if (!xpop->popup)
 		return;
 	DPRINTF(1, "popping the window\n");
 	gdk_display_get_pointer(disp, NULL, NULL, NULL, &xpop->mask);
 	stop_popup_timer(xpop);
-	if (xpop->popped)
+	if (xpop->popped) {
+#if 0
 		gtk_window_reshow_with_initial_size(GTK_WINDOW(xpop->popup));
-	else {
+#endif
+	} else {
 		if (xpop->type == PopupStart) {
-			gtk_window_set_default_size(GTK_WINDOW(xpop->popup), -1, -1);
+			// gtk_window_set_default_size(GTK_WINDOW(xpop->popup), -1, -1);
 			gtk_widget_set_size_request(GTK_WIDGET(xpop->popup), -1, -1);
+		}
+		if (xpop->type == PopupTasks) {
+			GtkWidget *tasks = xpop->content;
+			GList *children;
+			int n;
+
+			children = gtk_container_get_children(GTK_CONTAINER(tasks));
+			n = g_list_length(children);
+			g_list_free(children);
+
+			// gtk_window_set_default_size(GTK_WINDOW(xpop->popup), 300, n * 24);
+			gtk_widget_set_size_request(GTK_WIDGET(xpop->popup), 300, n * 24);
 		}
 		gtk_window_set_screen(GTK_WINDOW(xpop->popup), gdk_display_get_screen(disp, xscr->index));
 		gtk_window_set_position(GTK_WINDOW(xpop->popup), GTK_WIN_POS_CENTER_ALWAYS);
@@ -2269,14 +2291,14 @@ show_popup(XdeScreen *xscr, XdePopup *xpop, gboolean grab_p, gboolean grab_k)
 		gtk_widget_show_now(GTK_WIDGET(xpop->popup));
 		xpop->popped = True;
 	}
-	win = GDK_WINDOW_XID(xpop->popup->window);
+	// win = GDK_WINDOW_XID(xpop->popup->window);
 
 	if (grab_p && !xpop->pointer) {
 		GdkEventMask mask =
 		    GDK_POINTER_MOTION_MASK | GDK_POINTER_MOTION_HINT_MASK |
 		    GDK_BUTTON_MOTION_MASK | GDK_BUTTON_PRESS_MASK | GDK_BUTTON_RELEASE_MASK |
 		    GDK_ENTER_NOTIFY_MASK | GDK_LEAVE_NOTIFY_MASK;
-		XSetInputFocus(dpy, win, RevertToPointerRoot, CurrentTime);
+		// XSetInputFocus(dpy, win, RevertToPointerRoot, CurrentTime);
 		status = gdk_pointer_grab(xpop->popup->window, TRUE, mask, NULL, NULL, GDK_CURRENT_TIME);
 		switch (status) {
 		case GDK_GRAB_SUCCESS:
@@ -2298,7 +2320,7 @@ show_popup(XdeScreen *xscr, XdePopup *xpop, gboolean grab_p, gboolean grab_k)
 		}
 	}
 	if (grab_k && !xpop->keyboard) {
-		XSetInputFocus(dpy, win, RevertToPointerRoot, CurrentTime);
+		// XSetInputFocus(dpy, win, RevertToPointerRoot, CurrentTime);
 		status = gdk_keyboard_grab(xpop->popup->window, TRUE, GDK_CURRENT_TIME);
 		switch (status) {
 		case GDK_GRAB_SUCCESS:
@@ -2695,18 +2717,8 @@ grab_broken_event(GtkWidget *widget, GdkEvent *event, gpointer user)
 	PTRACE(5);
 	if (ev->keyboard) {
 		DPRINTF(1, "keyboard grab was broken\n");
-		// xpop->keyboard = False;
-		/* IF we lost a keyboard grab, it is because another hot-key was pressed,
-		   either doing something else or moving to another desktop.  Start the
-		   timeout in this case. */
-		restart_popup_timer(xpop);
 	} else {
 		DPRINTF(1, "pointer grab was broken\n");
-		// xpop->pointer = False;
-		/* If we lost a pointer grab, it is because somebody clicked on another
-		   window.  In this case we want to drop the popup altogether.  This will
-		   break the keyboard grab if any. */
-		drop_popup(xpop);
 	}
 	if (ev->implicit) {
 		DPRINTF(1, "broken grab was implicit\n");
@@ -2717,6 +2729,23 @@ grab_broken_event(GtkWidget *widget, GdkEvent *event, gpointer user)
 		DPRINTF(1, "we broke the grab\n");
 	} else {
 		DPRINTF(1, "another application broke the grab\n");
+	}
+	if (ev->keyboard) {
+		// xpop->keyboard = False;
+		/* IF we lost a keyboard grab, it is because another hot-key was pressed,
+		   either doing something else or moving to another desktop.  Start the
+		   timeout in this case. */
+		if (ev->grab_window)
+			stop_popup_timer(xpop);
+		else
+			restart_popup_timer(xpop);
+	} else {
+		// xpop->pointer = False;
+		/* If we lost a pointer grab, it is because somebody clicked on another
+		   window.  In this case we want to drop the popup altogether.  This will
+		   break the keyboard grab if any. */
+		if (!ev->grab_window)
+			drop_popup(xpop);
 	}
 	return TRUE;		/* event handled */
 }
@@ -3248,8 +3277,8 @@ clientSetProperties(SmcConn smcConn, SmPointer data)
 	prop[j].vals = calloc(2, sizeof(*prop[j].vals));
 	prop[j].num_vals = 2;
 	props[j] = &prop[j];
-	prop[j].vals[0].value = "/usr/bin/xde-pager";
-	prop[j].vals[0].length = strlen("/usr/bin/xde-pager");
+	prop[j].vals[0].value = "/usr/bin/" RESNAME;
+	prop[j].vals[0].length = strlen("/usr/bin/" RESNAME);
 	prop[j].vals[1].value = "-quit";
 	prop[j].vals[1].length = strlen("-quit");
 	j++;
@@ -3290,8 +3319,8 @@ clientSetProperties(SmcConn smcConn, SmPointer data)
 	prop[j].vals = calloc(2, sizeof(*prop[j].vals));
 	prop[j].num_vals = 2;
 	props[j] = &prop[j];
-	prop[j].vals[0].value = "/usr/bin/xde-pager";
-	prop[j].vals[0].length = strlen("/usr/bin/xde-pager");
+	prop[j].vals[0].value = "/usr/bin/" RESNAME;
+	prop[j].vals[0].length = strlen("/usr/bin/" RESNAME);
 	prop[j].vals[1].value = "-quit";
 	prop[j].vals[1].length = strlen("-quit");
 	j++;
@@ -4502,8 +4531,8 @@ popup_widget_realize(GtkWidget *popup, gpointer user)
 {
 	gdk_window_add_filter(popup->window, popup_handler, user);
 	gdk_window_set_override_redirect(popup->window, TRUE);
-	// gdk_window_set_accept_focus(popup->window, TRUE);
-	// gdk_window_set_focus_on_map(popup->window, TRUE);
+	// gdk_window_set_accept_focus(popup->window, FALSE);
+	// gdk_window_set_focus_on_map(popup->window, FALSE);
 }
 #endif
 
@@ -4534,8 +4563,8 @@ systray_tooltip(XdeScreen *xscr)
 
 	w = gtk_window_new(GTK_WINDOW_POPUP);
 	gtk_widget_add_events(w, GDK_ALL_EVENTS_MASK);
-	gtk_window_set_accept_focus(GTK_WINDOW(w), TRUE);
-	gtk_window_set_focus_on_map(GTK_WINDOW(w), TRUE);
+	gtk_window_set_accept_focus(GTK_WINDOW(w), FALSE);
+	gtk_window_set_focus_on_map(GTK_WINDOW(w), FALSE);
 	// gtk_window_set_type_hint(GTK_WINDOW(w), GDK_WINDOW_TEMP);
 	gtk_window_stick(GTK_WINDOW(w));
 	gtk_window_set_keep_above(GTK_WINDOW(w), TRUE);
@@ -4564,7 +4593,7 @@ maximum volume: from 0% to 100%.");
 
 	gtk_window_set_position(GTK_WINDOW(w), GTK_WIN_POS_MOUSE);
 	gtk_container_set_border_width(GTK_CONTAINER(w), 3);
-	gtk_window_set_default_size(GTK_WINDOW(w), -1, 200);
+	// gtk_window_set_default_size(GTK_WINDOW(w), -1, 200);
 	gtk_widget_set_size_request(w, -1, 200);
 
 #if 0
@@ -4622,7 +4651,7 @@ good_window_manager(XdeScreen *xscr)
 	if (!strcasecmp(xscr->wmname, "aewm"))
 		return True;
 	/* XXX: afterstep(1) provides both workspaces and viewports (large desktops).
-	   libwnck+ does not support these well, so when xde-pager detects that it is
+	   libwnck+ does not support these well, so when RESNAME detects that it is
 	   running under afterstep(1), it does nothing.  (It has a desktop button proxy,
 	   but it does not relay scroll wheel events by default.) */
 	if (!strcasecmp(xscr->wmname, "afterstep"))
@@ -4634,6 +4663,7 @@ good_window_manager(XdeScreen *xscr)
 	   feedback.  When running under blackbox(1), xde-cycle does nothing. Otherwise,
 	   blackbox(1) is largely supported and works well. */
 	if (!strcasecmp(xscr->wmname, "blackbox")) {
+		xscr->winds = False;
 		xscr->cycle = False;
 		return True;
 	}
@@ -4641,7 +4671,7 @@ good_window_manager(XdeScreen *xscr)
 	if (!strcasecmp(xscr->wmname, "bspwm"))
 		return True;
 	/* XXX: ctwm(1) is only GNOME/WinWM compliant and is not yet supported by
-	   libwnck+.  Use etwm(1) instead.  xde-pager mitigates this somewhat, so it is
+	   libwnck+.  Use etwm(1) instead.  RESNAME mitigates this somewhat, so it is
 	   still listed as supported. */
 	if (!strcasecmp(xscr->wmname, "ctwm"))
 		return True;
@@ -4652,10 +4682,11 @@ good_window_manager(XdeScreen *xscr)
 		return True;
 	/* XXX: dtwm(1) is only OSF/Motif compliant and does support multiple desktops;
 	   however, libwnck+ does not yet support OSF/Motif/CDE.  This is not mitigated
-	   by xde-pager. */
+	   by RESNAME. */
 	if (!strcasecmp(xscr->wmname, "dtwm")) {
 		xscr->pager = False;
 		xscr->tasks = False;
+		xscr->winds = False;
 		xscr->cycle = False;
 		xscr->setbg = False;
 		xscr->start = False;
@@ -4665,6 +4696,7 @@ good_window_manager(XdeScreen *xscr)
 	if (!strcasecmp(xscr->wmname, "dwm")) {
 		xscr->pager = False;
 		xscr->tasks = False;
+		xscr->winds = False;
 		xscr->cycle = False;
 		xscr->setbg = False;
 		xscr->start = False;
@@ -4680,6 +4712,7 @@ good_window_manager(XdeScreen *xscr)
 	if (!strcasecmp(xscr->wmname, "failsafewm")) {
 		xscr->pager = False;
 		xscr->tasks = False;
+		xscr->winds = False;
 		xscr->cycle = False;
 		xscr->setbg = False;
 		xscr->start = False;
@@ -4691,10 +4724,11 @@ good_window_manager(XdeScreen *xscr)
 	if (!strcasecmp(xscr->wmname, "fluxbox")) {
 		xscr->tasks = False;
 		xscr->cycle = False;
+		xscr->winds = False;
 		return True;
 	}
 	/* XXX: flwm(1) supports GNOME/WinWM but not EWMH/NetWM and is not currently
-	   supported by libwnck+.  xde-pager mitigates this to some extent. */
+	   supported by libwnck+.  RESNAME mitigates this to some extent. */
 	if (!strcasecmp(xscr->wmname, "flwm"))
 		return True;
 	/* XXX: fvwm(1) is supported and works well.  fvwm(1) provides a desktop button
@@ -4718,7 +4752,7 @@ good_window_manager(XdeScreen *xscr)
 	if (!strcasecmp(xscr->wmname, "icewm"))
 		return True;
 	/* XXX: jwm(1) provides its own pager on the panel, but does not respect or set
-	   _NET_DESKTOP_LAYOUT, and key bindings are confused.  When xde-pager detects
+	   _NET_DESKTOP_LAYOUT, and key bindings are confused.  When RESNAME detects
 	   that it is running under jwm(1) it will simply do nothing.  Otherwise, jwm(1)
 	   is supported and works well. */
 	if (!strcasecmp(xscr->wmname, "jwm")) {
@@ -4729,12 +4763,13 @@ good_window_manager(XdeScreen *xscr)
 	if (!strcasecmp(xscr->wmname, "matwm2"))
 		return True;
 	/* XXX: metacity(1) provides its own competent desktop switching feedback pop-up.
-	   When xde-pager detects that it is running under metacity(1), it will simply do
+	   When RESNAME detects that it is running under metacity(1), it will simply do
 	   nothing. */
 	if (!strcasecmp(xscr->wmname, "metacity")) {
 		xscr->pager = False;
 		xscr->tasks = False;
 		xscr->cycle = False;
+		xscr->winds = False;
 		return True;
 	}
 	/* XXX: mwm(1) only supports OSF/Motif and does not support multiple desktops. It
@@ -4746,21 +4781,24 @@ good_window_manager(XdeScreen *xscr)
 		return True;
 	/* XXX: openbox(1) provides its own meager desktop switching feedback pop-up.  It
 	   does respect _NET_DESKTOP_LAYOUT but does not provide any of the contents of
-	   the desktop. When both are running it is a little confusing, so when xde-pager
-	   detects that it is running under openbox(1), it will simply do nothing. */
+	   the desktop. When both are running it is a little confusing, so when
+	   RESNAME detects that it is running under openbox(1), it will simply
+	   do nothing. */
 	if (!strcasecmp(xscr->wmname, "openbox")) {
 		xscr->pager = False;
 		xscr->cycle = False;
+		xscr->winds = False;
 		xscr->tasks = False;
 		return True;
 	}
 	/* XXX: pekwm(1) provides its own broken desktop switching feedback pop-up;
 	   however, it does not respect _NET_DESKTOP_LAYOUT and key bindings are
-	   confused.  When xde-pager detects that it is running under pekwm(1), it will
+	   confused.  When RESNAME detects that it is running under pekwm(1), it will
 	   simply do nothing. */
 	if (!strcasecmp(xscr->wmname, "pekwm")) {
 		xscr->pager = False;
 		xscr->cycle = False;
+		xscr->winds = False;
 		xscr->tasks = False;
 		return True;
 	}
@@ -4774,6 +4812,7 @@ good_window_manager(XdeScreen *xscr)
 		xscr->pager = False;
 		xscr->tasks = False;
 		xscr->cycle = False;
+		xscr->winds = False;
 		xscr->setbg = False;
 		xscr->start = False;
 		return True;
@@ -4787,6 +4826,7 @@ good_window_manager(XdeScreen *xscr)
 		xscr->pager = False;
 		xscr->tasks = False;
 		xscr->cycle = False;
+		xscr->winds = False;
 		xscr->setbg = False;
 		xscr->start = False;
 		return True;
@@ -4807,6 +4847,7 @@ good_window_manager(XdeScreen *xscr)
 	if (!strcasecmp(xscr->wmname, "wmaker")) {
 		xscr->setbg = False;
 		xscr->cycle = False;
+		xscr->winds = False;
 		return True;
 	}
 	/* XXX: wmii(1) is supported and works well.  wmii(1) was stealing the focus back
@@ -4828,6 +4869,7 @@ good_window_manager(XdeScreen *xscr)
 		xscr->pager = False;
 		xscr->tasks = False;
 		xscr->cycle = False;
+		xscr->winds = False;
 		xscr->setbg = False;
 		xscr->start = False;
 		return True;
@@ -4854,6 +4896,7 @@ window_manager_changed(WnckScreen *wnck, gpointer user)
 	xscr->wmname = NULL;
 	xscr->goodwm = False;
 	/* start with all True and let wm check set False */
+	xscr->winds = options.show.winds;
 	xscr->pager = options.show.pager;
 	xscr->tasks = options.show.tasks;
 	xscr->cycle = options.show.cycle;
@@ -4876,6 +4919,7 @@ window_manager_changed(WnckScreen *wnck, gpointer user)
 			xscr->wmname = strdup("uwm");
 		}
 		if (!(xscr->goodwm = good_window_manager(xscr))) {
+			xscr->winds = False;
 			xscr->pager = False;
 			xscr->tasks = False;
 			xscr->cycle = False;
@@ -5071,7 +5115,7 @@ active_window_changed(WnckScreen *wnck, WnckWindow *prev, gpointer user)
 	WnckWindow *actv;
 	int i;
 
-	if (!options.show.cycle)
+	if (!options.show.cycle && !options.show.tasks && !options.show.winds)
 		return;
 	gdk_display_get_pointer(disp, NULL, NULL, NULL, &mask);
 	/* if button down, do nothing */
@@ -5084,13 +5128,27 @@ active_window_changed(WnckScreen *wnck, WnckWindow *prev, gpointer user)
 	}
 	if (!xmon) {
 		for (i = 0; i < xscr->nmon; i++) {
-			stop_popup_timer(&xscr->mons[i].cycle);
-			drop_popup(&xscr->mons[i].cycle);
+			if (options.show.cycle) {
+				stop_popup_timer(&xscr->mons[i].cycle);
+				drop_popup(&xscr->mons[i].cycle);
+			}
+			if (options.show.tasks) {
+				stop_popup_timer(&xscr->mons[i].tasks);
+				drop_popup(&xscr->mons[i].tasks);
+			}
+			if (options.show.winds) {
+				stop_popup_timer(&xscr->mons[i].winds);
+				drop_popup(&xscr->mons[i].winds);
+			}
 		}
 		return;
 	}
 	if (xscr->cycle)
 		show_popup(xscr, &xmon->cycle, TRUE, TRUE);
+	if (xscr->tasks)
+		show_popup(xscr, &xmon->tasks, TRUE, TRUE);
+	if (xscr->winds)
+		show_popup(xscr, &xmon->winds, TRUE, TRUE);
 	return;
 }
 
@@ -5791,8 +5849,10 @@ refresh_layout(XdeScreen *xscr)
 			wmax = (xmon->geom.width * 8) / 10;
 			hmax = (xmon->geom.height * 8) / 10;
 			for (f = 10; w > wmax * f || h > hmax * f; f++) ;
-			if (xmon->pager.popup)
-				gtk_window_set_default_size(GTK_WINDOW(xmon->pager.popup), w / f, h / f);
+			if (xmon->pager.popup) {
+				// gtk_window_set_default_size(GTK_WINDOW(xmon->pager.popup), w / f, h / f);
+				gtk_widget_set_size_request(GTK_WIDGET(xmon->pager.popup), w / f, h / f);
+			}
 		}
 	}
 	if (options.show.setbg) {
@@ -6500,6 +6560,19 @@ term_signal_handler(gpointer data)
   * @{ */
 
 static void
+add_winds(XdeScreen *xscr, XdePopup *xpop, GtkWidget *popup)
+{
+	GtkWidget *winds = wnck_selector_new();
+
+	gtk_menu_bar_set_pack_direction(GTK_MENU_BAR(winds), GTK_PACK_DIRECTION_TTB);
+	gtk_menu_bar_set_child_pack_direction(GTK_MENU_BAR(winds), GTK_PACK_DIRECTION_LTR);
+	gtk_widget_show_all(GTK_WIDGET(winds));
+	gtk_container_add(GTK_CONTAINER(popup), GTK_WIDGET(winds));
+	gtk_window_set_position(GTK_WINDOW(popup), GTK_WIN_POS_CENTER_ALWAYS);
+	xpop->content = winds;
+}
+
+static void
 add_pager(XdeScreen *xscr, XdePopup *xpop, GtkWidget *popup)
 {
 	GtkWidget *pager = wnck_pager_new(xscr->wnck);
@@ -6529,6 +6602,8 @@ add_tasks(XdeScreen *xscr, XdePopup *xpop, GtkWidget *popup)
 	gtk_widget_show_all(GTK_WIDGET(tasks));
 	gtk_container_add(GTK_CONTAINER(popup), GTK_WIDGET(tasks));
 	gtk_window_set_position(GTK_WINDOW(popup), GTK_WIN_POS_CENTER_ALWAYS);
+	// gtk_window_set_default_size(GTK_WINDOW(popup), 200, 200); // for now
+	gtk_widget_set_size_request(GTK_WIDGET(popup), 200, 200); // for now
 	xpop->content = tasks;
 }
 
@@ -6538,8 +6613,11 @@ size_request(GtkWidget *widget, GtkRequisition *requisition, gpointer user_data)
 	XdePopup *xpop = user_data;
 
 	DPRINTF(1, "view requested size %dx%d\n", requisition->width, requisition->height);
-	if (xpop->popped)
+	if (xpop->popped) {
+#if 0
 		gtk_window_reshow_with_initial_size(GTK_WINDOW(xpop->popup));
+#endif
+	}
 }
 
 static void
@@ -6577,7 +6655,7 @@ add_cycle(XdeScreen *xscr, XdePopup *xpop, GtkWidget *popup)
 	g_signal_connect(G_OBJECT(view), "size_request", G_CALLBACK(size_request), xpop);
 
 	gtk_container_add(GTK_CONTAINER(popup), view);
-	gtk_window_set_default_size(GTK_WINDOW(popup), -1, -1);
+	// gtk_window_set_default_size(GTK_WINDOW(popup), -1, -1);
 	gtk_widget_set_size_request(GTK_WIDGET(popup), -1, -1);
 	xpop->content = view;
 }
@@ -6622,7 +6700,7 @@ add_start(XdeScreen *xscr, XdePopup *xpop, GtkWidget *popup)
 	g_signal_connect(G_OBJECT(view), "size_request", G_CALLBACK(size_request), xpop);
 
 	gtk_container_add(GTK_CONTAINER(popup), view);
-	gtk_window_set_default_size(GTK_WINDOW(popup), -1, -1);
+	// gtk_window_set_default_size(GTK_WINDOW(popup), -1, -1);
 	gtk_widget_set_size_request(GTK_WIDGET(popup), -1, -1);
 	xpop->content = view;
 }
@@ -6637,6 +6715,9 @@ static void
 add_items(XdeScreen *xscr, XdePopup *xpop, GtkWidget *popup)
 {
 	switch (xpop->type) {
+	case PopupWinds:
+		add_winds(xscr, xpop, popup);
+		break;
 	case PopupPager:
 		add_pager(xscr, xpop, popup);
 		break;
@@ -6748,6 +6829,8 @@ init_monitors(XdeScreen *xscr)
 		gdk_screen_get_monitor_geometry(xscr->scrn, m, &xmon->geom);
 		for (int p = 0; p < PopupLast; p++)
 			xmon->popups[p].type = p;
+		if (options.show.winds)
+			init_window(xscr, &xmon->winds);
 		if (options.show.pager)
 			init_window(xscr, &xmon->pager);
 		if (options.show.tasks)
@@ -7151,6 +7234,7 @@ get_desktop_layout_selection(XdeScreen *xscr)
 	return (owner);
 }
 
+#if 1
 static Window
 get_selection(Bool replace, Window selwin)
 {
@@ -7237,6 +7321,7 @@ fork_and_exit(void)
 	/* parent exits */
 	exit(EXIT_SUCCESS);
 }
+#endif
 
 static void
 do_run(int argc, char *argv[])

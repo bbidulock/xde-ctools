@@ -18,6 +18,7 @@ bin_PROGRAMS = \
 	xde-select \
 	xde-setbg \
 	xde-tasks \
+	xde-winds \
 	xde-winlist \
 	xde-winmenu \
 	xde-wkspmenu
@@ -92,6 +93,11 @@ xde_tasks_CPPFLAGS = -DNAME=\"xde-tasks\"
 xde_tasks_SOURCES = xde-tasks.c
 xde_tasks_CFLAGS = $(AM_CFLAGS) $(NOTIFY_CFLAGS) $(ICE_CFLAGS) $(SMLIB_CFLAGS) $(SN_CFLAGS)
 xde_tasks_LDFLAGS = $(SN_LIBS) $(SMLIB_LIBS) $(ICE_LIBS) $(NOTIFY_LIBS) $(AM_LDFLAGS)
+
+xde_winds_CPPFLAGS = -DNAME=\"xde-winds\"
+xde_winds_SOURCES = xde-winds.c
+xde_winds_CFLAGS = $(AM_CFLAGS) $(NOTIFY_CFLAGS) $(ICE_CFLAGS) $(SMLIB_CFLAGS) $(SN_CFLAGS)
+xde_winds_LDFLAGS = $(SN_LIBS) $(SMLIB_LIBS) $(ICE_LIBS) $(NOTIFY_LIBS) $(AM_LDFLAGS)
 
 xde_winlist_CPPFLAGS = -DNAME=\"xde-winlist\"
 xde_winlist_SOURCES = xde-winlist.c

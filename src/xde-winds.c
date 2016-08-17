@@ -185,7 +185,7 @@ dumpstack(const char *file, const int line, const char *func)
 
 const char *program = NAME;
 
-#define XA_PREFIX		"_XDE_TASKS"
+#define XA_PREFIX		"_XDE_WINDS"
 #define XA_SELECTION_NAME	XA_PREFIX "_S%d"
 #define XA_NET_DESKTOP_LAYOUT	"_NET_DESKTOP_LAYOUT_S%d"
 #define LOGO_NAME		"metacity"
@@ -193,9 +193,9 @@ const char *program = NAME;
 static int saveArgc;
 static char **saveArgv;
 
-#define RESNAME "xde-tasks"
-#define RESCLAS "XDE-Tasks"
-#define RESTITL "XDG Task List Feedback"
+#define RESNAME "xde-winds"
+#define RESCLAS "XDE-winds"
+#define RESTITL "Window Selection Feedback"
 
 #define APPDFLT "/usr/share/X11/app-defaults/" RESCLAS
 
@@ -492,9 +492,9 @@ Options options = {
 	.clientId = NULL,
 	.saveFile = NULL,
 	.show = {
-		 .winds = False,
+		 .winds = True,
 		 .pager = False,
-		 .tasks = True,
+		 .tasks = False,
 		 .cycle = False,
 		 .setbg = False,
 		 .start = False,
@@ -4380,7 +4380,7 @@ about_selected(GtkMenuItem *item, gpointer user_data)
 	gchar *authors[] = { "Brian F. G. Bidulock <bidulock@openss7.org>", NULL };
 	gtk_show_about_dialog(NULL,
 			      "authors", authors,
-			      "comments", "An XDG compliant pager.",
+			      "comments", "An XDG compliant window selector.",
 			      "copyright", "Copyright (c) 2013, 2014, 2015, 2016  OpenSS7 Corporation",
 			      "license", "Do what thou wilt shall be the whole of the law.\n\n-- Aleister Crowley",
 			      "logo-icon-name", LOGO_NAME,
