@@ -885,7 +885,7 @@ static const char *KFK_XKeyboard_BounceKeysEnabled = "BounceKeysEnabled";
 static const char *KFK_XKeyboard_ControlsEnabledEnabled = "ControlsEnabledEnabled";
 static const char *KFK_XKeyboard_DebounceDelay = "DebounceDelay";
 static const char *KFK_XKeyboard_GroupsWrapEnabled = "GroupsWrapEnabled";
-static const char *KFK_XKeyboard_IgnoreGroupLockModsEnabled = "IgnoreGroupLockModsEnabled";
+static const char *KFK_XKeyboard_IgnoreGroupLockEnabled = "IgnoreGroupLockEnabled";
 static const char *KFK_XKeyboard_IgnoreLockModsEnabled = "IgnoreLockModsEnabled";
 static const char *KFK_XKeyboard_InternalModsEnabled = "InternalModsEnabled";
 static const char *KFK_XKeyboard_MouseKeysAccelEnabled = "MouseKeysAccelEnabled";
@@ -897,7 +897,7 @@ static const char *KFK_XKeyboard_MouseKeysInterval = "MouseKeysInterval";
 static const char *KFK_XKeyboard_MouseKeysMaxSpeed = "MouseKeysMaxSpeed";
 static const char *KFK_XKeyboard_MouseKeysTimeToMax = "MouseKeysTimeToMax";
 static const char *KFK_XKeyboard_Overlay1MaskEnabled = "Overlay1MaskEnabled";
-static const char *KFK_XKeyboard_Overlay2MaskEnabled = "Overlay2MaskENabled";
+static const char *KFK_XKeyboard_Overlay2MaskEnabled = "Overlay2MaskEnabled";
 static const char *KFK_XKeyboard_PerKeyRepeatEnabled = "PerKeyRepeatEnabled";
 const char *KFK_XKeyboard_PerKeyRepeat = "PerKeyRepeat";
 static const char *KFK_XKeyboard_RepeatDelay = "RepeatDelay";
@@ -1072,8 +1072,7 @@ read_input(void)
 		EPRINTF("could not create key file\n");
 		return;
 	}
-	filename = options.filename ? g_strdup(options.filename) :
-	    g_build_filename(g_get_user_config_dir(), "xde", "input.ini", NULL);
+	filename = g_build_filename(g_get_user_config_dir(), "xde", "input.ini", NULL);
 	if (!g_file_test(filename, G_FILE_TEST_IS_REGULAR)) {
 		DPRINTF(1, "file %s does not yet exist\n", filename);
 		g_free(filename);
@@ -1259,6 +1258,7 @@ edit_get_values(void)
 
 	if (support.DPMS) {
 		DPMSGetTimeouts(dpy, &state.DPMS.standby, &state.DPMS.suspend, &state.DPMS.off);
+		DPMSInfo(dpy, &state.DPMS.power_level, &state.DPMS.state);
 		if (options.debug) {
 			fputs("DPMS:\n", stderr);
 			fprintf(stderr, "\tDPMS Version: %d.%d\n", state.DPMS.major_version,
@@ -1384,7 +1384,7 @@ edit_get_values(void)
 				       state.XKeyboard.desc->ctrls->enabled_ctrls &
 				       XkbOverlay2Mask ? TRUE : FALSE);
 		g_key_file_set_boolean(file, KFG_XKeyboard,
-				       KFK_XKeyboard_IgnoreGroupLockModsEnabled,
+				       KFK_XKeyboard_IgnoreGroupLockEnabled,
 				       state.XKeyboard.desc->ctrls->enabled_ctrls &
 				       XkbIgnoreGroupLockMask ? TRUE : FALSE);
 		g_key_file_set_boolean(file, KFG_XKeyboard,
@@ -1575,8 +1575,7 @@ save_config()
 		EPRINTF("no key file!\n");
 		return;
 	}
-	filename = options.filename ? g_strdup(options.filename) :
-	    g_build_filename(g_get_user_config_dir(), "xde", "input.ini", NULL);
+	filename = g_build_filename(g_get_user_config_dir(), "xde", "input.ini", NULL);
 	dir = g_path_get_dirname(filename);
 	if (g_mkdir_with_parents(dir, 0755) == -1) {
 		EPRINTF("could not create directory %s: %s\n", dir, strerror(errno));
@@ -6124,7 +6123,7 @@ put_keyfile(void)
 				       state.XKeyboard.desc->ctrls->enabled_ctrls &
 				       XkbOverlay2Mask ? TRUE : FALSE);
 		g_key_file_set_boolean(file, KFG_XKeyboard,
-				       KFK_XKeyboard_IgnoreGroupLockModsEnabled,
+				       KFK_XKeyboard_IgnoreGroupLockEnabled,
 				       state.XKeyboard.desc->ctrls->enabled_ctrls &
 				       XkbIgnoreGroupLockMask ? TRUE : FALSE);
 		g_key_file_set_boolean(file, KFG_XKeyboard,
