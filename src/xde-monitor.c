@@ -2968,6 +2968,15 @@ del_sequence(XdePopup *xpop, Sequence *seq)
 	xpop->seqcount--;
 	if (xpop->seqcount <= 0)
 		drop_popup(xpop);
+	else {
+		gtk_widget_set_size_request(GTK_WIDGET(xpop->content), -1, 53 * xpop->seqcount);
+		gtk_container_resize_children(GTK_CONTAINER(xpop->content));
+		gtk_container_check_resize(GTK_CONTAINER(xpop->content));
+		gtk_widget_set_size_request(GTK_WIDGET(xpop->popup), -1, 53 * xpop->seqcount + 2);
+		gtk_window_resize(GTK_WINDOW(xpop->popup), -1, 53 * xpop->seqcount + 2);
+		gtk_window_set_default_size(GTK_WINDOW(xpop->popup), -1, 53 * xpop->seqcount + 2);
+		gtk_window_reshow_with_initial_size(GTK_WINDOW(xpop->popup));
+	}
 }
 
 static gboolean
@@ -6610,6 +6619,7 @@ size_request(GtkWidget *widget, GtkRequisition *requisition, gpointer user_data)
 	DPRINTF(1, "view requested size %dx%d\n", requisition->width, requisition->height);
 	if (xpop->popped) {
 #if 0
+		gtk_window_set_default_size(GTK_WINDOW(xpop->popup), requisition->width, requisition->height);
 		gtk_window_reshow_with_initial_size(GTK_WINDOW(xpop->popup));
 #endif
 	}
