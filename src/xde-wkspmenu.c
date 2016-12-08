@@ -5433,7 +5433,7 @@ refresh_desktop(XdeScreen *xscr)
 	gdk_window_set_back_pixmap(root, pixmap, FALSE);
 	gdk_window_clear(root);
 	if (xscr->pixmap) {
-		DPRINTF(1, "killing old unused temporary pixmap 0x%08lx\n", xscr->pixmap);
+		EPRINTF("killing old unused temporary pixmap 0x%08lx\n", xscr->pixmap);
 		XKillClient(GDK_DISPLAY_XDISPLAY(disp), xscr->pixmap);
 	}
 	xscr->pixmap = pmap;

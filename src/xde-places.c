@@ -141,22 +141,35 @@
 /** @section Preamble
   * @{ */
 
+const char *
+timestamp(void)
+{
+	static struct timeval tv = { 0, 0 };
+	static char buf[BUFSIZ];
+	double stamp;
+
+	gettimeofday(&tv, NULL);
+	stamp = (double)tv.tv_sec + (double)((double)tv.tv_usec/1000000.0);
+	snprintf(buf, BUFSIZ-1, "%f", stamp);
+	return buf;
+}
+
 #define XPRINTF(_args...) do { } while (0)
 
 #define DPRINTF(_num, _args...) do { if (options.debug >= _num) { \
-		fprintf(stderr, NAME ": D: %12s: +%4d : %s() : ", __FILE__, __LINE__, __func__); \
+		fprintf(stderr, NAME ": D: [%s] %12s +%4d %s(): ", timestamp(), __FILE__, __LINE__, __func__); \
 		fprintf(stderr, _args); fflush(stderr); } } while (0)
 
 #define EPRINTF(_args...) do { \
-		fprintf(stderr, NAME ": E: %12s +%4d : %s() : ", __FILE__, __LINE__, __func__); \
-		fprintf(stderr, _args); fflush(stderr); } while (0)
+		fprintf(stderr, NAME ": E: [%s] %12s +%4d %s(): ", timestamp(), __FILE__, __LINE__, __func__); \
+		fprintf(stderr, _args); fflush(stderr);   } while (0)
 
 #define OPRINTF(_num, _args...) do { if (options.debug >= _num || options.output > _num) { \
 		fprintf(stdout, NAME ": I: "); \
 		fprintf(stdout, _args); fflush(stdout); } } while (0)
 
 #define PTRACE(_num) do { if (options.debug >= _num || options.output >= _num) { \
-		fprintf(stderr, NAME ": T: %12s +%4d : %s()\n", __FILE__, __LINE__, __func__); \
+		fprintf(stderr, NAME ": T: [%s] %12s +%4d %s()\n", timestamp(), __FILE__, __LINE__, __func__); \
 		fflush(stderr); } } while (0)
 
 void
@@ -5159,7 +5172,7 @@ refresh_desktop(XdeScreen *xscr)
 	gdk_window_set_back_pixmap(root, pixmap, FALSE);
 	gdk_window_clear(root);
 	if (xscr->pixmap) {
-		DPRINTF(1, "killing old unused temporary pixmap 0x%08lx\n", xscr->pixmap);
+		EPRINTF("killing old unused temporary pixmap 0x%08lx\n", xscr->pixmap);
 		XKillClient(GDK_DISPLAY_XDISPLAY(disp), xscr->pixmap);
 	}
 	xscr->pixmap = pmap;
@@ -7179,23 +7192,28 @@ get_default_wmname(void)
 	}
 
 	if (options.display) {
-		Display *dpy = GDK_DISPLAY_XDISPLAY(disp);
 		GdkScreen *scrn = gdk_display_get_default_screen(disp);
 		GdkWindow *wind = gdk_screen_get_root_window(scrn);
 		Window root = GDK_WINDOW_XID(wind);
 		Atom prop = _XA_XDE_WM_NAME;
-		char **list = NULL;
-		int strings = 0;
+		XTextProperty xtp = { NULL, };
 
-		if (get_text_property(dpy, root, prop, &list, &strings)) {
-			if (!options.wmname) {
-				free(options.wmname);
-				options.wmname = strdup(list[0]);
-			} else if (strcmp(options.wmname, list[0]))
-				DPRINTF(1, "default wmname %s different from actual %s\n",
-					options.wmname, list[0]);
-			if (list)
-				XFreeStringList(list);
+		if (XGetTextProperty(dpy, root, &xtp, prop)) {
+			char **list = NULL;
+			int strings = 0;
+
+			if (Xutf8TextPropertyToTextList(dpy, &xtp, &list, &strings) == Success) {
+				if (strings >= 1) {
+					if (!options.wmname) {
+						free(options.wmname);
+						options.wmname = strdup(list[0]);
+					} else if (strcmp(options.wmname, list[0]))
+						DPRINTF(1, "default wmname %s different from actual %s\n",
+							options.wmname, list[0]);
+				}
+				if (list)
+					XFreeStringList(list);
+			}
 		} else {
 			char *name = NULL;
 
@@ -7203,6 +7221,8 @@ get_default_wmname(void)
 			if (name)
 				XFree(name);
 		}
+		if (xtp.value)
+			XFree(xtp.value);
 	} else
 		EPRINTF("cannot determine wmname without DISPLAY\n");
 
@@ -7676,8 +7696,8 @@ main(int argc, char *argv[])
 			goto bad_usage;
 		}
 	}
-	DPRINTF(1, "%s: option index = %d\n", argv[0], optind);
-	DPRINTF(1, "%s: option count = %d\n", argv[0], argc);
+	DPRINTF(1, "option index = %d\n", optind);
+	DPRINTF(1, "option count = %d\n", argc);
 	if (optind < argc) {
 		EPRINTF("excess non-option arguments near '");
 		while (optind < argc) {
