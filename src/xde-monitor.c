@@ -139,14 +139,27 @@
 /** @section Preamble
   * @{ */
 
+static const char *
+_timestamp(void)
+{
+	static struct timeval tv = { 0, 0 };
+	static char buf[BUFSIZ];
+	double stamp;
+
+	gettimeofday(&tv, NULL);
+	stamp = (double)tv.tv_sec + (double)((double)tv.tv_usec/1000000.0);
+	snprintf(buf, BUFSIZ-1, "%f", stamp);
+	return buf;
+}
+
 #define XPRINTF(_args...) do { } while (0)
 
 #define DPRINTF(_num, _args...) do { if (options.debug >= _num) { \
-		fprintf(stderr, NAME ": D: %12s: +%4d : %s() : ", __FILE__, __LINE__, __func__); \
+		fprintf(stderr, NAME ": D: [%s] %12s +%4d %s(): ", _timestamp(), __FILE__, __LINE__, __func__); \
 		fprintf(stderr, _args); fflush(stderr); } } while (0)
 
 #define EPRINTF(_args...) do { \
-		fprintf(stderr, NAME ": E: %12s +%4d : %s() : ", __FILE__, __LINE__, __func__); \
+		fprintf(stderr, NAME ": E: [%s] %12s +%4d %s(): ", _timestamp(), __FILE__, __LINE__, __func__); \
 		fprintf(stderr, _args); fflush(stderr); } while (0)
 
 #define OPRINTF(_num, _args...) do { if (options.debug >= _num || options.output > _num) { \
@@ -154,7 +167,7 @@
 		fprintf(stdout, _args); fflush(stdout); } } while (0)
 
 #define PTRACE(_num) do { if (options.debug >= _num || options.output >= _num) { \
-		fprintf(stderr, NAME ": T: %12s +%4d : %s()\n", __FILE__, __LINE__, __func__); \
+		fprintf(stderr, NAME ": T: [%s] %12s +%4d %s()\n", _timestamp(), __FILE__, __LINE__, __func__); \
 		fflush(stderr); } } while (0)
 
 void

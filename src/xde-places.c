@@ -141,8 +141,8 @@
 /** @section Preamble
   * @{ */
 
-const char *
-timestamp(void)
+static const char *
+_timestamp(void)
 {
 	static struct timeval tv = { 0, 0 };
 	static char buf[BUFSIZ];
@@ -157,11 +157,11 @@ timestamp(void)
 #define XPRINTF(_args...) do { } while (0)
 
 #define DPRINTF(_num, _args...) do { if (options.debug >= _num) { \
-		fprintf(stderr, NAME ": D: [%s] %12s +%4d %s(): ", timestamp(), __FILE__, __LINE__, __func__); \
+		fprintf(stderr, NAME ": D: [%s] %12s +%4d %s(): ", _timestamp(), __FILE__, __LINE__, __func__); \
 		fprintf(stderr, _args); fflush(stderr); } } while (0)
 
 #define EPRINTF(_args...) do { \
-		fprintf(stderr, NAME ": E: [%s] %12s +%4d %s(): ", timestamp(), __FILE__, __LINE__, __func__); \
+		fprintf(stderr, NAME ": E: [%s] %12s +%4d %s(): ", _timestamp(), __FILE__, __LINE__, __func__); \
 		fprintf(stderr, _args); fflush(stderr);   } while (0)
 
 #define OPRINTF(_num, _args...) do { if (options.debug >= _num || options.output > _num) { \
@@ -169,7 +169,7 @@ timestamp(void)
 		fprintf(stdout, _args); fflush(stdout); } } while (0)
 
 #define PTRACE(_num) do { if (options.debug >= _num || options.output >= _num) { \
-		fprintf(stderr, NAME ": T: [%s] %12s +%4d %s()\n", timestamp(), __FILE__, __LINE__, __func__); \
+		fprintf(stderr, NAME ": T: [%s] %12s +%4d %s()\n", _timestamp(), __FILE__, __LINE__, __func__); \
 		fflush(stderr); } } while (0)
 
 void
