@@ -5370,6 +5370,7 @@ refresh_desktop(XdeScreen *xscr)
 #if 1
 		DPRINTF(0, "freeing old unused temporary pixmap 0x%08lx\n", xscr->pixmap);
 		XFreePixmap(GDK_DISPLAY_XDISPLAY(disp), xscr->pixmap);
+		XKillClient(GDK_DISPLAY_XDISPLAY(disp), AllTemporary);
 #else
 		DPRINTF(0, "killing old unused temporary pixmap 0x%08lx\n", xscr->pixmap);
 		XKillClient(GDK_DISPLAY_XDISPLAY(disp), xscr->pixmap);
