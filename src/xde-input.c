@@ -4270,20 +4270,26 @@ read_theme(XdeScreen *xscr)
 static Pixmap
 get_temporary_pixmap(XdeScreen *xscr)
 {
+#if 0
 	Display *dpy;
+#endif
 	Pixmap pmap;
 	int s;
 
+#if 0
 	if (!(dpy = XOpenDisplay(NULL))) {
 		DPRINTF(1, "cannot open display %s\n", getenv("DISPLAY"));
 		return (None);
 	}
 	XSetCloseDownMode(dpy, RetainTemporary);
+#endif
 	s = xscr->index;
 	pmap = XCreatePixmap(dpy, RootWindow(dpy, s), xscr->width, xscr->height, DefaultDepth(dpy, s));
+#if 0
 	XFlush(dpy);
 	XSync(dpy, True);
 	XCloseDisplay(dpy);
+#endif
 	return (pmap);
 }
 

@@ -1,7 +1,7 @@
 
 AC_PREREQ(2.69)
-AC_INIT([xde-ctools],[1.4.50],[http://github.com/bbidulock/xde-ctools],[xde-ctools],[http://github.com/bbidulock/xde-ctools/issues])
-AC_REVISION([1.4.50])
+AC_INIT([xde-ctools],[1.4.52],[http://github.com/bbidulock/xde-ctools],[xde-ctools],[http://github.com/bbidulock/xde-ctools/issues])
+AC_REVISION([1.4.52])
 
 AC_CONFIG_SRCDIR([src/xde-dock.c])
 AC_CONFIG_HEADERS([autoconf.h])
