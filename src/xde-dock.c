@@ -415,7 +415,7 @@ Session Management:\n\
 }
 
 void
-relax()
+relax(void)
 {
 //      XSync(dpy, False);
 	while (gtk_events_pending())
@@ -1237,7 +1237,7 @@ find_dockapps(XdeScreen *xscr)
 	search_kids(xscr, root);
 }
 
-void reparse();
+void reparse(void);
 
 /** @brief Find dock app clients
   *

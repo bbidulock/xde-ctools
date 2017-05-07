@@ -1578,7 +1578,7 @@ edit_get_values(void)
   * The file is an .ini-style keyfile.  Use glib to write out the values.
   */
 void
-save_config()
+save_config(void)
 {
 	GError *error = NULL;
 	gchar *filename, *dir;
@@ -1707,7 +1707,7 @@ edit_put_values(void)
 }
 
 void
-reprocess_input()
+reprocess_input(void)
 {
 	PTRACE(5);
 	edit_get_values();
@@ -1715,7 +1715,7 @@ reprocess_input()
 }
 
 static void
-init_extensions()
+init_extensions(void)
 {
 	Window window = RootWindow(dpy, options.screen);
 	Bool missing = False;

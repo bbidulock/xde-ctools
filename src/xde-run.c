@@ -973,7 +973,7 @@ find_bins(const char *base, const char *subdir)
 }
 
 void
-create_store()
+create_store(void)
 {
 	store = gtk_list_store_new(1, G_TYPE_STRING);
 	char *dirs, *save, *path, *dir;
@@ -1355,7 +1355,7 @@ startup(int argc, char *argv[])
 }
 
 void
-set_defaults()
+set_defaults(void)
 {
 	static const char *rsuffix = "/xde/run-history";
 	static const char *asuffix = "/xde/recent-applications";
