@@ -1,16 +1,81 @@
-xde-ctools -- history of user-visible changes.  2016-07-12
+xde-ctools -- history of user-visible changes.  2017-07-23
+
+Release xde-ctools-1.5 released 2017-07-23
+------------------------------------------
+
+git shortlog -e -n -w80,6,8 1.4...1.5
+
+Brian Bidulock <bidulock@openss7.org> (56):
+      correct a few problems with blanking and exposures
+      start of a feedback for launchers
+      xde-monitor knows about autostart and xsession now
+      xde-monitor feedback working better
+      xde-monitor works ok: now themes
+      a few fixups
+      working up new xde-monitor
+      working up new approach to several tools
+      working up various tools
+      correct sequence handling
+      compiles, working up feedback
+      add resource get and put
+      big workup compiles
+      find the correct monitor
+      convert to use monitors
+      rationalize
+      rationalize
+      rationalize
+      updates from xde-menu, compiles
+      rationalize xde-winlist
+      rationalize xde-wkspmenu
+      more rationalization
+      more rationalization
+      more rationalization of similar programs
+      more rationalization of popup programs
+      rationalize xde-places
+      more updates to common methods
+      xde-monitor works good now
+      update TODO
+      note monitor todos
+      compiles
+      still compiles
+      rationalize back to xde-menu
+      rationalize to xde-menu
+      install app-defaults files
+      add more app-defaults
+      rationalize xde-wkspmenu
+      rationalize menus
+      correct xde-setbg
+      propagage xde-setbg changes to xde-pager
+      rationalize some more
+      xde-pager works now
+      rationalize back
+      some manual updates
+      missed one when rationalizing
+      do not mess with default sizes
+      missed two programs on last rationalization
+      fix DPMS state and file places
+      resize icon view on deletion
+      display when killing pixmap clients
+      add timestamps to debug messages
+      try just freeing old pixmaps
+      do not us temporary pixmaps
+      kill temporaries now too
+      strict prototypes
+      more rationalization
+
 
 Release xde-ctools-1.4 released 2016-07-12
 ------------------------------------------
 
 git shortlog -e -n -w80,6,8 1.3...1.4
 
-Brian Bidulock <bidulock@openss7.org> (5):
+Brian Bidulock <bidulock@openss7.org> (6):
       git hates trailing space
       better formatting
       limit changelog
       added xde-input to ctools
       move xde-setbg .desktop files here from xde-session
+      update release files
 
 
 Release xde-ctools-1.3 released 2016-07-09
