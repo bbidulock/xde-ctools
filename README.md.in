@@ -66,11 +66,11 @@ Report problems at GitHub [here][7].
 
 
 [1]: https://github.com/bbidulock/@PACKAGE@
-[2]: NEWS
-[3]: ChangeLog
-[4]: TODO
-[5]: INSTALL
-[6]: COPYING
+[2]: https://github.com/bbidulock/@PACKAGE@/blob/@BRANCH@/NEWS
+[3]: https://github.com/bbidulock/@PACKAGE@/blob/@BRANCH@/ChangeLog
+[4]: https://github.com/bbidulock/@PACKAGE@/blob/@BRANCH@/TODO
+[5]: https://github.com/bbidulock/@PACKAGE@/blob/@BRANCH@/INSTALL
+[6]: https://github.com/bbidulock/@PACKAGE@/blob/@BRANCH@/COPYING
 [7]: https://github.com/bbidulock/@PACKAGE@/issues
 
 [ vim: set ft=markdown sw=4 tw=72 nocin nosi fo+=tcqlorn spell: ]: #
