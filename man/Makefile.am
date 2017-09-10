@@ -49,7 +49,7 @@ EXTRA_DIST = \
 SUFFIXES = .man .pod
 
 .pod.man:
-	pod2man --center="User Commands" \
+	$(AM_V_GEN)pod2man --center="User Commands" \
 		--date="$(DATE)" \
 		--errors="none" \
 		--fixed="CW" \
