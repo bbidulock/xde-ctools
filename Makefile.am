@@ -62,13 +62,13 @@ README: README.md
 	$(AM_V_GEN)cat $< | fmt -sct -w80 -g72 >$@
 
 README.html: README.md
-	$(AM_V_GEN)markdown $< >$@
+	$(AM_V_GEN)$(MARKDOWN) $< >$@
 
 README.txt: README.html
-	$(AM_V_GEN)links -dump -width 80 -codepage utf-8 $< >$@
+	$(AM_V_GEN)$(LINKS) -dump -width 80 $< >$@
 
 EXTRA_DIST += KEYS.html KEYS.adoc
 
 KEYS.html: KEYS.adoc
-	$(AM_V_GEN)asciidoc -b html -o $@ $<
+	$(AM_V_GEN)$(ASCIIDOC) -b html -o $@ $<
 

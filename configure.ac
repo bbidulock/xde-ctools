@@ -29,6 +29,18 @@ AM_PROG_AR
 AC_PROG_MKDIR_P
 LT_PATH_LD
 
+AC_ARG_VAR([MARKDOWN],[markdown command. @<:@default=markdown@:>@])
+AC_CHECK_PROGS([MARKDOWN],[markdown],[${am_missing_run}markdown],[$PATH])
+
+AC_ARG_VAR([ASCIIDOC],[asciidoc command. @<:@default=asciidoctor@:>@])
+AC_CHECK_PROGS([ASCIIDOC],[asciidoctor asciidoc],[${am_missing_run}asciidoctor],[$PATH])
+
+AC_ARG_VAR([LINKS],[links command. @<:@default=lynx@:>@])
+AC_CHECK_PROGS([LINKS],[lynx links],[${am_missing_run}lynx],[$PATH])
+if test "$LINKS" = "links"; then
+	LINKS="links -codepage utf-8"
+fi
+
 AC_DISABLE_STATIC
 LT_PREREQ([2.4.2])
 LT_INIT([dlopen])
