@@ -824,18 +824,25 @@ put_run_history(GList **hist)
 {
 	char *file;
 	FILE *f;
+	int dummy;
 
 	file = options.xdg ? options.recapps : options.runhist;
-	if ((f = fopen(file, "w"))) {
-		int dummy;
+	if (!(f = fopen(file, "w+"))) {
+		gchar *dirname = g_path_get_dirname(file);
 
-		dummy = lockf(fileno(f), F_LOCK, 0);
-		g_list_foreach(*hist, history_write, f);
-		fflush(f);
-		dummy = lockf(fileno(f), F_ULOCK, 0);
-		fclose(f);
-		(void) dummy;
+		g_mkdir_with_parents(dirname, 0755);
+		g_free(dirname);
+		if (!(f = fopen(file, "w+"))) {
+			EPRINTF("open: could not open history file %s: %s\n", file, strerror(errno));
+			return;
+		}
 	}
+	dummy = lockf(fileno(f), F_LOCK, 0);
+	g_list_foreach(*hist, history_write, f);
+	fflush(f);
+	dummy = lockf(fileno(f), F_ULOCK, 0);
+	fclose(f);
+	(void) dummy;
 }
 
 void
