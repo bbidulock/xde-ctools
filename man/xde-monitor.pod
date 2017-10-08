@@ -125,7 +125,7 @@ notification C<new> or C<change> messages, B<xde-monitor> also checks
 the desktop file corresponding to the startup notification sequence to
 determine whether appropriate information has been provided in the
 desktop entry file that is consistent with the behavior of the launched
-application.  To perform these functions, B<xde-monitor> takes the
+desktop application.  To perform these functions, B<xde-monitor> takes the
 following steps:
 
 =over
@@ -145,16 +145,16 @@ C<new:> and C<change:> messages:
 
 =item C<LAUNCHER=>
 
-Provides the name of the program that launched the staring application.
-Examined to determine the specific launcher that was used to launch the
-application and work around potential defects or deficiencies in
-specific launchers.
+Provides the name of the program that launched the staring desktop
+application.  Examined to determine the specific launcher that was used
+to launch the desktop application and work around potential defects or
+deficiencies in specific launchers.
 
 =item C<LAUNCHEE=>
 
 Provides the name of the program being launched.  This is often either
-the name of the application identifier of a desktop file, or the name of
-the binary program being launched.
+the name of the desktop application identifier of a desktop file, or the
+name of the binary program being launched.
 
 =item C<SEQUENCE=>
 
@@ -165,14 +165,19 @@ instance.
 
 =item C<ID=>
 
-Provide a unique identifier of the launch instance.  This identifier is
+Provides a unique identifier of the launch instance.  This identifier is
 also placed in the B<DESKTOP_STARTUP_ID> environment variable of the
 launched process.  It is also placed in the B<_NET_STARTUP_ID> property
-on the leader window of a application that creates windows.  Examined
-for comparison against the B<DESKTOP_STARTUP_ID> of processes along with
-the B<_NET_STARTUP_ID> property on windows.
+on the leader window of an desktop application that creates windows.
+Examined for comparison against the B<DESKTOP_STARTUP_ID> of processes
+along with the B<_NET_STARTUP_ID> property on windows.
 
 =item C<NAME=>
+
+Provides the name of the desktop application.
+The window manager may use this field to populate then B<WM_NAME>,
+B<_NET_WM_NAME> or B<_NET_WM_VISIBLE_NAME> properties when they are
+missing or empty.
 
 =item C<ICON=>
 
@@ -183,32 +188,98 @@ display can also be taken from the C<Icon> field in the desktop entry
 file.  When a leader window can be identified (by B<_NET_PID> or
 B<_NET_STARTUP_ID> properties), the icon associated with the window can
 also be used.
+The window manager may use this field to establish an icon for the
+window when the B<WM_ICON>, B<_NET_WM_ICON> or B<_KDE_NET_WM_ICON>
+properties are  missing or otherwise unusable.
 
 =item C<BIN=>
 
+Provides the name of the binary for the desktop application.
+
 =item C<DESCRIPTION=>
+
+Provides a short description of the desktop application.
 
 =item C<WMCLASS=>
 
+Provides the window manager class (matched against the C<res_name> or
+C<res_class> of the C<WM_CLASS> property on a window), of the top-level
+window that the desktop application is expected to map.
+The window manager mau use this field to associate a startup
+notification sequence with a newly mapped top-level window.
+
 =item C<SILENT=>
+
+Provides a boolean value (0/1) choosing whether visual feedback should
+be provided for the launching desktop application.  Normally when
+unspecified, visual feedback would be determined from the presence of a
+C<StartupNotify> or C<StartupSMClass> field in the desktop entry file.
 
 =item C<APPLICATION_ID=>
 
+Provides the name of the desktop entry file for the desktop application.
+
 =item C<DESKTOP=>
+
+Provides the desktop on which the desktop application is to launch.
+The window manager may use this field to populate the
+B<_NET_WM_DESKTOP>, B<_WIN_WORKSPACE> or B<_DT_WORKSPACE_PRESENCE>
+property when missing or otherwise unspecified.
 
 =item C<SCREEN=>
 
+Provides the screen on which the desktop application is to launch.
+The window manager may use this field to choose the Xinerama (or RANDR)
+or multi-head screen on which the top-level window (group) will be
+mapped.  When it specifies a Xinerama (or RANDR) screen, it may also be
+used to populate the B<_NET_WM_FULLSCREEN_MONITORS> property when it is
+missing.
+
 =item C<MONITOR=>
+
+Provides the monitor on which the desktop application is to launch.  The
+window manager may use this field to choose the Xinerama (or RANDR)
+screen on which the top-level window (group) will be mapped.  It may
+also be used to populate the B<_NET_WM_FULLSCREEN_MONITORS> property
+when it is missing.
 
 =item C<TIMESTAMP=>
 
+Provides the X Server time stamp that corresponds to the X window event
+that caused the launch to occur.  The time stamp is also often used
+within the C<APPLICATION_ID> field, following the literal string
+C<_TIME>.  The window manager may use this field to populate the
+B<_NET_WM_USER_TIME> property when it is missing.  This field can also
+be derived from the C<ID> field.
+
 =item C<PID=>
+
+Provides the process identifier for the launch sequence.  This is
+usually the process identifier of the process executing the application.
+The window manager may use this field to populate the B<_NET_WM_PID>
+property when it is missing.  This field can also be derived from the
+C<ID> field.
 
 =item C<HOSTNAME=>
 
+Provides the fully qualified domain name of the host launching the
+desktop application.  The window manager may use this field to populate
+the B<WM_CLIENT_MACHINE> property when it is missing or not a fully
+qualified domain name.
+
 =item C<COMMAND=>
 
+The window manager may use this field when the B<WM_COMMAND> property is
+missing (and for the same purposes).  Because rather complicated shell
+expansion would be required to expand the command, it cannot be used to
+populate the B<WM_COMMAND> property; however, it may be executed by
+passing it literally as a shell command.  I suppose one could populate
+the B<WM_COMMAND> using L<wordexp(3)>.
+
 =item C<ACTION=>
+
+Specifies the desktop application action to perform instead of the
+default action.
 
 =item C<FILE=>
 
