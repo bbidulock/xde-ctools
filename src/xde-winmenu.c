@@ -714,6 +714,44 @@ on_selection_done(GtkMenuShell *menushell, gpointer user_data)
 	gtk_main_quit();
 }
 
+static int
+have_button(int button)
+{
+	if (button) {
+		GdkWindow *root = gdk_get_default_root_window();
+		GdkDevice *device = gdk_device_get_core_pointer();
+		GdkModifierType mask = 0;
+
+		gdk_device_get_state(device, root, NULL, &mask);
+
+		switch(button) {
+		case 1:
+			if ((mask & GDK_BUTTON1_MASK))
+				return (button);
+			break;
+		case 2:
+			if ((mask & GDK_BUTTON2_MASK))
+				return (button);
+			break;
+		case 3:
+			if ((mask & GDK_BUTTON3_MASK))
+				return (button);
+			break;
+		case 4:
+			if ((mask & GDK_BUTTON4_MASK))
+				return (button);
+			break;
+		case 5:
+			if ((mask & GDK_BUTTON5_MASK))
+				return (button);
+			break;
+		default:
+			break;
+		}
+	}
+	return (0);
+}
+
 void
 do_popup(int argc, char *argv[])
 {
@@ -742,7 +780,7 @@ do_popup(int argc, char *argv[])
 	g_signal_connect(G_OBJECT(menu), "selection-done",
 			 G_CALLBACK(on_selection_done), NULL);
 	gtk_menu_popup(GTK_MENU(menu), NULL, NULL, position_menu, wind,
-		       options.button, options.timestamp);
+		       have_button(options.button), options.timestamp);
 	gtk_main();
 }
 

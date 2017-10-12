@@ -6951,6 +6951,44 @@ fork_and_exit(void)
 }
 #endif
 
+static int
+have_button(int button)
+{
+	if (button) {
+		GdkWindow *root = gdk_get_default_root_window();
+		GdkDevice *device = gdk_device_get_core_pointer();
+		GdkModifierType mask = 0;
+
+		gdk_device_get_state(device, root, NULL, &mask);
+
+		switch(button) {
+		case 1:
+			if ((mask & GDK_BUTTON1_MASK))
+				return (button);
+			break;
+		case 2:
+			if ((mask & GDK_BUTTON2_MASK))
+				return (button);
+			break;
+		case 3:
+			if ((mask & GDK_BUTTON3_MASK))
+				return (button);
+			break;
+		case 4:
+			if ((mask & GDK_BUTTON4_MASK))
+				return (button);
+			break;
+		case 5:
+			if ((mask & GDK_BUTTON5_MASK))
+				return (button);
+			break;
+		default:
+			break;
+		}
+	}
+	return (0);
+}
+
 static void
 do_run(int argc, char *argv[])
 {
@@ -6971,14 +7009,8 @@ do_run(int argc, char *argv[])
 		exit(EXIT_FAILURE);
 	}
 	g_signal_connect(G_OBJECT(menu), "selection-done", G_CALLBACK(selection_done), NULL);
-#if 0
-	/* mucks up dynamic cascading menus launched with pointer */
 	gtk_menu_popup(GTK_MENU(menu), NULL, NULL, position_menu, xmon,
-		       options.button, options.timestamp);
-#else
-	gtk_menu_popup(GTK_MENU(menu), NULL, NULL, position_menu, xmon,
-		       0, options.timestamp);
-#endif
+		       have_button(options.button), options.timestamp);
 	mainloop();
 }
 
