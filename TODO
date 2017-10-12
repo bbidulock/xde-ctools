@@ -1,13 +1,13 @@
-xde-ctools -- TODO file.  2016-07-02
+xde-ctools -- TODO file.  2017-10-12
 
 Work to do on commands:
 
-xde-app: works pretty good
+xde-app: works really good
 
 - [X] this is an xdg application launcher much like a command
       dialog but launches XDG programs.
-- [ ] I think that it is finished.
-- [ ] convert program to use GtkRecentManager object.
+- [X] I think that it is finished.
+- [?] convert program to use GtkRecentManager object.
 
 xde-clip: does not do much yet
 
@@ -40,11 +40,11 @@ xde-feedback: not fully functional yet
 - [ ] Supposed to do what five other feedback programs do.
 - [ ] Complete documentation (manual page)
 
-xde-input: partially functional
+xde-input: works really well
 
 - [X] Supposed to do what xset does and more.
 - [X] Complete documentation (manual page)
-- [ ] Fix problems with DPMS, Blanking and Exposures.
+- [X] Fix problems with DPMS, Blanking and Exposures.
 
 xde-keys: not fully functional yet
 
@@ -62,14 +62,14 @@ xde-monitor: works good now
       in startup notification.
 - [ ] Complete documentation (manual page)
 
-xde-pager: works pretty good
+xde-pager: works really well
 
 - [X] Complete documentation (manual page)
 - [X] I use this one all the time.  It think that it is finished.
-- [ ] Might want to provide a keyboard-only option.
+- [?] Might want to provide a keyboard-only option.
 - [ ] Fix harmful interaction with icewm edge page switcher.
 
-xde-places: works pretty good
+xde-places: works really good
 
 - [X] Complete documentation (manual page)
 - [X] I use this one often.  I think that it is finished.
@@ -90,8 +90,8 @@ xde-recent: works well
 xde-run: works pretty good
 
 - [X] this is a command application launcher similar to xde-app.
-- [ ] I think that it is finished.
-- [ ] convert program to use GtkRecentManager object.
+- [X] I think that it is finished.
+- [?] convert program to use GtkRecentManager object.
 
 xde-select: not fully functional yet
 
@@ -121,7 +121,7 @@ xde-winlist: works pretty good.
 - [ ] convert to consider monitors when listing windows.  Unless all
       monitors are selected, only show windows on the active monitor.
 
-xde-winmenu: works pretty good
+xde-winmenu: works really good
 
 - [X] this is a command that can be used to popup a window menu
       for any window.  Note that it uses libwnck++ which is needed
@@ -134,7 +134,7 @@ xde-winmenu: works pretty good
 - [ ] convert to consider monitors when listing windows.  Unless all
       monitors are selected, only show windows on the active monitor.
 
-xde-wkspmenu: works well
+xde-wkspmenu: works really good
 
 - [X] Start documentation (manual page)
 - [X] Complete documentation (manual page)
