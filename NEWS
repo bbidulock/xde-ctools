@@ -1,11 +1,43 @@
-xde-ctools -- history of user-visible changes.  2017-07-23
+xde-ctools -- history of user-visible changes.  2017-10-12
 
-Release xde-ctools-1.5 released 2017-07-23
+Release xde-ctools-1.6 released 2017-10-12
+------------------------------------------
+
+git shortlog -e -n -w80,6,8 1.5...1.6
+
+Brian Bidulock <bidulock@openss7.org> (24):
+      more quiet
+      be more quiet
+      updated copyright statements
+      use .adoc suffix for asciidoc files
+      find the right program
+      include branch in cross-references
+      add branch to subst
+      more checks
+      update make flags
+      silent now default
+      more manpage rules
+      substitute branches too
+      tweaks
+      update readmes
+      more conditionals
+      add mandir
+      build faster
+      better changelog, handle asciidoc
+      better xde-monitor documentation
+      create history files
+      Merge branch 'master' of github.com:bbidulock/xde-ctools
+      only pop menu with button when it is still down
+      build tweaks
+      update TODO
+
+
+Release xde-ctools-1.5 released 2017-07-27
 ------------------------------------------
 
 git shortlog -e -n -w80,6,8 1.4...1.5
 
-Brian Bidulock <bidulock@openss7.org> (56):
+Brian Bidulock <bidulock@openss7.org> (57):
       correct a few problems with blanking and exposures
       start of a feedback for launchers
       xde-monitor knows about autostart and xsession now
@@ -62,6 +94,7 @@ Brian Bidulock <bidulock@openss7.org> (56):
       kill temporaries now too
       strict prototypes
       more rationalization
+      update release files
 
 
 Release xde-ctools-1.4 released 2016-07-12
@@ -445,13 +478,4 @@ Brian Bidulock <bidulock@openss7.org> (207):
       update NEWS file for release
       update autogen for better release
       update README.md for release
-
-
-Release xde-ctools-0.1 released 2014-05-30
-------------------------------------------
-
-git shortlog -e -n -w80,6,8 0.1
-
-Brian Bidulock <bidulock@openss7.org> (1):
-      initial commit
 
