@@ -5,7 +5,7 @@ Release xde-ctools-1.6 released 2017-10-12
 
 git shortlog -e -n -w80,6,8 1.5...1.6
 
-Brian Bidulock <bidulock@openss7.org> (24):
+Brian Bidulock <bidulock@openss7.org> (25):
       more quiet
       be more quiet
       updated copyright statements
@@ -30,6 +30,7 @@ Brian Bidulock <bidulock@openss7.org> (24):
       only pop menu with button when it is still down
       build tweaks
       update TODO
+      update release files
 
 
 Release xde-ctools-1.5 released 2017-07-27
