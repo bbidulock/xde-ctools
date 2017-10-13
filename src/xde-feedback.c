@@ -374,6 +374,7 @@ typedef struct {
 	char *display;
 	int screen;
 	int monitor;
+	double opacity;
 	Time timeout;
 	unsigned iconsize;
 	double fontsize;
@@ -456,6 +457,7 @@ Options options = {
 	.display = NULL,
 	.screen = -1,
 	.monitor = 0,
+	.opacity = 0.75,
 	.timeout = 1000,
 	.iconsize = 48,
 	.fontsize = 12.0,
@@ -897,7 +899,7 @@ static const char *KFK_XKeyboard_BounceKeysEnabled = "BounceKeysEnabled";
 static const char *KFK_XKeyboard_ControlsEnabledEnabled = "ControlsEnabledEnabled";
 static const char *KFK_XKeyboard_DebounceDelay = "DebounceDelay";
 static const char *KFK_XKeyboard_GroupsWrapEnabled = "GroupsWrapEnabled";
-static const char *KFK_XKeyboard_IgnoreGroupLockModsEnabled = "IgnoreGroupLockModsEnabled";
+static const char *KFK_XKeyboard_IgnoreGroupLockEnabled = "IgnoreGroupLockEnabled";
 static const char *KFK_XKeyboard_IgnoreLockModsEnabled = "IgnoreLockModsEnabled";
 static const char *KFK_XKeyboard_InternalModsEnabled = "InternalModsEnabled";
 static const char *KFK_XKeyboard_MouseKeysAccelEnabled = "MouseKeysAccelEnabled";
@@ -909,7 +911,7 @@ static const char *KFK_XKeyboard_MouseKeysInterval = "MouseKeysInterval";
 static const char *KFK_XKeyboard_MouseKeysMaxSpeed = "MouseKeysMaxSpeed";
 static const char *KFK_XKeyboard_MouseKeysTimeToMax = "MouseKeysTimeToMax";
 static const char *KFK_XKeyboard_Overlay1MaskEnabled = "Overlay1MaskEnabled";
-static const char *KFK_XKeyboard_Overlay2MaskEnabled = "Overlay2MaskENabled";
+static const char *KFK_XKeyboard_Overlay2MaskEnabled = "Overlay2MaskEnabled";
 static const char *KFK_XKeyboard_PerKeyRepeatEnabled = "PerKeyRepeatEnabled";
 const char *KFK_XKeyboard_PerKeyRepeat = "PerKeyRepeat";
 static const char *KFK_XKeyboard_RepeatDelay = "RepeatDelay";
@@ -2304,6 +2306,7 @@ show_popup(XdeScreen *xscr, XdePopup *xpop, gboolean grab_p, gboolean grab_k)
 			// gtk_window_set_default_size(GTK_WINDOW(xpop->popup), 300, n * 24);
 			gtk_widget_set_size_request(GTK_WIDGET(xpop->popup), 300, n * 24);
 		}
+		gtk_window_set_opacity(GTK_WINDOW(xpop->popup), options.opacity);
 		gtk_window_set_screen(GTK_WINDOW(xpop->popup), gdk_display_get_screen(disp, xscr->index));
 		gtk_window_set_position(GTK_WINDOW(xpop->popup), GTK_WIN_POS_CENTER_ALWAYS);
 		gtk_window_present(GTK_WINDOW(xpop->popup));
@@ -3868,7 +3871,7 @@ put_keyfile(void)
 				       state.XKeyboard.desc->ctrls->enabled_ctrls &
 				       XkbOverlay2Mask ? TRUE : FALSE);
 		g_key_file_set_boolean(file, KFG_XKeyboard,
-				       KFK_XKeyboard_IgnoreGroupLockModsEnabled,
+				       KFK_XKeyboard_IgnoreGroupLockEnabled,
 				       state.XKeyboard.desc->ctrls->enabled_ctrls &
 				       XkbIgnoreGroupLockMask ? TRUE : FALSE);
 		g_key_file_set_boolean(file, KFG_XKeyboard,
@@ -3955,7 +3958,7 @@ get_resource(XrmDatabase xrdb, const char *resource, const char *dflt)
 }
 
 Bool
-getXrmColor(const char *val, GdkColor ** color)
+getXrmColor(const char *val, GdkColor **color)
 {
 	GdkColor c, *p;
 
@@ -3970,7 +3973,7 @@ getXrmColor(const char *val, GdkColor ** color)
 }
 
 Bool
-getXrmFont(const char *val, PangoFontDescription ** face)
+getXrmFont(const char *val, PangoFontDescription **face)
 {
 	FcPattern *pattern;
 	PangoFontDescription *font;
@@ -6063,7 +6066,8 @@ update_icon_theme(XdeScreen *xscr, Atom prop)
 	if (changed) {
 		DPRINTF(1, "New icon theme is %s\n", xscr->itheme);
 		/* FIXME: do something more about it. */
-	}
+	} else
+		DPRINTF(1, "No change in current icon theme %s\n", xscr->itheme);
 }
 
 static void
@@ -7764,7 +7768,9 @@ Options:\n\
     -s, --screen SCREEN\n\
         specify the screen number, SCREEN, to use [default: %5$s]\n\
     -M, --monitor MONITOR\n\
-        specify the monitor numer, MONITOR, to use [default: %6$s]\n\
+        specify the monitor number, MONITOR, to use [default: %6$s]\n\
+    -o, --opacity OPACITY\n\
+        specify the opacity factor, OPACITY, to use for popups [default: %34$g]\n\
     -f, --filename FILENAME\n\
         use the file, FILENAME, for configuration [default: %7$s]\n\
     -t, --timeout MILLISECONDS\n\
@@ -7865,6 +7871,7 @@ Session Management:\n\
 	, options.fontsize
 	, options.border
 	, show_bool(options.proxy)
+	, options.opacity
 );
 	/* *INDENT-ON* */
 }
@@ -8328,6 +8335,7 @@ main(int argc, char *argv[])
 	while (1) {
 		int c, val, len;
 		char *endptr = NULL;
+		double dbl;
 
 #ifdef _GNU_SOURCE
 		int option_index = 0;
@@ -8336,6 +8344,7 @@ main(int argc, char *argv[])
 			{"display",		required_argument,	NULL,	'd'},
 			{"screen",		required_argument,	NULL,	's'},
 			{"monitor",		required_argument,	NULL,	'M'},
+			{"opacity",		required_argument,	NULL,	'o'},
 
 			{"timeout",		required_argument,	NULL,	'u'},
 			{"iconsize",		required_argument,	NULL,	'z'},
@@ -8384,10 +8393,10 @@ main(int argc, char *argv[])
 		};
 		/* *INDENT-ON* */
 
-		c = getopt_long_only(argc, argv, "d:s:M:t:z:Z:B:f:T:PKb:w:W:pk:O:cnHmaANURyeFSrqD::v::hVC?",
+		c = getopt_long_only(argc, argv, "d:s:M:o:t:z:Z:B:f:T:PKb:w:W:pk:O:cnHmaANURyeFSrqD::v::hVC?",
 				     long_options, &option_index);
 #else				/* _GNU_SOURCE */
-		c = getopt(argc, argv, "d:s:M:t:z:Z:B:f:T:PKb:w:W:pk:O:cnHmaANURyeFSrqD:vhVC?");
+		c = getopt(argc, argv, "d:s:M:o:t:z:Z:B:f:T:PKb:w:W:pk:O:cnHmaANURyeFSrqD:vhVC?");
 #endif				/* _GNU_SOURCE */
 		if (c == -1) {
 			DPRINTF(1, "%s: done options processing\n", argv[0]);
@@ -8413,6 +8422,12 @@ main(int argc, char *argv[])
 			if (endptr && *endptr)
 				goto bad_option;
 			options.monitor = val;
+			break;
+		case 'o':	/* -o, --opacity OPACITY */
+			dbl = strtod(optarg, &endptr);
+			if (endptr && *endptr)
+				goto bad_option;
+			options.opacity = dbl;
 			break;
 
 		case 'u':	/* -u, --timeout MILLISECONDS */
