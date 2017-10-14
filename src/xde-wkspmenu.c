@@ -646,7 +646,7 @@ window_menu(GtkWidget *item, GdkEvent *event, gpointer user_data)
 	g_signal_connect(G_OBJECT(menu), "selection_done", G_CALLBACK(selection_done), NULL);
 	parent = gtk_widget_get_parent(item);
 	/* FIXME: need a menu position function like menu cascading. */
-	gtk_menu_popup(GTK_MENU(menu), parent, item, 
+	gtk_menu_popup(GTK_MENU(menu), parent, item,
 			NULL, NULL, ev->button, ev->time);
 	return GTK_EVENT_STOP;
 #else
@@ -793,7 +793,7 @@ popup_menu_new(XdeMonitor *xmon)
 		break;
 	}
 	/* FIXME: wnck does not know about multi-head EWMH/NetWM support.  Need to get
-	   the active workspace for the monitor (which with multi-head EWMH/NetWM support 
+	   the active workspace for the monitor (which with multi-head EWMH/NetWM support
 	   is the n+1'th entry in _NET_CURRENT_DESKTOP, where n is the monitor index
 	   (from zero).  Then, when selecting windows (except when --all-monitors is
 	   specified) only select windows that are on the active monitor.  The active

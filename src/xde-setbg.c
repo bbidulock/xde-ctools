@@ -202,6 +202,8 @@ const char *program = NAME;
 #define XA_SELECTION_NAME	XA_PREFIX "_S%d"
 #define XA_NET_DESKTOP_LAYOUT	"_NET_DESKTOP_LAYOUT_S%d"
 #define LOGO_NAME		"preferences-desktop"
+#define XDE_DESCRIP		"An XDG compliant background changer."
+#define XDE_DEFKEYS		"AC+Left:AC+Right"
 
 static int saveArgc;
 static char **saveArgv;
@@ -459,7 +461,7 @@ Options options = {
 	.display = NULL,
 	.screen = -1,
 	.monitor = 0,
-	.opacity = 0.75,
+	.opacity = 0.0,
 	.timeout = 1000,
 	.iconsize = 48,
 	.fontsize = 12.0,
@@ -507,6 +509,7 @@ Options options = {
 	.clientId = NULL,
 	.saveFile = NULL,
 	.show = {
+		 .winds = False,
 		 .pager = False,
 		 .tasks = False,
 		 .cycle = False,
@@ -2297,6 +2300,7 @@ show_popup(XdeScreen *xscr, XdePopup *xpop, gboolean grab_p, gboolean grab_k)
 		}
 		if (xpop->type == PopupTasks) {
 			GtkWidget *tasks = xpop->content;
+#if 1
 			GList *children;
 			int n;
 
@@ -2306,8 +2310,27 @@ show_popup(XdeScreen *xscr, XdePopup *xpop, gboolean grab_p, gboolean grab_k)
 
 			// gtk_window_set_default_size(GTK_WINDOW(xpop->popup), 300, n * 24);
 			gtk_widget_set_size_request(GTK_WIDGET(xpop->popup), 300, n * 24);
+#else
+			const int *hints;
+			int num = 0, width = 10 + 2*options.border, height = 10 + 2*options.border;
+			if ((hints = wnck_tasklist_get_size_hint_list(WNCK_TASKLIST(tasks), &num))) {
+				int i = 0, n = num>>1;
+				const int *hint = hints;
+
+				for (; i < n; i++, hint +=2) {
+					int w = hint[0] + 10 + 2*options.border;
+					int h = hint[1];
+
+					DPRINTF(0, "processing hint %d: (%d x %d)\n", i, w, h);
+					width = w > width ? w : width;
+					height += h;
+				}
+			}
+			gtk_widget_set_size_request(GTK_WIDGET(xpop->popup), width, height);
+#endif
 		}
-		gtk_window_set_opacity(GTK_WINDOW(xpop->popup), options.opacity);
+		if (options.opacity)
+			gtk_window_set_opacity(GTK_WINDOW(xpop->popup), options.opacity);
 		gtk_window_set_screen(GTK_WINDOW(xpop->popup), gdk_display_get_screen(disp, xscr->index));
 		gtk_window_set_position(GTK_WINDOW(xpop->popup), GTK_WIN_POS_CENTER_ALWAYS);
 		gtk_window_present(GTK_WINDOW(xpop->popup));
@@ -2996,6 +3019,15 @@ del_sequence(XdePopup *xpop, Sequence *seq)
 	xpop->seqcount--;
 	if (xpop->seqcount <= 0)
 		drop_popup(xpop);
+	else {
+		gtk_widget_set_size_request(GTK_WIDGET(xpop->content), -1, 53 * xpop->seqcount);
+		gtk_container_resize_children(GTK_CONTAINER(xpop->content));
+		gtk_container_check_resize(GTK_CONTAINER(xpop->content));
+		gtk_widget_set_size_request(GTK_WIDGET(xpop->popup), -1, 53 * xpop->seqcount + 2);
+		gtk_window_resize(GTK_WINDOW(xpop->popup), -1, 53 * xpop->seqcount + 2);
+		gtk_window_set_default_size(GTK_WINDOW(xpop->popup), -1, 53 * xpop->seqcount + 2);
+		gtk_window_reshow_with_initial_size(GTK_WINDOW(xpop->popup));
+	}
 }
 
 static gboolean
@@ -3709,6 +3741,8 @@ put_resources(void)
 	if ((val = putXrmInt(options.output)))
 		put_resource(rdb, "verbose", val);
 	/* put a bunch of resources */
+	if ((val = putXrmDouble(options.opacity)))
+		put_resource(rdb, "opacity", val);
 	if ((val = putXrmTime(options.timeout)))
 		put_resource(rdb, "timeout", val);
 	if ((val = putXrmUint(options.iconsize)))
@@ -4297,6 +4331,8 @@ get_resources(void)
 	if ((val = get_resource(rdb, "verbose", NULL)))
 		getXrmInt(val, &options.output);
 	/* get a bunch of resources */
+	if ((val = get_resource(rdb, "opacity", "0.0")))
+		getXrmDouble(val, &options.opacity);
 	if ((val = get_resource(rdb, "timeout", "1000")))
 		getXrmTime(val, &options.timeout);
 	if ((val = get_resource(rdb, "iconsize", "48")))
@@ -4406,7 +4442,7 @@ about_selected(GtkMenuItem *item, gpointer user_data)
 	gchar *authors[] = { "Brian F. G. Bidulock <bidulock@openss7.org>", NULL };
 	gtk_show_about_dialog(NULL,
 			      "authors", authors,
-			      "comments", "An XDG compliant background changer.",
+			      "comments", XDE_DESCRIP,
 			      "copyright", "Copyright (c) 2013, 2014, 2015, 2016, 2017  OpenSS7 Corporation",
 			      "license", "Do what thou wilt shall be the whole of the law.\n\n-- Aleister Crowley",
 			      "logo-icon-name", LOGO_NAME,
@@ -6589,21 +6625,27 @@ term_signal_handler(gpointer data)
 /** @section Initialization
   * @{ */
 
+static void size_request(GtkWidget *widget, GtkRequisition *requisition, gpointer user_data);
+
 static void
-add_winds(XdeScreen *xscr, XdePopup *xpop, GtkWidget *popup)
+add_winds(XdeScreen *xscr, XdePopup *xpop, GtkWidget *popup, GtkWidget *hbox)
 {
 	GtkWidget *winds = wnck_selector_new();
 
 	gtk_menu_bar_set_pack_direction(GTK_MENU_BAR(winds), GTK_PACK_DIRECTION_TTB);
 	gtk_menu_bar_set_child_pack_direction(GTK_MENU_BAR(winds), GTK_PACK_DIRECTION_LTR);
+
+//	g_signal_connect(G_OBJECT(winds), "size_request", G_CALLBACK(size_request), xpop);
+
+	gtk_box_pack_start(GTK_BOX(hbox), GTK_WIDGET(winds), TRUE, TRUE, 0);
 	gtk_widget_show_all(GTK_WIDGET(winds));
-	gtk_container_add(GTK_CONTAINER(popup), GTK_WIDGET(winds));
+	gtk_widget_show_all(GTK_WIDGET(hbox));
 	gtk_window_set_position(GTK_WINDOW(popup), GTK_WIN_POS_CENTER_ALWAYS);
 	xpop->content = winds;
 }
 
 static void
-add_pager(XdeScreen *xscr, XdePopup *xpop, GtkWidget *popup)
+add_pager(XdeScreen *xscr, XdePopup *xpop, GtkWidget *popup, GtkWidget *hbox)
 {
 	GtkWidget *pager = wnck_pager_new(xscr->wnck);
 
@@ -6613,14 +6655,18 @@ add_pager(XdeScreen *xscr, XdePopup *xpop, GtkWidget *popup)
 	wnck_pager_set_display_mode(WNCK_PAGER(pager), WNCK_PAGER_DISPLAY_CONTENT);
 	wnck_pager_set_show_all(WNCK_PAGER(pager), TRUE);
 	wnck_pager_set_shadow_type(WNCK_PAGER(pager), GTK_SHADOW_IN);
+
+//	g_signal_connect(G_OBJECT(pager), "size_request", G_CALLBACK(size_request), xpop);
+
+	gtk_box_pack_start(GTK_BOX(hbox), GTK_WIDGET(pager), TRUE, TRUE, 0);
 	gtk_widget_show_all(GTK_WIDGET(pager));
-	gtk_container_add(GTK_CONTAINER(popup), GTK_WIDGET(pager));
+	gtk_widget_show_all(GTK_WIDGET(hbox));
 	gtk_window_set_position(GTK_WINDOW(popup), GTK_WIN_POS_CENTER_ALWAYS);
 	xpop->content = pager;
 }
 
 static void
-add_tasks(XdeScreen *xscr, XdePopup *xpop, GtkWidget *popup)
+add_tasks(XdeScreen *xscr, XdePopup *xpop, GtkWidget *popup, GtkWidget *hbox)
 {
 	GtkWidget *tasks = wnck_tasklist_new(xscr->wnck);
 
@@ -6628,11 +6674,15 @@ add_tasks(XdeScreen *xscr, XdePopup *xpop, GtkWidget *popup)
 	wnck_tasklist_set_include_all_workspaces(WNCK_TASKLIST(tasks), FALSE);
 	wnck_tasklist_set_switch_workspace_on_unminimize(WNCK_TASKLIST(tasks), FALSE);
 	wnck_tasklist_set_button_relief(WNCK_TASKLIST(tasks), GTK_RELIEF_HALF);
+
 	/* use wnck_tasklist_get_size_hint_list() to size tasks */
+//	g_signal_connect(G_OBJECT(tasks), "size_request", G_CALLBACK(size_request), xpop);
+
+	gtk_box_pack_start(GTK_BOX(hbox), GTK_WIDGET(tasks), TRUE, TRUE, 0);
 	gtk_widget_show_all(GTK_WIDGET(tasks));
-	gtk_container_add(GTK_CONTAINER(popup), GTK_WIDGET(tasks));
+	gtk_widget_show_all(GTK_WIDGET(hbox));
 	gtk_window_set_position(GTK_WINDOW(popup), GTK_WIN_POS_CENTER_ALWAYS);
-	// gtk_window_set_default_size(GTK_WINDOW(popup), 200, 200); // for now
+	gtk_window_set_default_size(GTK_WINDOW(popup), 200, 200); // for now
 	gtk_widget_set_size_request(GTK_WIDGET(popup), 200, 200); // for now
 	xpop->content = tasks;
 }
@@ -6645,13 +6695,14 @@ size_request(GtkWidget *widget, GtkRequisition *requisition, gpointer user_data)
 	DPRINTF(1, "view requested size %dx%d\n", requisition->width, requisition->height);
 	if (xpop->popped) {
 #if 0
+		gtk_window_set_default_size(GTK_WINDOW(xpop->popup), requisition->width, requisition->height);
 		gtk_window_reshow_with_initial_size(GTK_WINDOW(xpop->popup));
 #endif
 	}
 }
 
 static void
-add_cycle(XdeScreen *xscr, XdePopup *xpop, GtkWidget *popup)
+add_cycle(XdeScreen *xscr, XdePopup *xpop, GtkWidget *popup, GtkWidget *hbox)
 {
 	GtkWidget *view;
 	GtkListStore *model;
@@ -6680,23 +6731,24 @@ add_cycle(XdeScreen *xscr, XdePopup *xpop, GtkWidget *popup)
 	gtk_icon_view_set_column_spacing(GTK_ICON_VIEW(view), 1);
 	gtk_icon_view_set_margin(GTK_ICON_VIEW(view), 1);
 	gtk_icon_view_set_item_padding(GTK_ICON_VIEW(view), 1);
-	gtk_widget_show_all(GTK_WIDGET(view));
 
 	g_signal_connect(G_OBJECT(view), "size_request", G_CALLBACK(size_request), xpop);
 
-	gtk_container_add(GTK_CONTAINER(popup), view);
-	// gtk_window_set_default_size(GTK_WINDOW(popup), -1, -1);
+	gtk_box_pack_start(GTK_BOX(hbox), GTK_WIDGET(view), TRUE, TRUE, 0);
+	gtk_widget_show_all(GTK_WIDGET(view));
+	gtk_widget_show_all(GTK_WIDGET(hbox));
+	gtk_window_set_default_size(GTK_WINDOW(popup), -1, -1);
 	gtk_widget_set_size_request(GTK_WIDGET(popup), -1, -1);
 	xpop->content = view;
 }
 
 static void
-add_setbg(XdeScreen *xscr, XdePopup *xpop, GtkWidget *popup)
+add_setbg(XdeScreen *xscr, XdePopup *xpop, GtkWidget *popup, GtkWidget *hbox)
 {
 }
 
 static void
-add_start(XdeScreen *xscr, XdePopup *xpop, GtkWidget *popup)
+add_start(XdeScreen *xscr, XdePopup *xpop, GtkWidget *popup, GtkWidget *hbox)
 {
 	GtkWidget *view;
 	GtkListStore *model;
@@ -6725,46 +6777,47 @@ add_start(XdeScreen *xscr, XdePopup *xpop, GtkWidget *popup)
 	gtk_icon_view_set_column_spacing(GTK_ICON_VIEW(view), 1);
 	gtk_icon_view_set_margin(GTK_ICON_VIEW(view), 1);
 	gtk_icon_view_set_item_padding(GTK_ICON_VIEW(view), 1);
-	gtk_widget_show_all(GTK_WIDGET(view));
 
 	g_signal_connect(G_OBJECT(view), "size_request", G_CALLBACK(size_request), xpop);
 
-	gtk_container_add(GTK_CONTAINER(popup), view);
-	// gtk_window_set_default_size(GTK_WINDOW(popup), -1, -1);
+	gtk_box_pack_start(GTK_BOX(hbox), GTK_WIDGET(view), TRUE, TRUE, 0);
+	gtk_widget_show_all(GTK_WIDGET(view));
+	gtk_widget_show_all(GTK_WIDGET(hbox));
+	gtk_window_set_default_size(GTK_WINDOW(popup), -1, -1);
 	gtk_widget_set_size_request(GTK_WIDGET(popup), -1, -1);
 	xpop->content = view;
 }
 
 static void
-add_input(XdeScreen *xscr, XdePopup *xpop, GtkWidget *popup)
+add_input(XdeScreen *xscr, XdePopup *xpop, GtkWidget *popup, GtkWidget *hbox)
 {
 	/* FIXME: port create_window() */
 }
 
 static void
-add_items(XdeScreen *xscr, XdePopup *xpop, GtkWidget *popup)
+add_items(XdeScreen *xscr, XdePopup *xpop, GtkWidget *popup, GtkWidget *hbox)
 {
 	switch (xpop->type) {
 	case PopupWinds:
-		add_winds(xscr, xpop, popup);
+		add_winds(xscr, xpop, popup, hbox);
 		break;
 	case PopupPager:
-		add_pager(xscr, xpop, popup);
+		add_pager(xscr, xpop, popup, hbox);
 		break;
 	case PopupTasks:
-		add_tasks(xscr, xpop, popup);
+		add_tasks(xscr, xpop, popup, hbox);
 		break;
 	case PopupCycle:
-		add_cycle(xscr, xpop, popup);
+		add_cycle(xscr, xpop, popup, hbox);
 		break;
 	case PopupSetBG:
-		add_setbg(xscr, xpop, popup);
+		add_setbg(xscr, xpop, popup, hbox);
 		break;
 	case PopupStart:
-		add_start(xscr, xpop, popup);
+		add_start(xscr, xpop, popup, hbox);
 		break;
 	case PopupInput:
-		add_input(xscr, xpop, popup);
+		add_input(xscr, xpop, popup, hbox);
 		break;
 	default:
 		EPRINTF("bad popup type %d\n", xpop->type);
@@ -6775,7 +6828,7 @@ add_items(XdeScreen *xscr, XdePopup *xpop, GtkWidget *popup)
 static void
 init_window(XdeScreen *xscr, XdePopup *xpop)
 {
-	GtkWidget *popup;
+	GtkWidget *popup, *hbox;
 
 	PTRACE(5);
 	xpop->popup = popup = gtk_window_new(GTK_WINDOW_POPUP);
@@ -6789,7 +6842,11 @@ init_window(XdeScreen *xscr, XdePopup *xpop)
 	gtk_window_stick(GTK_WINDOW(popup));
 	gtk_window_set_keep_above(GTK_WINDOW(popup), TRUE);
 
-	add_items(xscr, xpop, popup);
+	hbox = gtk_hbox_new(TRUE, 0);
+	gtk_container_set_border_width(GTK_CONTAINER(hbox), 0);
+	gtk_container_add(GTK_CONTAINER(popup), hbox);
+
+	add_items(xscr, xpop, popup, hbox);
 
 	gtk_container_set_border_width(GTK_CONTAINER(popup), options.border);
 
@@ -6962,6 +7019,10 @@ startup(int argc, char *argv[])
 	char *file;
 	int nscr;
 
+	file = g_build_filename(g_get_home_dir(), ".gtkrc-2.0.xde", NULL);
+	gtk_rc_add_default_file(file);
+	g_free(file);
+
 #if 1
 	/* We can start session management without a display; however, we then need to
 	   run a GLIB event loop instead of a GTK event loop.  */
@@ -6973,10 +7034,6 @@ startup(int argc, char *argv[])
 		return;
 	}
 #endif
-
-	file = g_build_filename(g_get_home_dir(), ".gtkrc-2.0.xde", NULL);
-	gtk_rc_add_default_file(file);
-	g_free(file);
 
 	gtk_init(&argc, &argv);
 
@@ -7854,7 +7911,7 @@ Session Management:\n\
 	, options.timestamp
 	, show_bool(options.tooltips)
 	, show_order(options.order)
-	, options.keys ?: "AC+Left:AC+Right"
+	, options.keys ?: XDE_DEFKEYS
 	, show_bool(options.cycle)
 	, show_bool(options.normal)
 	, show_bool(options.hidden)
@@ -8065,28 +8122,23 @@ get_default_wmname(void)
 	}
 
 	if (options.display) {
+		Display *dpy = GDK_DISPLAY_XDISPLAY(disp);
 		GdkScreen *scrn = gdk_display_get_default_screen(disp);
 		GdkWindow *wind = gdk_screen_get_root_window(scrn);
 		Window root = GDK_WINDOW_XID(wind);
 		Atom prop = _XA_XDE_WM_NAME;
-		XTextProperty xtp = { NULL, };
+		char **list = NULL;
+		int strings = 0;
 
-		if (XGetTextProperty(dpy, root, &xtp, prop)) {
-			char **list = NULL;
-			int strings = 0;
-
-			if (Xutf8TextPropertyToTextList(dpy, &xtp, &list, &strings) == Success) {
-				if (strings >= 1) {
-					if (!options.wmname) {
-						free(options.wmname);
-						options.wmname = strdup(list[0]);
-					} else if (strcmp(options.wmname, list[0]))
-						DPRINTF(1, "default wmname %s different from actual %s\n",
-							options.wmname, list[0]);
-				}
-				if (list)
-					XFreeStringList(list);
-			}
+		if (get_text_property(dpy, root, prop, &list, &strings)) {
+			if (!options.wmname) {
+				free(options.wmname);
+				options.wmname = strdup(list[0]);
+			} else if (strcmp(options.wmname, list[0]))
+				DPRINTF(1, "default wmname %s different from actual %s\n",
+					options.wmname, list[0]);
+			if (list)
+				XFreeStringList(list);
 		} else {
 			char *name = NULL;
 
@@ -8094,8 +8146,6 @@ get_default_wmname(void)
 			if (name)
 				XFree(name);
 		}
-		if (xtp.value)
-			XFree(xtp.value);
 	} else
 		EPRINTF("cannot determine wmname without DISPLAY\n");
 

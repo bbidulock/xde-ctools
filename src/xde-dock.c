@@ -922,7 +922,7 @@ withdraw_client(XdeScreen *xscr, XdeClient *c)
 		}
 	}
 	if (1) {
-		/* mimic destruction for window managers that are not ICCCM 2.0 compliant 
+		/* mimic destruction for window managers that are not ICCCM 2.0 compliant
 		 */
 		/* do the primary window first */
 		if (c->wind.window) {
@@ -969,7 +969,7 @@ is_dockapp(XdeScreen *xscr, Window win)
 			if ((wmh->flags & StateHint) && wmh->initial_state == WithdrawnState)
 				return (wmh);
 			/* Many docapps that were based on GTK+ < 2.4.0 are having their
-			   initial_state changed to NormalState by GTK+ >= 2.4.0, so when 
+			   initial_state changed to NormalState by GTK+ >= 2.4.0, so when
 			   the other flags are set, accept it anyway */
 			if (wmh->initial_state == WithdrawnState
 			    || (wmh->flags & ~IconPositionHint) ==
@@ -1001,7 +1001,7 @@ is_dockapp(XdeScreen *xscr, Window win)
 				return (wmh);
 			break;
 		case DockAppTestFlipse:
-			/* The flipse approach: strange, but StateHint not checked first; 
+			/* The flipse approach: strange, but StateHint not checked first;
 			   so, this translates to the following conditions: (1)
 			   initial_state not set, or, (2) initial_state set to
 			   WithdrawnState, or, (3), exactly group, state and icon-window
@@ -2253,7 +2253,7 @@ clientSetProperties(SmcConn smcConn, SmPointer data)
 
 	j = 0;
 
-	/* CloneCommand: This is like the RestartCommand except it restarts a copy of the 
+	/* CloneCommand: This is like the RestartCommand except it restarts a copy of the
 	   application.  The only difference is that the application doesn't supply its
 	   client id at register time.  On POSIX systems the type should be a
 	   LISTofARRAY8. */
@@ -2371,7 +2371,7 @@ clientSetProperties(SmcConn smcConn, SmPointer data)
 
 	/* RestartCommand: The restart command contains a command that when delivered to
 	   the host that the client is running on (determined from the connection), will
-	   cause the client to restart in its current state.  On POSIX-based systems this 
+	   cause the client to restart in its current state.  On POSIX-based systems this
 	   if of type LISTofARRAY8 and each of the elements in the array represents an
 	   element in the argv[] array.  This restart command should ensure that the
 	   client restarts with the specified client-ID.  */
@@ -2413,11 +2413,11 @@ clientSetProperties(SmcConn smcConn, SmPointer data)
 	prop[j].vals[1].length = strlen("-quit");
 	j++;
 
-	/* RestartStyleHint: If the RestartStyleHint property is present, it will contain 
+	/* RestartStyleHint: If the RestartStyleHint property is present, it will contain
 	   the style of restarting the client prefers.  If this flag is not specified,
 	   RestartIfRunning is assumed.  The possible values are as follows:
-	   RestartIfRunning(0), RestartAnyway(1), RestartImmediately(2), RestartNever(3). 
-	   The RestartIfRunning(0) style is used in the usual case.  The client should be 
+	   RestartIfRunning(0), RestartAnyway(1), RestartImmediately(2), RestartNever(3).
+	   The RestartIfRunning(0) style is used in the usual case.  The client should be
 	   restarted in the next session if it is connected to the session manager at the
 	   end of the current session. The RestartAnyway(1) style is used to tell the SM
 	   that the application should be restarted in the next session even if it exits
@@ -2427,7 +2427,7 @@ clientSetProperties(SmcConn smcConn, SmPointer data)
 	   should also set the ResignCommand and ShutdownCommand properties to the
 	   commands that undo the state of the client after it exits.  The
 	   RestartImmediately(2) style is like RestartAnyway(1) but in addition, the
-	   client is meant to run continuously.  If the client exits, the SM should try to 
+	   client is meant to run continuously.  If the client exits, the SM should try to
 	   restart it in the current session.  The RestartNever(3) style specifies that
 	   the client does not wish to be restarted in the next session. */
 	prop[j].name = SmRestartStyleHint;
@@ -2440,7 +2440,7 @@ clientSetProperties(SmcConn smcConn, SmPointer data)
 	propval[j].length = 1;
 	j++;
 
-	/* ShutdownCommand: This command is executed at shutdown time to clean up after a 
+	/* ShutdownCommand: This command is executed at shutdown time to clean up after a
 	   client that is no longer running but retained its state by setting
 	   RestartStyleHint to RestartAnyway(1).  The command must not remove any saved
 	   state as the client is still part of the session. */
@@ -2455,7 +2455,7 @@ clientSetProperties(SmcConn smcConn, SmPointer data)
 	prop[j].vals[1].length = strlen("-quit");
 	j++;
 
-	/* UserID: Specifies the user's ID.  On POSIX-based systems this will contain the 
+	/* UserID: Specifies the user's ID.  On POSIX-based systems this will contain the
 	   user's name (the pw_name field of struct passwd).  */
 	errno = 0;
 	prop[j].name = SmUserID;

@@ -202,6 +202,8 @@ const char *program = NAME;
 #define XA_SELECTION_NAME	XA_PREFIX "_S%d"
 #define XA_NET_DESKTOP_LAYOUT	"_NET_DESKTOP_LAYOUT_S%d"
 #define LOGO_NAME		"metacity"
+#define XDE_DESCRIP		"An XDG compliant window selector."
+#define XDE_DEFKEYS		"AS+Tab:A+Tab"
 
 static int saveArgc;
 static char **saveArgv;
@@ -459,7 +461,7 @@ Options options = {
 	.display = NULL,
 	.screen = -1,
 	.monitor = 0,
-	.opacity = 0.75,
+	.opacity = 0.0,
 	.timeout = 1000,
 	.iconsize = 48,
 	.fontsize = 12.0,
@@ -515,6 +517,11 @@ Options options = {
 		 .start = False,
 		 .input = False,
 		 },
+	.fileout = False,
+	.noicons = False,
+	.launch = True,
+	.generate = True,
+	.actions = False,
 	.exit = False,
 };
 
@@ -2293,6 +2300,7 @@ show_popup(XdeScreen *xscr, XdePopup *xpop, gboolean grab_p, gboolean grab_k)
 		}
 		if (xpop->type == PopupTasks) {
 			GtkWidget *tasks = xpop->content;
+#if 1
 			GList *children;
 			int n;
 
@@ -2302,8 +2310,27 @@ show_popup(XdeScreen *xscr, XdePopup *xpop, gboolean grab_p, gboolean grab_k)
 
 			// gtk_window_set_default_size(GTK_WINDOW(xpop->popup), 300, n * 24);
 			gtk_widget_set_size_request(GTK_WIDGET(xpop->popup), 300, n * 24);
+#else
+			const int *hints;
+			int num = 0, width = 10 + 2*options.border, height = 10 + 2*options.border;
+			if ((hints = wnck_tasklist_get_size_hint_list(WNCK_TASKLIST(tasks), &num))) {
+				int i = 0, n = num>>1;
+				const int *hint = hints;
+
+				for (; i < n; i++, hint +=2) {
+					int w = hint[0] + 10 + 2*options.border;
+					int h = hint[1];
+
+					DPRINTF(0, "processing hint %d: (%d x %d)\n", i, w, h);
+					width = w > width ? w : width;
+					height += h;
+				}
+			}
+			gtk_widget_set_size_request(GTK_WIDGET(xpop->popup), width, height);
+#endif
 		}
-		gtk_window_set_opacity(GTK_WINDOW(xpop->popup), options.opacity);
+		if (options.opacity)
+			gtk_window_set_opacity(GTK_WINDOW(xpop->popup), options.opacity);
 		gtk_window_set_screen(GTK_WINDOW(xpop->popup), gdk_display_get_screen(disp, xscr->index));
 		gtk_window_set_position(GTK_WINDOW(xpop->popup), GTK_WIN_POS_CENTER_ALWAYS);
 		gtk_window_present(GTK_WINDOW(xpop->popup));
@@ -3714,6 +3741,8 @@ put_resources(void)
 	if ((val = putXrmInt(options.output)))
 		put_resource(rdb, "verbose", val);
 	/* put a bunch of resources */
+	if ((val = putXrmDouble(options.opacity)))
+		put_resource(rdb, "opacity", val);
 	if ((val = putXrmTime(options.timeout)))
 		put_resource(rdb, "timeout", val);
 	if ((val = putXrmUint(options.iconsize)))
@@ -4302,6 +4331,8 @@ get_resources(void)
 	if ((val = get_resource(rdb, "verbose", NULL)))
 		getXrmInt(val, &options.output);
 	/* get a bunch of resources */
+	if ((val = get_resource(rdb, "opacity", "0.0")))
+		getXrmDouble(val, &options.opacity);
 	if ((val = get_resource(rdb, "timeout", "1000")))
 		getXrmTime(val, &options.timeout);
 	if ((val = get_resource(rdb, "iconsize", "48")))
@@ -4411,7 +4442,7 @@ about_selected(GtkMenuItem *item, gpointer user_data)
 	gchar *authors[] = { "Brian F. G. Bidulock <bidulock@openss7.org>", NULL };
 	gtk_show_about_dialog(NULL,
 			      "authors", authors,
-			      "comments", "An XDG compliant window selector.",
+			      "comments", XDE_DESCRIP,
 			      "copyright", "Copyright (c) 2013, 2014, 2015, 2016, 2017  OpenSS7 Corporation",
 			      "license", "Do what thou wilt shall be the whole of the law.\n\n-- Aleister Crowley",
 			      "logo-icon-name", LOGO_NAME,
@@ -6603,7 +6634,7 @@ add_winds(XdeScreen *xscr, XdePopup *xpop, GtkWidget *popup, GtkWidget *hbox)
 
 	gtk_menu_bar_set_pack_direction(GTK_MENU_BAR(winds), GTK_PACK_DIRECTION_TTB);
 	gtk_menu_bar_set_child_pack_direction(GTK_MENU_BAR(winds), GTK_PACK_DIRECTION_LTR);
-	
+
 //	g_signal_connect(G_OBJECT(winds), "size_request", G_CALLBACK(size_request), xpop);
 
 	gtk_box_pack_start(GTK_BOX(hbox), GTK_WIDGET(winds), TRUE, TRUE, 0);
@@ -7290,6 +7321,7 @@ get_desktop_layout_selection(XdeScreen *xscr)
 	return (owner);
 }
 
+#if 1
 static Window
 get_selection(Bool replace, Window selwin)
 {
@@ -7376,6 +7408,7 @@ fork_and_exit(void)
 	/* parent exits */
 	exit(EXIT_SUCCESS);
 }
+#endif
 
 static void
 do_run(int argc, char *argv[])
@@ -7878,7 +7911,7 @@ Session Management:\n\
 	, options.timestamp
 	, show_bool(options.tooltips)
 	, show_order(options.order)
-	, options.keys ?: "AS+Tab:A+Tab"
+	, options.keys ?: XDE_DEFKEYS
 	, show_bool(options.cycle)
 	, show_bool(options.normal)
 	, show_bool(options.hidden)

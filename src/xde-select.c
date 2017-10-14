@@ -538,7 +538,7 @@ get_desktop_layout_selection(XdeScreen *xscr)
 
 	if (xscr->laywin)
 		return None;
-	
+
 	xscr->laywin = XCreateSimpleWindow(dpy, root, 0, 0, 1, 1, 0, 0, 0);
 	XSelectInput(dpy, xscr->laywin,
 		StructureNotifyMask | SubstructureNotifyMask | PropertyChangeMask);
@@ -550,7 +550,7 @@ get_desktop_layout_selection(XdeScreen *xscr)
 		DPRINTF("No owner for %s\n", selection);
 	XSetSelectionOwner(dpy, atom, xscr->laywin, CurrentTime);
 	XSync(dpy, False);
-	
+
 	if (xscr->laywin) {
 		XEvent ev;
 
@@ -694,21 +694,21 @@ good_window_manager(XdeScreen *xscr)
 	/* XXX: matwm2(1) is supported and works well. */
 	if (!strcasecmp(xscr->wmname, "matwm2"))
 		return True;
-	/* XXX: metacity(1) provides its own competent desktop switching feedback pop-up. 
-	   When xde-pager detects that it is running under metacity(1), it will simply do 
+	/* XXX: metacity(1) provides its own competent desktop switching feedback pop-up.
+	   When xde-pager detects that it is running under metacity(1), it will simply do
 	   nothing. */
 	if (!strcasecmp(xscr->wmname, "metacity"))
 		return False;
-	/* XXX: mwm(1) only supports OSF/Motif and does not support multiple desktops. It 
+	/* XXX: mwm(1) only supports OSF/Motif and does not support multiple desktops. It
 	   is not supported. */
 	if (!strcasecmp(xscr->wmname, "mwm"))
 		return False;
 	/* XXX: mutter(1) has not been tested. */
 	if (!strcasecmp(xscr->wmname, "mutter"))
 		return True;
-	/* XXX: openbox(1) provides its own meager desktop switching feedback pop-up.  It 
+	/* XXX: openbox(1) provides its own meager desktop switching feedback pop-up.  It
 	   does respect _NET_DESKTOP_LAYOUT but does not provide any of the contents of
-	   the desktop. When both are running it is a little confusing, so when xde-pager 
+	   the desktop. When both are running it is a little confusing, so when xde-pager
 	   detects that it is running under openbox(1), it will simply do nothing. */
 	if (!strcasecmp(xscr->wmname, "openbox"))
 		return False;
@@ -733,9 +733,9 @@ good_window_manager(XdeScreen *xscr)
 	   instead. */
 	if (!strcasecmp(xscr->wmname, "vtwm"))
 		return False;
-	/* XXX: waimea(1) is supported; however, waimea(1) defaults to triple-sized large 
+	/* XXX: waimea(1) is supported; however, waimea(1) defaults to triple-sized large
 	   desktops in a 2x2 arrangement.  With large virtual desktops, libwnck+ gets
-	   confused just as with afterstep(1).  fvwm(1) must be doing something right. It 
+	   confused just as with afterstep(1).  fvwm(1) must be doing something right. It
 	   appears to be _NET_DESKTOP_VIEWPORT, which is supposed to be set to the
 	   viewport position of each desktop (and isn't).  Use the waimea at
 	   https://github.com/bbidulock/waimea for a corrected version. */
@@ -747,7 +747,7 @@ good_window_manager(XdeScreen *xscr)
 	/* XXX: wmaker(1) is supported and works well. */
 	if (!strcasecmp(xscr->wmname, "wmaker"))
 		return True;
-	/* XXX: wmii(1) is supported and works well.  wmii(1) was stealing the focus back 
+	/* XXX: wmii(1) is supported and works well.  wmii(1) was stealing the focus back
 	   from the pop-up, but this was fixed. */
 	if (!strcasecmp(xscr->wmname, "wmii"))
 		return True;
@@ -1208,7 +1208,7 @@ grab_broken_event(GtkWidget *widget, GdkEvent *event, gpointer user)
 	if (ev->keyboard) {
 		DPRINTF("keyboard grab was broken\n");
 		xscr->keyboard = False;
-		/* IF we lost a keyboard grab, it is because another hot-key was pressed, 
+		/* IF we lost a keyboard grab, it is because another hot-key was pressed,
 		   either doing something else or moving to another desktop.  Start the
 		   timeout in this case. */
 		start_popup_timer(xscr);
@@ -1216,7 +1216,7 @@ grab_broken_event(GtkWidget *widget, GdkEvent *event, gpointer user)
 		DPRINTF("pointer grab was broken\n");
 		xscr->pointer = False;
 		/* If we lost a pointer grab, it is because somebody clicked on another
-		   window.  In this case we want to drop the popup altogether.  This will 
+		   window.  In this case we want to drop the popup altogether.  This will
 		   break the keyboard grab if any. */
 		drop_popup(xscr);
 	}
@@ -2721,7 +2721,7 @@ clientSetProperties(SmcConn smcConn, SmPointer data)
 
 	j = 0;
 
-	/* CloneCommand: This is like the RestartCommand except it restarts a copy of the 
+	/* CloneCommand: This is like the RestartCommand except it restarts a copy of the
 	   application.  The only difference is that the application doesn't supply its
 	   client id at register time.  On POSIX systems the type should be a
 	   LISTofARRAY8. */
@@ -2839,7 +2839,7 @@ clientSetProperties(SmcConn smcConn, SmPointer data)
 
 	/* RestartCommand: The restart command contains a command that when delivered to
 	   the host that the client is running on (determined from the connection), will
-	   cause the client to restart in its current state.  On POSIX-based systems this 
+	   cause the client to restart in its current state.  On POSIX-based systems this
 	   if of type LISTofARRAY8 and each of the elements in the array represents an
 	   element in the argv[] array.  This restart command should ensure that the
 	   client restarts with the specified client-ID.  */
@@ -2881,11 +2881,11 @@ clientSetProperties(SmcConn smcConn, SmPointer data)
 	prop[j].vals[1].length = strlen("-quit");
 	j++;
 
-	/* RestartStyleHint: If the RestartStyleHint property is present, it will contain 
+	/* RestartStyleHint: If the RestartStyleHint property is present, it will contain
 	   the style of restarting the client prefers.  If this flag is not specified,
 	   RestartIfRunning is assumed.  The possible values are as follows:
-	   RestartIfRunning(0), RestartAnyway(1), RestartImmediately(2), RestartNever(3). 
-	   The RestartIfRunning(0) style is used in the usual case.  The client should be 
+	   RestartIfRunning(0), RestartAnyway(1), RestartImmediately(2), RestartNever(3).
+	   The RestartIfRunning(0) style is used in the usual case.  The client should be
 	   restarted in the next session if it is connected to the session manager at the
 	   end of the current session. The RestartAnyway(1) style is used to tell the SM
 	   that the application should be restarted in the next session even if it exits
@@ -2895,7 +2895,7 @@ clientSetProperties(SmcConn smcConn, SmPointer data)
 	   should also set the ResignCommand and ShutdownCommand properties to the
 	   commands that undo the state of the client after it exits.  The
 	   RestartImmediately(2) style is like RestartAnyway(1) but in addition, the
-	   client is meant to run continuously.  If the client exits, the SM should try to 
+	   client is meant to run continuously.  If the client exits, the SM should try to
 	   restart it in the current session.  The RestartNever(3) style specifies that
 	   the client does not wish to be restarted in the next session. */
 	prop[j].name = SmRestartStyleHint;
@@ -2908,7 +2908,7 @@ clientSetProperties(SmcConn smcConn, SmPointer data)
 	propval[j].length = 1;
 	j++;
 
-	/* ShutdownCommand: This command is executed at shutdown time to clean up after a 
+	/* ShutdownCommand: This command is executed at shutdown time to clean up after a
 	   client that is no longer running but retained its state by setting
 	   RestartStyleHint to RestartAnyway(1).  The command must not remove any saved
 	   state as the client is still part of the session. */
@@ -2923,7 +2923,7 @@ clientSetProperties(SmcConn smcConn, SmPointer data)
 	prop[j].vals[1].length = strlen("-quit");
 	j++;
 
-	/* UserID: Specifies the user's ID.  On POSIX-based systems this will contain the 
+	/* UserID: Specifies the user's ID.  On POSIX-based systems this will contain the
 	   user's name (the pw_name field of struct passwd).  */
 	errno = 0;
 	prop[j].name = SmUserID;

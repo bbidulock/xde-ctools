@@ -228,7 +228,7 @@ end_DefaultAppDirs(GMarkupParseContext * context, const gchar *element_name,
 	MenuContext *menu = g_queue_peek_tail(tree->menus);
 	char *dirs = xdg_data_dirs();
 
-	/* basically append the reverse of $XDG_DATA_DIRS/applications to the application 
+	/* basically append the reverse of $XDG_DATA_DIRS/applications to the application
 	   directory list for the menu */
 
 	for (;;) {

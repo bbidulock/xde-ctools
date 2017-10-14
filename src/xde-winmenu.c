@@ -221,7 +221,7 @@ find_specified_screen(GdkDisplay *disp)
 }
 
 /** @brief find the specified screen
-  * 
+  *
   * Either specified with options.screen, or if the DISPLAY environment variable
   * specifies a screen, use that screen; otherwise, return NULL.
   */
@@ -342,7 +342,7 @@ find_focus_window(GdkDisplay *disp, WnckScreen *scrn)
 	if (wind)
 		return (wind);
 
-	/* search harder, some window managers do not set _NET_WM_STATE_FOCUSED properly. 
+	/* search harder, some window managers do not set _NET_WM_STATE_FOCUSED properly.
 	 */
 
 	dpy = GDK_DISPLAY_XDISPLAY(disp);
@@ -485,7 +485,7 @@ static gboolean
 position_pointer(GtkMenu *menu, WnckWindow *wind, gint *x, gint *y)
 {
 	GdkDisplay *disp;
-	
+
 	DPRINT();
 	disp = gtk_widget_get_display(GTK_WIDGET(menu));
 	gdk_display_get_pointer(disp, NULL, x, y, NULL);
