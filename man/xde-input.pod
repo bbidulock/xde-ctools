@@ -182,7 +182,7 @@ restarted by a session manager.
 
 =back
 
-=head1 ENVIRONMENT VARIABLES
+=head1 ENVIRONMENT
 
 As an XDG compatible application, B<xde-input> considers the following
 environment variables when calculating the location of the user's

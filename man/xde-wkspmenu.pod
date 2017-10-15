@@ -381,17 +381,20 @@ as follows:
 
 =item L<2bwm(1)>
 
-L<2bwm(1)> does not provide window cycling feedback of its own.
+L<2bwm(1)> does not provide a workspace menu of its own.
 L<2bwm(1)> is supported and should work well.
 
 =item L<adwm(1)>
 
-L<adwm(1)> does not provide window cycling feedback of its own.
+L<adwm(1)> does not provide a workspace menu of its own.
 L<adwm(1)> is supported and should work well.
+When running under L<adwm(1)>, B<xde-wkspmenu> also supports display and
+changing of the mode of the desktop between the various supported tiling
+and floating modes.
 
 =item L<aewm(1)>
 
-L<aewm(1)> does not provide window cycling feedback of its own.
+L<aewm(1)> does not provide a workspace menu of its own.
 L<aewm(1)> is supported and should work well.
 
 =item L<aewm++(1)>
@@ -403,21 +406,18 @@ nor GNOME/WinWM hints and is, therefore, not supported.
 
 =item L<awesome(1)>
 
-L<awesome(1)> does not provide window cycling feedback of its own.
+L<awesome(1)> does not provide a workspace menu of its own.
 L<awesome(1)> is supported and should work well.
 
 =item L<blackbox(1)>
 
-L<blackbox(1)>, when run with L<bbkeys(1)>, provides an adequate window
-cycling feedback pop-up of its own and it follows the style of the
-window manager.  (Its only real shortcoming is that the feedback window
-cannot be centred on the screen or monitor and must be absolutely placed
-in the L<bbkeys(1)> configuration file.) When running under
-L<blackbox(1)>, B<xde-wkspmenu> will do nothing.
+L<blackbox(1)>, when run with L<bbkeys(1)>, provides an adequate
+workspace menu of its own and it follows the style of the window manager.
+Nevertheless, L<blackbox(1)> is supported and should work well.
 
 =item L<bspwm(1)>
 
-L<bspwm(1)> does not provide window cycling feedback of its own.
+L<bspwm(1)> does not provide a workspace menu of its own.
 L<bspwm(1)> is supported and should work well.
 
 =item L<ctwm(1)>
@@ -444,12 +444,12 @@ L<dwm(1)> is barely ICCCM compliant.  It is not supported.
 
 =item L<echinus(1)>
 
-L<echinus(1)> does not provide window cycling feedback of its own.
+L<echinus(1)> does not provide a workspace menu of its own.
 L<echinus(1)> is supported and should work well.
 
 =item L<etwm(1)>
 
-L<etwm(1)> does not provide window cycling feedback of its own.
+L<etwm(1)> does not provide a workspace menu of its own.
 L<etwm(1)> is supported and should work well.
 
 =item L<failsafewm(1)>
@@ -458,7 +458,7 @@ L<failsafewm(1)> is minimal and not supported.
 
 =item L<fluxbox(1)>
 
-L<fluxbox(1)> does not provide window cycling feedback of its own.
+L<fluxbox(1)> does not provide a workspace menu of its own.
 L<fluxbox(1)> is supported and should work well.
 
 =item L<flwm(1)>
@@ -468,7 +468,7 @@ supported by F<libwnck+>.  B<xde-wkspmenu> mitigates this to some extent.
 
 =item L<fvwm(1)>
 
-L<fvwm(1)> does not provide window cycling feedback of its own.
+L<fvwm(1)> does not provide a workspace menu of its own.
 L<fvwm(1)> is supported and should work well.
 
 =item L<glasswm(1)>
@@ -478,28 +478,28 @@ B<xde-wkspmenu> does not support these at this time.
 
 =item L<goomwwm(1)>
 
-L<goomwwm(1)> does not provide window cycling feedback of its own.
+L<goomwwm(1)> does not provide a workspace menu of its own.
 L<goomwwm(1)> is supported and should work well.
 
 =item L<herbstluftwm(1)>
 
-L<herbstluftwm(1)> does not provide window cycling feedback of its own.
+L<herbstluftwm(1)> does not provide a workspace menu of its own.
 L<herbstluftwm(1)> is supported and should work well.
 
 =item L<i3(1)>
 
-L<i3(1)> does not provide window cycling feedback of its own.
+L<i3(1)> does not provide a workspace menu of its own.
 L<i3(1)> is supported and should work well.
 
 =item L<icewm(1)>
 
-L<icewm(1)> provides an adequate window cycling feedback pop-up of its
-own and it follows the style of the window manager.  Therefore, when
-running under L<icewm(1)>, B<xde-wkspmenu> will do nothing.
+L<icewm(1)> provides an adequate a workspace menu pop-up of its
+own and it follows the style of the window manager.
+Nevertheless, L<icewm(1)> is supported and should work well.
 
 =item L<jwm(1)>
 
-L<jwm(1)> does not provide window cycling feedback of its own.
+L<jwm(1)> does not provide a workspace menu of its own.
 L<jwm(1)> is supported and should work well.
 
 =item L<larswm(1)>
@@ -508,18 +508,18 @@ L<larswm(1)> is barely ICCCM compliant and is, therefore, not supported.
 
 =item L<matwm2(1)>
 
-L<matwm2(1)> does not provide window cycling feedback of its own.
+L<matwm2(1)> does not provide a workspace menu of its own.
 L<matwm2(1)> is supported and should work well.
 
 =item L<metacity(1)>
 
-L<metacity(1)> provides an adequate window cycling feedback pop-up of its
-own and it follows the style of the window manager.  Therefore, when
-running under L<metacity(1)>, B<xde-wkspmenu> will do nothing.
+L<metacity(1)> provides an adequate workspace menu of its
+own and it follows the style of the window manager.
+Nevertheless, L<metacity(1)> is supported and should work well.
 
 =item L<mvwm(1)>
 
-L<mvwm(1)> does not provide window cycling feedback of its own.
+L<mvwm(1)> does not provide a workspace menu of its own.
 L<mvwm(1)> is supported and should work well.
 
 =item L<mwm(1)>
@@ -529,12 +529,12 @@ multiple desktops.  It is not supported.
 
 =item L<openbox(1)>
 
-L<openbox(1)> does not provide window cycling feedback of its own.
+L<openbox(1)> does not provide a workspace menu of its own.
 L<openbox(1)> is supported and should work well.
 
 =item L<pekwm(1)>
 
-L<pekwm(1)> does not provide window cycling feedback of its own.
+L<pekwm(1)> does not provide a workspace menu of its own.
 L<pekwm(1)> is supported and should work well.
 
 =item L<spectrwm(1)>
@@ -550,7 +550,7 @@ L<twm(1)> only supports part of ICCCM and is not supported.
 
 =item L<uwm(1)>
 
-L<uwm(1)> does not provide window cycling feedback of its own.
+L<uwm(1)> does not provide a workspace menu of its own.
 L<uwm(1)> is supported and should work well.
 
 =item L<velox(1)>
@@ -564,14 +564,14 @@ L<etwm(1)> instead.
 
 =item L<waimea(1)>
 
-L<waimea(1)> does not provide window cycling feedback of its own.
+L<waimea(1)> does not provide a workspace menu of its own.
 L<waimea(1)> is supported and should work well.  Because L<waimea(1)>
 has other issues, use the version at
 L<https://github.com/bbidulock/waimea> for a corrected version.
 
 =item L<wind(1)>
 
-L<wind(1)> does not provide window cycling feedback of its own.
+L<wind(1)> does not provide a workspace menu of its own.
 L<wind(1)> is supported and should work well.
 
 =item L<wm2(1)>
@@ -581,18 +581,18 @@ L<wmx(1)> derivative.
 
 =item L<wmaker(1)>
 
-L<wmaker(1)> provides an adequate window cycling feedback pop-up of its
-own and it follows the theme of the window manager.  When running under
-L<wmaker(1)>, B<xde-wkspmenu> will do nothing.
+L<wmaker(1)> provides an adequate a workspace menu of its
+own and it follows the theme of the window manager.
+Nevertheless, L<wmaker(1)> is supported and should work well.
 
 =item L<wmii(1)>
 
-L<wmii(1)> does not provide window cycling feedback of its own.
+L<wmii(1)> does not provide a workspace menu of its own.
 L<wmii(1)> is supported and should work well.
 
 =item L<wmx(1)>
 
-L<wmx(1)> does not provide window cycling feedback of its own.
+L<wmx(1)> does not provide a workspace menu of its own.
 L<wmx(1)> is supported and should work well.
 
 =item L<xdwm(1)>
@@ -611,8 +611,8 @@ L<yeahwm(1)> is barely ICCCM compliant and is currently unsupported.
 I wrote B<xde-wkspmenu> primarily for the L<adwm(1)> window manager (and
 variations of L<dwm(1)>) that do not support a workspace menu of their
 own.  Existing workspace menus associated with panels (and typically
-provided by F<libwnk>) do not support the special features associated
-with tagging and tiling window managers. 
+provided by F<libwnck>) do not support the special features associated
+with tagging and tiling window managers.
 
 =head1 AUTHOR
 

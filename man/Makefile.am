@@ -9,6 +9,7 @@ xde_man1_files = \
 	xde-keys.man \
 	xde-launch.man \
 	xde-monitor.man \
+	xde-opacity.man \
 	xde-open.man \
 	xde-pager.man \
 	xde-places.man \
@@ -34,6 +35,7 @@ EXTRA_DIST = \
 	xde-keys.pod \
 	xde-launch.pod \
 	xde-monitor.pod \
+	xde-opacity.pod \
 	xde-open.pod \
 	xde-pager.pod \
 	xde-places.pod \

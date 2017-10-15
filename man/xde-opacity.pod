@@ -1,0 +1,250 @@
+=pod
+
+=head1 NAME
+
+xde-opacity - transparency options manager for the X Desktop Environment
+
+=head1 SYNOPSIS
+
+B<xde-opacity> [I<OPTIONS>]
+
+=head1 DESCRIPTION
+
+B<xde-opacity> is an transparency settings tool for the I<X Desktop
+Environment>.  It can be used to set initial transparency settings from
+a configuration file, or can launch a dialogue to interactively set
+window manager transparency settings.  B<xde-opacity> runs as a daemon
+and monitors for changes made by other configuration tools and log
+changes to its configuration file.
+
+The settings that can be set are those that are supported by a specific
+extension to the I<NetWM/EWMH> specification.  This extension supports a
+number of properties.  In general settings that can be performed are as
+follows:
+
+=over
+
+=item I<Opacity by Window Type>
+
+The cooperating window manager will first apply opacity by window type.
+
+=over
+
+=item B<_NET_WM_WINDOW_TYPE_DESKTOP>
+
+=item B<_NET_WM_WINDOW_TYPE_DOCK>
+
+=item B<_NET_WM_WINDOW_TYPE_TOOLBAR>
+
+=item B<_NET_WM_WINDOW_TYPE_MENU>
+
+=item B<_NET_WM_WINDOW_TYPE_UTILITY>
+
+=item B<_NET_WM_WINDOW_TYPE_SPLASH>
+
+=item B<_NET_WM_WINDOW_TYPE_DIALOG>
+
+=item B<_NET_WM_WINDOW_TYPE_DROPDOWN_MENU>
+
+=item B<_NET_WM_WINDOW_TYPE_POPUP_MENU>
+
+=item B<_NET_WM_WINDOW_TYPE_TOOLTIP>
+
+=item B<_NET_WM_WINDOW_TYPE_NOTIFICATION>
+
+=item B<_NET_WM_WINDOW_TYPE_COMBO>
+
+=item B<_NET_WM_WINDOW_TYPE_DND>
+
+=item B<_NET_WM_WINDOW_TYPE_NORMAL>
+
+=back
+
+=item I<Opacity by Window State>
+
+=over
+
+=item B<_NET_WM_STATE_MODAL>
+
+=item B<_NET_WM_STATE_STICKY>
+
+=item B<_NET_WM_STATE_MAXIMIZED_VERT>
+
+=item B<_NET_WM_STATE_MAXIMIZED_HORZ>
+
+=item B<_NET_WM_STATE_SHADED>
+
+=item B<_NET_WM_STATE_SKIP_TASKBAR>
+
+=item B<_NET_WM_STATE_SKIP_PAGER>
+
+=item B<_NET_WM_STATE_HIDDEN>
+
+=item B<_NET_WM_STATE_FULLSCREEN>
+
+=item B<_NET_WM_STATE_ABOVE>
+
+=item B<_NET_WM_STATE_BELOW>
+
+=item B<_NET_WM_STATE_DEMANDS_ATTENTION>
+
+=item B<_NET_WM_STATE_FOCUSED>
+
+=item B<_NET_WM_STATE_FIXED>
+
+=item B<_NET_WM_STATE_FLOATING>
+
+=item B<_NET_WM_STATE_FILLED>
+
+=item B<_NET_WM_STATE_MAXIMUS_LEFT>
+
+=item B<_NET_WM_STATE_MAXIMUS_RIGHT>
+
+=back
+
+=item I<Opacity by Desktop Mode>
+
+=over
+
+=item B<_NET_DESKTOP_MODE_FLOATING>
+
+=item B<_NET_DESKTOP_MODE_TILED>
+
+=item B<_NET_DESKTOP_MODE_BOTTOM_TILE>
+
+=item B<_NET_DESKTOP_MODE_MONOCLE>
+
+=item B<_NET_DESKTOP_MODE_TOP_TILED>
+
+=item B<_NET_DESKTOP_MODE_LEFT_TILED>
+
+=item B<_NET_DESKTOP_MODE_GRID>
+
+=back
+
+=back
+
+=head1 OPTIONS
+
+=head2 COMMAND OPTIONS
+
+=head2 GENERAL OPTIONS
+
+=head2 SESSION MANAGEMENT OPTIONS
+
+=head1 ENVIRONMENT
+
+=head1 SIGNALS
+
+=head1 FORMAT
+
+=head1 FILES
+
+=head1 SPECIFICATION
+
+The procedures followed by a window manager that support this
+specification are described below.
+
+A window manager supporting this specification will have the
+B<_NET_OPACITY> and B<_NET_WM_WINDOW_OPACITY> atoms listed in the
+B<_NET_SUPPORTED> property on the root window.  The B<_NET_OPACITY>
+atom indicates support for this specification.  Window managers that
+support this specification must also support the
+B<_NET_WM_WINDOW_OPACITY> property as specified in the I<Composite
+Manager Specification>.
+
+A window manager supporting this specification will populate the
+B<_NET_OPACITY> property on the root window.  The B<_NET_OPACITY>
+property contents is an array of triples, where the first item in the
+triple is an I<ATOM> representing the criteria; the second item is a
+I<CARDINAL> containing the opacity setting associated with the
+I<ATOM>; and the third item is an operator.  The cardinal value is
+interpreted the same as the cardinal value of the
+B<_NET_WM_WINDOW_OPACITY> property: that is, it is an opacity setting
+between zero (0) and I<MAX_INT>: where zero (0) is completely
+transparent; I<MAX_INT> is opaque.  The operator is an I<ATOM> and can
+be one of the following:
+
+=over
+
+=item B<_NET_WM_OPACITY_MIN>
+
+The applied opacity is the minimum of the calculated opacity and the
+corresponding opacity setting.
+
+=item B<_NET_WM_OPACITY_MAX>
+
+The applied opacity is the maximum of the calculated opacity and the
+corresponding opacity setting.
+
+=item B<_NET_WM_OPACITY_ADD>
+
+The applied opacity is the calculated opacity plus the corresponding
+opacity setting (clipped at OPAQUE).
+
+=item B<_NET_WM_OPACITY_SUB>
+
+The applied opacity is the calculated opacity minus the corresponding
+opacity setting (clipped at zero (0)).
+
+=item B<_NET_WM_OPACITY_AVG>
+
+The applied opacity is the calculated opacity plus the corresponding
+opacity setting, divided by two.
+
+=back
+
+Only supported operations will be effected.  Operations that are
+supported by the window manager must appear in the B<_NET_SUPPORTED>
+property on the root window.
+
+The client can set the opacity for any supported item by sending a
+B<_NET_OPACITY> client message to the root window with the first 32 bits
+of client data containing the I<ATOM> to change; the second 32 bits, the
+I<CARDINAL> opacity to set; the third 32 bits, the I<ATOM> indicating
+the operation; the fourth 32 bits reserved (set to zero (0)); and the
+last 32 bits, the time stamp associated with the change.
+
+=head1 COMPLIANCE
+
+A number of window managers support this extension to the I<NetWM/EWMH>
+specification, as follows:
+
+=over
+
+=item L<adwm(1)>
+
+Full support was added to the L<adwm(1)> window manager.
+
+=item L<blackbox(1)>
+
+Full support was added to the L<blackbox(1)> window manager: however,
+only the version available
+
+=item L<icewm(1)>
+
+=back
+
+=head1 BUGS
+
+=head1 HISTORY
+
+=head1 SEE ALSO
+
+L<NetWM/EWMH Specification>,
+L<Composite Manager Specification>.
+
+=head1 AUTHOR
+
+Brian Bidulock L<mailto:bidulock@openss7.org>.
+
+See B<--copying> for full copyright notice and copying permissions.
+
+=head1 LICENSE
+
+See the F<COPYING> file in the distribution or use the B<--copying> flag
+to display copying permissions.
+
+=cut
+
+# vim: set sw=4 tw=72 nocin spell spelllang=en_ca:
