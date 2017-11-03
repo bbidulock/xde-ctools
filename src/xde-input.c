@@ -8348,8 +8348,7 @@ update_layout(XdeScreen *xscr, Atom prop)
 		if (xscr->rows == 0)
 			for (num = xscr->desks; num > 0; xscr->rows++, num -= xscr->cols) ;
 #if 1
-		refresh_layout(xscr); /* XXX: should not be deferred */
-#else
+		// refresh_layout(xscr); /* XXX: should be deferred */
 		add_deferred_refresh_layout(xscr);
 #endif
 	}

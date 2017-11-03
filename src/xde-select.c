@@ -2000,7 +2000,11 @@ update_layout(XdeScreen *xscr, Atom prop)
 	if (xscr->rows == 0)
 		for (num = xscr->desks; num > 0; xscr->rows++, num -= xscr->cols) ;
 
-	refresh_layout(xscr); /* XXX: should be deferred */
+#if 1
+		refresh_layout(xscr); /* XXX: should not be deferred */
+#else
+		add_deferred_refresh_layout(xscr);
+#endif
 }
 
 static GdkFilterReturn
