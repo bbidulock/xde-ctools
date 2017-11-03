@@ -1760,7 +1760,7 @@ set_workspaces(XdeScreen *xscr, gint count)
 	ev.xclient.data.l[3] = 0;
 	ev.xclient.data.l[4] = 0;
 
-	XSendEvent(dpy, root, False, SubstructureNotifyMask | SubstructureRedirectMask, &ev);
+	XSendEvent(dpy, root, False, StructureNotifyMask | SubstructureNotifyMask | SubstructureRedirectMask, &ev);
 	XFlush(dpy);
 }
 
@@ -7418,6 +7418,7 @@ do_run(int argc, char *argv[])
 	Window selwin, owner, broadcast = GDK_WINDOW_XID(root);
 	long mask = StructureNotifyMask | SubstructureNotifyMask | PropertyChangeMask;
 	XdeMonitor *xmon;
+	const char *id;
 
 	PTRACE(5);
 	selwin = XCreateSimpleWindow(dpy, broadcast, 0, 0, 1, 1, 0, 0, 0);
@@ -7505,6 +7506,8 @@ do_run(int argc, char *argv[])
 				XSync(dpy, False);
 				break;
 			}
+			if ((id = getenv("DESKTOP_STARTUP_ID")))
+				gdk_notify_startup_complete_with_id(id);
 			exit(EXIT_SUCCESS);
 		}
 	}
@@ -7538,6 +7541,10 @@ do_run(int argc, char *argv[])
 			break;
 		}
 	}
+
+	gtk_window_set_auto_startup_notification(FALSE);
+	if ((id = getenv("DESKTOP_STARTUP_ID")))
+		gdk_notify_startup_complete_with_id(id);
 
 	mainloop();
 }
