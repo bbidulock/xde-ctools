@@ -160,7 +160,7 @@ _timestamp(void)
 
 #define EPRINTF(_args...) do { \
 		fprintf(stderr, NAME ": E: [%s] %12s +%4d %s(): ", _timestamp(), __FILE__, __LINE__, __func__); \
-		fprintf(stderr, _args); fflush(stderr); } while (0)
+		fprintf(stderr, _args); fflush(stderr);   } while (0)
 
 #define OPRINTF(_num, _args...) do { if (options.debug >= _num || options.output > _num) { \
 		fprintf(stdout, NAME ": I: "); \
@@ -222,6 +222,7 @@ char **cmdArgv;
 /** @section Globals and Structures
   * @{ */
 
+static Atom _XA_MANAGER;
 static Atom _XA_GTK_READ_RCFILES;
 
 static Atom _XA_NET_ACTIVE_WINDOW;
@@ -277,10 +278,8 @@ static Atom _XA_PREFIX_RESTART;
 static Atom _XA_PREFIX_POPMENU;
 static Atom _XA_PREFIX_EDITOR;
 
-#ifdef STARTUP_NOTIFICATION
 static Atom _XA_NET_STARTUP_INFO;
 static Atom _XA_NET_STARTUP_INFO_BEGIN;
-#endif				/* STARTUP_NOTIFICATION */
 
 typedef enum {
 	CommandDefault,
@@ -1758,7 +1757,7 @@ set_workspaces(XdeScreen *xscr, gint count)
 	ev.xclient.data.l[3] = 0;
 	ev.xclient.data.l[4] = 0;
 
-	XSendEvent(dpy, root, False, SubstructureNotifyMask | SubstructureRedirectMask, &ev);
+	XSendEvent(dpy, root, False, StructureNotifyMask | SubstructureNotifyMask | SubstructureRedirectMask, &ev);
 	XFlush(dpy);
 }
 
@@ -7048,6 +7047,9 @@ startup(int argc, char *argv[])
 	sn_dpy = sn_display_new(dpy, NULL, NULL);
 #endif
 
+	atom = gdk_atom_intern_static_string("MANAGER");
+	_XA_MANAGER = gdk_x11_atom_to_xatom_for_display(disp, atom);
+
 	atom = gdk_atom_intern_static_string("_XDE_ICON_THEME_NAME");
 	_XA_XDE_ICON_THEME_NAME = gdk_x11_atom_to_xatom_for_display(disp, atom);
 
@@ -7175,13 +7177,15 @@ startup(int argc, char *argv[])
 	atom = gdk_atom_intern_static_string("_WIN_CLIENT_LIST");
 	_XA_WIN_CLIENT_LIST = gdk_x11_atom_to_xatom_for_display(disp, atom);
 #endif
-#ifdef STARTUP_NOTIFICATION
 	atom = gdk_atom_intern_static_string("_NET_STARTUP_INFO");
 	_XA_NET_STARTUP_INFO = gdk_x11_atom_to_xatom_for_display(disp, atom);
+#ifdef STARTUP_NOTIFICATION
 	gdk_display_add_client_message_filter(disp, atom, client_handler, NULL);
+#endif				/* STARTUP_NOTIFICATION */
 
 	atom = gdk_atom_intern_static_string("_NET_STARTUP_INFO_BEGIN");
 	_XA_NET_STARTUP_INFO_BEGIN = gdk_x11_atom_to_xatom_for_display(disp, atom);
+#ifdef STARTUP_NOTIFICATION
 	gdk_display_add_client_message_filter(disp, atom, client_handler, NULL);
 #endif				/* STARTUP_NOTIFICATION */
 	atom = gdk_atom_intern_static_string("_WIN_AREA");
@@ -7305,7 +7309,7 @@ get_desktop_layout_selection(XdeScreen *xscr)
 		ev.xclient.send_event = False;
 		ev.xclient.display = dpy;
 		ev.xclient.window = root;
-		ev.xclient.message_type = XInternAtom(dpy, "MANAGER", False);
+		ev.xclient.message_type = _XA_MANAGER;
 		ev.xclient.format = 32;
 		ev.xclient.data.l[0] = CurrentTime;
 		ev.xclient.data.l[1] = atom;
@@ -7320,6 +7324,68 @@ get_desktop_layout_selection(XdeScreen *xscr)
 }
 
 #if 1
+static void
+startup_notification_complete(Window selwin)
+{
+	const char *id;
+
+	if ((id = getenv("DESKTOP_STARTUP_ID"))) {
+		int l, len = 20 + strlen(id);
+		XEvent xev = { 0, };
+		Window from, root = DefaultRootWindow(dpy);
+		char *msg, *p;
+
+		msg = calloc(len + 1, sizeof(*msg));
+		snprintf(msg, len, "remove: ID=%s", id);
+
+		if (!(from = selwin))
+			from = XCreateSimpleWindow(dpy, root, 0, 0, 1, 1, 0, ParentRelative, ParentRelative);
+		xev.type = ClientMessage;
+		xev.xclient.message_type = _XA_NET_STARTUP_INFO_BEGIN;
+		xev.xclient.display = dpy;
+		xev.xclient.window = from;
+		xev.xclient.format = 8;
+
+		l = strlen((p = msg)) + 1;
+		while (l > 0) {
+			strncpy(xev.xclient.data.b, p, 20);
+			p += 20;
+			l -= 20;
+			/* just PropertyChange mask in the spec doesn't work :( */
+			if (!XSendEvent(dpy, root, False, StructureNotifyMask | SubstructureNotifyMask |
+					SubstructureRedirectMask | PropertyChangeMask, &xev))
+				EPRINTF("XSendEvent: failed!\n");
+			xev.xclient.message_type = _XA_NET_STARTUP_INFO;
+		}
+		XSync(dpy, False);
+
+		if (from != selwin)
+			XDestroyWindow(dpy, from);
+	}
+}
+
+static void
+announce_selection(Window root, Window selwin, Atom selection)
+{
+	XEvent ev;
+
+	ev.xclient.type = ClientMessage;
+	ev.xclient.serial = 0;
+	ev.xclient.send_event = False;
+	ev.xclient.display = dpy;
+	ev.xclient.window = root;
+	ev.xclient.message_type = _XA_MANAGER;
+	ev.xclient.format = 32;
+	ev.xclient.data.l[0] = CurrentTime;	/* FIXME */
+	ev.xclient.data.l[1] = selection;
+	ev.xclient.data.l[2] = selwin;
+	ev.xclient.data.l[3] = 0;
+	ev.xclient.data.l[4] = 0;
+
+	XSendEvent(dpy, root, False, StructureNotifyMask, &ev);
+	XSync(dpy, False);
+}
+
 static Window
 get_selection(Bool replace, Window selwin)
 {
@@ -7358,36 +7424,21 @@ get_selection(Bool replace, Window selwin)
 				DPRINTF(1, "no running instance to quit\n");
 		}
 		if (selwin) {
-			XEvent ev = { 0, };
-			Atom manager = XInternAtom(dpy, "MANAGER", False);
-			GdkScreen *scrn;
-			Window root;
-
 			for (s = 0; s < nscr; s++) {
-				scrn = gdk_display_get_screen(disp, s);
-				root = GDK_WINDOW_XID(gdk_screen_get_root_window(scrn));
+				Screen *scrn = ScreenOfDisplay(dpy, s);
+				Window root = RootWindowOfScreen(scrn);
+
 				snprintf(selection, sizeof(selection), XA_SELECTION_NAME, s);
 				atom = XInternAtom(dpy, selection, False);
 
-				ev.xclient.type = ClientMessage;
-				ev.xclient.serial = 0;
-				ev.xclient.send_event = False;
-				ev.xclient.display = dpy;
-				ev.xclient.window = root;
-				ev.xclient.message_type = manager;
-				ev.xclient.format = 32;
-				ev.xclient.data.l[0] = CurrentTime;	/* FIXME */
-				ev.xclient.data.l[1] = atom;
-				ev.xclient.data.l[2] = selwin;
-				ev.xclient.data.l[3] = 0;
-				ev.xclient.data.l[4] = 0;
-
-				XSendEvent(dpy, root, False, StructureNotifyMask, &ev);
-				XFlush(dpy);
+				announce_selection(root, selwin, atom);
 			}
 		}
-	} else if (gotone)
+	} else if (gotone) {
 		DPRINTF(1, "not replacing running instance\n");
+		return (gotone);
+	}
+	startup_notification_complete(selwin);
 	return (gotone);
 }
 
@@ -7416,7 +7467,6 @@ do_run(int argc, char *argv[])
 	Window selwin, owner, broadcast = GDK_WINDOW_XID(root);
 	long mask = StructureNotifyMask | SubstructureNotifyMask | PropertyChangeMask;
 	XdeMonitor *xmon;
-	const char *id;
 
 	PTRACE(5);
 	selwin = XCreateSimpleWindow(dpy, broadcast, 0, 0, 1, 1, 0, 0, 0);
@@ -7441,7 +7491,7 @@ do_run(int argc, char *argv[])
 				ev.xclient.serial = 0;
 				ev.xclient.send_event = False;
 				ev.xclient.display = dpy;
-				ev.xclient.window = broadcast;
+				ev.xclient.window = selwin;
 				ev.xclient.message_type = _XA_PREFIX_RESTART;
 				ev.xclient.format = 32;
 				ev.xclient.data.l[0] = options.timestamp;
@@ -7458,7 +7508,7 @@ do_run(int argc, char *argv[])
 				ev.xclient.serial = 0;
 				ev.xclient.send_event = False;
 				ev.xclient.display = dpy;
-				ev.xclient.window = broadcast;
+				ev.xclient.window = selwin;
 				ev.xclient.message_type = _XA_PREFIX_REFRESH;
 				ev.xclient.format = 32;
 				ev.xclient.data.l[0] = options.timestamp;
@@ -7475,7 +7525,7 @@ do_run(int argc, char *argv[])
 				ev.xclient.serial = 0;
 				ev.xclient.send_event = False;
 				ev.xclient.display = dpy;
-				ev.xclient.window = broadcast;
+				ev.xclient.window = selwin;
 				ev.xclient.message_type = _XA_PREFIX_POPMENU;
 				ev.xclient.format = 32;
 				ev.xclient.data.l[0] = options.timestamp;
@@ -7492,7 +7542,7 @@ do_run(int argc, char *argv[])
 				ev.xclient.serial = 0;
 				ev.xclient.send_event = False;
 				ev.xclient.display = dpy;
-				ev.xclient.window = broadcast;
+				ev.xclient.window = selwin;
 				ev.xclient.message_type = _XA_PREFIX_EDITOR;
 				ev.xclient.format = 32;
 				ev.xclient.data.l[0] = options.timestamp;
@@ -7504,8 +7554,6 @@ do_run(int argc, char *argv[])
 				XSync(dpy, False);
 				break;
 			}
-			if ((id = getenv("DESKTOP_STARTUP_ID")))
-				gdk_notify_startup_complete_with_id(id);
 			exit(EXIT_SUCCESS);
 		}
 	}
@@ -7540,9 +7588,6 @@ do_run(int argc, char *argv[])
 		}
 	}
 
-	gtk_window_set_auto_startup_notification(FALSE);
-	if ((id = getenv("DESKTOP_STARTUP_ID")))
-		gdk_notify_startup_complete_with_id(id);
 	mainloop();
 }
 
@@ -8127,9 +8172,7 @@ get_default_wmname(void)
 
 	if (options.display) {
 		Display *dpy = GDK_DISPLAY_XDISPLAY(disp);
-		GdkScreen *scrn = gdk_display_get_default_screen(disp);
-		GdkWindow *wind = gdk_screen_get_root_window(scrn);
-		Window root = GDK_WINDOW_XID(wind);
+		Window root = DefaultRootWindow(dpy);
 		Atom prop = _XA_XDE_WM_NAME;
 		char **list = NULL;
 		int strings = 0;
@@ -8191,8 +8234,7 @@ static void
 get_default_theme(void)
 {
 	GdkScreen *scrn = gdk_display_get_default_screen(disp);
-	GdkWindow *wind = gdk_screen_get_root_window(scrn);
-	Window root = GDK_WINDOW_XID(wind);
+	Window root = DefaultRootWindow(dpy);
 	XTextProperty xtp = { NULL, };
 	Bool changed = False;
 	Atom prop = _XA_XDE_THEME_NAME;
@@ -8258,8 +8300,7 @@ static void
 get_default_icon_theme(void)
 {
 	GdkScreen *scrn = gdk_display_get_default_screen(disp);
-	GdkWindow *wind = gdk_screen_get_root_window(scrn);
-	Window root = GDK_WINDOW_XID(wind);
+	Window root = DefaultRootWindow(dpy);
 	XTextProperty xtp = { NULL, };
 	Bool changed = False;
 	Atom prop = _XA_XDE_ICON_THEME_NAME;
