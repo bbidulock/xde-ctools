@@ -8138,6 +8138,7 @@ set_defaults(void)
 	if ((env = getenv("DESKTOP_STARTUP_ID"))) {
 		free(options.startup_id);
 		options.startup_id = strdup(env);
+		unsetenv("DESKTOP_STARTUP_ID");	/* take away from GTK */
 		/* we can get the timestamp from the startup id */
 		if ((p = strstr(env, "_TIME"))) {
 			timestamp = strtoul(p + 5, &endptr, 10);
