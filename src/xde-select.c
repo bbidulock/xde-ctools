@@ -469,7 +469,7 @@ get_selection(Bool replace, Window selwin)
 		if ((owner && replace) || (!owner && selwin)) {
 			DPRINTF("Setting owner of %s to 0x%08lx from 0x%08lx\n", selection,
 				selwin, owner);
-			XSetSelectionOwner(dpy, atom, selwin, CurrentTime);
+			XSetSelectionOwner(dpy, atom, selwin, options.timestamp);
 			XSync(dpy, False);
 		}
 		if (!gotone && owner)
@@ -506,7 +506,7 @@ get_selection(Bool replace, Window selwin)
 				ev.xclient.window = root;
 				ev.xclient.message_type = manager;
 				ev.xclient.format = 32;
-				ev.xclient.data.l[0] = CurrentTime;	/* FIXME:
+				ev.xclient.data.l[0] = options.timestamp;	/* FIXME:
 									   mimestamp */
 				ev.xclient.data.l[1] = atom;
 				ev.xclient.data.l[2] = selwin;
@@ -548,7 +548,7 @@ get_desktop_layout_selection(XdeScreen *xscr)
 	atom = XInternAtom(dpy, selection, False);
 	if (!(owner = XGetSelectionOwner(dpy, atom)))
 		DPRINTF("No owner for %s\n", selection);
-	XSetSelectionOwner(dpy, atom, xscr->laywin, CurrentTime);
+	XSetSelectionOwner(dpy, atom, xscr->laywin, options.timestamp);
 	XSync(dpy, False);
 
 	if (xscr->laywin) {
@@ -561,7 +561,7 @@ get_desktop_layout_selection(XdeScreen *xscr)
 		ev.xclient.window = root;
 		ev.xclient.message_type = XInternAtom(dpy, "MANAGER", False);
 		ev.xclient.format = 32;
-		ev.xclient.data.l[0] = CurrentTime;
+		ev.xclient.data.l[0] = options.timestamp;
 		ev.xclient.data.l[1] = atom;
 		ev.xclient.data.l[2] = xscr->laywin;
 		ev.xclient.data.l[3] = 0;
@@ -914,7 +914,7 @@ something_changed(WnckScreen *wnck, XdeScreen *xscr)
 		    GDK_BUTTON_PRESS_MASK |
 		    GDK_BUTTON_RELEASE_MASK | GDK_ENTER_NOTIFY_MASK | GDK_LEAVE_NOTIFY_MASK;
 		DPRINT();
-		XSetInputFocus(dpy, win, RevertToPointerRoot, CurrentTime);
+		XSetInputFocus(dpy, win, RevertToPointerRoot, CurrentTime); /* FIXME */
 		status = gdk_pointer_grab(xscr->popup->window, TRUE,
 					  mask, NULL, NULL, GDK_CURRENT_TIME);
 		switch (status) {
@@ -937,7 +937,7 @@ something_changed(WnckScreen *wnck, XdeScreen *xscr)
 		}
 	}
 	if (!xscr->keyboard) {
-		XSetInputFocus(dpy, win, RevertToPointerRoot, CurrentTime);
+		XSetInputFocus(dpy, win, RevertToPointerRoot, CurrentTime); /* FIXME */
 		status = gdk_keyboard_grab(xscr->popup->window, TRUE, GDK_CURRENT_TIME);
 		switch (status) {
 		case GDK_GRAB_SUCCESS:

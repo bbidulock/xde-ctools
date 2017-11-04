@@ -261,6 +261,7 @@ typedef struct {
 	int output;
 	char *display;
 	int screen;
+	Time timestamp;
 	DockPosition position;
 	DockDirection direction;
 	DockAppTest test;
@@ -272,6 +273,9 @@ typedef struct {
 Options options = {
 	.debug = 0,
 	.output = 1,
+	.display = NULL,
+	.screen = -1,
+	.timestamp = CurrentTime,
 	.position = DockPositionEast,
 	.direction = DockDirectionVertical,
 	.test = DockAppTestMine,
@@ -1965,7 +1969,7 @@ get_selection(Bool replace, Window selwin)
 		if ((owner && replace) || (!owner && selwin)) {
 			DPRINTF("Setting owner of %s to 0x%08lx from 0x%08lx\n", selection,
 				selwin, owner);
-			XSetSelectionOwner(dpy, atom, selwin, CurrentTime);
+			XSetSelectionOwner(dpy, atom, selwin, options.timestamp);
 			XSync(dpy, False);
 		}
 		if (!gotone && owner)
@@ -2002,8 +2006,7 @@ get_selection(Bool replace, Window selwin)
 				ev.xclient.window = root;
 				ev.xclient.message_type = manager;
 				ev.xclient.format = 32;
-				ev.xclient.data.l[0] = CurrentTime;	/* FIXME:
-									   mimestamp */
+				ev.xclient.data.l[0] = options.timestamp;	/* FIXME */
 				ev.xclient.data.l[1] = atom;
 				ev.xclient.data.l[2] = selwin;
 				ev.xclient.data.l[3] = 0;
