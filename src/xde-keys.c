@@ -460,7 +460,7 @@ main(int argc, char *argv[])
 			break;
 		case 'W':	/* -W, --delay DELAY */
 			options.delay = strtoul(optarg, &endptr, 0);
-			if (endptr && *endptr)
+			if (*endptr)
 				goto bad_option;
 			break;
 		case 'P':	/* -P, --profile PROFILE */
@@ -485,7 +485,7 @@ main(int argc, char *argv[])
 			}
 			if ((val = strtol(optarg, &endptr, 0)) < 0)
 				goto bad_option;
-			if (endptr && *endptr)
+			if (*endptr)
 				goto bad_option;
 			options.debug = val;
 			break;
@@ -498,7 +498,7 @@ main(int argc, char *argv[])
 			}
 			if ((val = strtol(optarg, &endptr, 0)) < 0)
 				goto bad_option;
-			if (endptr && *endptr)
+			if (*endptr)
 				goto bad_option;
 			options.output = val;
 			break;

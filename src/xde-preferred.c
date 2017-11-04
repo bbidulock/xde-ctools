@@ -709,7 +709,7 @@ main(int argc, char *argv[])
 			break;
 		case 's':       /* -s, --screen SCREEN */
 			options.screen = strtoul(optarg, &endptr, 0);
-			if (endptr && *endptr)
+			if (*endptr)
 				goto bad_option;
 			break;
 		case 'w':	/* -w, --which {default|recommend|all} */
@@ -798,7 +798,7 @@ main(int argc, char *argv[])
 			}
 			if ((val = strtol(optarg, &endptr, 0)) < 0)
 				goto bad_option;
-			if (endptr && *endptr)
+			if (*endptr)
 				goto bad_option;
 			options.debug = val;
 			break;
@@ -811,7 +811,7 @@ main(int argc, char *argv[])
 			}
 			if ((val = strtol(optarg, &endptr, 0)) < 0)
 				goto bad_option;
-			if (endptr && *endptr)
+			if (*endptr)
 				goto bad_option;
 			options.output = val;
 			break;

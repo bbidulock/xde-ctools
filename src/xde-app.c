@@ -1459,7 +1459,7 @@ main(int argc, char *argv[])
 		case 'r':	/* -r, --recent NUMBER */
 			if ((val = strtoul(optarg, &endptr, 0)) < 0)
 				goto bad_option;
-			if (endptr && *endptr)
+			if (*endptr)
 				goto bad_option;
 			if (val < 1)
 				val = 1;
@@ -1494,7 +1494,7 @@ main(int argc, char *argv[])
 			}
 			if ((val = strtol(optarg, &endptr, 0)) < 0)
 				goto bad_option;
-			if (endptr && *endptr)
+			if (*endptr)
 				goto bad_option;
 			options.debug = val;
 			break;
@@ -1507,7 +1507,7 @@ main(int argc, char *argv[])
 			}
 			if ((val = strtol(optarg, &endptr, 0)) < 0)
 				goto bad_option;
-			if (endptr && *endptr)
+			if (*endptr)
 				goto bad_option;
 			options.output = val;
 			break;

@@ -2807,7 +2807,7 @@ parse_startup_id(const char *id, char **launcher_p, char **launchee_p, char **ho
 		tmp = strndup(q, p - q);
 		pid = strtoul(tmp, &endptr, 10);
 		free(tmp);
-		if (endptr && *endptr)
+		if (*endptr)
 			break;
 		if (pid_p)
 			*pid_p = pid;
@@ -2817,7 +2817,7 @@ parse_startup_id(const char *id, char **launcher_p, char **launchee_p, char **ho
 		tmp = strndup(q, p - q);
 		sequence = strtoul(tmp, &endptr, 10);
 		free(tmp);
-		if (endptr && *endptr)
+		if (*endptr)
 			break;
 		if (sequence_p)
 			*sequence_p = sequence;
@@ -2828,7 +2828,7 @@ parse_startup_id(const char *id, char **launcher_p, char **launchee_p, char **ho
 			*hostname_p = strndup(q, p - q);
 		q = p + 5;
 		timestamp = strtoul(q, &endptr, 10);
-		if (endptr && *endptr)
+		if (*endptr)
 			break;
 		if (timestamp_p)
 			*timestamp_p = timestamp;
@@ -2838,7 +2838,7 @@ parse_startup_id(const char *id, char **launcher_p, char **launchee_p, char **ho
 
 	if (!timestamp && (p = strstr(id, "_TIME"))) {
 		timestamp = strtoul(p + 5, &endptr, 10);
-		if (!endptr || !*endptr)
+		if (!*endptr)
 			if (timestamp_p)
 				*timestamp_p = timestamp;
 	}
@@ -3845,11 +3845,10 @@ getXrmInt(const char *val, int *integer)
 	int value;
 
 	value = strtol(val, &endptr, 0);
-	if (endptr && !*endptr) {
-		*integer = value;
-		return True;
-	}
-	return False;
+	if (*endptr)
+		return False;
+	*integer = value;
+	return True;
 }
 
 Bool
@@ -3859,11 +3858,10 @@ getXrmUint(const char *val, unsigned int *integer)
 	unsigned int value;
 
 	value = strtoul(val, &endptr, 0);
-	if (endptr && !*endptr) {
-		*integer = value;
-		return True;
-	}
-	return False;
+	if (*endptr)
+		return False;
+	*integer = value;
+	return True;
 }
 
 Bool
@@ -3873,11 +3871,10 @@ getXrmTime(const char *val, Time *time)
 	unsigned int value;
 
 	value = strtoul(val, &endptr, 0);
-	if (endptr && !*endptr) {
-		*time = value;
-		return True;
-	}
-	return False;
+	if (*endptr)
+		return False;
+	*time = value;
+	return True;
 }
 
 Bool
@@ -7258,7 +7255,7 @@ set_defaults(void)
 		/* we can get the timestamp from the startup id */
 		if ((p = strstr(env, "_TIME"))) {
 			timestamp = strtoul(p + 5, &endptr, 10);
-			if (endptr && *endptr)
+			if (!*endptr)
 				options.timestamp = timestamp;
 		}
 		/* we can get the monitor number from the startup id */
@@ -7606,13 +7603,13 @@ main(int argc, char *argv[])
 			break;
 		case 's':	/* -s, --screen SCREEN */
 			val = strtol(optarg, &endptr, 0);
-			if (endptr && *endptr)
+			if (*endptr)
 				goto bad_option;
 			options.screen = val;
 			break;
 		case 'M':	/* -M, --monitor MONITOR */
 			val = strtol(optarg, &endptr, 0);
-			if (endptr && *endptr)
+			if (*endptr)
 				goto bad_option;
 			options.monitor = val;
 			break;
@@ -7644,7 +7641,7 @@ main(int argc, char *argv[])
 		case 'b':	/* -b, --button [BUTTON] */
 			if (optarg) {
 				val = strtoul(optarg, &endptr, 0);
-				if (endptr && *endptr)
+				if (*endptr)
 					goto bad_option;
 				if (val < 0 || val > 8)
 					goto bad_option;
@@ -7674,7 +7671,7 @@ main(int argc, char *argv[])
 				options.which = UseScreenPointer;
 			else {
 				options.screen = strtoul(optarg, &endptr, 0);
-				if (endptr && *endptr)
+				if (*endptr)
 					goto bad_option;
 				options.which = UseScreenSpecified;
 			}
@@ -7712,7 +7709,7 @@ main(int argc, char *argv[])
 
 		case 'T':	/* -T, --timestamp TIMESTAMP */
 			options.timestamp = strtoul(optarg, &endptr, 0);
-			if (endptr && *endptr)
+			if (*endptr)
 				goto bad_option;
 			break;
 
@@ -7733,7 +7730,7 @@ main(int argc, char *argv[])
 			}
 			if ((val = strtol(optarg, &endptr, 0)) < 0)
 				goto bad_option;
-			if (endptr && *endptr)
+			if (*endptr)
 				goto bad_option;
 			options.debug = val;
 			break;
@@ -7745,7 +7742,7 @@ main(int argc, char *argv[])
 			}
 			if ((val = strtol(optarg, &endptr, 0)) < 0)
 				goto bad_option;
-			if (endptr && *endptr)
+			if (*endptr)
 				goto bad_option;
 			options.output = val;
 			break;

@@ -1234,7 +1234,7 @@ main(int argc, char *argv[])
 			break;
 		case 's':	/* -s, --screen SCREEN */
 			options.screen = strtoul(optarg, &endptr, 0);
-			if (endptr && *endptr)
+			if (*endptr)
 				goto bad_option;
 			break;
 		case 'p':	/* -p, --popup */
@@ -1246,12 +1246,12 @@ main(int argc, char *argv[])
 			break;
 		case 'b':	/* -b, --button BUTTON */
 			options.button = strtoul(optarg, &endptr, 0);
-			if (endptr && *endptr)
+			if (*endptr)
 				goto bad_option;
 			break;
 		case 'T':	/* -T, --timestamp TIMESTAMP */
 			options.timestamp = strtoul(optarg, &endptr, 0);
-			if (endptr && *endptr)
+			if (*endptr)
 				goto bad_option;
 			break;
 
@@ -1270,7 +1270,7 @@ main(int argc, char *argv[])
 				options.which = UseWindowSelect;
 			else  {
 				options.window = strtoul(optarg, &endptr, 0);
-				if (endptr && *endptr)
+				if (*endptr)
 					goto bad_option;
 				options.which = UseWindowSpecified;
 			}
@@ -1295,7 +1295,7 @@ main(int argc, char *argv[])
 			if (options.which != UseWindowDefault)
 				goto bad_option;
 			options.window = strtoul(optarg, &endptr, 0);
-			if (endptr && *endptr)
+			if (*endptr)
 				goto bad_option;
 			if (!options.window)
 				goto bad_option;
@@ -1311,7 +1311,7 @@ main(int argc, char *argv[])
 			}
 			if ((val = strtol(optarg, &endptr, 0)) < 0)
 				goto bad_option;
-			if (endptr && *endptr)
+			if (*endptr)
 				goto bad_option;
 			options.debug = val;
 			break;
@@ -1324,7 +1324,7 @@ main(int argc, char *argv[])
 			}
 			if ((val = strtol(optarg, &endptr, 0)) < 0)
 				goto bad_option;
-			if (endptr && *endptr)
+			if (*endptr)
 				goto bad_option;
 			options.output = val;
 			break;

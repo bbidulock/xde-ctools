@@ -3563,19 +3563,19 @@ main(int argc, char *argv[])
 			break;
 		case 's':	/* -s, --screen SCREEN */
 			options.screen = strtoul(optarg, &endptr, 0);
-			if (endptr && *endptr)
+			if (*endptr)
 				goto bad_option;
 			break;
 		case 't':	/* -t, --timeout MILLISECONDS */
 			options.timeout = strtoul(optarg, &endptr, 0);
-			if (endptr && *endptr)
+			if (*endptr)
 				goto bad_option;
 			if (!options.timeout)
 				goto bad_option;
 			break;
 		case 'B':	/* -B, --border PIXELS */
 			options.border = strtoul(optarg, &endptr, 0);
-			if (endptr && *endptr)
+			if (*endptr)
 				goto bad_option;
 			if (options.border > 20)
 				goto bad_option;
@@ -3586,12 +3586,12 @@ main(int argc, char *argv[])
 
 		case 'b':	/* -b, --button BUTTON */
 			options.button = strtoul(optarg, &endptr, 0);
-			if (endptr && *endptr)
+			if (*endptr)
 				goto bad_option;
 			break;
 		case 'T':	/* -T, --timestamp TIMESTAMP */
 			options.timestamp = strtoul(optarg, &endptr, 0);
-			if (endptr && *endptr)
+			if (*endptr)
 				goto bad_option;
 			break;
 
@@ -3608,7 +3608,7 @@ main(int argc, char *argv[])
 				options.which = UseScreenPointer;
 			else {
 				options.screen = strtoul(optarg, &endptr, 0);
-				if (endptr && *endptr)
+				if (*endptr)
 					goto bad_option;
 				options.which = UseScreenSpecified;
 			}
@@ -3718,7 +3718,7 @@ main(int argc, char *argv[])
 			}
 			if ((val = strtol(optarg, &endptr, 0)) < 0)
 				goto bad_option;
-			if (endptr && *endptr)
+			if (*endptr)
 				goto bad_option;
 			options.debug = val;
 			break;
@@ -3731,7 +3731,7 @@ main(int argc, char *argv[])
 			}
 			if ((val = strtol(optarg, &endptr, 0)) < 0)
 				goto bad_option;
-			if (endptr && *endptr)
+			if (*endptr)
 				goto bad_option;
 			options.output = val;
 			break;
