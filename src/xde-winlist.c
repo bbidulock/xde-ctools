@@ -371,6 +371,7 @@ typedef struct {
 	char *display;
 	int screen;
 	int monitor;
+	char *startup_id;
 	char *wmname;
 	char *desktop;
 	char *theme;
@@ -411,6 +412,7 @@ Options options = {
 	.display = NULL,
 	.screen = -1,
 	.monitor = 0,
+	.startup_id = NULL,
 	.wmname = NULL,
 	.desktop = NULL,
 	.theme = NULL,
@@ -6730,16 +6732,14 @@ get_desktop_layout_selection(XdeScreen *xscr)
 static void
 startup_notification_complete(Window selwin)
 {
-	const char *id;
-
-	if ((id = getenv("DESKTOP_STARTUP_ID"))) {
-		int l, len = 20 + strlen(id);
+	if (options.startup_id) {
+		int l, len = 20 + strlen(options.startup_id);
 		XEvent xev = { 0, };
 		Window from, root = DefaultRootWindow(dpy);
 		char *msg, *p;
 
 		msg = calloc(len + 1, sizeof(*msg));
-		snprintf(msg, len, "remove: ID=%s", id);
+		snprintf(msg, len, "remove: ID=%s", options.startup_id);
 
 		if (!(from = selwin))
 			from = XCreateSimpleWindow(dpy, root, 0, 0, 1, 1, 0, ParentRelative, ParentRelative);
@@ -7416,6 +7416,8 @@ set_defaults(void)
 			options.screen = atoi(p);
 	}
 	if ((env = getenv("DESKTOP_STARTUP_ID"))) {
+		free(options.startup_id);
+		options.startup_id = strdup(env);
 		/* we can get the timestamp from the startup id */
 		if ((p = strstr(env, "_TIME"))) {
 			timestamp = strtoul(p + 5, &endptr, 10);
