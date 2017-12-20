@@ -5915,6 +5915,7 @@ refresh_layout(XdeScreen *xscr)
 			if (xmon->pager.popup) {
 				// gtk_window_set_default_size(GTK_WINDOW(xmon->pager.popup), w / f, h / f);
 				gtk_widget_set_size_request(GTK_WIDGET(xmon->pager.popup), w / f, h / f);
+				gtk_window_resize(GTK_WINDOW(xmon->pager.popup), w / f, h / f);
 			}
 		}
 	}
@@ -6648,13 +6649,17 @@ add_pager(XdeScreen *xscr, XdePopup *xpop, GtkWidget *popup, GtkWidget *hbox)
 	GtkWidget *pager = wnck_pager_new(xscr->wnck);
 
 	wnck_pager_set_orientation(WNCK_PAGER(pager), GTK_ORIENTATION_HORIZONTAL);
+#if 0
+	/* this will fail unless added to widget for screen, attempts to change
+	   _NET_DESKTOP_LAYOUT, so this is not really the place for it anyway */
 	wnck_pager_set_n_rows(WNCK_PAGER(pager), 2);
-	wnck_pager_set_layout_policy(WNCK_PAGER(pager), WNCK_PAGER_LAYOUT_POLICY_AUTOMATIC);
+#endif
+	wnck_pager_set_layout_policy(WNCK_PAGER(pager), WNCK_PAGER_LAYOUT_POLICY_HEIGHT_FOR_WIDTH);
 	wnck_pager_set_display_mode(WNCK_PAGER(pager), WNCK_PAGER_DISPLAY_CONTENT);
 	wnck_pager_set_show_all(WNCK_PAGER(pager), TRUE);
 	wnck_pager_set_shadow_type(WNCK_PAGER(pager), GTK_SHADOW_IN);
 
-//	g_signal_connect(G_OBJECT(pager), "size_request", G_CALLBACK(size_request), xpop);
+//      g_signal_connect(G_OBJECT(pager), "size_request", G_CALLBACK(size_request), xpop);
 
 	gtk_box_pack_start(GTK_BOX(hbox), GTK_WIDGET(pager), TRUE, TRUE, 0);
 	gtk_widget_show_all(GTK_WIDGET(pager));
