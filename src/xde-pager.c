@@ -6502,11 +6502,11 @@ event_handler_PropertyNotify(XEvent *xev, XdeScreen *xscr)
 			return GDK_FILTER_REMOVE;	/* event handled */
 #if 1
 		} else if (atom == _XA_NET_DESKTOP_LAYOUT) {
-			update_layout(xscr, atom);
+			update_layout(xscr, None /* atom */);
 		} else if (atom == _XA_NET_NUMBER_OF_DESKTOPS) {
-			update_layout(xscr, atom);
+			update_layout(xscr, None /* atom */);
 		} else if (atom == _XA_WIN_WORKSPACE_COUNT) {
-			update_layout(xscr, atom);
+			update_layout(xscr, None /* atom */);
 #endif
 #if 1
 		} else if (atom == _XA_NET_CURRENT_DESKTOP) {
