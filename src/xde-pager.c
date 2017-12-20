@@ -6648,13 +6648,7 @@ add_pager(XdeScreen *xscr, XdePopup *xpop, GtkWidget *popup, GtkWidget *hbox)
 {
 	GtkWidget *pager = wnck_pager_new(xscr->wnck);
 
-	wnck_pager_set_orientation(WNCK_PAGER(pager), GTK_ORIENTATION_HORIZONTAL);
-#if 0
-	/* this will fail unless added to widget for screen, attempts to change
-	   _NET_DESKTOP_LAYOUT, so this is not really the place for it anyway */
-	wnck_pager_set_n_rows(WNCK_PAGER(pager), 2);
-#endif
-	wnck_pager_set_layout_policy(WNCK_PAGER(pager), WNCK_PAGER_LAYOUT_POLICY_HEIGHT_FOR_WIDTH);
+	wnck_pager_set_layout_policy(WNCK_PAGER(pager), WNCK_PAGER_LAYOUT_POLICY_AUTOMATIC);
 	wnck_pager_set_display_mode(WNCK_PAGER(pager), WNCK_PAGER_DISPLAY_CONTENT);
 	wnck_pager_set_show_all(WNCK_PAGER(pager), TRUE);
 	wnck_pager_set_shadow_type(WNCK_PAGER(pager), GTK_SHADOW_IN);
