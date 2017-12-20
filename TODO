@@ -67,6 +67,7 @@ xde-pager: works really well
 - [X] Complete documentation (manual page)
 - [X] I use this one all the time.  It think that it is finished.
 - [?] Might want to provide a keyboard-only option.
+- [X] Fix not updating layout with number of desktops.
 - [ ] Fix harmful interaction with icewm edge page switcher.
 
 xde-places: works really good
