@@ -1510,8 +1510,15 @@ popup_menu_new(XdeMonitor *xmon)
 		GtkIconInfo *info = NULL;
 
 		filename = g_filename_from_uri(place->place, NULL, NULL);
+		if (filename && access(filename, R_OK)) {
+			g_free(filename);
+			continue;
+		}
 
 		DPRINTF(1, "creating uri %s\n", place->place);
+		DPRINTF(1, "filename is '%s'\n", filename);
+		DPRINTF(1, "place->place is '%s'\n", place->place);
+
 		item = gtk_image_menu_item_new();
 
 		if (place->mime && !strcmp(place->mime, "application/x-desktop") && filename) {
@@ -1665,10 +1672,23 @@ popup_menu_new(XdeMonitor *xmon)
 			}
 		}
 		if (!place->cmd) {
+			g_free(place->cmd);
 			if (app)
 				place->cmd = g_strdup_printf("xdg-launch '%s'", appid ? : (filename ? : place->place));
 			else
-				place->cmd = g_strdup_printf("xdg-open '%s'", place->place);
+				place->cmd = g_strdup_printf("xdg-open '%s'", (filename ? : place->place));
+		}
+		{
+			gchar *p, *q;;
+
+			/* strip file:// out cause some appls don't like it (e.g. inkscape) */
+			if ((p = strstr(place->cmd, "file://"))) {
+				q = place->cmd;
+				*p = '\0';
+				p += 7;
+				place->cmd = g_strdup_printf("%s%s", q, p);
+				g_free(q);
+			}
 		}
 		if (options.debug || options.tooltips) {
 			gchar *markup;
@@ -1687,6 +1707,8 @@ popup_menu_new(XdeMonitor *xmon)
 			if (place->tooltip)
 				gtk_widget_set_tooltip_text(item, place->tooltip);
 		}
+		DPRINTF(1, "command is '%s'\n", place->cmd);
+
 		if (place->cmd)
 			g_signal_connect(G_OBJECT(item), "activate",
 					 G_CALLBACK(xde_entry_activated), g_strdup(place->cmd));
