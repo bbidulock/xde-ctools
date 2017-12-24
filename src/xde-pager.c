@@ -2759,6 +2759,7 @@ static gboolean
 grab_broken_event(GtkWidget *widget, GdkEvent *event, gpointer user)
 {
 	XdePopup *xpop = user;
+#if 0
 	GdkEventGrabBroken *ev = (typeof(ev)) event;
 
 	PTRACE(5);
@@ -2794,6 +2795,9 @@ grab_broken_event(GtkWidget *widget, GdkEvent *event, gpointer user)
 		if (!ev->grab_window)
 			drop_popup(xpop);
 	}
+#else
+	drop_popup(xpop);
+#endif
 	return TRUE;		/* event handled */
 }
 
