@@ -1,5 +1,313 @@
 # created with git log --stat=76 -M -C -500|fmt -sct -w80
 
+commit 3b48631b6aa5fc376e9c05dbd457f38d2d6bb961
+Author: Brian Bidulock <bidulock@openss7.org>
+Date:   Sat Jan 6 09:52:15 2018 -0700
+
+    add release byproducts to ignore
+
+ .gitignore | 3 +++
+ 1 file changed, 3 insertions(+)
+
+commit 15315fd68efa103e4c5b0f7bd1b2a3c52d3fba2a
+Author: Brian Bidulock <bidulock@openss7.org>
+Date:   Sat Jan 6 09:51:42 2018 -0700
+
+    distribute release notes
+
+ Makefile.am | 13 +++++++++++--
+ 1 file changed, 11 insertions(+), 2 deletions(-)
+
+commit da4e33859a8ef0862e029b6000c4a4226928d3bd
+Author: Brian Bidulock <bidulock@openss7.org>
+Date:   Sat Jan 6 09:49:41 2018 -0700
+
+    add release notes
+
+ RELEASE.md | 32 ++++++++++++++++++++++++++++++++
+ 1 file changed, 32 insertions(+)
+
+commit 419f48d08c4f177ee8855a45f124bc8a8b7f13f8
+Author: Brian Bidulock <bidulock@openss7.org>
+Date:   Sun Dec 24 01:50:52 2017 -0700
+
+    always drop popup on broken grabs
+
+ src/xde-pager.c | 4 ++++
+ 1 file changed, 4 insertions(+)
+
+commit ddf2b7e5332132bf253c6e4b69218fa219cfd5b4
+Author: Brian Bidulock <bidulock@openss7.org>
+Date:   Thu Dec 21 16:17:24 2017 -0700
+
+    skip nonexistent files, strip file:// from cmd
+
+ src/xde-recent.c | 24 +++++++++++++++++++++++-
+ 1 file changed, 23 insertions(+), 1 deletion(-)
+
+commit 1b9f1933765c13429a36e21b6bcfd9e7012aa274
+Author: Brian Bidulock <bidulock@openss7.org>
+Date:   Wed Dec 20 01:55:54 2017 -0700
+
+    remove redundant commands
+
+ src/xde-pager.c | 8 +-------
+ 1 file changed, 1 insertion(+), 7 deletions(-)
+
+commit cf2dd566f0d9749a1ba823933aa2609cb2bbfc48
+Author: Brian Bidulock <bidulock@openss7.org>
+Date:   Wed Dec 20 01:39:14 2017 -0700
+
+    updates layout correct now
+
+ TODO | 1 +
+ 1 file changed, 1 insertion(+)
+
+commit 45057dcdd86361919094f1dcf1b1318332902b8e
+Author: Brian Bidulock <bidulock@openss7.org>
+Date:   Wed Dec 20 01:37:49 2017 -0700
+
+    always update entire layout
+
+ src/xde-pager.c | 6 +++---
+ 1 file changed, 3 insertions(+), 3 deletions(-)
+
+commit 64a32c6f38edcda9b80de5fef8c0afbea94d5271
+Author: Brian Bidulock <bidulock@openss7.org>
+Date:   Tue Dec 19 23:33:50 2017 -0700
+
+    do not disrupt layout
+
+ src/xde-pager.c | 9 +++++++--
+ 1 file changed, 7 insertions(+), 2 deletions(-)
+
+commit 2a46a344f5031e3620084cfc094154b1076c5195
+Author: Brian Bidulock <bidulock@openss7.org>
+Date:   Mon Dec 18 10:51:04 2017 -0700
+
+    just center with window gravity
+
+ src/xde-app.c | 3 ++-
+ src/xde-run.c | 3 ++-
+ 2 files changed, 4 insertions(+), 2 deletions(-)
+
+commit 246ed1a8f8dbf71a711fac206517d5837daeffe6
+Author: Brian Bidulock <bidulock@openss7.org>
+Date:   Mon Dec 18 10:38:47 2017 -0700
+
+    always center run and app dialogs
+
+ src/xde-app.c | 2 +-
+ src/xde-run.c | 2 +-
+ 2 files changed, 2 insertions(+), 2 deletions(-)
+
+commit d72508ae22c7aa6c4098c0f7cf5e425d00a3d94c
+Author: Brian Bidulock <bidulock@openss7.org>
+Date:   Sat Nov 4 04:50:55 2017 -0600
+
+    use startup id timestamp where possible
+
+ src/xde-cycle.c    | 12 ++++++------
+ src/xde-dock.c     |  9 ++++++---
+ src/xde-feedback.c | 12 ++++++------
+ src/xde-input.c    | 12 ++++++------
+ src/xde-monitor.c  | 12 ++++++------
+ src/xde-pager.c    | 12 ++++++------
+ src/xde-places.c   | 12 ++++++------
+ src/xde-recent.c   | 12 ++++++------
+ src/xde-select.c   | 12 ++++++------
+ src/xde-setbg.c    | 12 ++++++------
+ src/xde-tasks.c    | 12 ++++++------
+ src/xde-winds.c    | 12 ++++++------
+ src/xde-winlist.c  | 12 ++++++------
+ src/xde-wkspmenu.c | 12 ++++++------
+ 14 files changed, 84 insertions(+), 81 deletions(-)
+
+commit 74e60b619bcb3304b52fe32b9e1b5836c49fb6ac
+Author: Brian Bidulock <bidulock@openss7.org>
+Date:   Sat Nov 4 03:41:11 2017 -0600
+
+    simplify endptr checks, correct timestamp from id
+
+ src/xde-app.c       |  6 ++---
+ src/xde-cycle.c     | 61 +++++++++++++++++++++++--------------------------
+ src/xde-dock.c      |  6 ++---
+ src/xde-feedback.c  | 61 +++++++++++++++++++++++--------------------------
+ src/xde-input.c     | 61 +++++++++++++++++++++++--------------------------
+ src/xde-keys.c      |  6 ++---
+ src/xde-monitor.c   | 61 +++++++++++++++++++++++--------------------------
+ src/xde-pager.c     | 61 +++++++++++++++++++++++--------------------------
+ src/xde-places.c    | 51 +++++++++++++++++++----------------------
+ src/xde-preferred.c |  6 ++---
+ src/xde-recent.c    | 53 ++++++++++++++++++++----------------------
+ src/xde-run.c       |  6 ++---
+ src/xde-select.c    | 16 ++++++-------
+ src/xde-setbg.c     | 61 +++++++++++++++++++++++--------------------------
+ src/xde-tasks.c     | 61 +++++++++++++++++++++++--------------------------
+ src/xde-winds.c     | 61 +++++++++++++++++++++++--------------------------
+ src/xde-winlist.c   | 51 +++++++++++++++++++----------------------
+ src/xde-winmenu.c   | 14 ++++++------
+ src/xde-wkspmenu.c  | 51 +++++++++++++++++++----------------------
+ 19 files changed, 359 insertions(+), 395 deletions(-)
+
+commit 030013ad109c07a7034f04d47790337266647140
+Author: Brian Bidulock <bidulock@openss7.org>
+Date:   Sat Nov 4 03:05:17 2017 -0600
+
+    take DESKTOP_STARTUP_ID away from GTK if required
+
+ src/xde-cycle.c    | 1 +
+ src/xde-feedback.c | 1 +
+ src/xde-input.c    | 1 +
+ src/xde-monitor.c  | 1 +
+ src/xde-pager.c    | 1 +
+ src/xde-setbg.c    | 1 +
+ src/xde-tasks.c    | 1 +
+ src/xde-winds.c    | 1 +
+ 8 files changed, 8 insertions(+)
+
+commit 555311bbf062e57fae815151fe709eeef1ae9cd6
+Author: Brian Bidulock <bidulock@openss7.org>
+Date:   Sat Nov 4 02:54:15 2017 -0600
+
+    get to DESKTOP_STARTUP_ID before gtk does
+
+ src/xde-cycle.c    | 12 +++++++-----
+ src/xde-feedback.c | 12 +++++++-----
+ src/xde-input.c    | 12 +++++++-----
+ src/xde-monitor.c  | 12 +++++++-----
+ src/xde-pager.c    | 12 +++++++-----
+ src/xde-places.c   | 12 +++++++-----
+ src/xde-recent.c   | 12 +++++++-----
+ src/xde-setbg.c    | 12 +++++++-----
+ src/xde-tasks.c    | 12 +++++++-----
+ src/xde-winds.c    | 12 +++++++-----
+ src/xde-winlist.c  | 12 +++++++-----
+ src/xde-wkspmenu.c | 12 +++++++-----
+ 12 files changed, 84 insertions(+), 60 deletions(-)
+
+commit c56314c2cb551812b5388aab44c66a3063f6aa3b
+Author: Brian Bidulock <bidulock@openss7.org>
+Date:   Fri Nov 3 06:51:38 2017 -0600
+
+    all tools provide startup notification now
+
+ data/xde-setbg.desktop | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+commit d897cd52993f60d2a98a3f5e5ae05cf4023ced1c
+Author: Brian Bidulock <bidulock@openss7.org>
+Date:   Fri Nov 3 06:48:03 2017 -0600
+
+    a little rationalization
+
+ src/xde-input.c  | 3 +--
+ src/xde-places.c | 5 ++---
+ src/xde-recent.c | 5 ++---
+ src/xde-select.c | 6 +++++-
+ 4 files changed, 10 insertions(+), 9 deletions(-)
+
+commit a07d53ab391f40aa249da07b1fc2ad1e88f20228
+Author: Brian Bidulock <bidulock@openss7.org>
+Date:   Fri Nov 3 06:37:29 2017 -0600
+
+    better completion of startup notification
+
+ src/xde-cycle.c    | 134 ++++++++++++++++++++++++++++++-----------------
+ src/xde-feedback.c | 133 ++++++++++++++++++++++++++++++-----------------
+ src/xde-input.c    | 137 ++++++++++++++++++++++++++++++++-----------------
+ src/xde-monitor.c  | 134 ++++++++++++++++++++++++++++++-----------------
+ src/xde-pager.c    | 135 +++++++++++++++++++++++++++++++-----------------
+ src/xde-places.c   | 124 +++++++++++++++++++++++++++++++-------------
+ src/xde-recent.c   | 136 ++++++++++++++++++++++++++++++++----------------
+ src/xde-setbg.c    | 130 ++++++++++++++++++++++++++++++----------------
+ src/xde-tasks.c    | 133 ++++++++++++++++++++++++++++++-----------------
+ src/xde-winds.c    | 134 ++++++++++++++++++++++++++++++-----------------
+ src/xde-winlist.c  | 125 ++++++++++++++++++++++++++++++--------------
+ src/xde-wkspmenu.c | 131 +++++++++++++++++++++++++++++++---------------
+ 12 files changed, 1055 insertions(+), 531 deletions(-)
+
+commit efcbd444308db0927a675b9aecfa8949558fe216
+Author: Brian Bidulock <bidulock@openss7.org>
+Date:   Fri Nov 3 04:34:32 2017 -0600
+
+    complete startup notification
+
+    - long-lived applications that do not post any windows after they
+      start up must notify of startup notification completion as they
+      start up.
+
+ src/xde-cycle.c    |  7 +++++++
+ src/xde-feedback.c |  6 ++++++
+ src/xde-input.c    |  7 +++++++
+ src/xde-monitor.c  |  7 +++++++
+ src/xde-pager.c    | 10 +++++++++-
+ src/xde-setbg.c    |  9 ++++++++-
+ src/xde-tasks.c    |  6 ++++++
+ src/xde-winds.c    |  7 +++++++
+ 8 files changed, 57 insertions(+), 2 deletions(-)
+
+commit 13d8e7706ad97e8e8d69a8fa3b5a09241aae9c75
+Author: Brian Bidulock <bidulock@openss7.org>
+Date:   Sat Oct 14 22:27:42 2017 -0600
+
+    update manpages, document new xde-opacity
+
+ man/Makefile.am      |   2 +
+ man/xde-input.pod    |   2 +-
+ man/xde-opacity.pod  | 250 +++++++++++++++++++++++++++++++++++++++++++++++
+ man/xde-winlist.pod  |  81 +++++++--------
+ man/xde-wkspmenu.pod |  78 +++++++--------
+ 5 files changed, 330 insertions(+), 83 deletions(-)
+
+commit 9dcf78b35188e31ca18f71e0fcef648da7fb9c79
+Author: Brian Bidulock <bidulock@openss7.org>
+Date:   Sat Oct 14 06:40:31 2017 -0600
+
+    remove trailing whitespace, rationalize opacity
+
+ src/menuxml.c      |   2 +-
+ src/xde-cycle.c    |  41 +++++++++++--
+ src/xde-dock.c     |  22 +++----
+ src/xde-feedback.c | 118 ++++++++++++++++++++++++++----------
+ src/xde-input.c    | 123 +++++++++++++++++++++++++++----------
+ src/xde-monitor.c  | 115 +++++++++++++++++++++++++----------
+ src/xde-pager.c    |  45 ++++++++++++--
+ src/xde-select.c   |  40 ++++++-------
+ src/xde-setbg.c    | 160 ++++++++++++++++++++++++++++++++-----------------
+ src/xde-tasks.c    |  28 ++++++---
+ src/xde-winds.c    |  43 +++++++++++--
+ src/xde-winlist.c  |   4 +-
+ src/xde-winmenu.c  |   6 +-
+ src/xde-wkspmenu.c |   4 +-
+ 14 files changed, 540 insertions(+), 211 deletions(-)
+
+commit 166ea2e1fc4ce7015f3502e7825a24d789ea78dc
+Author: Brian Bidulock <bidulock@openss7.org>
+Date:   Thu Oct 12 19:03:19 2017 -0600
+
+    add opacity to a bunch of popups
+
+ src/xde-cycle.c    | 35 +++++++++++++++++++++++++----------
+ src/xde-feedback.c | 33 ++++++++++++++++++++++++---------
+ src/xde-input.c    | 20 +++++++++++++++++---
+ src/xde-monitor.c  | 33 ++++++++++++++++++++++++---------
+ src/xde-pager.c    | 33 ++++++++++++++++++++++++---------
+ src/xde-setbg.c    | 30 ++++++++++++++++++++++--------
+ src/xde-tasks.c    | 33 ++++++++++++++++++++++++---------
+ src/xde-winds.c    | 33 ++++++++++++++++++++++++---------
+ 8 files changed, 184 insertions(+), 66 deletions(-)
+
+commit 432bb1333bb8f0cab9f03e71bf58e3f167366014
+Author: Brian Bidulock <bidulock@openss7.org>
+Date:   Thu Oct 12 00:37:13 2017 -0600
+
+    update changelog
+
+ ChangeLog | 13 +++++++++++++
+ NEWS      |  3 ++-
+ 2 files changed, 15 insertions(+), 1 deletion(-)
+
 commit e18f04a4fd896b890d25c131c956c205e53ebab7
 Author: Brian Bidulock <bidulock@openss7.org>
 Date:   Thu Oct 12 00:35:12 2017 -0600

@@ -1,9 +1,9 @@
-[xde-ctools -- read me first file.  2017-10-12]: #
+[xde-ctools -- read me first file.  2018-01-06]: #
 
 xde-ctools
 ===============
 
-Package `xde-ctools-1.6` was released under GPLv3 license 2017-10-12.
+Package `xde-ctools-1.7` was released under GPLv3 license 2018-01-06.
 
 This package provides a number of "C"-language tools for working with
 the _X Desktop Environment_.  Most of these tools were previously
@@ -15,7 +15,7 @@ libraries not available from `perl(1)`.
 Release
 -------
 
-This is the `xde-ctools-1.6` package, released 2017-10-12.  This
+This is the `xde-ctools-1.7` package, released 2018-01-06.  This
 release, and the latest version, can be obtained from [GitHub][1], using
 a command such as:
 
@@ -72,12 +72,12 @@ Report issues on GitHub [here][2].
 
 [1]: https://github.com/bbidulock/xde-ctools
 [2]: https://github.com/bbidulock/xde-ctools/issues
-[3]: https://github.com/bbidulock/xde-ctools/blob/1.6/NEWS
-[4]: https://github.com/bbidulock/xde-ctools/blob/1.6/ChangeLog
-[5]: https://github.com/bbidulock/xde-ctools/blob/1.6/TODO
-[6]: https://github.com/bbidulock/xde-ctools/blob/1.6/COMPLIANCE
-[7]: https://github.com/bbidulock/xde-ctools/blob/1.6/INSTALL
-[8]: https://github.com/bbidulock/xde-ctools/blob/1.6/LICENSE
-[9]: https://github.com/bbidulock/xde-ctools/blob/1.6/COPYING
+[3]: https://github.com/bbidulock/xde-ctools/blob/1.7/NEWS
+[4]: https://github.com/bbidulock/xde-ctools/blob/1.7/ChangeLog
+[5]: https://github.com/bbidulock/xde-ctools/blob/1.7/TODO
+[6]: https://github.com/bbidulock/xde-ctools/blob/1.7/COMPLIANCE
+[7]: https://github.com/bbidulock/xde-ctools/blob/1.7/INSTALL
+[8]: https://github.com/bbidulock/xde-ctools/blob/1.7/LICENSE
+[9]: https://github.com/bbidulock/xde-ctools/blob/1.7/COPYING
 
 [ vim: set ft=markdown sw=4 tw=72 nocin nosi fo+=tcqlorn spell: ]: #
