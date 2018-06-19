@@ -7794,8 +7794,6 @@ main(int argc, char *argv[])
 	}
 	DPRINTF(1, "option index = %d\n", optind);
 	DPRINTF(1, "option count = %d\n", argc);
-#if 0
-	/* glibc keeps breaking this for optional arguments */
 	if (optind < argc) {
 		EPRINTF("excess non-option arguments near '");
 		while (optind < argc) {
@@ -7806,7 +7804,6 @@ main(int argc, char *argv[])
 		usage(argc, argv);
 		exit(EXIT_SYNTAXERR);
 	}
-#endif
 	startup(argc, argv);
 	get_defaults();
 
