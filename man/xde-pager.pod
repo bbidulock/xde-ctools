@@ -41,7 +41,7 @@ not an error when no instance is currently running.
 
 =item B<--restart>, B<-S>
 
-As a running instance to restart.  It is an error if there is no
+Ask a running instance to restart.  It is an error if there is no
 instance currently running.  This is useful when the binary has been
 upgraded.
 
@@ -151,11 +151,11 @@ management:
 =item B<-clientId> I<CLIENTID>
 
 Specifies the X Session Management client identifier of the previously
-running session of B<xde-winlist>.
+running session of B<xde-pager>.
 
 =item B<-restore> I<SAVEFILE>
 
-Specifies the X Session Management filename of a file to which to save
+Specifies the X Session Management file name of a file to which to save
 session information.
 
 =back

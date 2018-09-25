@@ -132,6 +132,10 @@
 #include <fontconfig/fontconfig.h>
 #include <pango/pangofc-fontmap.h>
 
+#ifdef CANBERRA_SOUND
+#include <canberra-gtk.h>
+#endif
+
 #ifdef _GNU_SOURCE
 #include <getopt.h>
 #endif
@@ -198,6 +202,8 @@ dumpstack(const char *file, const int line, const char *func)
 
 const char *program = NAME;
 
+#define CA_CONTEXT_ID	55
+
 #define XA_PREFIX		"_XDE_PAGER"
 #define XA_SELECTION_NAME	XA_PREFIX "_S%d"
 #define XA_NET_DESKTOP_LAYOUT	"_NET_DESKTOP_LAYOUT_S%d"
@@ -249,6 +255,7 @@ static Atom _XA_ESETROOT_PMAP_ID;
 static Atom _XA_XROOTPMAP_ID;
 
 static Atom _XA_XDE_ICON_THEME_NAME;		/* XXX */
+static Atom _XA_XDE_SOUND_THEME_NAME;
 static Atom _XA_XDE_THEME_NAME;
 static Atom _XA_XDE_WM_CLASS;
 static Atom _XA_XDE_WM_CMDLINE;
@@ -267,6 +274,7 @@ static Atom _XA_XDE_WM_PID;
 static Atom _XA_XDE_WM_PRVDIR;
 static Atom _XA_XDE_WM_RCFILE;
 static Atom _XA_XDE_WM_REDIR_SUPPORT;
+static Atom _XA_XDE_WM_SOUNDTHEME;		/* XXX */
 static Atom _XA_XDE_WM_STYLE;
 static Atom _XA_XDE_WM_STYLENAME;
 static Atom _XA_XDE_WM_SYSDIR;
@@ -387,6 +395,7 @@ typedef struct {
 	char *desktop;
 	char *theme;
 	char *itheme;
+	char *stheme;
 	char *runhist;
 	char *recapps;
 	char *recently;
@@ -471,6 +480,7 @@ Options options = {
 	.desktop = NULL,
 	.theme = NULL,
 	.itheme = NULL,
+	.stheme = NULL,
 	.runhist = NULL,
 	.recapps = NULL,
 	.recently = NULL,
@@ -633,6 +643,7 @@ struct XdeScreen {
 	Pixmap pixmap;			/* current pixmap for the entire screen */
 	char *theme;			/* XDE theme name */
 	char *itheme;			/* XDE icon theme name */
+	char *stheme;			/* XDE sound theme name */
 	GKeyFile *entry;		/* XDE theme file entry */
 	int nimg;			/* number of images */
 	XdeImage **sources;		/* the images for the theme */
@@ -3761,6 +3772,8 @@ put_resources(void)
 		put_resource(rdb, "theme", val);
 	if ((val = putXrmString(options.itheme)))
 		put_resource(rdb, "icontheme", val);
+	if ((val = putXrmString(options.stheme)))
+		put_resource(rdb, "soundtheme", val);
 	if ((val = putXrmWhich(options.which, options.screen)))
 		put_resource(rdb, "which", val);
 	if ((val = putXrmWhere(options.where, &options.geom)))
@@ -4348,6 +4361,8 @@ get_resources(void)
 		getXrmString(val, &options.theme);
 	if ((val = get_resource(rdb, "icontheme", NULL)))
 		getXrmString(val, &options.itheme);
+	if ((val = get_resource(rdb, "soundtheme", NULL)))
+		getXrmString(val, &options.stheme);
 	if ((val = get_resource(rdb, "which", "default")))
 		getXrmWhich(val, &options.which, &options.screen);
 	if ((val = get_resource(rdb, "where", "default")))
@@ -5020,7 +5035,57 @@ background_changed(WnckScreen *wnck, gpointer data)
 static void
 active_workspace_changed(WnckScreen *wnck, WnckWorkspace *prev, gpointer data)
 {
-	/* XXX: should be handled by update_current_desktop */
+	XdeScreen *xscr = (typeof(xscr)) data;
+	ca_context *ca = ca_gtk_context_get_for_screen(xscr->scrn);
+	WnckWorkspace *test, *next = wnck_screen_get_active_workspace(wnck);
+	int pind = wnck_screen_get_workspace_index(wnck, prev);
+	int nind = wnck_screen_get_workspace_index(wnck, next);
+	int numb = wnck_screen_get_workspace_count(wnck);
+	WnckMotionDirection dir;
+
+	if (pind == nind)
+		return;
+
+	ca_context_cancel(ca, CA_CONTEXT_ID);
+
+	if ((test = wnck_screen_get_workspace_neighbor(wnck, prev, WNCK_MOTION_UP))
+	    && nind == wnck_screen_get_workspace_index(wnck, test))
+		dir = WNCK_MOTION_UP;
+	else if ((test = wnck_screen_get_workspace_neighbor(wnck, prev, WNCK_MOTION_DOWN))
+		 && nind == wnck_screen_get_workspace_index(wnck, test))
+		dir = WNCK_MOTION_DOWN;
+	else if ((test = wnck_screen_get_workspace_neighbor(wnck, prev, WNCK_MOTION_LEFT))
+		 && nind == wnck_screen_get_workspace_index(wnck, test))
+		dir = WNCK_MOTION_LEFT;
+	else if ((test = wnck_screen_get_workspace_neighbor(wnck, prev, WNCK_MOTION_RIGHT))
+		 && nind == wnck_screen_get_workspace_index(wnck, test))
+		dir = WNCK_MOTION_RIGHT;
+	else if ((nind == numb - 1 && pind == 0) || (nind == pind - 1))
+		dir = WNCK_MOTION_LEFT;
+	else if ((nind == 0 && pind == numb - 1) || (nind == pind + 1))
+		dir = WNCK_MOTION_RIGHT;
+	else if (nind < pind)
+		dir = WNCK_MOTION_UP;
+	else if (nind > pind)
+		dir = WNCK_MOTION_DOWN;
+	else {
+		EPRINTF("Cannot determine desktop change direction from %d to %d\n", pind, nind);
+		return;
+	}
+	switch (dir) {
+	case WNCK_MOTION_UP:
+		ca_context_play(ca, CA_CONTEXT_ID, CA_PROP_EVENT_ID, "desktop-switch-up", NULL);
+		break;
+	case WNCK_MOTION_DOWN:
+		ca_context_play(ca, CA_CONTEXT_ID, CA_PROP_EVENT_ID, "desktop-switch-down", NULL);
+		break;
+	case WNCK_MOTION_LEFT:
+		ca_context_play(ca, CA_CONTEXT_ID, CA_PROP_EVENT_ID, "desktop-switch-left", NULL);
+		break;
+	case WNCK_MOTION_RIGHT:
+		ca_context_play(ca, CA_CONTEXT_ID, CA_PROP_EVENT_ID, "desktop-switch-right", NULL);
+		break;
+	}
 }
 #endif
 
@@ -6044,6 +6109,73 @@ update_layout(XdeScreen *xscr, Atom prop)
 #endif
 
 static void
+update_sound_theme(XdeScreen *xscr, Atom prop)
+{
+	Window root = RootWindow(dpy, xscr->index);
+	XTextProperty xtp = { NULL, };
+	Bool changed = False;
+	GtkSettings *set;
+
+	gtk_rc_reparse_all();
+	if (!prop || prop == _XA_GTK_READ_RCFILES)
+		prop = _XA_XDE_SOUND_THEME_NAME;
+	if (XGetTextProperty(dpy, root, &xtp, prop)) {
+		char **list = NULL;
+		int strings = 0;
+
+		if (Xutf8TextPropertyToTextList(dpy, &xtp, &list, &strings) == Success) {
+			if (strings >= 1) {
+				char *rc_string;
+
+				rc_string = g_strdup_printf("gtk-sound-theme-name=\"%s\"", list[0]);
+				gtk_rc_parse_string(rc_string);
+				g_free(rc_string);
+				if (!xscr->stheme || strcmp(xscr->stheme, list[0])) {
+					free(xscr->stheme);
+					xscr->stheme = strdup(list[0]);
+					changed = True;
+				}
+			}
+			if (list)
+				XFreeStringList(list);
+		} else {
+			char *name = NULL;
+
+			EPRINTF("could not get text list for %s property\n", (name = XGetAtomName(dpy, prop)));
+			if (name)
+				XFree(name);
+		}
+		if (xtp.value)
+			XFree(xtp.value);
+	} else {
+		char *name = NULL;
+
+		DPRINTF(1, "could not get %s for root 0x%lx\n", (name = XGetAtomName(dpy, prop)), root);
+		if (name)
+			XFree(name);
+	}
+	if ((set = gtk_settings_get_for_screen(xscr->scrn))) {
+		GValue theme_v = G_VALUE_INIT;
+		const char *stheme;
+
+		g_value_init(&theme_v, G_TYPE_STRING);
+		g_object_get_property(G_OBJECT(set), "gtk-sound-theme-name", &theme_v);
+		stheme = g_value_get_string(&theme_v);
+		if (stheme && (!xscr->stheme || strcmp(xscr->stheme, stheme))) {
+			free(xscr->stheme);
+			xscr->stheme = strdup(stheme);
+			changed = True;
+		}
+		g_value_unset(&theme_v);
+	}
+	if (changed) {
+		DPRINTF(1, "New sound theme is %s\n", xscr->stheme);
+		/* FIXME: do something more about it. */
+	} else
+		DPRINTF(1, "No change in current sound theme %s\n", xscr->stheme);
+}
+
+static void
 update_icon_theme(XdeScreen *xscr, Atom prop)
 {
 	Window root = RootWindow(dpy, xscr->index);
@@ -6194,6 +6326,7 @@ update_screen(XdeScreen *xscr)
 #endif
 	update_theme(xscr, None);
 	update_icon_theme(xscr, None);
+	update_sound_theme(xscr, None);
 }
 
 static void
@@ -6349,6 +6482,7 @@ event_handler_ClientMessage(XEvent *xev)
 	if (type == _XA_GTK_READ_RCFILES) {
 		update_theme(xscr, type);
 		update_icon_theme(xscr, type);
+		update_sound_theme(xscr, type);
 		return GDK_FILTER_REMOVE;	/* event handled */
 #if 1
 	} else if (type == _XA_PREFIX_REFRESH) {
@@ -6503,6 +6637,9 @@ event_handler_PropertyNotify(XEvent *xev, XdeScreen *xscr)
 			return GDK_FILTER_REMOVE;	/* event handled */
 		} else if (atom == _XA_XDE_ICON_THEME_NAME || atom == _XA_XDE_WM_ICONTHEME) {
 			update_icon_theme(xscr, atom);
+			return GDK_FILTER_REMOVE;	/* event handled */
+		} else if (atom == _XA_XDE_SOUND_THEME_NAME || atom == _XA_XDE_WM_SOUNDTHEME) {
+			update_sound_theme(xscr, atom);
 			return GDK_FILTER_REMOVE;	/* event handled */
 #if 1
 		} else if (atom == _XA_NET_DESKTOP_LAYOUT) {
@@ -7054,6 +7191,9 @@ startup(int argc, char *argv[])
 	atom = gdk_atom_intern_static_string("MANAGER");
 	_XA_MANAGER = gdk_x11_atom_to_xatom_for_display(disp, atom);
 
+	atom = gdk_atom_intern_static_string("_XDE_SOUND_THEME_NAME");
+	_XA_XDE_SOUND_THEME_NAME = gdk_x11_atom_to_xatom_for_display(disp, atom);
+
 	atom = gdk_atom_intern_static_string("_XDE_ICON_THEME_NAME");
 	_XA_XDE_ICON_THEME_NAME = gdk_x11_atom_to_xatom_for_display(disp, atom);
 
@@ -7110,6 +7250,9 @@ startup(int argc, char *argv[])
 
 	atom = gdk_atom_intern_static_string("_XDE_WM_REDIR_SUPPORT");
 	_XA_XDE_WM_REDIR_SUPPORT = gdk_x11_atom_to_xatom_for_display(disp, atom);
+
+	atom = gdk_atom_intern_static_string("_XDE_WM_SOUNDTHEME");
+	_XA_XDE_WM_SOUNDTHEME = gdk_x11_atom_to_xatom_for_display(disp, atom);
 
 	atom = gdk_atom_intern_static_string("_XDE_WM_STYLE");
 	_XA_XDE_WM_STYLE = gdk_x11_atom_to_xatom_for_display(disp, atom);
@@ -8368,6 +8511,72 @@ get_default_icon_theme(void)
 }
 
 static void
+get_default_sound_theme(void)
+{
+	GdkScreen *scrn = gdk_display_get_default_screen(disp);
+	Window root = DefaultRootWindow(dpy);
+	XTextProperty xtp = { NULL, };
+	Bool changed = False;
+	Atom prop = _XA_XDE_SOUND_THEME_NAME;
+	GtkSettings *set;
+
+	gtk_rc_reparse_all();
+
+	if (XGetTextProperty(dpy, root, &xtp, prop)) {
+		char **list = NULL;
+		int strings = 0;
+
+		if (Xutf8TextPropertyToTextList(dpy, &xtp, &list, &strings) == Success) {
+			if (strings >= 1) {
+				char *rc_string;
+
+				rc_string = g_strdup_printf("gtk-sound-theme-name=\"%s\"", list[0]);
+				gtk_rc_parse_string(rc_string);
+				g_free(rc_string);
+				if (!options.stheme || strcmp(options.stheme, list[0])) {
+					free(options.stheme);
+					options.stheme = strdup(list[0]);
+					changed = True;
+				}
+			}
+			if (list)
+				XFreeStringList(list);
+		} else {
+			char *name = NULL;
+
+			EPRINTF("could not get text list for %s property\n", (name = XGetAtomName(dpy, prop)));
+			if (name)
+				XFree(name);
+		}
+		if (xtp.value)
+			XFree(xtp.value);
+	} else {
+		char *name = NULL;
+
+		DPRINTF(1, "could not get %s for root 0x%lx\n", (name = XGetAtomName(dpy, prop)), root);
+		if (name)
+			XFree(name);
+	}
+	if ((set = gtk_settings_get_for_screen(scrn))) {
+		GValue theme_v = G_VALUE_INIT;
+		const char *stheme;
+
+		g_value_init(&theme_v, G_TYPE_STRING);
+		g_object_get_property(G_OBJECT(set), "gtk-sound-theme-name", &theme_v);
+		stheme = g_value_get_string(&theme_v);
+		if (stheme && (!options.stheme || strcmp(options.stheme, stheme))) {
+			free(options.stheme);
+			options.stheme = strdup(stheme);
+			changed = True;
+		}
+		g_value_unset(&theme_v);
+	}
+	if (changed) {
+		DPRINTF(1, "New sound theme is %s\n", options.stheme);
+	}
+}
+
+static void
 get_default_config(void)
 {
 	char *file;
@@ -8402,6 +8611,7 @@ get_defaults(void)
 	get_default_desktop();
 	get_default_theme();
 	get_default_icon_theme();
+	get_default_sound_theme();
 	get_default_config();
 }
 

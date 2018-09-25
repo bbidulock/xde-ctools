@@ -1,0 +1,859 @@
+=pod
+
+=head1 NAME
+
+xde-sound - desktop event sounds for XDE
+
+=head1 SYNOPSIS
+
+B<xde-sound> [I<OPTIONS>]
+
+=head1 DESCRIPTIONS
+
+Provide desktop event sounds as feedback for window managers that do not
+provide audio feedback themselves or for those that provide an inferior
+feedback.  The audio feedback is uses the XDG sound theme specification
+with a common set of event identifiers so that they can be themed.  This
+package also provides a default C<freedesktop> sound theme.  See the
+B<xde-style> and B<xde-theme> packages for more sounds.
+
+B<xde-sound> uses ICCCM, Win/GNOME and Net/EWMH events to generate
+sounds.  This includes the appearance and disappearance of a window
+manager, so B<xde-sound> should be auto-started in the initialization
+phase of the desktop (and a F<.desktop>) file is provided to do this.
+
+=head1 OPTIONS
+
+B<xde-sound> accepts the following options:
+
+=head2 COMMAND OPTIONS
+
+When specified, the following options alter the primary operating mode
+of the program:
+
+=over
+
+=item I<unspecified>
+
+When no command option is specified, the default is to run the event
+announcer without replacing an existing instance.  It is an error if an
+instance is currently running.
+
+=item B<--replace>, B<-r>
+
+Run the event announcer, but replace a running instance of B<xde-sound>.
+It is not an error when no instance is currently running.
+
+=item B<--restart>, B<-S>
+
+Ask a running instance to restart.  It is an error if there is not
+instance currently running.  This is useful when the binary has been
+upgraded.  Note that a muted state of the announcer will be lost.
+
+=item B<--quit>, B<-q>
+
+Ask a running instance of B<xde-sound> to quit.  It is not an error if
+no instance is currently running.
+
+=item B<--mute>, B<-M>
+
+Ask a running instance of B<xde-sound> to mute itself.  It is not an
+error if there is no instance running or if a running instance is
+already muted.
+
+=item B<--unmute>, B<-U>
+
+Ask a running instance of B<xde-sound> to unmute itself.  It is not an
+error if a running instance is already unmuted; however, it is
+considered an error when there is no instance running.
+
+=item B<--help>, B<-h>
+
+Prints usage information and the current options settings and defaults
+then exits.
+
+=item B<--version>, B<-V>
+
+Prints the version of the program and a brief copyright statement and
+exits.  Parse the first line with L<awk(1)> to obtain just the version
+number.
+
+=item B<--copying>, B<-C>
+
+Prints the long copying permission statement and exits.
+
+=back
+
+=head2 GENERAL OPTIONS
+
+The following options are general options:
+
+=over
+
+=item B<--display>, B<-d> I<DISPLAY>
+
+Specify the display to use (overriding the B<DISPLAY> environment
+variable).  The default is the value of the B<DISPLAY> environment
+variable.
+
+=item B<--screen>, B<-s> I<SCREEN>
+
+Specify the screen number to use when locating the current window and
+workspace.  The default is either specified by the B<DISPLAY>
+environment variable (when that variable specifies a screen);
+otherwise, all screens will be considered.
+
+=item B<--theme>, B<-t> I<THEME>
+
+Specify the sound theme to use.
+
+=item B<--verbose>, B<-v> [I<LEVEL>]
+
+Print extra information on standard error while running.  When
+I<LEVEL> is not specified, simply increments the output verbosity;
+otherwise, the output verbosity is set to I<LEVEL>.
+
+=item B<--debug>, B<-D> [I<LEVEL>]
+
+Print debugging information on standard error while running.  When
+I<LEVEL> is not specified, simply increments the debug level; otherwise,
+the debug level is set to I<LEVEL>.
+
+=back
+
+=head2 SESSION MANAGEMENT OPTIONS
+
+X session management options are not used by another user other than the
+X11 Session Manager.  The following options are used by X session
+management:
+
+=over
+
+=item B<-clientId> I<CLIENTID>
+
+Specifies the X Session Management client identifier of the previously
+running session of B<xde-sound>.
+
+=item B<-restore> I<SAVEFILE>
+
+Specifies the X Session Management file name of a file to which to save
+session information.
+
+=back
+
+=head1 USAGE
+
+B<xde-sound> currently uses F<libwnck+> or F<libwnck> to detect window
+and workspace changes and to provide the audio feedback, so the window
+manager must support some modicum of EWMH/NetWM compliance for the
+feedback to be effective.  Eventually I might make F<libwnck+> support
+GNOME1/WinWM, OSF/Motif and even just ICCCM compliant window managers,
+but, for now, some EWMH/NetWM compliance is needed.
+
+Run B<xde-sound> in the background or launch using the supplied XDG
+autostart file.  The program takes the following steps:
+
+=over
+
+=item 1.
+
+When run before the window manager, waits for a window manager to
+appear, applications to be launched, windows or workspaces to be
+manipulated, changes in focus, desktops, primary screen changes.
+
+=item 2.
+
+When an event is detected, it plays the appropriate sound (when one
+exists) in the currently selected sound theme.
+
+=back
+
+=head2  EVENTS
+
+B<xde-sound> detects the following events and takes the described
+actions:
+
+=over
+
+=item WM_S[n]
+
+When ownership change of the C<WM_S[n]> manager selection is detected,
+it is assumed that a new window manager has appeared and the appropriate
+sound is played.
+
+=item WnckWindow Signals
+
+The following WnckWindow changes are supported:
+
+=over
+
+=item actions-changed
+
+=item geometry-changed
+
+=item icon-changed
+
+=item name-changed
+
+=item state-changed
+
+=over
+
+=item minimized
+
+=item maximized horizontally
+
+=item maximized vertically
+
+=item shaded
+
+=item skip pager
+
+=item skip tasklist
+
+=item sticky
+
+=item hidden
+
+=item full screen
+
+=item demands attention
+
+=item urgent
+
+=item above
+
+=item below
+
+=item focused
+
+=item modal
+
+=item fixed
+
+=item filled
+
+=item floating
+
+=item undecorated
+
+=back
+
+=item workspace-changed
+
+=back
+
+=item WnckScreen Signals
+
+=over
+
+=item active-window-changed
+
+=item active-workspace-changed
+
+=item application-closed
+
+=item application-opened
+
+=item background-changed
+
+=item class-group-closed
+
+=item class-group-opened
+
+=item showing-desktop-changed
+
+=item viewports-changed
+
+=item window-closed
+
+=item window-manager-changed
+
+=item window-opened
+
+=item window-stacking-changed
+
+=item workspace-created
+
+=item workspace-destroyed
+
+=back
+
+=back
+
+=head2 STANDARD SOUND NAMES
+
+=over
+
+=item Alerts
+
+=over
+
+=item network-connectivity-lost
+
+=item network-connectivity-error
+
+=item dialog-error
+
+=item battery-low
+
+=item suspend-error
+
+=item software-update-urgent
+
+=item power-unplug-battery-low
+
+=back
+
+=item Notifications
+
+=over
+
+=item message-new-instant
+
+=item message-new-email
+
+=item complete-media-burn
+
+=item complete-media-rip
+
+=item complete-download
+
+=item complete-copy
+
+=item complete-scan
+
+=item phone-incoming-call
+
+=item phone-outgoing-busy
+
+=item phone-hangup
+
+=item phone-failure
+
+=item network-connectivity-established
+
+=item system-bootup
+
+=item system-ready
+
+=item system-shutdown
+
+=item search-results
+
+=item search-results-empty
+
+=item desktop-login
+
+"The sound used when the user logs into the system, played as a welcome
+sound immediately after the login screen disappeared."
+This could be performed by systemd user unit.
+This could also be implemented as an autostart F<.desktop> entry, or can be
+performed by B<xde-sound> itself on startup.
+
+=item desktop-logout
+
+"The sound used when a user logs out of the system."
+This could be performed by systemd user unit.
+This could also be performed by B<xde-sound> itself on exit.
+
+=item desktop-screen-lock
+
+"The sound used when the user locks their current session."
+
+=item service-login
+
+=item service-logout
+
+=item battery-caution
+
+=item battery-full
+
+=item dialog-warning
+
+=item dialog-information
+
+=item dialog-question
+
+=item software-update-available
+
+=item device-added
+
+=item device-removed
+
+=item window-new
+
+This sound can be driven by the C<window-opened> 
+B<WnckScreen> signal.
+
+=item power-plug
+
+=item power-unplug
+
+=item suspend-start
+
+=item suspend-resume
+
+=item lid-open
+
+=item lid-close
+
+=item alarm-clock-elapsed
+
+=item window-attention-active
+
+This sound can be driven by a I<demands attention> or I<urgent> state
+change in response to a C<state-changed> B<WnckWindow> signal.
+
+=item window-attention-inactive
+
+This sound can be driven by a I<demands attention> or I<urgent> state
+change in response to a C<state-changed> B<WnckWindow> signal.
+
+=back
+
+=item Actions
+
+=over
+
+=item phone-outgoing-calling
+
+=item message-sent-instant
+
+=item message-sent-email
+
+=item bell-terminal
+
+=item bell-window-system
+
+=item trash-empty
+
+=item item-deleted
+
+=item file-trash
+
+=item camera-shutter
+
+=item camera-focus
+
+=item screen-capture
+
+"A screenshot was made."
+This needs to be done by the screenshot application.
+
+=item count-down
+
+=item completion-success
+
+=item completion-fail
+
+=item completion-partial
+
+=item completion-rotation
+
+=item audio-volume-change
+
+=item audio-channel-left
+
+=item audio-channel-right
+
+=item audio-channel-front-left
+
+=item audio-channel-front-right
+
+=item audio-channel-front-center
+
+=item audio-channel-rear-left
+
+=item audio-channel-rear-right
+
+=item audio-channel-rear-center
+
+=item audio-channel-lfe
+
+=item audio-channel-side-left
+
+=item audio-channel-side-right
+
+=item audio-test-signal
+
+=back
+
+=item Input Feedback
+
+=over
+
+=item window-close
+
+"The sound used when an existing window is closed."
+This sound can be triggered by the C<window-closed> B<WnckScreen>
+signal.
+
+=item window-slide-in
+
+"The sound used when a window is slided in by some means. Example: panel."
+I suppose this is for things like auto-hiding panels and docks.
+This is rather hard to detect.  Perhaps restacking of a window of a
+particular type (desktop layer).
+
+=item window-slide-out
+
+"The sound used when a window is slided out by some means. Example: panel."
+I suppose this is for things like auto-hiding panels and docks.
+This is rather hard to detect.  Perhaps restacking of a window of a
+particular type (desktop layer).
+
+=item window-minimized
+
+"The sound used when an existing window is minimized."
+This sound can be triggered by the C<state-changed> B<WnckWindow> signal
+with a change in the I<minimized> state.
+
+=item window-unminimized
+
+"The sound used when an existing window is unminimized."
+This sound can be triggered by the C<state-changed> B<WnckWindow> signal
+with a change in the I<minimized> state.
+
+=item window-maximized
+
+"The sound to use when an existing window is maximized."
+This sound can be triggered by the C<state-changed> B<WnckWindow> signal
+with a change in the I<maximized_horizontally> or
+I<maximized_vertically> state.
+
+=item window-unmaximized
+
+"The sound to use when an existing window is unmaximized."
+This sound can be triggered by the C<state-changed> B<WnckWindow> signal
+with a change in the I<maximized_horizontally> or
+I<maximized_vertically> state.
+
+=item window-inactive-click
+
+"Sound used when the user clicks on an inactive window."
+This sound can perhaps be triggered by the C<state-changed>
+B<WnckWindow> signal with a change in the I<focused> state.
+
+=item window-move-start
+
+"A window move started."
+This sound can be played when a C<_NET_WM_MOVERESIZE> client message is
+received on the root window that specifies C<_NET_WM_MOVERESIZE_MOVE> or
+C<_NET_WM_MOVERESIZE_MOVE_KEYBOARD>.
+Unfortunately, this only handles move initiated by pager and panel,
+but not by the window manager itself.
+
+An enhancement will be made to L<adwm(1)> to place a C<_NET_WM_MOVERESIZE>
+property on a window while being moved or resized indicating the nature
+of the move or resize of the window.  The presence of this property can
+be used to play this sound.
+
+=item window-move-end
+
+"A window move ended."
+This sound can be played when a C<_NET_WM_MOVERESIZE> client message is
+received on the root window that specifies C<_NET_WM_MOVERESIZE_CANCEL>
+(and a move initiation was previously received).
+Unfortunately, this only handles move initiated by pager and panel,
+but not by the window manager itself.
+
+An enhancement will be made to L<adwm(1)> to place a C<_NET_WM_MOVERESIZE>
+property on a window while being moved or resized indicating the nature
+of the move or resize of the window.  The presence of this property can
+be used to play this sound.
+
+=item window-resize-start
+
+"A window resize started."
+This sound will be be played when a C<_NET_WM_MOVERESIZE> client message is
+received on the root window that specifies C<_NET_WM_MOVERESIZE_SIZE_*> or
+C<_NET_WM_MOVERESIZE_SIZE_KEYBOARD>.
+Unfortunately, this only handles resize initiated by pager and panel,
+but not by the window manager itself.
+
+An enhancement will be made to L<adwm(1)> to place a C<_NET_WM_MOVERESIZE>
+property on a window while being moved or resized indicating the nature
+of the move or resize of the window.  The presence of this property can
+be used to play this sound.
+
+=item window-resize-end
+
+"A window resize ended."
+This sound can be played when a C<_NET_WM_MOVERESIZE> client message is
+received on the root window that specifies C<_NET_WM_MOVERESIZE_CANCEL>
+(and a size initiation was previously received).
+Unfortunately, this only handles resize initiated by pager and panel,
+but not by the window manager itself.
+
+An enhancement was made to L<adwm(1)> to place a C<_NET_WM_MOVERESIZE>
+property on a window while being moved or resized indicating the nature
+of the move or resize of the window.  The presence of this property can
+be used to play this sound.
+
+=item window-switch-left
+
+=item window-switch-right
+
+=item desktop-switch-left
+
+"The sound used when the window manager switches to another desktop
+which [sic] is located to the left of the current screen."
+This can be played on a C<active-workspace-changed> B<WnckScreen> signal
+when the workspace index number decreases by one or wraps to one less
+than C<_NET_NUMBER_OF_DESKTOPS>.
+
+=item desktop-switch-right
+
+"The sound used when the window manager switches to another desktop
+which [sic] is located to the right of the current screen."
+which [sic] is located to the left of the current screen."
+This can be played on a C<active-workspace-changed> B<WnckScreen> signal
+when the workspace index number increases by one or wraps from one less
+than C<_NET_NUMBER_OF_DESKTOPS> to zero.
+
+=item window-switch
+
+"The sound used when the window manager switches to another window."
+This can be played on a C<active-window-changed> B<WnckScreen> signal.
+
+=item notebook-tab-changed
+
+=item scroll-up
+
+=item scroll-down
+
+=item scroll-left
+
+=item scroll-right
+
+=item scroll-up-end
+
+=item scroll-down-end
+
+=item scroll-left-end
+
+=item scroll-right-end
+
+=item dialog-ok
+
+=item dialog-cancel
+
+=item drag-start
+
+=item drag-accept
+
+=item drag-fail
+
+=item link-pressed
+
+=item link-released
+
+=item button-pressed
+
+=item button-released
+
+=item menu-click
+
+=item button-toggle-on
+
+=item button-toggle-off
+
+=item expander-toggle-on
+
+=item expander-toggle-off
+
+=item menu-popup
+
+"The sound used when a menu is popped up."
+This could be effected by the appearance of a window (override redirect
+or not) that has the B<_NET_WM_WINDOW_TYPE> set to
+B<_NET_WM_WINDOW_TYPE_MENU>.
+
+=item menu-popdown
+
+"The sound used when a menu is popped down."
+This could be effected by the disappearance of a window (override redirect
+or not) that has the B<_NET_WM_WINDOW_TYPE> set to
+B<_NET_WM_WINDOW_TYPE_MENU>.
+
+=item menu-replace
+
+"The sound use when replacing an active menu with another menu."
+This could be effected by the appearance of a window (override redirect
+or not) that has the B<_NET_WM_WINDOW_TYPE> set to
+B<_NET_WM_WINDOW_TYPE_MENU>, while another such window is also
+displayed.
+
+=item tooltip-popup
+
+"The sound used when a tooltip is popped up."
+This could be effected by the appearance of a window (override redirect
+or not) that has the B<_NET_WM_WINDOW_TYPE> set to
+B<_NET_WM_WINDOW_TYPE_TOOLTIP>.
+
+=item tooltip-popdown
+
+"The sound used when a tooltip is popped down."
+This could be effected by the disappearance of a window (override redirect
+or not) that has the B<_NET_WM_WINDOW_TYPE> set to
+B<_NET_WM_WINDOW_TYPE_TOOLTIP>.
+
+=item item-selected
+
+=back
+
+=item Game
+
+=over
+
+=item game-over-winner
+
+=item game-over-loser
+
+=item game-card-shuffle
+
+=item game-human-move
+
+=item game-computer-move
+
+=back
+
+=back
+
+=head2 WINDOW MANAGERS
+
+=over
+
+=item L<2bwm(1)>
+
+=item L<adwm(1)>
+
+is supported and works well.
+
+=item L<aewm(1)>
+
+=item L<aewm++(1)>
+
+=item L<afterstep(1)>
+
+=item L<awesome(1)>
+
+=item L<blackbox(1)>
+
+=item L<bspwm(1)>
+
+=item L<ctwm(1)>
+
+=item L<cwm(1)>
+
+=item L<dtwm(1)>
+
+=item L<dwm(1)>
+
+=item L<echinus(1)>
+
+=item L<etwm(1)>
+
+=item L<failsafewm(1)>
+
+=item L<fluxbox(1)>
+
+=item L<flwm(1)>
+
+=item L<fvwm(1)>
+
+=item L<glasswm(1)>
+
+=item L<goomwwm(1)>
+
+=item L<herbstluftwm(1)>
+
+=item L<i3(1)>
+
+=item L<icewm(1)>
+
+=item L<jwm(1)>
+
+=item L<larswm(1)>
+
+=item L<matwm2(1)>
+
+=item L<metacity(1)>
+
+=item L<mvwm(1)>
+
+=item L<mwm(1)>
+
+=item L<openbox(1)>
+
+=item L<pekwm(1)>
+
+=item L<spectrwm(1)>
+
+=item L<twm(1)>
+
+=item L<uwm(1)>
+
+=item L<velox(1)>
+
+=item L<vtwm(1)>
+
+=item L<waimea(1)>
+
+=item L<wind(1)>
+
+=item L<wm2(1)>
+
+=item L<wmaker(1)>
+
+=item L<wmii(1)>
+
+=item L<wmx(1)>
+
+=item L<xdwm(1)>
+
+=item L<yeahwm(1)>
+
+=back
+
+=head1 ENVIRONMENT
+
+The following environment variables are considered by the program:
+
+=over
+
+=item B<SESSION_MANAGER>
+
+Specifies the list of transport connections on which to contact the
+session manager.
+
+=item B<SM_SAVE_DIR>
+
+Specifies the directory in which to save session files.  When unset, the
+directory defaults to the user's home directory.
+
+=back
+
+=head1 HISTORY
+
+I wrote this program particularly for use with L<adwm(1)> and other
+tiling window managers that provide little feedback for desktop event
+changes and do not typically run will with a panel.  It provides window,
+focus and desktop change feedback without taking any screen real-estate
+at all (because it uses sound instead).
+
+I used to be a fan of FVWM back in the early days of Linux and always
+defined sounds for window actions.  Short quick sounds that are
+indicative of the action can help the user understand what is happening
+on the desktop.
+
+=head1 AUTHOR
+
+Brian Bidulock L<mailto:bidulock@openss7.org>.
+
+=head1 SEE ALSO
+
+=cut
+
+# vim: set sw=4 tw=72 nocin spell spelllang=en_ca:

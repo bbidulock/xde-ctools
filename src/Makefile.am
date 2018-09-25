@@ -64,8 +64,8 @@ xde_monitor_LDFLAGS = $(SN_LIBS) $(SMLIB_LIBS) $(ICE_LIBS) $(NOTIFY_LIBS) $(AM_L
 
 xde_pager_CPPFLAGS = -DNAME=\"xde-pager\"
 xde_pager_SOURCES = xde-pager.c
-xde_pager_CFLAGS = $(AM_CFLAGS) $(NOTIFY_CFLAGS) $(ICE_CFLAGS) $(SMLIB_CFLAGS) $(SN_CFLAGS)
-xde_pager_LDFLAGS = $(SN_LIBS) $(SMLIB_LIBS) $(ICE_LIBS) $(NOTIFY_LIBS) $(AM_LDFLAGS)
+xde_pager_CFLAGS = $(AM_CFLAGS) $(NOTIFY_CFLAGS) $(ICE_CFLAGS) $(SMLIB_CFLAGS) $(SN_CFLAGS) $(SOUND_CFLAGS)
+xde_pager_LDFLAGS = $(SOUND_LIBS) $(SN_LIBS) $(SMLIB_LIBS) $(ICE_LIBS) $(NOTIFY_LIBS) $(AM_LDFLAGS)
 
 xde_places_CPPFLAGS = -DNAME=\"xde-places\"
 xde_places_SOURCES = xde-places.c

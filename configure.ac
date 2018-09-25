@@ -180,6 +180,18 @@ AC_MSG_CHECKING([for status-icon support])
 AC_MSG_RESULT([${enable_status_icon:-yes}])
 AM_CONDITIONAL([HAVE_SYSTEM_TRAY_STATUS_ICON],[test  "x$enable_status_icon" != "xno"])
 
+AC_ARG_ENABLE([canberra],
+	AC_HELP_STRING([--disable-canberra],
+		[Disable canberra sound @<:@default=auto@:>@]))
+if test "x$enable_canberra" != xno ; then
+	PKG_CHECK_MODULES([SOUND],[libcanberra-gtk],
+		[AC_DEFINE([CANBERRA_SOUND],[1],[Define to 1 to support libcanberra sound.])],
+		[enable_canberra=no])
+fi
+AC_MSG_CHECKING([for libcanberra sound support])
+AC_MSG_RESULT([${enable_canberra:-yes}])
+AM_CONDITIONAL([HAVE_CANBERRA_SOUND],[test "x$enable_canberra" != "xno"])
+
 AC_ARG_ENABLE([debug],
 	AC_HELP_STRING([--enable-debug],
 		[Enable debugging support @<:@default=disabled@:>@]))

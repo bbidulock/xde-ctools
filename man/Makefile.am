@@ -18,6 +18,7 @@ xde_man1_files = \
 	xde-run.man \
 	xde-select.man \
 	xde-setbg.man \
+	xde-sound.man \
 	xde-winlist.man \
 	xde-winmenu.man \
 	xde-wkspmenu.man
@@ -44,6 +45,7 @@ EXTRA_DIST = \
 	xde-run.pod \
 	xde-select.pod \
 	xde-setbg.pod \
+	xde-sound.pod \
 	xde-winlist.pod \
 	xde-winmenu.pod \
 	xde-wkspmenu.pod
