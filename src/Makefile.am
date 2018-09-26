@@ -24,7 +24,12 @@ bin_PROGRAMS = \
 	xde-wkspmenu
 
 EXTRA_PROGRAMS = \
-	xde-clip
+	xde-clip \
+	xde-sound
+
+if HAVE_CANBERRA_SOUND
+bin_PROGRAMS += xde-sound
+endif
 
 xde_app_CPPFLAGS = -DNAME=\"xde-app\"
 xde_app_SOURCES = xde-app.c
@@ -64,8 +69,8 @@ xde_monitor_LDFLAGS = $(SN_LIBS) $(SMLIB_LIBS) $(ICE_LIBS) $(NOTIFY_LIBS) $(AM_L
 
 xde_pager_CPPFLAGS = -DNAME=\"xde-pager\"
 xde_pager_SOURCES = xde-pager.c
-xde_pager_CFLAGS = $(AM_CFLAGS) $(NOTIFY_CFLAGS) $(ICE_CFLAGS) $(SMLIB_CFLAGS) $(SN_CFLAGS) $(SOUND_CFLAGS)
-xde_pager_LDFLAGS = $(SOUND_LIBS) $(SN_LIBS) $(SMLIB_LIBS) $(ICE_LIBS) $(NOTIFY_LIBS) $(AM_LDFLAGS)
+xde_pager_CFLAGS = $(AM_CFLAGS) $(NOTIFY_CFLAGS) $(ICE_CFLAGS) $(SMLIB_CFLAGS) $(SN_CFLAGS)
+xde_pager_LDFLAGS = $(SN_LIBS) $(SMLIB_LIBS) $(ICE_LIBS) $(NOTIFY_LIBS) $(AM_LDFLAGS)
 
 xde_places_CPPFLAGS = -DNAME=\"xde-places\"
 xde_places_SOURCES = xde-places.c
@@ -88,6 +93,11 @@ xde_setbg_CPPFLAGS = -DNAME=\"xde-setbg\"
 xde_setbg_SOURCES = xde-setbg.c
 xde_setbg_CFLAGS = $(AM_CFLAGS) $(NOTIFY_CFLAGS) $(ICE_CFLAGS) $(SMLIB_CFLAGS) $(SN_CFLAGS)
 xde_setbg_LDFLAGS = $(SN_LIBS) $(SMLIB_LIBS) $(ICE_LIBS) $(NOTIFY_LIBS) $(AM_LDFLAGS)
+
+xde_sound_CPPFLAGS = -DNAME=\"xde-sound\"
+xde_sound_SOURCES = xde-sound.c
+xde_sound_CFLAGS = $(AM_CFLAGS) $(NOTIFY_CFLAGS) $(ICE_CFLAGS) $(SMLIB_CFLAGS) $(SN_CFLAGS) $(SOUND_CFLAGS)
+xde_sound_LDFLAGS = $(SOUND_LIBS) $(SN_LIBS) $(SMLIB_LIBS) $(ICE_LIBS) $(NOTIFY_LIBS) $(AM_LDFLAGS)
 
 xde_tasks_CPPFLAGS = -DNAME=\"xde-tasks\"
 xde_tasks_SOURCES = xde-tasks.c

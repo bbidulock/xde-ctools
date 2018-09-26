@@ -721,6 +721,56 @@ B<_NET_WM_WINDOW_TYPE_TOOLTIP>.
 
 =back
 
+=head2 OTHER COMMON EVENT IDS
+
+=over
+
+=item bell
+
+=item busytone
+
+=item complete
+
+=item complete-print
+
+=item desktop-switch-up
+
+=item desktop-switch-down
+
+=item dialog-error-critical
+
+=item dialog-error-serious
+
+=item dialtone
+
+=item dummy-message
+
+=item message
+
+=item newmail
+
+=item newmessage
+
+=item ring
+
+=item screen-capture-complete
+
+=item startup
+
+=item test
+
+=item voicemail
+
+=item window-attention
+
+=item window-question
+
+=item window-slide
+
+=item windows-slide
+
+=back
+
 =head2 WINDOW MANAGERS
 
 =over

@@ -53,6 +53,8 @@
 #include "autoconf.h"
 #endif
 
+#undef STARTUP_NOTIFICATION
+
 #include <stddef.h>
 #include <stdint.h>
 #include <stdlib.h>
@@ -130,7 +132,7 @@
 #include <fontconfig/fontconfig.h>
 #include <pango/pangofc-fontmap.h>
 
-#if 0
+#if 1
 #ifdef CANBERRA_SOUND
 #include <canberra-gtk.h>
 #endif
@@ -204,19 +206,19 @@ const char *program = NAME;
 
 #define CA_CONTEXT_ID	55
 
-#define XA_PREFIX		"_XDE_FEEDBACK"
+#define XA_PREFIX		"_XDE_SOUND"
 #define XA_SELECTION_NAME	XA_PREFIX "_S%d"
 #define XA_NET_DESKTOP_LAYOUT	"_NET_DESKTOP_LAYOUT_S%d"
-#define LOGO_NAME		"metacity"
-#define XDE_DESCRIP		"An XDG compliant feedback system."
-#define XDE_DEFKEYS		"AS+Tab:A+Tab"
+#define LOGO_NAME		"pager"
+#define XDE_DESCRIP		"An XDG compliant sound player."
+#define XDE_DEFKEYS		"AC+Left:AC+Right"
 
 static int saveArgc;
 static char **saveArgv;
 
-#define RESNAME "xde-feedback"
-#define RESCLAS "XDE-Feedback"
-#define RESTITL "XDG Desktop Feedback"
+#define RESNAME "xde-sound"
+#define RESCLAS "XDE-Sound"
+#define RESTITL "XDG Desktop Sound"
 
 #define APPDFLT "/usr/share/X11/app-defaults/" RESCLAS
 
@@ -374,6 +376,13 @@ typedef enum {
 	PopupLast,
 } PopupType;
 
+typedef enum {
+	CaEventWindowManager = CA_CONTEXT_ID,
+	CaEventWorkspaceChange,
+	CaEventDesktopChange,
+	CaEventWindowChange,
+} CaEventId;
+
 typedef struct {
 	int mask, x, y;
 	unsigned int w, h;
@@ -520,13 +529,13 @@ Options options = {
 	.clientId = NULL,
 	.saveFile = NULL,
 	.show = {
-		 .winds = True,
-		 .pager = True,
-		 .tasks = True,
-		 .cycle = True,
-		 .setbg = True,
-		 .start = True,
-		 .input = True,
+		 .winds = False,
+		 .pager = False,
+		 .tasks = False,
+		 .cycle = False,
+		 .setbg = False,
+		 .start = False,
+		 .input = False,
 		 },
 	.fileout = False,
 	.noicons = False,
@@ -4962,6 +4971,7 @@ window_manager_changed(WnckScreen *wnck, gpointer user)
 {
 	XdeScreen *xscr = user;
 	const char *name;
+	ca_context *ca = ca_gtk_context_get_for_screen(xscr->scrn);
 
 	PTRACE(5);
 	/* I suppose that what we should do here is set a timer and wait before doing
@@ -5005,6 +5015,11 @@ window_manager_changed(WnckScreen *wnck, gpointer user)
 			xscr->start = False;
 			xscr->input = False;
 		}
+		ca_context_cancel(ca, CaEventWindowManager);
+		ca_context_play(ca, CaEventWindowManager, CA_PROP_EVENT_ID, "desktop-login", NULL);
+	} else {
+		ca_context_cancel(ca, CaEventWindowManager);
+		ca_context_play(ca, CaEventWindowManager, CA_PROP_EVENT_ID, "desktop-logout", NULL);
 	}
 	DPRINTF(1, "window manager is '%s'\n", xscr->wmname);
 	DPRINTF(1, "window manager is %s\n", xscr->goodwm ? "usable" : "unusable");
@@ -5013,13 +5028,21 @@ window_manager_changed(WnckScreen *wnck, gpointer user)
 static void
 workspace_destroyed(WnckScreen *wnck, WnckWorkspace *space, gpointer data)
 {
-	/* pager can handle this on its own */
+	XdeScreen *xscr = data;
+	ca_context *ca = ca_gtk_context_get_for_screen(xscr->scrn);
+
+	ca_context_cancel(ca, CaEventWorkspaceChange);
+	ca_context_play(ca, CaEventWorkspaceChange, CA_PROP_EVENT_ID, "workspace-destroyed", NULL);
 }
 
 static void
 workspace_created(WnckScreen *wnck, WnckWorkspace *space, gpointer data)
 {
-	/* pager can handle this on its own */
+	XdeScreen *xscr = data;
+	ca_context *ca = ca_gtk_context_get_for_screen(xscr->scrn);
+
+	ca_context_cancel(ca, CaEventWorkspaceChange);
+	ca_context_play(ca, CaEventWorkspaceChange, CA_PROP_EVENT_ID, "workspace-created", NULL);
 }
 
 static void
@@ -5038,6 +5061,61 @@ static void
 active_workspace_changed(WnckScreen *wnck, WnckWorkspace *prev, gpointer data)
 {
 	/* XXX: should be handled by update_current_desktop */
+#if 1
+#ifdef CANBERRA_SOUND
+	XdeScreen *xscr = (typeof(xscr)) data;
+	ca_context *ca = ca_gtk_context_get_for_screen(xscr->scrn);
+	WnckWorkspace *test, *next = wnck_screen_get_active_workspace(wnck);
+	int pind = wnck_screen_get_workspace_index(wnck, prev);
+	int nind = wnck_screen_get_workspace_index(wnck, next);
+	int numb = wnck_screen_get_workspace_count(wnck);
+	WnckMotionDirection dir;
+
+	if (pind == nind)
+		return;
+
+	ca_context_cancel(ca, CaEventDesktopChange);
+
+	if ((test = wnck_screen_get_workspace_neighbor(wnck, prev, WNCK_MOTION_UP))
+	    && nind == wnck_screen_get_workspace_index(wnck, test))
+		dir = WNCK_MOTION_UP;
+	else if ((test = wnck_screen_get_workspace_neighbor(wnck, prev, WNCK_MOTION_DOWN))
+		 && nind == wnck_screen_get_workspace_index(wnck, test))
+		dir = WNCK_MOTION_DOWN;
+	else if ((test = wnck_screen_get_workspace_neighbor(wnck, prev, WNCK_MOTION_LEFT))
+		 && nind == wnck_screen_get_workspace_index(wnck, test))
+		dir = WNCK_MOTION_LEFT;
+	else if ((test = wnck_screen_get_workspace_neighbor(wnck, prev, WNCK_MOTION_RIGHT))
+		 && nind == wnck_screen_get_workspace_index(wnck, test))
+		dir = WNCK_MOTION_RIGHT;
+	else if ((nind == numb - 1 && pind == 0) || (nind == pind - 1))
+		dir = WNCK_MOTION_LEFT;
+	else if ((nind == 0 && pind == numb - 1) || (nind == pind + 1))
+		dir = WNCK_MOTION_RIGHT;
+	else if (nind < pind)
+		dir = WNCK_MOTION_UP;
+	else if (nind > pind)
+		dir = WNCK_MOTION_DOWN;
+	else {
+		EPRINTF("Cannot determine desktop change direction from %d to %d\n", pind, nind);
+		return;
+	}
+	switch (dir) {
+	case WNCK_MOTION_UP:
+		ca_context_play(ca, CaEventDesktopChange, CA_PROP_EVENT_ID, "desktop-switch-up", NULL);
+		break;
+	case WNCK_MOTION_DOWN:
+		ca_context_play(ca, CaEventDesktopChange, CA_PROP_EVENT_ID, "desktop-switch-down", NULL);
+		break;
+	case WNCK_MOTION_LEFT:
+		ca_context_play(ca, CaEventDesktopChange, CA_PROP_EVENT_ID, "desktop-switch-left", NULL);
+		break;
+	case WNCK_MOTION_RIGHT:
+		ca_context_play(ca, CaEventDesktopChange, CA_PROP_EVENT_ID, "desktop-switch-right", NULL);
+		break;
+	}
+#endif				/* CANBERRA_SOUND */
+#endif
 }
 #endif
 
@@ -5068,13 +5146,107 @@ name_changed(WnckWindow *window, gpointer xscr)
 }
 
 static void
-state_changed(WnckWindow *window, WnckWindowState changed, WnckWindowState state, gpointer xscr)
+state_changed(WnckWindow *window, WnckWindowState changed, WnckWindowState state, gpointer data)
 {
+	XdeScreen *xscr = data;
+	ca_context *ca = ca_gtk_context_get_for_screen(xscr->scrn);
+
+	if (changed & WNCK_WINDOW_STATE_MINIMIZED) {
+		if (state & WNCK_WINDOW_STATE_MINIMIZED) {
+			ca_context_play(ca, CaEventWindowChange, CA_PROP_EVENT_ID, "window-minimized", NULL);
+		} else {
+			ca_context_play(ca, CaEventWindowChange, CA_PROP_EVENT_ID, "window-unminimized", NULL);
+		}
+	}
+	if (changed & (WNCK_WINDOW_STATE_MAXIMIZED_HORIZONTALLY|WNCK_WINDOW_STATE_MAXIMIZED_VERTICALLY)) {
+		if (state & (WNCK_WINDOW_STATE_MAXIMIZED_HORIZONTALLY|WNCK_WINDOW_STATE_MAXIMIZED_VERTICALLY)) {
+			ca_context_play(ca, CaEventWindowChange, CA_PROP_EVENT_ID, "window-maximized", NULL);
+		} else {
+			ca_context_play(ca, CaEventWindowChange, CA_PROP_EVENT_ID, "window-unmaximized", NULL);
+		}
+	}
+	if (changed & WNCK_WINDOW_STATE_SHADED) {
+		if (state & WNCK_WINDOW_STATE_SHADED) {
+			ca_context_play(ca, CaEventWindowChange, CA_PROP_EVENT_ID, "window-slide-in", NULL);
+		} else {
+			ca_context_play(ca, CaEventWindowChange, CA_PROP_EVENT_ID, "window-slide-out", NULL);
+		}
+	}
+	if (changed & WNCK_WINDOW_STATE_SKIP_PAGER) {
+	}
+	if (changed & WNCK_WINDOW_STATE_SKIP_TASKLIST) {
+	}
+	if (changed & WNCK_WINDOW_STATE_STICKY) {
+	}
+	if (changed & WNCK_WINDOW_STATE_HIDDEN) {
+		if (state & WNCK_WINDOW_STATE_HIDDEN) {
+			ca_context_play(ca, CaEventWindowChange, CA_PROP_EVENT_ID, "window-minimized", NULL);
+		} else {
+			ca_context_play(ca, CaEventWindowChange, CA_PROP_EVENT_ID, "window-unminimized", NULL);
+		}
+	}
+	if (changed & WNCK_WINDOW_STATE_FULLSCREEN) {
+		if (state & WNCK_WINDOW_STATE_FULLSCREEN) {
+			ca_context_play(ca, CaEventWindowChange, CA_PROP_EVENT_ID, "window-maximized", NULL);
+		} else {
+			ca_context_play(ca, CaEventWindowChange, CA_PROP_EVENT_ID, "window-unmaximized", NULL);
+		}
+	}
+	if (changed & WNCK_WINDOW_STATE_DEMANDS_ATTENTION) {
+		if (state & WNCK_WINDOW_STATE_DEMANDS_ATTENTION) {
+			if (state & WNCK_WINDOW_STATE_HIDDEN) {
+				ca_context_play(ca, CaEventWindowChange, CA_PROP_EVENT_ID, "window-attention-active", NULL);
+			} else {
+				ca_context_play(ca, CaEventWindowChange, CA_PROP_EVENT_ID, "window-attention-inactive", NULL);
+			}
+		}
+	}
+	if (changed & WNCK_WINDOW_STATE_URGENT) {
+		if (state & WNCK_WINDOW_STATE_URGENT) {
+			ca_context_play(ca, CaEventWindowChange, CA_PROP_EVENT_ID, "window-urgent", NULL);
+		}
+	}
+	if (changed & WNCK_WINDOW_STATE_ABOVE) {
+	}
+	if (changed & WNCK_WINDOW_STATE_BELOW) {
+	}
+	if (changed & WNCK_WINDOW_STATE_FOCUSED) {
+		if (state & WNCK_WINDOW_STATE_FOCUSED) {
+			if (window != wnck_screen_get_active_window(xscr->wnck)) {
+				ca_context_play(ca, CaEventWindowChange, CA_PROP_EVENT_ID, "window-inactive-click", NULL);
+			}
+		}
+	}
+	if (changed & WNCK_WINDOW_STATE_MODAL) {
+	}
+	if (changed & WNCK_WINDOW_STATE_FIXED) {
+	}
+	if (changed & WNCK_WINDOW_STATE_FILLED) {
+		if (state & WNCK_WINDOW_STATE_FILLED) {
+			ca_context_play(ca, CaEventWindowChange, CA_PROP_EVENT_ID, "window-maximize", NULL);
+		} else {
+			ca_context_play(ca, CaEventWindowChange, CA_PROP_EVENT_ID, "window-unmaximize", NULL);
+		}
+	}
+	if (changed & WNCK_WINDOW_STATE_FLOATING) {
+		if (state & WNCK_WINDOW_STATE_FLOATING) {
+			ca_context_play(ca, CaEventWindowChange, CA_PROP_EVENT_ID, "window-float", NULL);
+		} else {
+			ca_context_play(ca, CaEventWindowChange, CA_PROP_EVENT_ID, "window-unfloat", NULL);
+		}
+	}
+	if (changed & WNCK_WINDOW_STATE_UNDECORATED) {
+	}
 }
 
 static void
-workspace_changed(WnckWindow *window, gpointer xscr)
+workspace_changed(WnckWindow *window, gpointer data)
 {
+	XdeScreen *xscr = data;
+	ca_context *ca = ca_gtk_context_get_for_screen(xscr->scrn);
+
+	ca_context_play(ca, CaEventWindowChange, CA_PROP_EVENT_ID, "window-switch", NULL);
+
 }
 #endif
 
@@ -5192,6 +5364,8 @@ active_window_changed(WnckScreen *wnck, WnckWindow *prev, gpointer user)
 	GdkModifierType mask = 0;
 	WnckWindow *actv;
 	int i;
+	ca_context *ca = ca_gtk_context_get_for_screen(xscr->scrn);
+	ca_context_play(ca, CaEventWindowChange, CA_PROP_EVENT_ID, "window-switch", NULL);
 
 	if (!options.show.cycle && !options.show.tasks && !options.show.winds)
 		return;
@@ -6595,11 +6769,11 @@ event_handler_PropertyNotify(XEvent *xev, XdeScreen *xscr)
 			return GDK_FILTER_REMOVE;	/* event handled */
 #if 1
 		} else if (atom == _XA_NET_DESKTOP_LAYOUT) {
-			update_layout(xscr, atom);
+			update_layout(xscr, None /* atom */);
 		} else if (atom == _XA_NET_NUMBER_OF_DESKTOPS) {
-			update_layout(xscr, atom);
+			update_layout(xscr, None /* atom */);
 		} else if (atom == _XA_WIN_WORKSPACE_COUNT) {
-			update_layout(xscr, atom);
+			update_layout(xscr, None /* atom */);
 #endif
 #if 1
 		} else if (atom == _XA_NET_CURRENT_DESKTOP) {
@@ -6748,7 +6922,7 @@ add_pager(XdeScreen *xscr, XdePopup *xpop, GtkWidget *popup, GtkWidget *hbox)
 	wnck_pager_set_show_all(WNCK_PAGER(pager), TRUE);
 	wnck_pager_set_shadow_type(WNCK_PAGER(pager), GTK_SHADOW_IN);
 
-//	g_signal_connect(G_OBJECT(pager), "size_request", G_CALLBACK(size_request), xpop);
+//      g_signal_connect(G_OBJECT(pager), "size_request", G_CALLBACK(size_request), xpop);
 
 	gtk_box_pack_start(GTK_BOX(hbox), GTK_WIDGET(pager), TRUE, TRUE, 0);
 	gtk_widget_show_all(GTK_WIDGET(pager));

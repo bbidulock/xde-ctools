@@ -132,8 +132,10 @@
 #include <fontconfig/fontconfig.h>
 #include <pango/pangofc-fontmap.h>
 
+#if 0
 #ifdef CANBERRA_SOUND
 #include <canberra-gtk.h>
+#endif
 #endif
 
 #ifdef _GNU_SOURCE
@@ -4409,6 +4411,8 @@ get_keyfile(void)
 
 /** @} */
 
+/** @} */
+
 /** @section System Tray Icon
   * @{ */
 
@@ -5035,6 +5039,9 @@ background_changed(WnckScreen *wnck, gpointer data)
 static void
 active_workspace_changed(WnckScreen *wnck, WnckWorkspace *prev, gpointer data)
 {
+	/* XXX: should be handled by update_current_desktop */
+#if 0
+#ifdef CANBERRA_SOUND
 	XdeScreen *xscr = (typeof(xscr)) data;
 	ca_context *ca = ca_gtk_context_get_for_screen(xscr->scrn);
 	WnckWorkspace *test, *next = wnck_screen_get_active_workspace(wnck);
@@ -5086,6 +5093,8 @@ active_workspace_changed(WnckScreen *wnck, WnckWorkspace *prev, gpointer data)
 		ca_context_play(ca, CA_CONTEXT_ID, CA_PROP_EVENT_ID, "desktop-switch-right", NULL);
 		break;
 	}
+#endif				/* CANBERRA_SOUND */
+#endif
 }
 #endif
 
@@ -6789,6 +6798,8 @@ add_pager(XdeScreen *xscr, XdePopup *xpop, GtkWidget *popup, GtkWidget *hbox)
 {
 	GtkWidget *pager = wnck_pager_new(xscr->wnck);
 
+//	wnck_pager_set_orientation(WNCK_PAGER(pager), GTK_ORIENTATION_HORIZONTAL);
+//	wnck_pager_set_n_rows(WNCK_PAGER(pager), 2);
 	wnck_pager_set_layout_policy(WNCK_PAGER(pager), WNCK_PAGER_LAYOUT_POLICY_AUTOMATIC);
 	wnck_pager_set_display_mode(WNCK_PAGER(pager), WNCK_PAGER_DISPLAY_CONTENT);
 	wnck_pager_set_show_all(WNCK_PAGER(pager), TRUE);
