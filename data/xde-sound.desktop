@@ -1,0 +1,15 @@
+[Desktop Entry]
+Encoding=UTF-8
+Type=Application
+Name=Workspace Feedback Sounds
+GenericName=Sound
+Comment=Workspace feedback sound generator for XDE
+Icon=sound
+TryExec=xde-sound
+Exec=xde-sound
+Terminal=false
+Categories=XDE;System;Utility;
+NotShowIn=GNOME;KDE;XFCE;LXDE;
+StartupNotify=true
+StartupWMClass=xde-sound
+X-GNOME-Autostart-enabled=true
