@@ -6877,10 +6877,34 @@ int_signal_handler(gpointer data)
 	return G_SOURCE_CONTINUE;
 }
 
+void
+desktop_logout_cb(ca_context *ca, uint32_t id, int error, void *data)
+{
+	ca_proplist_destroy(data);
+	mainloop_quit();
+}
+
+int already_exiting = 0;
+
 gboolean
 term_signal_handler(gpointer data)
 {
-	mainloop_quit();
+	if (!already_exiting) {
+		GdkDisplay *disp = gdk_display_get_default();
+		GdkScreen *scrn = gdk_display_get_default_screen(disp);
+		ca_context *ca = ca_gtk_context_get_for_screen(scrn);
+		ca_proplist *pl = NULL;
+		int err;
+
+		ca_proplist_create(&pl);
+		ca_proplist_sets(pl, CA_PROP_EVENT_ID, "desktop-logout");
+
+		already_exiting = 1;
+		ca_context_cancel(ca, CaEventWindowManager);
+		err = ca_context_play_full(ca, CaEventWindowManager, pl, &desktop_logout_cb, pl);
+		if (err != CA_SUCCESS)
+			desktop_logout_cb(ca, CaEventWindowManager, err, pl);
+	}
 	return G_SOURCE_CONTINUE;
 }
 
