@@ -7725,6 +7725,7 @@ on_sd_proxy_manager_signal(GDBusProxy *proxy, gchar *sender_name, gchar
 			   *signal_name, GVariant *parameters, gpointer user_data)
 {
 	GVariant *value;
+	GVariantIter iter;
 	gboolean flag;
 	int err;
 	ca_context *ca = get_default_ca_context();
@@ -7732,7 +7733,8 @@ on_sd_proxy_manager_signal(GDBusProxy *proxy, gchar *sender_name, gchar
 
 	DPRINTF(1, "received manager proxy signal %s( %s )\n", signal_name, g_variant_get_type_string(parameters));
 	if (!strcmp(signal_name, "PrepareForSleep")) {
-		if ((value = g_variant_get_child_value(parameters, 1))) {
+		g_variant_iter_init(&iter, parameters);
+		if ((value = g_variant_iter_next_value(&iter))) {
 			ca_context_cancel(ca, CaEventSleepSuspend);
 			ca_proplist_create(&pl);
 			flag = g_variant_get_boolean(value);
@@ -7752,7 +7754,8 @@ on_sd_proxy_manager_signal(GDBusProxy *proxy, gchar *sender_name, gchar
 		}
 	}
 	if (!strcmp(signal_name, "PrepareForShutdown")) {
-		if ((value = g_variant_get_child_value(parameters, 1))) {
+		g_variant_iter_init(&iter, parameters);
+		if ((value = g_variant_iter_next_value(&iter))) {
 			ca_context_cancel(ca, CaEventSleepSuspend);
 			ca_proplist_create(&pl);
 			flag = g_variant_get_boolean(value);
