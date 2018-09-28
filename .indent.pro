@@ -24,6 +24,10 @@
 -ss
 -hnl
 -nbc
+-Tca_context
+-Tca_proplist
+-TGDBusProxy
+-TGVariant
 -Tabq_item_t
 -Taction_fp_t
 -Taddress_t
