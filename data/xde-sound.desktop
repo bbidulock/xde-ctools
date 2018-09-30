@@ -13,3 +13,4 @@ NotShowIn=GNOME;KDE;XFCE;LXDE;
 StartupNotify=true
 StartupWMClass=xde-sound
 X-GNOME-Autostart-enabled=true
+X-GNOME-Autostart-Phase=Initialization

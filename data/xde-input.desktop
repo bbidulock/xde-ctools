@@ -116,6 +116,7 @@ Categories=Settings;System;HardwareSettings;XDE;
 StartupNotify=true
 StartupWMClass=xde-input
 X-GNOME-Autostart-enabled=true
+X-GNOME-Autostart-Phase=Initialization
 X-AppInstall-Package=xde-ctools-git
 X-AppInstall-Popcon=0
 X-AppInstall-Section=main
