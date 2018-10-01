@@ -13,7 +13,6 @@ NotShowIn=GNOME;KDE;XFCE;LXDE;WMAKER;
 Categories=Settings;GTK;
 StartupNotify=true
 X-GNOME-Autostart-enabled=true
-X-GNOME-Autostart-Phase=Initialization
 X-AppInstall-Package=xde-ctools-git
 X-AppInstall-Popcon=0
 X-AppInstall-Section=main
