@@ -5335,7 +5335,7 @@ refresh_desktop(XdeScreen *xscr)
 		DPRINTF(1, "adding monitor %d to pixmap\n", m);
 		d = xmon->current;
 		DPRINTF(1, "monitor %d current destop is %d\n", m, d);
-		if ((im = xscr->backdrops[d]) && (im->pixbuf || im->file)) {
+		if (d < xscr->ndsk && (im = xscr->backdrops[d]) && (im->pixbuf || im->file)) {
 			DPRINTF(1, "monitor %d desktop %d has an image\n", m, d);
 			for (pm = im->pixmaps; pm; pm = pm->next) {
 				if (pm->geom.width == xmon->geom.width && pm->geom.height == xmon->geom.height)
