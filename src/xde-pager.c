@@ -1,6 +1,6 @@
 /*****************************************************************************
 
- Copyright (c) 2010-2017  Monavacon Limited <http://www.monavacon.com/>
+ Copyright (c) 2010-2018  Monavacon Limited <http://www.monavacon.com/>
  Copyright (c) 2002-2009  OpenSS7 Corporation <http://www.openss7.com/>
  Copyright (c) 1997-2001  Brian F. G. Bidulock <bidulock@openss7.org>
 
@@ -132,7 +132,7 @@
 #include <fontconfig/fontconfig.h>
 #include <pango/pangofc-fontmap.h>
 
-#if 0
+#if 1
 #ifdef CANBERRA_SOUND
 #include <canberra-gtk.h>
 #endif
@@ -203,8 +203,6 @@ dumpstack(const char *file, const int line, const char *func)
 #define GTK_EVENT_PROPAGATE	FALSE
 
 const char *program = NAME;
-
-#define CA_CONTEXT_ID	55
 
 #define XA_PREFIX		"_XDE_PAGER"
 #define XA_SELECTION_NAME	XA_PREFIX "_S%d"
@@ -292,6 +290,18 @@ static Atom _XA_PREFIX_EDITOR;
 
 static Atom _XA_NET_STARTUP_INFO;
 static Atom _XA_NET_STARTUP_INFO_BEGIN;
+
+#define CA_CONTEXT_ID	55
+
+typedef enum {
+	CaEventWindowManager = CA_CONTEXT_ID,
+	CaEventWorkspaceChange,
+	CaEventDesktopChange,
+	CaEventWindowChange,
+	CaEventLockScreen,
+	CaEventPowerChanged,
+	CaEventSleepSuspend,
+} CaEventId;
 
 typedef enum {
 	CommandDefault,
@@ -4959,6 +4969,16 @@ good_window_manager(XdeScreen *xscr)
 
 static void setup_button_proxy(XdeScreen *xscr);
 
+ca_context *
+get_default_ca_context(void)
+{
+	GdkDisplay *disp = gdk_display_get_default();
+	GdkScreen *scrn = gdk_display_get_default_screen(disp);
+	ca_context *ca = ca_gtk_context_get_for_screen(scrn);
+
+	return (ca);
+}
+
 static void
 window_manager_changed(WnckScreen *wnck, gpointer user)
 {
@@ -5015,13 +5035,33 @@ window_manager_changed(WnckScreen *wnck, gpointer user)
 static void
 workspace_destroyed(WnckScreen *wnck, WnckWorkspace *space, gpointer data)
 {
-	/* pager can handle this on its own */
+#if 1
+	XdeScreen *xscr = data;
+	ca_context *ca = ca_gtk_context_get_for_screen(xscr->scrn);
+	ca_proplist *pl = NULL;
+
+	ca_context_cancel(ca, CaEventWorkspaceChange);
+	ca_proplist_create(&pl);
+	ca_proplist_sets(pl, CA_PROP_EVENT_ID, "workspace-destroyed");
+	ca_context_play_full(ca, CaEventWorkspaceChange, pl, NULL, NULL);
+	ca_proplist_destroy(pl);
+#endif
 }
 
 static void
 workspace_created(WnckScreen *wnck, WnckWorkspace *space, gpointer data)
 {
-	/* pager can handle this on its own */
+#if 1
+	XdeScreen *xscr = data;
+	ca_context *ca = ca_gtk_context_get_for_screen(xscr->scrn);
+	ca_proplist *pl = NULL;
+
+	ca_context_cancel(ca, CaEventWorkspaceChange);
+	ca_proplist_create(&pl);
+	ca_proplist_sets(pl, CA_PROP_EVENT_ID, "workspace-created");
+	ca_context_play_full(ca, CaEventWorkspaceChange, pl, NULL, NULL);
+	ca_proplist_destroy(pl);
+#endif
 }
 
 static void
@@ -5044,6 +5084,7 @@ active_workspace_changed(WnckScreen *wnck, WnckWorkspace *prev, gpointer data)
 #ifdef CANBERRA_SOUND
 	XdeScreen *xscr = (typeof(xscr)) data;
 	ca_context *ca = ca_gtk_context_get_for_screen(xscr->scrn);
+	ca_proplist *pl = NULL;
 	WnckWorkspace *test, *next = wnck_screen_get_active_workspace(wnck);
 	int pind = wnck_screen_get_workspace_index(wnck, prev);
 	int nind = wnck_screen_get_workspace_index(wnck, next);
@@ -5053,7 +5094,7 @@ active_workspace_changed(WnckScreen *wnck, WnckWorkspace *prev, gpointer data)
 	if (pind == nind)
 		return;
 
-	ca_context_cancel(ca, CA_CONTEXT_ID);
+	ca_context_cancel(ca, CaEventDesktopChange);
 
 	if ((test = wnck_screen_get_workspace_neighbor(wnck, prev, WNCK_MOTION_UP))
 	    && nind == wnck_screen_get_workspace_index(wnck, test))
@@ -5079,20 +5120,26 @@ active_workspace_changed(WnckScreen *wnck, WnckWorkspace *prev, gpointer data)
 		EPRINTF("Cannot determine desktop change direction from %d to %d\n", pind, nind);
 		return;
 	}
+	ca_proplist_create(&pl);
 	switch (dir) {
 	case WNCK_MOTION_UP:
-		ca_context_play(ca, CA_CONTEXT_ID, CA_PROP_EVENT_ID, "desktop-switch-up", NULL);
+		ca_proplist_sets(pl, CA_PROP_EVENT_ID, "desktop-switch-up");
 		break;
 	case WNCK_MOTION_DOWN:
-		ca_context_play(ca, CA_CONTEXT_ID, CA_PROP_EVENT_ID, "desktop-switch-down", NULL);
+		ca_proplist_sets(pl, CA_PROP_EVENT_ID, "desktop-switch-down");
 		break;
 	case WNCK_MOTION_LEFT:
-		ca_context_play(ca, CA_CONTEXT_ID, CA_PROP_EVENT_ID, "desktop-switch-left", NULL);
+		ca_proplist_sets(pl, CA_PROP_EVENT_ID, "desktop-switch-left");
 		break;
 	case WNCK_MOTION_RIGHT:
-		ca_context_play(ca, CA_CONTEXT_ID, CA_PROP_EVENT_ID, "desktop-switch-right", NULL);
+		ca_proplist_sets(pl, CA_PROP_EVENT_ID, "desktop-switch-right");
 		break;
+	default:
+		ca_proplist_destroy(pl);
+		return;
 	}
+	ca_context_play_full(ca, CaEventDesktopChange, pl, NULL, NULL);
+	ca_proplist_destroy(pl);
 #endif				/* CANBERRA_SOUND */
 #endif
 }
@@ -5125,13 +5172,23 @@ name_changed(WnckWindow *window, gpointer xscr)
 }
 
 static void
-state_changed(WnckWindow *window, WnckWindowState changed, WnckWindowState state, gpointer xscr)
+state_changed(WnckWindow *window, WnckWindowState changed, WnckWindowState state, gpointer data)
 {
 }
 
 static void
-workspace_changed(WnckWindow *window, gpointer xscr)
+workspace_changed(WnckWindow *window, gpointer data)
 {
+#if 1
+	XdeScreen *xscr = data;
+	ca_context *ca = ca_gtk_context_get_for_screen(xscr->scrn);
+	ca_proplist *pl = NULL;
+
+	ca_proplist_create(&pl);
+	ca_proplist_sets(pl, CA_PROP_EVENT_ID, "window-switch");
+	ca_context_play_full(ca, CaEventWindowChange, pl, NULL, NULL);
+	ca_proplist_destroy(pl);
+#endif
 }
 #endif
 
@@ -5249,6 +5306,16 @@ active_window_changed(WnckScreen *wnck, WnckWindow *prev, gpointer user)
 	GdkModifierType mask = 0;
 	WnckWindow *actv;
 	int i;
+#if 0
+	ca_context *ca = ca_gtk_context_get_for_screen(xscr->scrn);
+	ca_proplist *pl = NULL;
+
+	ca_context_cancel(ca, CaEventWindowChange);
+	ca_proplist_create(&pl);
+	ca_proplist_sets(pl, CA_PROP_EVENT_ID, "window-switch");
+	ca_context_play_full(ca, CaEventWindowChange, pl, NULL, NULL);
+	ca_proplist_destroy(pl);
+#endif
 
 	if (!options.show.cycle && !options.show.tasks && !options.show.winds)
 		return;

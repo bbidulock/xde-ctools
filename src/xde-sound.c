@@ -5048,6 +5048,7 @@ window_manager_changed(WnckScreen *wnck, gpointer user)
 static void
 workspace_destroyed(WnckScreen *wnck, WnckWorkspace *space, gpointer data)
 {
+#if 0
 	XdeScreen *xscr = data;
 	ca_context *ca = ca_gtk_context_get_for_screen(xscr->scrn);
 	ca_proplist *pl = NULL;
@@ -5057,11 +5058,13 @@ workspace_destroyed(WnckScreen *wnck, WnckWorkspace *space, gpointer data)
 	ca_proplist_sets(pl, CA_PROP_EVENT_ID, "workspace-destroyed");
 	ca_context_play_full(ca, CaEventWorkspaceChange, pl, NULL, NULL);
 	ca_proplist_destroy(pl);
+#endif
 }
 
 static void
 workspace_created(WnckScreen *wnck, WnckWorkspace *space, gpointer data)
 {
+#if 0
 	XdeScreen *xscr = data;
 	ca_context *ca = ca_gtk_context_get_for_screen(xscr->scrn);
 	ca_proplist *pl = NULL;
@@ -5071,6 +5074,7 @@ workspace_created(WnckScreen *wnck, WnckWorkspace *space, gpointer data)
 	ca_proplist_sets(pl, CA_PROP_EVENT_ID, "workspace-created");
 	ca_context_play_full(ca, CaEventWorkspaceChange, pl, NULL, NULL);
 	ca_proplist_destroy(pl);
+#endif
 }
 
 static void
@@ -5089,7 +5093,7 @@ static void
 active_workspace_changed(WnckScreen *wnck, WnckWorkspace *prev, gpointer data)
 {
 	/* XXX: should be handled by update_current_desktop */
-#if 1
+#if 0
 #ifdef CANBERRA_SOUND
 	XdeScreen *xscr = (typeof(xscr)) data;
 	ca_context *ca = ca_gtk_context_get_for_screen(xscr->scrn);
@@ -5283,6 +5287,7 @@ state_changed(WnckWindow *window, WnckWindowState changed, WnckWindowState state
 static void
 workspace_changed(WnckWindow *window, gpointer data)
 {
+#if 0
 	XdeScreen *xscr = data;
 	ca_context *ca = ca_gtk_context_get_for_screen(xscr->scrn);
 	ca_proplist *pl = NULL;
@@ -5291,6 +5296,7 @@ workspace_changed(WnckWindow *window, gpointer data)
 	ca_proplist_sets(pl, CA_PROP_EVENT_ID, "window-switch");
 	ca_context_play_full(ca, CaEventWindowChange, pl, NULL, NULL);
 	ca_proplist_destroy(pl);
+#endif
 }
 #endif
 
@@ -5408,6 +5414,7 @@ active_window_changed(WnckScreen *wnck, WnckWindow *prev, gpointer user)
 	GdkModifierType mask = 0;
 	WnckWindow *actv;
 	int i;
+#if 1
 	ca_context *ca = ca_gtk_context_get_for_screen(xscr->scrn);
 	ca_proplist *pl = NULL;
 
@@ -5416,6 +5423,7 @@ active_window_changed(WnckScreen *wnck, WnckWindow *prev, gpointer user)
 	ca_proplist_sets(pl, CA_PROP_EVENT_ID, "window-switch");
 	ca_context_play_full(ca, CaEventWindowChange, pl, NULL, NULL);
 	ca_proplist_destroy(pl);
+#endif
 
 	if (!options.show.cycle && !options.show.tasks && !options.show.winds)
 		return;
