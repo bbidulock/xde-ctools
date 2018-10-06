@@ -571,7 +571,7 @@ recent_copy(gpointer data, gpointer user)
 		if (!g_list_find_custom(b->applications, "XDG Launcher", app_match))
 			if (!g_list_find_custom(b->applications, "xdg-launch", app_match))
 				return;
-	appid = strndup(name, len);
+	appid = strdup(name);
 	if (g_list_find_custom(*list, appid, appid_match)) {
 		free(appid);
 		return;
@@ -864,8 +864,8 @@ find_apps(const char *base, const char *subdir)
 
 	len = strlen(base) + strlen(subdir) + 1;
 	path = calloc(len, sizeof(*path));
-	strncpy(path, base, len);
-	strncat(path, subdir, len);
+	strcpy(path, base);
+	strcat(path, subdir);
 
 	if ((dir = opendir(path))) {
 		char *entry = calloc(PATH_MAX + 1, sizeof(*entry));
@@ -899,8 +899,8 @@ find_apps(const char *base, const char *subdir)
 				}
 				len = strlen(subdir) + strlen(d->d_name) + 1;
 				appid = calloc(len, sizeof(*appid));
-				strncpy(appid, subdir, len);
-				strncat(appid, d->d_name, len);
+				strcpy(appid, subdir);
+				strcat(appid, d->d_name);
 				if ((p = strstr(appid, ".desktop")) && !p[8])
 					*p = '\0';
 
@@ -930,8 +930,8 @@ find_bins(const char *base, const char *subdir)
 
 	len = strlen(base) + strlen(subdir) + 1;
 	path = calloc(len, sizeof(*path));
-	strncpy(path, base, len);
-	strncat(path, subdir, len);
+	strcpy(path, base);
+	strcat(path, subdir);
 
 	if ((dir = opendir(path))) {
 		char *entry = calloc(PATH_MAX + 1, sizeof(*entry));
@@ -963,8 +963,8 @@ find_bins(const char *base, const char *subdir)
 				}
 				len = strlen(subdir) + strlen(d->d_name) + 1;
 				binid = calloc(len, sizeof(*binid));
-				strncpy(binid, subdir, len);
-				strncat(binid, d->d_name, len);
+				strcpy(binid, subdir);
+				strcat(binid, d->d_name);
 
 				gtk_list_store_append(store, &iter);
 				gtk_list_store_set(store, &iter, 0, binid, -1);
@@ -1082,8 +1082,8 @@ on_dialog_response(GtkDialog *dialog, gint response_id, gpointer data)
 
 			len = strlen(launch) + strlen(text) + 3;
 			command = calloc(len, sizeof(*command));
-			strncpy(command, launch, len);
-			strncat(command, text, len);
+			strcpy(command, launch);
+			strcat(command, text);
 			if ((item = g_list_find_custom(*hist, text, history_sort))) {
 				*hist = g_list_remove_link(*hist, item);
 				*hist = g_list_concat(item, *hist);
@@ -1113,7 +1113,7 @@ on_dialog_response(GtkDialog *dialog, gint response_id, gpointer data)
 		}
 		put_history(hist);
 
-		strncat(command, " &", len);
+		strcat(command, " &");
 		if ((status = system(command)) == 0)
 			exit(0);
 		if (WIFSIGNALED(status)) {
@@ -1231,9 +1231,9 @@ reparse(Display *dpy, Window root)
 
 				len = strlen(prefix) + strlen(list[0]) + strlen(suffix) + 1;
 				rc_string = calloc(len, sizeof(*rc_string));
-				strncpy(rc_string, prefix, len);
-				strncat(rc_string, list[0], len);
-				strncat(rc_string, suffix, len);
+				strcpy(rc_string, prefix);
+				strcat(rc_string, list[0]);
+				strcat(rc_string, suffix);
 				gtk_rc_parse_string(rc_string);
 				free(rc_string);
 			}
