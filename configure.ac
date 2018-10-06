@@ -2,8 +2,8 @@
 # Process this file with autoconf to produce a configure script.
 
 AC_PREREQ([2.69])
-AC_INIT([xde-ctools],[1.7],[http://github.com/bbidulock/xde-ctools],[xde-ctools],[http://github.com/bbidulock/xde-ctools/issues])
-AC_REVISION([1.7])
+AC_INIT([xde-ctools],[1.8],[http://github.com/bbidulock/xde-ctools],[xde-ctools],[http://github.com/bbidulock/xde-ctools/issues])
+AC_REVISION([1.8])
 
 AC_CONFIG_SRCDIR([src/xde-dock.c])
 AC_CONFIG_HEADERS([autoconf.h])
@@ -12,10 +12,10 @@ AC_CONFIG_AUX_DIR([scripts])
 AC_USE_SYSTEM_EXTENSIONS
 AC_CANONICAL_TARGET
 
-DATE='2018-01-06'
+DATE='2018-10-06'
 AC_SUBST([DATE])
 
-BRANCH='1.7'
+BRANCH='1.8'
 AC_SUBST([BRANCH])
 
 # Initialize Automake
