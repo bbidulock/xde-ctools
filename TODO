@@ -4,141 +4,141 @@ Work to do on commands:
 
 xde-app: works really good
 
-- [X] this is an xdg application launcher much like a command
+* [x] this is an xdg application launcher much like a command
       dialog but launches XDG programs.
-- [X] I think that it is finished.
-- [?] convert program to use GtkRecentManager object.
+* [x] I think that it is finished.
+* [?] convert program to use GtkRecentManager object.
 
 xde-clip: does not do much yet
 
-- [X] Complete documentation (manual page)
-- [ ] Complete program.
+* [x] Complete documentation (manual page)
+* [ ] Complete program.
 
 xde-cycle: not fully functional yet
 
-- [X] Complete documentation (manual page)
-- [ ] doesn't really do much yet.
-- [ ] this was supposed to put up a window list that could
+* [x] Complete documentation (manual page)
+* [ ] doesn't really do much yet.
+* [ ] this was supposed to put up a window list that could
       be displayed while windows are being cycled much in
       the same fashion as the xde-pager feelback.
 
 xde-desktop: not fully functional yet.
 
-- [X] Move to it's own package.
-- [ ] Move this back into xde-ctools at some point.
+* [x] Move to it's own package.
+* [ ] Move this back into xde-ctools at some point.
 
 xde-dock: doesn't work so well yet
 
-- [X] Complete documentation (manual page)
-- [ ] this works a little bit and was kinda based on flipse.
-- [ ] needs work to operate correctly, have configuration,
+* [x] Complete documentation (manual page)
+* [ ] this works a little bit and was kinda based on flipse.
+* [ ] needs work to operate correctly, have configuration,
       and do nice things like autohide the panel and choose
       configurations
 
 xde-feedback: not fully functional yet
 
-- [ ] Supposed to do what five other feedback programs do.
-- [ ] Complete documentation (manual page)
+* [ ] Supposed to do what five other feedback programs do.
+* [ ] Complete documentation (manual page)
 
 xde-input: works really well
 
-- [X] Supposed to do what xset does and more.
-- [X] Complete documentation (manual page)
-- [X] Fix problems with DPMS, Blanking and Exposures.
+* [x] Supposed to do what xset does and more.
+* [x] Complete documentation (manual page)
+* [x] Fix problems with DPMS, Blanking and Exposures.
 
 xde-keys: not fully functional yet
 
-- [X] Start documentation (manual page)
-- [ ] Complete documentation (manual page)
-- [ ] this was supposed to be our own kind of bbkeys thing
+* [x] Start documentation (manual page)
+* [ ] Complete documentation (manual page)
+* [ ] this was supposed to be our own kind of bbkeys thing
       where a basic set of key definitions that do not rely
       on the window manager internals could be specified in
       a single location
-- [ ] haven't really done that much work yet.
+* [ ] haven't really done that much work yet.
 
 xde-monitor: works good now
 
-- [X] Displays a list of starting applications while they are
+* [x] Displays a list of starting applications while they are
       in startup notification.
-- [ ] Complete documentation (manual page)
+* [ ] Complete documentation (manual page)
 
 xde-pager: works really well
 
-- [X] Complete documentation (manual page)
-- [X] I use this one all the time.  It think that it is finished.
-- [?] Might want to provide a keyboard-only option.
-- [X] Fix not updating layout with number of desktops.
-- [ ] Fix harmful interaction with icewm edge page switcher.
+* [x] Complete documentation (manual page)
+* [x] I use this one all the time.  It think that it is finished.
+* [?] Might want to provide a keyboard-only option.
+* [x] Fix not updating layout with number of desktops.
+* [ ] Fix harmful interaction with icewm edge page switcher.
 
 xde-places: works really good
 
-- [X] Complete documentation (manual page)
-- [X] I use this one often.  I think that it is finished.
-- [X] Integrate into panel.
+* [x] Complete documentation (manual page)
+* [x] I use this one often.  I think that it is finished.
+* [x] Integrate into panel.
 
 xde-preferred: not written yet
 
-- [X] Start documentation (manual page)
-- [ ] Complete documentation (manual page)
-- [ ] Finish writing this command.
+* [x] Start documentation (manual page)
+* [ ] Complete documentation (manual page)
+* [ ] Finish writing this command.
 
 xde-recent: works well
 
-- [X] I use this one often.  I think that it is finished.
-- [X] Integrate into panel.
-- [ ] Provide more tooltips with counts and dates.
+* [x] I use this one often.  I think that it is finished.
+* [x] Integrate into panel.
+* [ ] Provide more tooltips with counts and dates.
 
 xde-run: works pretty good
 
-- [X] this is a command application launcher similar to xde-app.
-- [X] I think that it is finished.
-- [?] convert program to use GtkRecentManager object.
+* [x] this is a command application launcher similar to xde-app.
+* [x] I think that it is finished.
+* [?] convert program to use GtkRecentManager object.
 
 xde-select: not fully functional yet
 
-- [X] Start documentation (manual page)
-- [ ] Complete documentation (manual page)
-- [ ] Finish writing this command.
+* [x] Start documentation (manual page)
+* [ ] Complete documentation (manual page)
+* [ ] Finish writing this command.
 
 xde-setbg: works really good
 
-- [X] Start documentation (manual page)
-- [X] Complete documentation (manual page)
-- [ ] this is a multiple backdrop changer that changes backdrop
+* [x] Start documentation (manual page)
+* [x] Complete documentation (manual page)
+* [ ] this is a multiple backdrop changer that changes backdrop
       according to a style or theme when the desktop changes.
 
 xde-tasks: not fully functional
 
-- [ ] Supposed to list and edit running tasks.
-- [X] Complete documentation (manual page)
-- [ ] Finish writing this command.
+* [ ] Supposed to list and edit running tasks.
+* [x] Complete documentation (manual page)
+* [ ] Finish writing this command.
 
 xde-winlist: works pretty good.
 
-- [X] Start documentation (manual page)
-- [X] Complete documentation (manual page)
-- [ ] the purpose of this program was to display a graphical window
+* [x] Start documentation (manual page)
+* [x] Complete documentation (manual page)
+* [ ] the purpose of this program was to display a graphical window
       list a feedback when cycling windows using the keyboard.
-- [ ] convert to consider monitors when listing windows.  Unless all
+* [ ] convert to consider monitors when listing windows.  Unless all
       monitors are selected, only show windows on the active monitor.
 
 xde-winmenu: works really good
 
-- [X] this is a command that can be used to popup a window menu
+* [x] this is a command that can be used to popup a window menu
       for any window.  Note that it uses libwnck++ which is needed
       by many of the programs in this package.  We invoke this
       program from the Alt-Space key sequence to always be able to
       pop a window menu.  ADWM does not have internal menus, so a
       click on the titlebar or menu button uses this program to
       pop the window menu.  It think that it is finished.
-- [X] Works like a charm.  Use it all the time.
-- [ ] convert to consider monitors when listing windows.  Unless all
+* [x] Works like a charm.  Use it all the time.
+* [ ] convert to consider monitors when listing windows.  Unless all
       monitors are selected, only show windows on the active monitor.
 
 xde-wkspmenu: works really good
 
-- [X] Start documentation (manual page)
-- [X] Complete documentation (manual page)
-- [X] Finish writing this command.
+* [x] Start documentation (manual page)
+* [x] Complete documentation (manual page)
+* [x] Finish writing this command.
 
 # vim: set ft=asciidoc tw=72 nocin nosi fo+=tcqlorn:
