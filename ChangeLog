@@ -1,5 +1,571 @@
 # created with git log --stat=76 -M -C -500|fmt -sct -w80
 
+commit 8b1d0ce4c59443b2ecdfa79bf3bb52754ddef025
+Author: Brian Bidulock <bidulock@openss7.org>
+Date:   Sat Oct 6 02:29:02 2018 -0600
+
+    release notes for 1.8
+
+ RELEASE.md | 27 ++++++++++-----------------
+ 1 file changed, 10 insertions(+), 17 deletions(-)
+
+commit 8995cca7fe35152ffe484f27b12cfeb5c7b67ebd
+Author: Brian Bidulock <bidulock@openss7.org>
+Date:   Sat Oct 6 02:28:45 2018 -0600
+
+    no links in txt files
+
+ Makefile.am | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+commit ed45e32db59b45912bee64ace39ad84713a14d25
+Author: Brian Bidulock <bidulock@openss7.org>
+Date:   Sat Oct 6 02:20:33 2018 -0600
+
+    make release files better
+
+ Makefile.am | 4 ++--
+ 1 file changed, 2 insertions(+), 2 deletions(-)
+
+commit ef040a02902be1d83ad6d9f5622528d6370e64de
+Author: Brian Bidulock <bidulock@openss7.org>
+Date:   Fri Oct 5 11:54:59 2018 -0600
+
+    update copyright headers
+
+ src/xde-app.c       | 6 +++---
+ src/xde-clip.c      | 2 +-
+ src/xde-cycle.c     | 8 ++++----
+ src/xde-dock.c      | 6 +++---
+ src/xde-feedback.c  | 8 ++++----
+ src/xde-input.c     | 8 ++++----
+ src/xde-keys.c      | 6 +++---
+ src/xde-monitor.c   | 8 ++++----
+ src/xde-pager.c     | 6 +++---
+ src/xde-places.c    | 8 ++++----
+ src/xde-preferred.c | 6 +++---
+ src/xde-recent.c    | 8 ++++----
+ src/xde-run.c       | 6 +++---
+ src/xde-select.c    | 6 +++---
+ src/xde-setbg.c     | 8 ++++----
+ src/xde-sound.c     | 6 +++---
+ src/xde-tasks.c     | 8 ++++----
+ src/xde-winds.c     | 8 ++++----
+ src/xde-winlist.c   | 8 ++++----
+ src/xde-winmenu.c   | 6 +++---
+ src/xde-wkspmenu.c  | 8 ++++----
+ 21 files changed, 72 insertions(+), 72 deletions(-)
+
+commit 72abd4873c36e5fadf9c217814d17d00c0443533
+Author: Brian Bidulock <bidulock@openss7.org>
+Date:   Mon Oct 1 22:12:43 2018 -0600
+
+    make pager do desktop create destroy and switch sounds
+
+ src/Makefile.am |  4 +--
+ src/xde-pager.c | 93 +++++++++++++++++++++++++++++++++++++++++++++--------
+ src/xde-sound.c | 10 +++++-
+ 3 files changed, 91 insertions(+), 16 deletions(-)
+
+commit d26467cc15225c36824d293015370ed787ebc230
+Author: Brian Bidulock <bidulock@openss7.org>
+Date:   Mon Oct 1 01:44:58 2018 -0600
+
+    pager and setbg wait for window manager
+
+ data/xde-pager.desktop | 1 -
+ data/xde-setbg.desktop | 1 -
+ 2 files changed, 2 deletions(-)
+
+commit 4722b764c4fc217c6c751d18dd788f1907da90b7
+Author: Brian Bidulock <bidulock@openss7.org>
+Date:   Mon Oct 1 01:40:45 2018 -0600
+
+    do not refresh nonexistent desktops
+
+ src/xde-setbg.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+commit e7d62707a1b6692b1e550160e37b6eca0648c030
+Author: Brian Bidulock <bidulock@openss7.org>
+Date:   Sun Sep 30 15:43:39 2018 -0600
+
+    add autostart phase to some .desktop entries
+
+ data/xde-input.desktop | 1 +
+ data/xde-pager.desktop | 1 +
+ data/xde-setbg.desktop | 3 ++-
+ data/xde-sound.desktop | 1 +
+ 4 files changed, 5 insertions(+), 1 deletion(-)
+
+commit e99cc91bbcc86894d85d8d9e039e53d93ae2c5bd
+Author: Brian Bidulock <bidulock@openss7.org>
+Date:   Fri Sep 28 05:46:35 2018 -0600
+
+    use iterators on signals
+
+ src/xde-sound.c | 7 +++++--
+ 1 file changed, 5 insertions(+), 2 deletions(-)
+
+commit f2d1948a595cfcdb4169b34937ac1983d74c51cc
+Author: Brian Bidulock <bidulock@openss7.org>
+Date:   Fri Sep 28 05:15:03 2018 -0600
+
+    add some types for indent
+
+ .indent.pro | 4 ++++
+ 1 file changed, 4 insertions(+)
+
+commit b1c9644db5a0b5c0cd4729ca791ba37c56326b59
+Author: Brian Bidulock <bidulock@openss7.org>
+Date:   Fri Sep 28 05:14:29 2018 -0600
+
+    add some systemd and upower events
+
+ src/xde-sound.c | 392 ++++++++++++++++++++++++++++++++++++++++++++++------
+ 1 file changed, 350 insertions(+), 42 deletions(-)
+
+commit 306fa6a6a6935e82c12afe19ffd668629516161e
+Author: Brian Bidulock <bidulock@openss7.org>
+Date:   Thu Sep 27 02:48:49 2018 -0600
+
+    play logout sound before exiting
+
+ src/xde-sound.c | 26 +++++++++++++++++++++++++-
+ 1 file changed, 25 insertions(+), 1 deletion(-)
+
+commit c73cb006fbf89046e4524c01e8c8fa4fc6a5fc52
+Author: Brian Bidulock <bidulock@openss7.org>
+Date:   Wed Sep 26 14:01:11 2018 -0600
+
+    strap initial cut into autostart
+
+ data/Makefile.am       |  5 ++++-
+ data/XDE-Sound         |  5 +++++
+ data/xde-sound.desktop | 15 +++++++++++++++
+ 3 files changed, 24 insertions(+), 1 deletion(-)
+
+commit ecf92fffab8012eec2e8d394261734c8243d7738
+Author: Brian Bidulock <bidulock@openss7.org>
+Date:   Wed Sep 26 13:40:16 2018 -0600
+
+    first cut at xde-sound
+
+ .gitignore                       |   1 +
+ man/xde-sound.pod                |  50 ++++++++++
+ src/Makefile.am                  |  16 +++-
+ src/xde-feedback.c               | 173 ++++++++++++++++++++++++++++++++++-
+ src/xde-pager.c                  |  11 +++
+ src/{xde-pager.c => xde-sound.c} | 158 +++++++++++++++++++++++++++++---
+ 6 files changed, 389 insertions(+), 20 deletions(-)
+
+commit d4838626d83978a59b138765328fd109e2d52aac
+Author: Brian Bidulock <bidulock@openss7.org>
+Date:   Mon Sep 24 23:38:37 2018 -0600
+
+    try adding sound to xde-pager
+
+ configure.ac      |  12 +
+ man/Makefile.am   |   2 +
+ man/xde-pager.pod |   6 +-
+ man/xde-sound.pod | 859 ++++++++++++++++++++++++++++++++++++++++++++++++++
+ src/Makefile.am   |   4 +-
+ src/xde-pager.c   | 212 ++++++++++++-
+ 6 files changed, 1089 insertions(+), 6 deletions(-)
+
+commit 5f44a359b2f25d3b8c37c5869011b6f16ce9442a
+Author: Brian Bidulock <bidulock@openss7.org>
+Date:   Mon Jun 18 22:11:00 2018 -0600
+
+    Revert "glibc keeps breaking optional_argument behaviour"
+
+    This reverts commit ff0364188793276fb252c0fe08d970e30a18c38b.
+
+ src/xde-app.c | 3 ---
+ 1 file changed, 3 deletions(-)
+
+commit b9d5edd2f4f331d1d790b9f80d30b628fb6dbc76
+Author: Brian Bidulock <bidulock@openss7.org>
+Date:   Mon Jun 18 22:10:57 2018 -0600
+
+    Revert "glibc keeps breaking optional_argument behaviour"
+
+    This reverts commit 7ef274e7c6940596ec1975eff81799f8d77d2598.
+
+ src/xde-cycle.c | 3 ---
+ 1 file changed, 3 deletions(-)
+
+commit 12e0ed29b7e32610a2debf008af84ee99be2bc3c
+Author: Brian Bidulock <bidulock@openss7.org>
+Date:   Mon Jun 18 22:10:56 2018 -0600
+
+    Revert "glibc keeps breaking optional_argument behaviour"
+
+    This reverts commit 71a2ea263ae0ff10663485636f7ffebb944c5c67.
+
+ src/xde-dock.c | 3 ---
+ 1 file changed, 3 deletions(-)
+
+commit 489167bae73e572243172b609e14c8964f41ea18
+Author: Brian Bidulock <bidulock@openss7.org>
+Date:   Mon Jun 18 22:10:54 2018 -0600
+
+    Revert "glibc keeps breaking optional_argument behaviour"
+
+    This reverts commit 0ebd811c5b502ae5120f24ffde86aec69e48a28e.
+
+ src/xde-feedback.c | 3 ---
+ 1 file changed, 3 deletions(-)
+
+commit 08df50b79aecb83c73bf34b84431e1cf55d2a689
+Author: Brian Bidulock <bidulock@openss7.org>
+Date:   Mon Jun 18 22:10:53 2018 -0600
+
+    Revert "glibc keeps breaking optional_argument behaviour"
+
+    This reverts commit 560fd68a285445f58c4aa3776c314ed87e809b1c.
+
+ src/xde-input.c | 3 ---
+ 1 file changed, 3 deletions(-)
+
+commit 03e0a3368e0043086de6c91dfc246bde53a78691
+Author: Brian Bidulock <bidulock@openss7.org>
+Date:   Mon Jun 18 22:10:51 2018 -0600
+
+    Revert "glibc keeps breaking optional_argument behaviour"
+
+    This reverts commit e1be815066972c485a48febff733c9cb8b51e14d.
+
+ src/xde-keys.c | 3 ---
+ 1 file changed, 3 deletions(-)
+
+commit 2a113928ed767a2964bf2b18e36f353ef8fed513
+Author: Brian Bidulock <bidulock@openss7.org>
+Date:   Mon Jun 18 22:10:50 2018 -0600
+
+    Revert "glibc keeps breaking optional_argument behaviour"
+
+    This reverts commit 9401e18530b322db58979e2ba321c9be89954601.
+
+ src/xde-monitor.c | 3 ---
+ 1 file changed, 3 deletions(-)
+
+commit 4661a92f37fb61bfabe190e8f53331b6ae857a63
+Author: Brian Bidulock <bidulock@openss7.org>
+Date:   Mon Jun 18 22:10:48 2018 -0600
+
+    Revert "glibc keeps breaking optional_argument behaviour"
+
+    This reverts commit 4dfb187b60f6a1370a06cb4ea0b5ff0c1d8564a7.
+
+ src/xde-pager.c | 3 ---
+ 1 file changed, 3 deletions(-)
+
+commit 37102abf20a6dccaf3913d74e6f17b054176affa
+Author: Brian Bidulock <bidulock@openss7.org>
+Date:   Mon Jun 18 22:10:47 2018 -0600
+
+    Revert "glibc keeps breaking optional_argument behaviour"
+
+    This reverts commit ebbddc8d082583b9295ee5eacd81e5fb6c8d5ee9.
+
+ src/xde-places.c | 3 ---
+ 1 file changed, 3 deletions(-)
+
+commit a71fc95f6fb06fbdd33a0cddd780ee21f284ccdc
+Author: Brian Bidulock <bidulock@openss7.org>
+Date:   Mon Jun 18 22:10:45 2018 -0600
+
+    Revert "glibc keeps breaking optional_argument behaviour"
+
+    This reverts commit 046559c7c432a360b25ab6ab61a413bd3a3a99bc.
+
+ src/xde-preferred.c | 3 ---
+ 1 file changed, 3 deletions(-)
+
+commit aa0b0834b593dfce27518fad3c03f3979a9b95a4
+Author: Brian Bidulock <bidulock@openss7.org>
+Date:   Mon Jun 18 22:10:44 2018 -0600
+
+    Revert "glibc keeps breaking optional_argument behaviour"
+
+    This reverts commit 5107d4fe9454c5424f952db294eefd791b286129.
+
+ src/xde-recent.c | 3 ---
+ 1 file changed, 3 deletions(-)
+
+commit fb7720d31721aefe8e44dbd00e88879382f0c1d8
+Author: Brian Bidulock <bidulock@openss7.org>
+Date:   Mon Jun 18 22:10:43 2018 -0600
+
+    Revert "glibc keeps breaking optional_argument behaviour"
+
+    This reverts commit d1140aa7affe8e8a6fe2beaa60f0f3a14fdc59de.
+
+ src/xde-run.c | 3 ---
+ 1 file changed, 3 deletions(-)
+
+commit 7ee7c76b3758869388e9ddf58fcfd1c4579b0610
+Author: Brian Bidulock <bidulock@openss7.org>
+Date:   Mon Jun 18 22:10:41 2018 -0600
+
+    Revert "glibc keeps breaking optional_argument behaviour"
+
+    This reverts commit 817de7371ee1631c54a6c61884211a4b6308561b.
+
+ src/xde-select.c | 3 ---
+ 1 file changed, 3 deletions(-)
+
+commit 7470f669fd71b5bc048c75245639be60467b8e68
+Author: Brian Bidulock <bidulock@openss7.org>
+Date:   Mon Jun 18 22:10:40 2018 -0600
+
+    Revert "glibc keeps breaking optional_argument behaviour"
+
+    This reverts commit c5e8ebde30178fe5470aebe3334b01f4d6851978.
+
+ src/xde-setbg.c | 3 ---
+ 1 file changed, 3 deletions(-)
+
+commit 8ddd4b11415f293e1083c1c884c773483ace246c
+Author: Brian Bidulock <bidulock@openss7.org>
+Date:   Mon Jun 18 22:10:39 2018 -0600
+
+    Revert "glibc keeps breaking optional_argument behaviour"
+
+    This reverts commit 6b3c57c9fd784dc0d88ce2efc0dfe38ca7f54d38.
+
+ src/xde-tasks.c | 3 ---
+ 1 file changed, 3 deletions(-)
+
+commit abcc12105b5b351482586acef8642287ec7be694
+Author: Brian Bidulock <bidulock@openss7.org>
+Date:   Mon Jun 18 22:10:38 2018 -0600
+
+    Revert "glibc keeps breaking optional_argument behaviour"
+
+    This reverts commit b0a894e2358feec5cecdd29420f4d10380bc1e4f.
+
+ src/xde-winds.c | 3 ---
+ 1 file changed, 3 deletions(-)
+
+commit 7fd29409ebdb3ed3b4c3ca8915506a702a0caf8b
+Author: Brian Bidulock <bidulock@openss7.org>
+Date:   Mon Jun 18 22:10:36 2018 -0600
+
+    Revert "glibc keeps breaking optional_argument behaviour"
+
+    This reverts commit fe50c55594d93a2c83f0098efa35f1c542a772a5.
+
+ src/xde-winlist.c | 3 ---
+ 1 file changed, 3 deletions(-)
+
+commit ca30f44cf647482f0dc16715e3823ce6ab943dc5
+Author: Brian Bidulock <bidulock@openss7.org>
+Date:   Mon Jun 18 22:10:34 2018 -0600
+
+    Revert "glibc keeps breaking optional_argument behaviour"
+
+    This reverts commit e045a13056c46e176ba0eafe743db795a5c0ce6e.
+
+ src/xde-winmenu.c | 3 ---
+ 1 file changed, 3 deletions(-)
+
+commit 96de9548e84d27968418f5611520d6dcf89fb2d6
+Author: Brian Bidulock <bidulock@openss7.org>
+Date:   Mon Jun 18 22:10:28 2018 -0600
+
+    Revert "glibc keeps breaking optional_argument behaviour"
+
+    This reverts commit 9d0f3688e057f3b9a837549bd8727eceb318d59e.
+
+ src/xde-wkspmenu.c | 3 ---
+ 1 file changed, 3 deletions(-)
+
+commit 9d0f3688e057f3b9a837549bd8727eceb318d59e
+Author: Brian Bidulock <bidulock@openss7.org>
+Date:   Mon Jun 18 21:49:22 2018 -0600
+
+    glibc keeps breaking optional_argument behaviour
+
+ src/xde-wkspmenu.c | 3 +++
+ 1 file changed, 3 insertions(+)
+
+commit e045a13056c46e176ba0eafe743db795a5c0ce6e
+Author: Brian Bidulock <bidulock@openss7.org>
+Date:   Mon Jun 18 21:49:14 2018 -0600
+
+    glibc keeps breaking optional_argument behaviour
+
+ src/xde-winmenu.c | 3 +++
+ 1 file changed, 3 insertions(+)
+
+commit fe50c55594d93a2c83f0098efa35f1c542a772a5
+Author: Brian Bidulock <bidulock@openss7.org>
+Date:   Mon Jun 18 21:49:06 2018 -0600
+
+    glibc keeps breaking optional_argument behaviour
+
+ src/xde-winlist.c | 3 +++
+ 1 file changed, 3 insertions(+)
+
+commit b0a894e2358feec5cecdd29420f4d10380bc1e4f
+Author: Brian Bidulock <bidulock@openss7.org>
+Date:   Mon Jun 18 21:49:00 2018 -0600
+
+    glibc keeps breaking optional_argument behaviour
+
+ src/xde-winds.c | 3 +++
+ 1 file changed, 3 insertions(+)
+
+commit 6b3c57c9fd784dc0d88ce2efc0dfe38ca7f54d38
+Author: Brian Bidulock <bidulock@openss7.org>
+Date:   Mon Jun 18 21:48:55 2018 -0600
+
+    glibc keeps breaking optional_argument behaviour
+
+ src/xde-tasks.c | 3 +++
+ 1 file changed, 3 insertions(+)
+
+commit c5e8ebde30178fe5470aebe3334b01f4d6851978
+Author: Brian Bidulock <bidulock@openss7.org>
+Date:   Mon Jun 18 21:48:49 2018 -0600
+
+    glibc keeps breaking optional_argument behaviour
+
+ src/xde-setbg.c | 3 +++
+ 1 file changed, 3 insertions(+)
+
+commit 817de7371ee1631c54a6c61884211a4b6308561b
+Author: Brian Bidulock <bidulock@openss7.org>
+Date:   Mon Jun 18 21:48:42 2018 -0600
+
+    glibc keeps breaking optional_argument behaviour
+
+ src/xde-select.c | 3 +++
+ 1 file changed, 3 insertions(+)
+
+commit d1140aa7affe8e8a6fe2beaa60f0f3a14fdc59de
+Author: Brian Bidulock <bidulock@openss7.org>
+Date:   Mon Jun 18 21:48:36 2018 -0600
+
+    glibc keeps breaking optional_argument behaviour
+
+ src/xde-run.c | 3 +++
+ 1 file changed, 3 insertions(+)
+
+commit 5107d4fe9454c5424f952db294eefd791b286129
+Author: Brian Bidulock <bidulock@openss7.org>
+Date:   Mon Jun 18 21:48:29 2018 -0600
+
+    glibc keeps breaking optional_argument behaviour
+
+ src/xde-recent.c | 3 +++
+ 1 file changed, 3 insertions(+)
+
+commit 046559c7c432a360b25ab6ab61a413bd3a3a99bc
+Author: Brian Bidulock <bidulock@openss7.org>
+Date:   Mon Jun 18 21:48:20 2018 -0600
+
+    glibc keeps breaking optional_argument behaviour
+
+ src/xde-preferred.c | 3 +++
+ 1 file changed, 3 insertions(+)
+
+commit ebbddc8d082583b9295ee5eacd81e5fb6c8d5ee9
+Author: Brian Bidulock <bidulock@openss7.org>
+Date:   Mon Jun 18 21:48:11 2018 -0600
+
+    glibc keeps breaking optional_argument behaviour
+
+ src/xde-places.c | 3 +++
+ 1 file changed, 3 insertions(+)
+
+commit 4dfb187b60f6a1370a06cb4ea0b5ff0c1d8564a7
+Author: Brian Bidulock <bidulock@openss7.org>
+Date:   Mon Jun 18 21:48:06 2018 -0600
+
+    glibc keeps breaking optional_argument behaviour
+
+ src/xde-pager.c | 3 +++
+ 1 file changed, 3 insertions(+)
+
+commit 9401e18530b322db58979e2ba321c9be89954601
+Author: Brian Bidulock <bidulock@openss7.org>
+Date:   Mon Jun 18 21:48:02 2018 -0600
+
+    glibc keeps breaking optional_argument behaviour
+
+ src/xde-monitor.c | 3 +++
+ 1 file changed, 3 insertions(+)
+
+commit e1be815066972c485a48febff733c9cb8b51e14d
+Author: Brian Bidulock <bidulock@openss7.org>
+Date:   Mon Jun 18 21:47:57 2018 -0600
+
+    glibc keeps breaking optional_argument behaviour
+
+ src/xde-keys.c | 3 +++
+ 1 file changed, 3 insertions(+)
+
+commit 560fd68a285445f58c4aa3776c314ed87e809b1c
+Author: Brian Bidulock <bidulock@openss7.org>
+Date:   Mon Jun 18 21:47:53 2018 -0600
+
+    glibc keeps breaking optional_argument behaviour
+
+ src/xde-input.c | 3 +++
+ 1 file changed, 3 insertions(+)
+
+commit 0ebd811c5b502ae5120f24ffde86aec69e48a28e
+Author: Brian Bidulock <bidulock@openss7.org>
+Date:   Mon Jun 18 21:47:48 2018 -0600
+
+    glibc keeps breaking optional_argument behaviour
+
+ src/xde-feedback.c | 3 +++
+ 1 file changed, 3 insertions(+)
+
+commit 71a2ea263ae0ff10663485636f7ffebb944c5c67
+Author: Brian Bidulock <bidulock@openss7.org>
+Date:   Mon Jun 18 21:47:43 2018 -0600
+
+    glibc keeps breaking optional_argument behaviour
+
+ src/xde-dock.c | 3 +++
+ 1 file changed, 3 insertions(+)
+
+commit 7ef274e7c6940596ec1975eff81799f8d77d2598
+Author: Brian Bidulock <bidulock@openss7.org>
+Date:   Mon Jun 18 21:47:38 2018 -0600
+
+    glibc keeps breaking optional_argument behaviour
+
+ src/xde-cycle.c | 3 +++
+ 1 file changed, 3 insertions(+)
+
+commit ff0364188793276fb252c0fe08d970e30a18c38b
+Author: Brian Bidulock <bidulock@openss7.org>
+Date:   Mon Jun 18 21:47:30 2018 -0600
+
+    glibc keeps breaking optional_argument behaviour
+
+ src/xde-app.c | 3 +++
+ 1 file changed, 3 insertions(+)
+
+commit 972566764fe26ba913697442a9f951e5af451b71
+Author: Brian Bidulock <bidulock@openss7.org>
+Date:   Sat Jan 6 09:55:18 2018 -0700
+
+    update release files
+
+ AUTHORS      |   2 +-
+ ChangeLog    | 308 +++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ NEWS         | 258 ++++++++--------------------------------------
+ README.md    |  20 ++--
+ configure.ac |   8 +-
+ 5 files changed, 364 insertions(+), 232 deletions(-)
+
 commit 3b48631b6aa5fc376e9c05dbd457f38d2d6bb961
 Author: Brian Bidulock <bidulock@openss7.org>
 Date:   Sat Jan 6 09:52:15 2018 -0700
@@ -4786,48 +5352,3 @@ Date:   Fri May 30 09:37:06 2014 -0600
  src/xde-dock.c     | 892 ++++++++++++++++++++++++++++++++++++++++++++++++-
  src/xde-dock.h     |   4 +
  5 files changed, 1121 insertions(+), 13 deletions(-)
-
-commit 385caab98f2ac994813836b3a693a041f0a2247e
-Author: Brian Bidulock <bidulock@openss7.org>
-Date:   Fri May 30 03:29:41 2014 -0600
-
-    working up code
-
- src/Makefile.am |   4 +-
- src/xde-dock.c  | 286 ++++++++++++++++++++++++++++++++++++++++++++++++++++
- src/xde-dock.h  |  97 ++++++++++++++++++
- 3 files changed, 385 insertions(+), 2 deletions(-)
-
-commit e0fbfb1ea1d63f5b91a11acb652aa7cc02843ee4
-Author: Brian Bidulock <bidulock@openss7.org>
-Date:   Fri May 30 02:19:56 2014 -0600
-
-    update bulid and start manual page
-
- autogen.sh       |   2 +-
- configure.sh     |  38 +++++++
- man/xde-dock.pod | 273 +++++++++++++++++++++++++++++++++++++++++++++++++++
- 3 files changed, 312 insertions(+), 1 deletion(-)
-
-commit e01c8470956fdd0f1bb8e951535c007136a18708
-Author: Brian Bidulock <bidulock@openss7.org>
-Date:   Fri May 30 01:31:36 2014 -0600
-
-    initial commit
-
- .gitignore         |  45 +++++++++++++++++++++
- AUTHORS.in         |   3 ++
- Makefile.am        |  37 +++++++++++++++++
- NEWS.in            |  11 +++++
- README.in          |  69 ++++++++++++++++++++++++++++++++
- THANKS.in          |   4 ++
- TODO.in            |   3 ++
- autogen.sh         |  39 ++++++++++++++++++
- configure.template | 106 +++++++++++++++++++++++++++++++++++++++++++++++++
- m4/.gitignore      |   0
- man/Makefile.am    |  29 ++++++++++++++
- man/xde-dock.pod   |   0
- src/Makefile.am    |   9 +++++
- src/xde-dock.c     |   0
- src/xde-dock.h     |   0
- 15 files changed, 355 insertions(+)

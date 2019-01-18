@@ -1,11 +1,72 @@
-xde-ctools -- history of user-visible changes.  2018-01-06
+xde-ctools -- history of user-visible changes.  2018-10-06
 
-Release xde-ctools-1.7 released 2018-01-06
+Release xde-ctools-1.8 released 2018-10-06
 ------------------------------------------
 
-git shortlog -e -n -w80,6,8 1.7...HEAD
+git shortlog -e -n -w80,6,8 1.8...HEAD
 
 
+
+
+Release xde-ctools-1.8 released 2018-10-06
+------------------------------------------
+
+git shortlog -e -n -w80,6,8 1.7...1.8
+
+Brian Bidulock <bidulock@openss7.org> (53):
+      glibc keeps breaking optional_argument behaviour
+      glibc keeps breaking optional_argument behaviour
+      glibc keeps breaking optional_argument behaviour
+      glibc keeps breaking optional_argument behaviour
+      glibc keeps breaking optional_argument behaviour
+      glibc keeps breaking optional_argument behaviour
+      glibc keeps breaking optional_argument behaviour
+      glibc keeps breaking optional_argument behaviour
+      glibc keeps breaking optional_argument behaviour
+      glibc keeps breaking optional_argument behaviour
+      glibc keeps breaking optional_argument behaviour
+      glibc keeps breaking optional_argument behaviour
+      glibc keeps breaking optional_argument behaviour
+      glibc keeps breaking optional_argument behaviour
+      glibc keeps breaking optional_argument behaviour
+      glibc keeps breaking optional_argument behaviour
+      glibc keeps breaking optional_argument behaviour
+      glibc keeps breaking optional_argument behaviour
+      glibc keeps breaking optional_argument behaviour
+      Revert "glibc keeps breaking optional_argument behaviour"
+      Revert "glibc keeps breaking optional_argument behaviour"
+      Revert "glibc keeps breaking optional_argument behaviour"
+      Revert "glibc keeps breaking optional_argument behaviour"
+      Revert "glibc keeps breaking optional_argument behaviour"
+      Revert "glibc keeps breaking optional_argument behaviour"
+      Revert "glibc keeps breaking optional_argument behaviour"
+      Revert "glibc keeps breaking optional_argument behaviour"
+      Revert "glibc keeps breaking optional_argument behaviour"
+      Revert "glibc keeps breaking optional_argument behaviour"
+      Revert "glibc keeps breaking optional_argument behaviour"
+      Revert "glibc keeps breaking optional_argument behaviour"
+      Revert "glibc keeps breaking optional_argument behaviour"
+      Revert "glibc keeps breaking optional_argument behaviour"
+      Revert "glibc keeps breaking optional_argument behaviour"
+      Revert "glibc keeps breaking optional_argument behaviour"
+      Revert "glibc keeps breaking optional_argument behaviour"
+      Revert "glibc keeps breaking optional_argument behaviour"
+      Revert "glibc keeps breaking optional_argument behaviour"
+      try adding sound to xde-pager
+      first cut at xde-sound
+      strap initial cut into autostart
+      play logout sound before exiting
+      add some systemd and upower events
+      add some types for indent
+      use iterators on signals
+      add autostart phase to some .desktop entries
+      do not refresh nonexistent desktops
+      pager and setbg wait for window manager
+      make pager do desktop create destroy and switch sounds
+      update copyright headers
+      make release files better
+      no links in txt files
+      release notes for 1.8
 
 
 Release xde-ctools-1.7 released 2018-01-06
@@ -13,7 +74,7 @@ Release xde-ctools-1.7 released 2018-01-06
 
 git shortlog -e -n -w80,6,8 1.6...1.7
 
-Brian Bidulock <bidulock@openss7.org> (22):
+Brian Bidulock <bidulock@openss7.org> (23):
       add opacity to a bunch of popups
       remove trailing whitespace, rationalize opacity
       update manpages, document new xde-opacity
@@ -36,6 +97,7 @@ Brian Bidulock <bidulock@openss7.org> (22):
       add release notes
       distribute release notes
       add release byproducts to ignore
+      update release files
 
 
 Release xde-ctools-1.6 released 2017-10-12
@@ -220,87 +282,4 @@ Brian Bidulock <bidulock@openss7.org> (30):
       tweak
       update release files
       update date
-
-
-Release xde-ctools-1.1 released 2016-03-27
-------------------------------------------
-
-git shortlog -e -n -w80,6,8 1.0...1.1
-
-Brian Bidulock <bidulock@openss7.org> (75):
-      make README.md too
-      manual page for xde-wait
-      build xde-wait manpage
-      doc updates
-      copyright headers and xde-recent
-      updated xde-recent for maximum
-      updated xde-wkspmenu manpage
-      document "which" option
-      handle embedding
-      working up xde-wait
-      better tracing
-      workup xde-wait
-      working xde-wait
-      completed xde-wait
-      move xde-wait to xde-sessions repo
-      correct options processing
-      updated documentation
-      start building xde-select
-      adjust wm behaviour
-      remove some #if 0
-      use tasklist
-      working up xde-cycle
-      desktop entry for xde-wkspmenu
-      desktop entry for xde-winlist
-      desktop entry for xde-winmenu
-      desktop entry for xde-places
-      desktop entry for xde-recent
-      right click for window menu
-      right click for window menu
-      adjust titles and ellipsize method
-      handle implementation change
-      sure put images on headers
-      do same for iconified windows
-      submenus have two functions
-      create and destroy submenu
-      get selection done working
-      do not need popup delay
-      correct key press hierarchy
-      avoid masking variables
-      rationalize to xde-wkspmenu
-      underline current workspace
-      convert from globals to data objects
-      minor updates to build system
-      update readme
-      updating xde-dock manpage
-      update manpages
-      update xde-dock manpage
-      update manpage
-      update manpage
-      update manpage
-      update manpage
-      update manpage
-      update manpage
-      update manpage
-      update manpage
-      update manpage
-      update xde-dock manpage
-      update xde-dock manual page
-      update xde-dock manual page
-      update xde-dock manual page
-      update xde-dock manual page
-      update xde-dock manpage
-      update xde-dock manpage
-      update manpage
-      update todo
-      update todo some more
-      more todo updates
-      more todo updates
-      more todo updates
-      more todo updates
-      more todo updates
-      more todo updates
-      more todo updates
-      more todo updates
-      update release files
 
