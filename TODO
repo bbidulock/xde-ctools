@@ -141,4 +141,4 @@ xde-wkspmenu: works really good
 * [x] Complete documentation (manual page)
 * [x] Finish writing this command.
 
-# vim: set ft=asciidoc tw=72 nocin nosi fo+=tcqlorn:
+// vim: set ft=asciidoc tw=72 nocin nosi fo+=tcqlorn spell:
