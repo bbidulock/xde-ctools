@@ -297,11 +297,20 @@ The following WnckWindow changes are supported:
 
 =item battery-low
 
+This event sound is played when the battery is low.  B<xde-sound> only
+plays battery event sounds when L<xde-up-applet(1)> is not running
+(C<_XDE_UP_APPLET_S%d> manager selection is missing).
+
 =item suspend-error
 
 =item software-update-urgent
 
 =item power-unplug-battery-low
+
+This event sound is played when the power is unplugged and the battery
+is still low.  B<xde-sound> only plays battery event sounds when
+L<xde-up-applet(1)> is not running (C<_XDE_UP_APPLET_S%d> manager
+selection is missing).
 
 =back
 
@@ -367,7 +376,15 @@ This could also be performed by B<xde-sound> itself on exit.
 
 =item battery-caution
 
+This event sound is played when the battery is critically low.
+B<xde-sound> only plays battery event sounds when L<xde-up-applet(1)> is
+not running (C<_XDE_UP_APPLET_S%d> manager selection is missing).
+
 =item battery-full
+
+This event sound is played when the battery is full.  B<xde-sound> only
+plays battery event sounds when L<xde-up-applet(1)> is not running
+(C<_XDE_UP_APPLET_S%d> manager selection is missing).
 
 =item dialog-warning
 
@@ -388,7 +405,15 @@ B<WnckScreen> signal.
 
 =item power-plug
 
+This event sound is played when the power is plugged.  B<xde-sound> only
+plays power event sounds when L<xde-up-applet(1)> is not running
+(C<_XDE_UP_APPLET_S%d> manager selection is missing).
+
 =item power-unplug
+
+This event sound is played when the power is unplugged.  B<xde-sound> only
+plays power event sounds when L<xde-up-applet(1)> is not running
+(C<_XDE_UP_APPLET_S%d> manager selection is missing).
 
 =item suspend-start
 
