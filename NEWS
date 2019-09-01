@@ -26,7 +26,7 @@ git tag -n100 -l 1.9
 
 git shortlog -e -n -w80,6,8 1.8...1.9
 
-Brian Bidulock <bidulock@openss7.org> (10):
+Brian Bidulock <bidulock@openss7.org> (13):
       reformat TODO file
       Merge branch 'master' of github.com:bbidulock/xde-ctools
       hide vim-line
@@ -37,6 +37,9 @@ Brian Bidulock <bidulock@openss7.org> (10):
       generate NOTE.txt and TODO.txt too
       distribution updates
       update release notes
+      update release files
+      add license file
+      track license file
 
 
 Release xde-ctools-1.8 released 2018-10-06

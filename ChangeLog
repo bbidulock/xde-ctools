@@ -1,5 +1,36 @@
 # created with git log --stat=76 -M -C -500|fmt -sct -w80
 
+commit 22439b752145310b5712a491761280f63f3627c2
+Author: Brian Bidulock <bidulock@openss7.org>
+Date:   Sun Sep 1 00:17:15 2019 -0600
+
+    track license file
+
+ .gitignore | 1 -
+ 1 file changed, 1 deletion(-)
+
+commit 1288e83017e9e68995764d4cb932ac2065da7dd1
+Author: Brian Bidulock <bidulock@openss7.org>
+Date:   Sun Sep 1 00:16:59 2019 -0600
+
+    add license file
+
+ COPYING | 674 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 674 insertions(+)
+
+commit eb1da6f2e36e2a66a2eadf3fe2084f9b42607c2d
+Author: Brian Bidulock <bidulock@openss7.org>
+Date:   Sun Sep 1 00:08:47 2019 -0600
+
+    update release files
+
+ AUTHORS      |   2 +-
+ ChangeLog    | 246 +++++++++++++++++++++++++------------------------------
+ NEWS         | 132 +++++++++++++++++++----------
+ README.md    |  20 ++---
+ configure.ac |  10 +--
+ 5 files changed, 217 insertions(+), 193 deletions(-)
+
 commit a7172b5e21a50d703ce2825476cee5f166c64b45
 Author: Brian Bidulock <bidulock@openss7.org>
 Date:   Sun Sep 1 00:02:39 2019 -0600
@@ -5299,32 +5330,3 @@ Date:   Wed Jun 18 07:08:21 2014 -0600
 
  src/xde-dock.c | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
-
-commit 725a0294268a745c65c1344f4ce3c1b35aad5107
-Author: Brian Bidulock <bidulock@openss7.org>
-Date:   Fri Jun 6 07:41:29 2014 -0600
-
-    spelling
-
- man/xde-app.pod  | 2 +-
- man/xde-dock.pod | 2 +-
- man/xde-run.pod  | 2 +-
- 3 files changed, 3 insertions(+), 3 deletions(-)
-
-commit 0e754c522f68718e7fba5d2fd4c289bb82563964
-Author: Brian Bidulock <bidulock@openss7.org>
-Date:   Fri Jun 6 07:39:59 2014 -0600
-
-    was renamed
-
- man/xde-run.pod | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
-
-commit 1a01902dae7915af8a98ef33c1a0f14b45154847
-Author: Brian Bidulock <bidulock@openss7.org>
-Date:   Thu Jun 5 05:14:31 2014 -0600
-
-    working up docs
-
- man/xde-preferred.pod | 273 ++++++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 273 insertions(+)
