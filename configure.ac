@@ -2,8 +2,8 @@
 # Process this file with autoconf to produce a configure script.
 
 AC_PREREQ([2.69])
-AC_INIT([xde-ctools],[1.8],[http://github.com/bbidulock/xde-ctools],[xde-ctools],[http://github.com/bbidulock/xde-ctools/issues])
-AC_REVISION([1.8])
+AC_INIT([xde-ctools],[1.8.7],[http://github.com/bbidulock/xde-ctools],[xde-ctools],[http://github.com/bbidulock/xde-ctools/issues])
+AC_REVISION([1.8.7])
 
 AC_CONFIG_SRCDIR([src/xde-dock.c])
 AC_CONFIG_HEADERS([autoconf.h])
@@ -12,14 +12,17 @@ AC_CONFIG_AUX_DIR([scripts])
 AC_USE_SYSTEM_EXTENSIONS
 AC_CANONICAL_TARGET
 
-DATE='2018-10-06'
+DATE='2019-08-31'
 AC_SUBST([DATE])
 
-BRANCH='1.8'
+MDOCDATE='August 31, 2019'
+AC_SUBST([MDOCDATE])
+
+BRANCH='master'
 AC_SUBST([BRANCH])
 
 # Initialize Automake
-AM_INIT_AUTOMAKE([gnits 1.14 dist-xz no-dist-gzip std-options -Wall color-tests silent-rules tar-pax])
+AM_INIT_AUTOMAKE([1.16 dist-lzip no-dist-gzip std-options -Wall color-tests silent-rules tar-pax])
 AM_MAINTAINER_MODE
 AM_SILENT_RULES([yes])
 AC_PREFIX_DEFAULT([/usr])
@@ -82,20 +85,25 @@ PKG_PROG_PKG_CONFIG([0.14.0])
 # Checks for libraries.
 
 # Checks for header files.
+AS_BOX([Header Files])
 AC_HEADER_STDC
 AC_PATH_X
 AC_PATH_XTRA
 AC_CHECK_HEADERS([fcntl.h locale.h stddef.h stdint.h stdlib.h string.h strings.h sys/ioctl.h sys/time.h syslog.h unistd.h])
 
 # Checks for typedefs, structures, and compiler characteristics.
+AS_BOX([Typedefs, Structures, Compiler])
 AC_TYPE_PID_T
 AC_TYPE_SIZE_T
 
 # Checks for library functions.
+AS_BOX([Library Functions])
 AC_FUNC_LSTAT_FOLLOWS_SLASHED_SYMLINK
 AC_FUNC_MALLOC
 AC_FUNC_REALLOC
 AC_CHECK_FUNCS([gethostname memmove select strcasecmp strchr strcspn strdup strerror strncasecmp strndup strpbrk strrchr strspn strstr strtol strtoul])
+
+AS_BOX([X11 Extension Libraries])
 
 PKG_CHECK_MODULES([X11],[x11])
 PKG_CHECK_MODULES([XEXT],[xext])
