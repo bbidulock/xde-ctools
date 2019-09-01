@@ -1,19 +1,73 @@
-xde-ctools -- history of user-visible changes.  2018-10-06
+xde-ctools -- history of user-visible changes.  2019-09-01
+
+Release xde-ctools-1.9 released 2019-09-01
+------------------------------------------
+
+git tag -n100 -l 1.9
+
+1.9             Maintenance Release 1.9
+
+    This is the ninth release of the xde-ctools package. This package
+    contains various tools (menus, popup, pages, feedback mechanisms) for
+    the X Desktop Environment (XDE). These tools are meant to have minimal
+    dependencies, GTK2-based, and each tool able to run independent of the
+    others (and for that matter, independent of the desktop environment):
+    they work well with many light-weight window managers. Not all the
+    tools are complete, but the many that are work nicely. The nice ones I
+    use daily and are quite stable.
+
+    This release is a maintenance release that updates the build process,
+    generates better NEWS files, handles annotated tags better, and updates
+    the release archive to lzip compression.
+
+    Included in the release is an autoconf tarball for building the package
+    from source. See the NEWS and TODO file in the release for more
+    information. Please report problems to the issues list on GitHub.
+
+git shortlog -e -n -w80,6,8 1.8...1.9
+
+Brian Bidulock <bidulock@openss7.org> (10):
+      reformat TODO file
+      Merge branch 'master' of github.com:bbidulock/xde-ctools
+      hide vim-line
+      update manpage somewhat
+      update for gettext 0.20.1
+      generate NEWS better
+      gnits unnecessary for this package
+      generate NOTE.txt and TODO.txt too
+      distribution updates
+      update release notes
+
 
 Release xde-ctools-1.8 released 2018-10-06
 ------------------------------------------
 
-git shortlog -e -n -w80,6,8 1.8...HEAD
+git tag -n100 -l 1.8
 
+1.8             Maintenance Release 1.8
 
+    This is the eighth release of the xde-ctools package. This package
+    contains various tools (menus, popup, pages, feedback mechanisms) for
+    the X Desktop Environment (XDE). These tools are meant to have minimal
+    dependencies, GTK2-based, and each tool able to run independent of the
+    others (and for that matter, independent of the desktop environment):
+    they work well with many light-weight window managers. Not all the
+    tools are complete, but the many that are work nicely. The nice ones I
+    use daily and are quite stable.
 
+    This release is a maintenance release and fixes some issues with GNU
+    options. It also adds the xde-sound feedback utility that plays event
+    sound effects in response to desktop events. It fixes a crash in
+    xde-setbg when it is run too early (before any desktops are set up at
+    all).
 
-Release xde-ctools-1.8 released 2018-10-06
-------------------------------------------
+    Included in the release is an autoconf tarball for building the release
+    from source. See the NEWS and TODO file in the release for more
+    information.
 
 git shortlog -e -n -w80,6,8 1.7...1.8
 
-Brian Bidulock <bidulock@openss7.org> (53):
+Brian Bidulock <bidulock@openss7.org> (55):
       glibc keeps breaking optional_argument behaviour
       glibc keeps breaking optional_argument behaviour
       glibc keeps breaking optional_argument behaviour
@@ -67,10 +121,42 @@ Brian Bidulock <bidulock@openss7.org> (53):
       make release files better
       no links in txt files
       release notes for 1.8
+      fix gcc 8.2 strncpy/strncat warnings
+      update release files
 
 
 Release xde-ctools-1.7 released 2018-01-06
 ------------------------------------------
+
+git tag -n100 -l 1.7
+
+1.7             Maintenance Release 1.7
+
+    This is the seventh release of the xde-ctools package. This package
+    contains various tools (menus, popup, pages, feedback mechanisms) for
+    the X Desktop Environment (XDE). These tools are meant to have minimal
+    dependencies, GTK2-based, and each tool able to run independent of the
+    others (and for that matter, independent of the desktop environment):
+    they work well with many light-weight window managers. Not all the
+    tools are complete, but the many that are work nicely. The nice ones I
+    use daily and are quite stable.
+
+    This release is a maintenance release and fixes some issues with
+    startup notification. It also adds an opacity option to most of the
+    tools for use with composite managers. Also, some file managers do not
+    like the file:// prefix on file names at all (e.g. pcmanfm) so
+    xde-recent now strips them. Centered dialogues now use center window
+    gravity to place themselves in the center of the screen. xde-pager now
+    correctly updates its layout when the number of workspaces changes, and
+    behaves better when hot keys are pressed while it is popped. Manual
+    page updates.
+
+    Starting with this release, commits are verified and tags are signed
+    and annotated (with this text).
+
+    Includes in the release is an Arch Linux source tarball (also on the
+    AUR) and an autoconf tarball for building the release from source. See
+    the NEWS and TODO file in the release for more information.
 
 git shortlog -e -n -w80,6,8 1.6...1.7
 
@@ -244,42 +330,4 @@ Brian Bidulock <bidulock@openss7.org> (25):
       minor formatting
       major rework of xde-monitor
       update release files
-
-
-Release xde-ctools-1.2 released 2016-05-17
-------------------------------------------
-
-git shortlog -e -n -w80,6,8 1.1...1.2
-
-Brian Bidulock <bidulock@openss7.org> (30):
-      document more window managers
-      document more window managers
-      document more window managers
-      document more window managers
-      add a few types
-      minor corrections
-      working up xde-dock
-      proper client list handling
-      correct usage statement
-      typo
-      document more options
-      correct options handling
-      minor fix
-      spelling
-      document useful listing commands
-      add xde-preferred application
-      work defaults
-      process types
-      work with types
-      working up xde-preferred
-      working up xde-preferred
-      add xde-launch docs
-      add xde-open docs
-      add xde-open and xde-launch docs
-      update README
-      do not take input focus
-      no focus works better
-      tweak
-      update release files
-      update date
 

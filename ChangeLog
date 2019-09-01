@@ -1,5 +1,116 @@
 # created with git log --stat=76 -M -C -500|fmt -sct -w80
 
+commit a7172b5e21a50d703ce2825476cee5f166c64b45
+Author: Brian Bidulock <bidulock@openss7.org>
+Date:   Sun Sep 1 00:02:39 2019 -0600
+
+    update release notes
+
+ RELEASE.md | 19 +++++++++----------
+ 1 file changed, 9 insertions(+), 10 deletions(-)
+
+commit 91bc4b7cdfb7d67c739c4ce09c22fefde40bcf04
+Author: Brian Bidulock <bidulock@openss7.org>
+Date:   Sat Aug 31 23:57:31 2019 -0600
+
+    distribution updates
+
+ configure.ac | 18 +++++++++++++-----
+ 1 file changed, 13 insertions(+), 5 deletions(-)
+
+commit 6a1e712d15da1cb161764d567e26faabfb29cc2a
+Author: Brian Bidulock <bidulock@openss7.org>
+Date:   Sat Aug 31 23:55:59 2019 -0600
+
+    generate NOTE.txt and TODO.txt too
+
+ Makefile.am | 6 ++++++
+ 1 file changed, 6 insertions(+)
+
+commit a0b092e4d5f3a220e4a86220325a52c169ef1305
+Author: Brian Bidulock <bidulock@openss7.org>
+Date:   Sat Aug 31 22:04:01 2019 -0600
+
+    gnits unnecessary for this package
+
+ autogen.sh | 6 ++++--
+ 1 file changed, 4 insertions(+), 2 deletions(-)
+
+commit 24ec9a2f2043d4ff10c1709b10b30cc2b8c2c44d
+Author: Brian Bidulock <bidulock@openss7.org>
+Date:   Sat Aug 31 01:44:27 2019 -0600
+
+    generate NEWS better
+
+ gennews.sh | 19 +++++++++++++++++--
+ 1 file changed, 17 insertions(+), 2 deletions(-)
+
+commit 60478321d072c7c0937aeca81f1b36bacca6287a
+Author: Brian Bidulock <bidulock@openss7.org>
+Date:   Mon Jun 17 22:50:51 2019 -0600
+
+    update for gettext 0.20.1
+
+ autogen.sh | 5 ++++-
+ 1 file changed, 4 insertions(+), 1 deletion(-)
+
+commit 66d6826ccd6530c1e852b277886eac7ece174daf
+Author: Brian Bidulock <bidulock@openss7.org>
+Date:   Mon Jun 17 22:50:38 2019 -0600
+
+    update manpage somewhat
+
+ man/xde-sound.pod | 25 +++++++++++++++++++++++++
+ 1 file changed, 25 insertions(+)
+
+commit 59bd7471a6d3be372306f32e1833bbc547353a6c
+Author: Brian Bidulock <bidulock@openss7.org>
+Date:   Fri Jan 18 09:04:40 2019 -0700
+
+    hide vim-line
+
+ TODO | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+commit 9cff11ce521ca89129a65961169567d72df0aa46
+Merge: 1ed69ae 6d35d95
+Author: Brian Bidulock <bidulock@openss7.org>
+Date:   Thu Jan 17 19:47:46 2019 -0700
+
+    Merge branch 'master' of github.com:bbidulock/xde-ctools
+
+commit 1ed69ae3e35b83e3995ef5b2460baa551c557aa3
+Author: Brian Bidulock <bidulock@openss7.org>
+Date:   Thu Jan 17 19:46:55 2019 -0700
+
+    reformat TODO file
+
+ TODO | 120 +++++++++++++++++++++++++++++++--------------------------------
+ 1 file changed, 60 insertions(+), 60 deletions(-)
+
+commit 6d35d95c605e831ced1709ed557e6c31e5e92546
+Author: Brian Bidulock <bidulock@openss7.org>
+Date:   Sat Oct 6 02:40:54 2018 -0600
+
+    update release files
+
+ AUTHORS      |   2 +-
+ ChangeLog    | 611 +++++++++++++++++++++++++++++++++++++++++++++++++++----
+ NEWS         | 153 ++++++--------
+ README.md    |  20 +-
+ configure.ac |   8 +-
+ 5 files changed, 647 insertions(+), 147 deletions(-)
+
+commit 096e4b9f71951dffe728919d44d022861ff7683a
+Author: Brian Bidulock <bidulock@openss7.org>
+Date:   Sat Oct 6 02:40:23 2018 -0600
+
+    fix gcc 8.2 strncpy/strncat warnings
+
+ src/xde-app.c | 30 +++++++++++++++---------------
+ src/xde-run.c | 30 +++++++++++++++---------------
+ 2 files changed, 30 insertions(+), 30 deletions(-)
+
 commit 8b1d0ce4c59443b2ecdfa79bf3bb52754ddef025
 Author: Brian Bidulock <bidulock@openss7.org>
 Date:   Sat Oct 6 02:29:02 2018 -0600
@@ -5217,138 +5328,3 @@ Date:   Thu Jun 5 05:14:31 2014 -0600
 
  man/xde-preferred.pod | 273 ++++++++++++++++++++++++++++++++++++++++++++++
  1 file changed, 273 insertions(+)
-
-commit 4ade125dfc572c7de4d1972c1357ebec78c1613b
-Author: Brian Bidulock <bidulock@openss7.org>
-Date:   Wed Jun 4 04:29:42 2014 -0600
-
-    add xde-app and make xde-run workalike
-
- .gitignore                          |   1 +
- configure.sh                        |   4 +-
- man/Makefile.am                     |  10 +-
- man/{xde-launch.pod => xde-app.pod} |   7 +
- man/xde-preferred.pod               |  71 ++++++++-
- man/xde-run.pod                     |  26 ++-
- src/Makefile.am                     |   9 +-
- src/{xde-run.c => xde-app.c}        | 263 ++++++++++++++++++++++++------
- src/xde-app.h                       | 102 ++++++++++++
- src/xde-run.c                       | 275 ++++++++++++++++++++++++++------
- 10 files changed, 654 insertions(+), 114 deletions(-)
-
-commit 2bb978bf4b5ab2e62cd3d3bf488fa17a21c94668
-Author: Brian Bidulock <bidulock@openss7.org>
-Date:   Tue Jun 3 02:55:36 2014 -0600
-
-    added manpages, reverse sorting of run-history file
-
- man/Makefile.am       |  19 +++++-
- man/xde-dock.pod      |   2 +-
- man/xde-launch.pod    | 108 +++++++++++++++++++++++++++++++
- man/xde-preferred.pod | 158 ++++++++++++++++++++++++++++++++++++++++++++++
- man/xde-run.pod       |  99 +++++++++++++++++++++++++++++
- src/xde-run.c         |  13 +++-
- 6 files changed, 393 insertions(+), 6 deletions(-)
-
-commit f3d4c5a4b097c5f430b1476b85295872d6213b64
-Author: Brian Bidulock <bidulock@openss7.org>
-Date:   Tue Jun 3 01:50:18 2014 -0600
-
-    runs very well now
-
- src/xde-run.c | 29 ++++++++++++++---------------
- 1 file changed, 14 insertions(+), 15 deletions(-)
-
-commit 9da57da3970745f778f723a51c748ac17d13bbf4
-Author: Brian Bidulock <bidulock@openss7.org>
-Date:   Tue Jun 3 01:02:41 2014 -0600
-
-    works much better now
-
- src/xde-run.c | 191 ++++++++++++++++++++++++++++++++++++++++++------------
- 1 file changed, 151 insertions(+), 40 deletions(-)
-
-commit 9496bfa4141a0435879c8c10778f683904236fcb
-Author: Brian Bidulock <bidulock@openss7.org>
-Date:   Mon Jun 2 23:31:33 2014 -0600
-
-    starting to work
-
- src/xde-run.c | 1 +
- 1 file changed, 1 insertion(+)
-
-commit bd6c7c1e9e392d2417fe541076052e4fb585b686
-Author: Brian Bidulock <bidulock@openss7.org>
-Date:   Mon Jun 2 23:08:31 2014 -0600
-
-    add new xde-run
-
- .gitignore        |   1 +
- .indent.pro       | 379 +++++++++++++-------------
- src/Makefile.am   |   8 +-
- src/xde-chooser.c |  78 ++++++
- src/xde-run.c     | 725 ++++++++++++++++++++++++++++++++++++++++++++++++++
- src/xde-run.h     | 102 +++++++
- 6 files changed, 1113 insertions(+), 180 deletions(-)
-
-commit 220c3f895c90cd58cae5752d86ea0c411252e302
-Author: Brian Bidulock <bidulock@openss7.org>
-Date:   Mon Jun 2 12:55:08 2014 -0600
-
-    still playing with this
-
- src/xde-dock.c | 410 ++++++++++++++++++++++++++++++++++++++++-------------
- 1 file changed, 309 insertions(+), 101 deletions(-)
-
-commit 4cb80ceef5d279c39a77c6a87ec4e0bd7874f082
-Author: Brian Bidulock <bidulock@openss7.org>
-Date:   Sat May 31 03:44:04 2014 -0600
-
-    working a bit better yet
-
- src/xde-dock.c | 270 +++++++++++++++++++++++++++++++++++++++++++----------
- 1 file changed, 220 insertions(+), 50 deletions(-)
-
-commit a9824a20c178866578b44cf2d9655d50f4d53e4c
-Author: Brian Bidulock <bidulock@openss7.org>
-Date:   Fri May 30 15:44:37 2014 -0600
-
-    minor correction and it works like a charm with blackbox
-
- src/xde-dock.c | 42 +++++++++++++++++++++++++++++++++---------
- 1 file changed, 33 insertions(+), 9 deletions(-)
-
-commit cefce5dabffdf6d98c8e32da33558d552481dadc
-Author: Brian Bidulock <bidulock@openss7.org>
-Date:   Fri May 30 15:26:26 2014 -0600
-
-    working better, steals nicely from blackbox
-
- .indent.pro    |   4 +-
- autogen.sh     |   2 +-
- src/xde-dock.c | 427 +++++++++++++++++++++++++----------------------------
- 3 files changed, 202 insertions(+), 231 deletions(-)
-
-commit 53f111c061f6660db02ad867e5692ad4f727e6d3
-Author: Brian Bidulock <bidulock@openss7.org>
-Date:   Fri May 30 12:36:20 2014 -0600
-
-    significant workup, rename package
-
- README.in          |   9 +-
- configure.template |   2 +-
- src/xde-dock.c     | 315 +++++++++++++++++++++++++++++--------------------
- 3 files changed, 194 insertions(+), 132 deletions(-)
-
-commit 73cff6b9de547e6a7ce10e5f2050d93e435cf65d
-Author: Brian Bidulock <bidulock@openss7.org>
-Date:   Fri May 30 09:37:06 2014 -0600
-
-    full workup from perl version
-
- .indent.pro        | 233 +++++++++++++
- configure.template |   1 +
- src/Makefile.am    |   4 +-
- src/xde-dock.c     | 892 ++++++++++++++++++++++++++++++++++++++++++++++++-
- src/xde-dock.h     |   4 +
- 5 files changed, 1121 insertions(+), 13 deletions(-)
