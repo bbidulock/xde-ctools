@@ -5,6 +5,14 @@ AC_PREREQ([2.69])
 AC_INIT([xde-ctools],[1.9],[http://github.com/bbidulock/xde-ctools],[xde-ctools],[http://github.com/bbidulock/xde-ctools/issues])
 AC_REVISION([1.9])
 
+# set better defaults
+AC_PREFIX_DEFAULT([/usr])
+if test "$prefix" = /usr -o "$prefix" = NONE; then
+	test "$sysconfdir" = '${prefix}/etc' && sysconfdir=/etc
+	test "$sharedstatedir" = '${prefix}/com' && sharedstatedir=/var
+	test "$localstatedir" = '${prefix}/var' && localstatedir=/var
+fi
+
 AC_CONFIG_SRCDIR([src/xde-dock.c])
 AC_CONFIG_HEADERS([autoconf.h])
 AC_CONFIG_MACRO_DIR([m4])
@@ -25,7 +33,6 @@ AC_SUBST([BRANCH])
 AM_INIT_AUTOMAKE([1.16 dist-lzip no-dist-gzip std-options -Wall color-tests silent-rules tar-pax])
 AM_MAINTAINER_MODE
 AM_SILENT_RULES([yes])
-AC_PREFIX_DEFAULT([/usr])
 
 # Checks for programs.
 AC_PROG_SED
