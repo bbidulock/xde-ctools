@@ -1,5 +1,68 @@
 # created with git log --stat=76 -M -C -500|fmt -sct -w80
 
+commit f2f904d53c3408ee75d7c300a1f742ec367ee222
+Author: Brian Bidulock <bidulock@openss7.org>
+Date:   Tue Sep 3 04:30:02 2019 -0600
+
+    get around gcc 9.1 compiler stupidity
+
+ src/xde-cycle.c    | 6 +++++-
+ src/xde-feedback.c | 6 +++++-
+ src/xde-input.c    | 6 +++++-
+ src/xde-monitor.c  | 6 +++++-
+ src/xde-pager.c    | 6 +++++-
+ src/xde-setbg.c    | 6 +++++-
+ src/xde-sound.c    | 6 +++++-
+ src/xde-tasks.c    | 6 +++++-
+ src/xde-winds.c    | 6 +++++-
+ 9 files changed, 45 insertions(+), 9 deletions(-)
+
+commit 1dff42fc861c78a245de8f8ccc07d37fab02c4af
+Author: Brian Bidulock <bidulock@openss7.org>
+Date:   Tue Sep 3 04:16:38 2019 -0600
+
+    build release notes with distribution
+
+ dist.sh | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+commit f7369d47b175277c9006e4c4ba86aba014e86a43
+Author: Brian Bidulock <bidulock@openss7.org>
+Date:   Tue Sep 3 04:16:25 2019 -0600
+
+    better defaults now
+
+ configure.sh | 3 ---
+ 1 file changed, 3 deletions(-)
+
+commit 2ca00c63e0d087ab94af1d665367e0d28bc0a65f
+Author: Brian Bidulock <bidulock@openss7.org>
+Date:   Tue Sep 3 04:16:15 2019 -0600
+
+    better autoconf directory defaults
+
+ configure.ac | 9 ++++++++-
+ 1 file changed, 8 insertions(+), 1 deletion(-)
+
+commit df4b170edd474dd22928d824abd897b89b975c77
+Author: Brian Bidulock <bidulock@openss7.org>
+Date:   Tue Sep 3 04:16:03 2019 -0600
+
+    keep gnits
+
+ autogen.sh | 1 -
+ 1 file changed, 1 deletion(-)
+
+commit e00c1ae1d3a597e39662204f3b324a4116fc21ef
+Author: Brian Bidulock <bidulock@openss7.org>
+Date:   Sun Sep 1 00:27:04 2019 -0600
+
+    update release files
+
+ ChangeLog | 60 ++++++++++++++++++++++++++++++-----------------------------
+ NEWS      |  5 ++++-
+ 2 files changed, 35 insertions(+), 30 deletions(-)
+
 commit 22439b752145310b5712a491761280f63f3627c2
 Author: Brian Bidulock <bidulock@openss7.org>
 Date:   Sun Sep 1 00:17:15 2019 -0600
@@ -5269,64 +5332,3 @@ Date:   Sat Jul 12 20:39:43 2014 -0600
  src/xde-winmenu.c   | 428 +++++++++++++++++++++++++++++++++++++-----------
  src/xde-winmenu.h   |  16 ++
  4 files changed, 427 insertions(+), 96 deletions(-)
-
-commit 270703cdded0259f144a3d6443bc89e9642a1f33
-Author: Brian Bidulock <bidulock@openss7.org>
-Date:   Sat Jul 12 12:38:23 2014 -0600
-
-    tweaks to finding focus window and menu position
-
- .indent.pro       |   2 +
- src/xde-winmenu.c | 227 ++++++++++++++++++++++++++++++++++++++------------
- 2 files changed, 174 insertions(+), 55 deletions(-)
-
-commit 03bf629e26955165187cfe15c328149371f304f7
-Author: Brian Bidulock <bidulock@openss7.org>
-Date:   Sat Jul 12 09:20:30 2014 -0600
-
-    add xde-winmenu to provide window menus using libwnck
-
- .gitignore          |   1 +
- man/xde-winmenu.pod |  25 +-
- src/Makefile.am     |   7 +-
- src/xde-winmenu.c   | 892 ++++++++++++++++++++++++++++++++++++++++++++++++
- src/xde-winmenu.h   | 102 ++++++
- 5 files changed, 1025 insertions(+), 2 deletions(-)
-
-commit 8c1e465543de97e537dcd2dae20d6a726929ed2b
-Author: Brian Bidulock <bidulock@openss7.org>
-Date:   Fri Jul 11 11:01:07 2014 -0600
-
-    doc updates
-
- man/xde-app.pod     | 24 ++++++++---------
- man/xde-winmenu.pod | 68 +++++++++----------------------------------------
- 2 files changed, 24 insertions(+), 68 deletions(-)
-
-commit 8d658ca5ba92dc00d7b0a3ed4c200fb1b77cec0e
-Author: Brian Bidulock <bidulock@openss7.org>
-Date:   Thu Jul 10 14:12:32 2014 -0600
-
-    added xde-winmenu docs
-
- man/Makefile.am     |  19 +----
- man/xde-winmenu.pod | 198 ++++++++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 202 insertions(+), 15 deletions(-)
-
-commit f909575653291372772d55b4097a8083abe44280
-Author: Brian Bidulock <bidulock@openss7.org>
-Date:   Thu Jun 26 19:57:02 2014 -0600
-
-    correct xdg history
-
- src/xde-run.c | 4 +++-
- 1 file changed, 3 insertions(+), 1 deletion(-)
-
-commit 260aeae024a5f11babaf4eb25d8d186525d7700d
-Author: Brian Bidulock <bidulock@openss7.org>
-Date:   Wed Jun 18 07:08:21 2014 -0600
-
-    update dockapp detection logic
-
- src/xde-dock.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
