@@ -1,5 +1,19 @@
 # created with git log --stat=76 -M -C -500|fmt -sct -w80
 
+commit 4976774b1be86d406aeefb63dca3e2b65c6309f8
+Author: Brian Bidulock <bidulock@openss7.org>
+Date:   Tue Sep 3 04:33:44 2019 -0600
+
+    update release files
+
+ AUTHORS      |   2 +-
+ ChangeLog    | 124 ++++++++++++++++++++++++++++---------------------------
+ NEWS         |  72 ++++++++++++++++----------------
+ README.md    |  20 ++++-----
+ RELEASE.md   |  14 +++----
+ configure.ac |  12 +++---
+ 6 files changed, 124 insertions(+), 120 deletions(-)
+
 commit f2f904d53c3408ee75d7c300a1f742ec367ee222
 Author: Brian Bidulock <bidulock@openss7.org>
 Date:   Tue Sep 3 04:30:02 2019 -0600
@@ -5320,15 +5334,3 @@ Date:   Sat Jul 12 21:13:18 2014 -0600
  src/xde-run.h     |  16 ++++
  src/xde-winmenu.c |  12 +--
  5 files changed, 212 insertions(+), 296 deletions(-)
-
-commit 33396f2d0304de2ebc142ccee1d2679da5aaf1f5
-Author: Brian Bidulock <bidulock@openss7.org>
-Date:   Sat Jul 12 20:39:43 2014 -0600
-
-    provide arguments for xde-winmenu positioning
-
- .indent.pro         |   8 +-
- man/xde-winmenu.pod |  71 ++++++++
- src/xde-winmenu.c   | 428 +++++++++++++++++++++++++++++++++++++-----------
- src/xde-winmenu.h   |  16 ++
- 4 files changed, 427 insertions(+), 96 deletions(-)

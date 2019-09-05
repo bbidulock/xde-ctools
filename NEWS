@@ -26,12 +26,13 @@ git tag -n100 -l 1.10
 
 git shortlog -e -n -w80,6,8 1.9...1.10
 
-Brian Bidulock <bidulock@openss7.org> (5):
+Brian Bidulock <bidulock@openss7.org> (6):
       keep gnits
       better autoconf directory defaults
       better defaults now
       build release notes with distribution
       get around gcc 9.1 compiler stupidity
+      update release files
 
 
 Release xde-ctools-1.9 released 2019-09-01
