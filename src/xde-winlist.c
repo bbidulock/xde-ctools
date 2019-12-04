@@ -1,6 +1,6 @@
 /*****************************************************************************
 
- Copyright (c) 2010-2018  Monavacon Limited <http://www.monavacon.com/>
+ Copyright (c) 2010-2019  Monavacon Limited <http://www.monavacon.com/>
  Copyright (c) 2002-2009  OpenSS7 Corporation <http://www.openss7.com/>
  Copyright (c) 1997-2001  Brian F. G. Bidulock <bidulock@openss7.org>
 
@@ -309,7 +309,17 @@ typedef enum {
 	UseScreenFocused,		/* screen with focused window */
 	UseScreenPointer,		/* screen with pointer */
 	UseScreenSpecified,		/* specified screen */
+	UseScreenSelect,		/* manually select screen */
 } UseScreen;
+
+typedef enum {
+	UseWindowDefault,		/* default window by button */
+	UseWindowActive,		/* active window */
+	UseWindowFocused,		/* focused window */
+	UseWindowPointer,		/* window under pointer */
+	UseWindowSpecified,		/* specified window */
+	UseWindowSelect,		/* manually select window */
+} UseWindow;
 
 typedef enum {
 	PositionDefault,		/* default position */
@@ -318,6 +328,7 @@ typedef enum {
 	PositionTopLeft,		/* top left of work area */
 	PositionBottomRight,		/* bottom right of work area */
 	PositionSpecified,		/* specified position (X geometry) */
+	PositionIconGeom,		/* icon geometry position */
 } MenuPosition;
 
 typedef enum {
@@ -1096,6 +1107,9 @@ find_monitor(void)
 	XdeMonitor *xmon = NULL;
 
 	switch (options.which) {
+	case UseScreenSelect:
+		/* FIXME */
+		__attribute((fallthrough));
 	case UseScreenDefault:
 		if (options.button) {
 			if ((xmon = find_pointer_monitor()))
@@ -3587,6 +3601,8 @@ putXrmWhich(UseScreen which, int screen)
 		return g_strdup("focused");
 	case UseScreenPointer:
 		return g_strdup("pointer");
+	case UseScreenSelect:
+		return g_strdup("select");
 	case UseScreenSpecified:
 		return putXrmInt(screen);
 	}
@@ -3632,6 +3648,8 @@ putXrmWhere(MenuPosition where, XdeGeometry *geom)
 		return g_strdup("bottomright");
 	case PositionSpecified:
 		return putXrmXGeometry(geom);
+	case PositionIconGeom:
+		return g_strdup("icongeom");
 	}
 	return (NULL);
 }
@@ -3829,7 +3847,7 @@ put_keyfile(void)
 				       state.XKeyboard.desc->ctrls->enabled_ctrls &
 				       XkbOverlay2Mask ? TRUE : FALSE);
 		g_key_file_set_boolean(file, KFG_XKeyboard,
-				       KFK_XKeyboard_IgnoreGroupLockModsEnabled,
+				       KFK_XKeyboard_IgnoreGroupLockEnabled,
 				       state.XKeyboard.desc->ctrls->enabled_ctrls &
 				       XkbIgnoreGroupLockMask ? TRUE : FALSE);
 		g_key_file_set_boolean(file, KFG_XKeyboard,
@@ -3916,7 +3934,7 @@ get_resource(XrmDatabase xrdb, const char *resource, const char *dflt)
 }
 
 Bool
-getXrmColor(const char *val, GdkColor ** color)
+getXrmColor(const char *val, GdkColor **color)
 {
 	GdkColor c, *p;
 
@@ -3931,7 +3949,7 @@ getXrmColor(const char *val, GdkColor ** color)
 }
 
 Bool
-getXrmFont(const char *val, PangoFontDescription ** face)
+getXrmFont(const char *val, PangoFontDescription **face)
 {
 	FcPattern *pattern;
 	PangoFontDescription *font;
@@ -4350,7 +4368,7 @@ about_selected(GtkMenuItem *item, gpointer user_data)
 	gtk_show_about_dialog(NULL,
 			      "authors", authors,
 			      "comments", XDE_DESCRIP,
-			      "copyright", "Copyright (c) 2013, 2014, 2015, 2016, 2017, 2018  OpenSS7 Corporation",
+			      "copyright", "Copyright (c) 2013, 2014, 2015, 2016, 2017, 2018, 2019  OpenSS7 Corporation",
 			      "license", "Do what thou wilt shall be the whole of the law.\n\n-- Aleister Crowley",
 			      "logo-icon-name", LOGO_NAME,
 			      "program-name", NAME,
@@ -6048,6 +6066,7 @@ size_changed(GdkScreen *scrn, gpointer user_data)
 static void
 popup_show(XdeScreen *xscr)
 {
+	menu_show(xscr);
 }
 #endif
 
@@ -6130,7 +6149,7 @@ event_handler_ClientMessage(XEvent *xev)
 		set_flags(xev->xclient.data.l[2]);
 		set_word1(xev->xclient.data.l[3]);
 		set_word2(xev->xclient.data.l[4]);
-		popup_show(xscr); /* FIXME: should be menu_show() */
+		menu_show(xscr);
 		return GDK_FILTER_REMOVE;
 	} else if (type == _XA_PREFIX_EDITOR) {
 		set_scmon(xev->xclient.data.l[1]);
@@ -6918,7 +6937,8 @@ do_run(int argc, char *argv[])
 	}
 	g_signal_connect(G_OBJECT(menu), "selection-done", G_CALLBACK(selection_done), NULL);
 	gtk_menu_popup(GTK_MENU(menu), NULL, NULL, position_menu, xmon,
-		       have_button(options.button), options.timestamp);
+		       have_button(options.button),
+		       options.timestamp ? : gtk_get_current_event_time());
 	mainloop();
 }
 
@@ -6936,7 +6956,7 @@ copying(int argc, char *argv[])
 --------------------------------------------------------------------------------\n\
 %1$s\n\
 --------------------------------------------------------------------------------\n\
-Copyright (c) 2010-2018  Monavacon Limited <http://www.monavacon.com/>\n\
+Copyright (c) 2010-2019  Monavacon Limited <http://www.monavacon.com/>\n\
 Copyright (c) 2002-2009  OpenSS7 Corporation <http://www.openss7.com/>\n\
 Copyright (c) 1997-2001  Brian F. G. Bidulock <bidulock@openss7.org>\n\
 \n\
@@ -6980,7 +7000,7 @@ version(int argc, char *argv[])
 %1$s (OpenSS7 %2$s) %3$s\n\
 Written by Brian Bidulock.\n\
 \n\
-Copyright (c) 2010, 2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018  Monavacon Limited.\n\
+Copyright (c) 2010, 2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018, 2019  Monavacon Limited.\n\
 Copyright (c) 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009  OpenSS7 Corporation.\n\
 Copyright (c) 1997, 1998, 1999, 2000, 2001  Brian F. G. Bidulock.\n\
 This is free software; see the source for copying conditions.  There is NO\n\
@@ -7058,6 +7078,19 @@ show_style(Style style)
 	return ("(unknown)");
 }
 
+#if 0
+static const char *
+show_window(Window win)
+{
+	static char window[64] = { 0, };
+
+	if (!options.window)
+		return ("None");
+	snprintf(window, sizeof(window), "0x%lx", options.window);
+	return (window);
+}
+#endif
+
 static const char *
 show_which(UseScreen which)
 {
@@ -7070,6 +7103,8 @@ show_which(UseScreen which)
 		return ("focused");
 	case UseScreenPointer:
 		return ("pointer");
+	case UseScreenSelect:
+		return ("select");
 	case UseScreenSpecified:
 		return show_screen(options.screen);
 	}
@@ -7098,6 +7133,8 @@ show_where(MenuPosition where)
 			 (options.geom.mask & XNegative) ? '-' : '+', options.geom.x,
 			 (options.geom.mask & YNegative) ? '-' : '+', options.geom.y);
 		return (position);
+	case PositionIconGeom:
+		return ("icongeom");
 	}
 	return NULL;
 }
@@ -7178,7 +7215,7 @@ Options:\n\
     -s, --screen SCREEN\n\
         specify the screen number, SCREEN, to use [default: %5$s]\n\
     -M, --monitor MONITOR\n\
-        specify the monitor numer, MONITOR, to use [default: %6$s]\n\
+        specify the monitor number, MONITOR, to use [default: %6$s]\n\
     -f, --filename FILENAME\n\
         use the file, FILENAME, for configuration [default: %7$s]\n\
     -b, --button BUTTON\n\
@@ -7854,6 +7891,8 @@ main(int argc, char *argv[])
 				options.where = PositionTopLeft;
 			else if (!strncasecmp("bottomright", optarg, len))
 				options.where = PositionBottomRight;
+			else if (!strncasecmp("icongeom", optarg, len))
+				options.where = PositionIconGeom;
 			else {
 				int mask, x = 0, y = 0;
 				unsigned int w = 0, h = 0;
@@ -7994,8 +8033,8 @@ main(int argc, char *argv[])
 			goto bad_usage;
 		}
 	}
-	DPRINTF(1, "%s: option index = %d\n", argv[0], optind);
-	DPRINTF(1, "%s: option count = %d\n", argv[0], argc);
+	DPRINTF(1, "option index = %d\n", optind);
+	DPRINTF(1, "option count = %d\n", argc);
 	if (optind < argc) {
 		EPRINTF("excess non-option arguments near '");
 		while (optind < argc) {
@@ -8012,6 +8051,7 @@ main(int argc, char *argv[])
 	switch (command) {
 	case CommandDefault:
 		options.command = CommandRun;
+		__attribute__((fallthrough));
 	case CommandRun:
 		DPRINTF(1, "popping the menu\n");
 		do_run(argc, argv);

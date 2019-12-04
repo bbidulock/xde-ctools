@@ -1,6 +1,6 @@
 /*****************************************************************************
 
- Copyright (c) 2010-2018  Monavacon Limited <http://www.monavacon.com/>
+ Copyright (c) 2010-2019  Monavacon Limited <http://www.monavacon.com/>
  Copyright (c) 2002-2009  OpenSS7 Corporation <http://www.openss7.com/>
  Copyright (c) 1997-2001  Brian F. G. Bidulock <bidulock@openss7.org>
 
@@ -42,6 +42,9 @@
 
  *****************************************************************************/
 
+/** @section Headers
+  * @{ */
+
 #ifndef _XOPEN_SOURCE
 #define _XOPEN_SOURCE 600
 #endif
@@ -49,6 +52,8 @@
 #ifdef HAVE_CONFIG_H
 #include "autoconf.h"
 #endif
+
+#undef STARTUP_NOTIFICATION
 
 #include <stddef.h>
 #include <stdint.h>
@@ -62,8 +67,10 @@
 #include <sys/stat.h>
 #include <sys/select.h>
 #include <sys/time.h>
+#include <sys/timerfd.h>
 #include <sys/ioctl.h>
 #include <sys/wait.h>
+#include <sys/poll.h>
 #include <fcntl.h>
 #include <dirent.h>
 #include <time.h>
@@ -73,9 +80,14 @@
 
 #include <assert.h>
 #include <locale.h>
+#include <langinfo.h>
 #include <stdarg.h>
 #include <strings.h>
 #include <regex.h>
+#include <wordexp.h>
+#include <execinfo.h>
+#include <math.h>
+#include <dlfcn.h>
 
 #include <X11/Xatom.h>
 #include <X11/Xlib.h>
@@ -89,13 +101,27 @@
 #ifdef XINERAMA
 #include <X11/extensions/Xinerama.h>
 #endif
+#ifdef VNC_SUPPORTED
+#include <X11/extensions/Xvnc.h>
+#endif
+#include <X11/extensions/scrnsaver.h>
+#include <X11/extensions/dpms.h>
+#include <X11/extensions/xf86misc.h>
+#include <X11/XKBlib.h>
 #ifdef STARTUP_NOTIFICATION
 #define SN_API_NOT_YET_FROZEN
 #include <libsn/sn.h>
 #endif
+#include <X11/Xdmcp.h>
+#include <X11/Xauth.h>
 #include <X11/SM/SMlib.h>
+#include <gio/gio.h>
+#include <gio/gdesktopappinfo.h>
+#include <glib.h>
+#include <glib-unix.h>
 #include <gdk/gdkx.h>
 #include <gdk-pixbuf/gdk-pixbuf.h>
+#include <gdk/gdkkeysyms.h>
 #include <gtk/gtk.h>
 #include <cairo.h>
 
@@ -103,27 +129,61 @@
 #include <libwnck/libwnck.h>
 
 #include <pwd.h>
+#include <fontconfig/fontconfig.h>
+#include <pango/pangofc-fontmap.h>
 
 #ifdef _GNU_SOURCE
 #include <getopt.h>
 #endif
 
-#define XPRINTF(args...) do { } while (0)
-#define OPRINTF(args...) do { if (options.output > 1) { \
-	fprintf(stdout, "I: "); \
-	fprintf(stdout, args); \
-	fflush(stdout); } } while (0)
-#define DPRINTF(args...) do { if (options.debug) { \
-	fprintf(stderr, "D: %s +%d %s(): ", __FILE__, __LINE__, __func__); \
-	fprintf(stderr, args); \
-	fflush(stderr); } } while (0)
-#define EPRINTF(args...) do { \
-	fprintf(stderr, "E: %s +%d %s(): ", __FILE__, __LINE__, __func__); \
-	fprintf(stderr, args); \
-	fflush(stderr);   } while (0)
-#define DPRINT() do { if (options.debug) { \
-	fprintf(stderr, "D: %s +%d %s()\n", __FILE__, __LINE__, __func__); \
-	fflush(stderr); } } while (0)
+/** @} */
+
+/** @section Preamble
+  * @{ */
+
+static const char *
+_timestamp(void)
+{
+	static struct timeval tv = { 0, 0 };
+	static char buf[BUFSIZ];
+	double stamp;
+
+	gettimeofday(&tv, NULL);
+	stamp = (double)tv.tv_sec + (double)((double)tv.tv_usec/1000000.0);
+	snprintf(buf, BUFSIZ-1, "%f", stamp);
+	return buf;
+}
+
+#define XPRINTF(_args...) do { } while (0)
+
+#define DPRINTF(_num, _args...) do { if (options.debug >= _num) { \
+		fprintf(stderr, NAME ": D: [%s] %12s +%4d %s(): ", _timestamp(), __FILE__, __LINE__, __func__); \
+		fprintf(stderr, _args); fflush(stderr); } } while (0)
+
+#define EPRINTF(_args...) do { \
+		fprintf(stderr, NAME ": E: [%s] %12s +%4d %s(): ", _timestamp(), __FILE__, __LINE__, __func__); \
+		fprintf(stderr, _args); fflush(stderr);   } while (0)
+
+#define OPRINTF(_num, _args...) do { if (options.debug >= _num || options.output > _num) { \
+		fprintf(stdout, NAME ": I: "); \
+		fprintf(stdout, _args); fflush(stdout); } } while (0)
+
+#define PTRACE(_num) do { if (options.debug >= _num || options.output >= _num) { \
+		fprintf(stderr, NAME ": T: [%s] %12s +%4d %s()\n", _timestamp(), __FILE__, __LINE__, __func__); \
+		fflush(stderr); } } while (0)
+
+void
+dumpstack(const char *file, const int line, const char *func)
+{
+	void *buffer[32];
+	int nptr;
+	char **strings;
+	int i;
+
+	if ((nptr = backtrace(buffer, 32)) && (strings = backtrace_symbols(buffer, nptr)))
+		for (i = 0; i < nptr; i++)
+			fprintf(stderr, NAME ": E: %12s +%4d : %s() : \t%s\n", file, line, func, strings[i]);
+}
 
 #undef EXIT_SUCCESS
 #undef EXIT_FAILURE
@@ -150,6 +210,24 @@ static Atom _XA_NET_WM_ICON_GEOMETRY;
 // static Atom _XA_WIN_AREA_COUNT;
 
 typedef enum {
+	CommandDefault,
+	CommandRun,
+	CommandPopMenu,			/* ask running instance to pop menu */
+	CommandHelp,
+	CommandVersion,
+	CommandCopying,
+} Command;
+
+typedef enum {
+	UseScreenDefault,		/* default screen by button */
+	UseScreenActive,		/* screen with active window */
+	UseScreenFocused,		/* screen with focused window */
+	UseScreenPointer,		/* screen with pointer */
+	UseScreenSpecified,		/* specified screen */
+	UseScreenSelect,		/* manually select screen */
+} UseScreen;
+
+typedef enum {
 	UseWindowDefault,		/* default window by button */
 	UseWindowActive,		/* active window */
 	UseWindowFocused,		/* focused window */
@@ -163,16 +241,10 @@ typedef enum {
 	PositionPointer,		/* position at pointer */
 	PositionCenter,			/* center of window */
 	PositionTopLeft,		/* top left of window */
+	PositionBottomRight,		/* bottom right of work area */
+	PositionSpecified,		/* specified position (X geometry) */
 	PositionIconGeom,		/* icon geometry position */
 } MenuPosition;
-
-typedef enum {
-	CommandDefault,
-	CommandPopup,
-	CommandHelp,
-	CommandVersion,
-	CommandCopying,
-} Command;
 
 typedef struct {
 	int debug;
@@ -486,7 +558,7 @@ position_pointer(GtkMenu *menu, WnckWindow *wind, gint *x, gint *y)
 {
 	GdkDisplay *disp;
 
-	DPRINT();
+	PTRACE(1);
 	disp = gtk_widget_get_display(GTK_WIDGET(menu));
 	gdk_display_get_pointer(disp, NULL, x, y, NULL);
 	return TRUE;
@@ -498,7 +570,7 @@ position_center(GtkMenu *menu, WnckWindow *wind, gint *x, gint *y)
 	int cx, cy, cw, ch;
 	GtkRequisition req;
 
-	DPRINT();
+	PTRACE(1);
 	gtk_widget_get_requisition(GTK_WIDGET(menu), &req);
 	wnck_window_get_client_window_geometry(wind, &cx, &cy, &cw, &ch);
 
@@ -512,11 +584,27 @@ position_topleft(GtkMenu *menu, WnckWindow *wind, gint *x, gint *y)
 {
 	int cx, cy, cw, ch;
 
-	DPRINT();
+	PTRACE(1);
 	wnck_window_get_client_window_geometry(wind, &cx, &cy, &cw, &ch);
 
 	*x = cx;
 	*y = cy;
+
+	return TRUE;
+}
+
+static gboolean
+position_bottomright(GtkMenu *menu, WnckWindow *wind, gint *x, gint *y)
+{
+	int cx, cy, cw, ch;
+	GtkRequisition req;
+
+	PTRACE(1);
+	wnck_window_get_client_window_geometry(wind, &cx, &cy, &cw, &ch);
+	gtk_widget_get_requisition(GTK_WIDGET(menu), &req);
+
+	*x = cx + cw - req.width;
+	*y = cy + ch - req.height;
 
 	return TRUE;
 }
@@ -532,7 +620,7 @@ position_icongeom(GtkMenu *menu, WnckWindow *wind, gint *x, gint *y)
 	GdkScreen *scrn;
 	int height;
 
-	DPRINT();
+	PTRACE(1);
 	disp = gtk_widget_get_display(GTK_WIDGET(menu));
 	dpy = GDK_DISPLAY_XDISPLAY(disp);
 	win = wnck_window_get_xid(wind);
@@ -560,7 +648,7 @@ position_center_monitor(GtkMenu *menu, WnckWindow *wind, gint *x, gint *y)
 	gint px, py, nmon;
 	GtkRequisition req;
 
-	DPRINT();
+	PTRACE(1);
 	disp = gtk_widget_get_display(GTK_WIDGET(menu));
 	gdk_display_get_pointer(disp, &scrn, &px, &py, NULL);
 	nmon = gdk_screen_get_monitor_at_point(scrn, px, py);
@@ -611,7 +699,7 @@ is_visible(GtkMenu *menu, WnckWindow *wind)
 	XWindowAttributes xwa;
 
 	if (state & (WNCK_WINDOW_STATE_MINIMIZED | WNCK_WINDOW_STATE_HIDDEN)) {
-		DPRINTF("target is minimized or hidden!\n");
+		DPRINTF(1, "target is minimized or hidden!\n");
 		return FALSE;
 	}
 	if (!XGetWMState(dpy, win, &xwms)) {
@@ -621,23 +709,23 @@ is_visible(GtkMenu *menu, WnckWindow *wind)
 		case ZoomState:
 			break;
 		case WithdrawnState:
-			DPRINTF("target is in the withdrawn state\n");
+			DPRINTF(1, "target is in the withdrawn state\n");
 			return FALSE;
 		}
 	} else {
-		DPRINTF("target has no WM_STATE property\n");
+		DPRINTF(1, "target has no WM_STATE property\n");
 		return FALSE;
 	}
 	if (!XGetWindowAttributes(dpy, win, &xwa)) {
-		DPRINTF("cannot get window attributes for target\n");
+		DPRINTF(1, "cannot get window attributes for target\n");
 		return FALSE;
 	}
 	if (xwa.map_state == IsUnmapped) {
-		DPRINTF("target is unmapped\n");
+		DPRINTF(1, "target is unmapped\n");
 		return FALSE;
 	}
 	if (xwa.map_state == IsUnviewable) {
-		DPRINTF("targ is unviewable\n");
+		DPRINTF(1, "targ is unviewable\n");
 		return FALSE;
 	}
 	if (xwa.map_state == IsViewable)
@@ -691,6 +779,19 @@ position_menu(GtkMenu *menu, gint *x, gint *y, gboolean *push_in, gpointer user_
 			break;
 		}
 		position_center_monitor(menu, wind, x, y);
+		break;
+	case PositionBottomRight:
+		if (visible) {
+			position_bottomright(menu, wind, x, y);
+			break;
+		}
+		if (options.button) {
+			position_pointer(menu, wind, x, y);
+			break;
+		}
+		position_center_monitor(menu, wind, x, y);
+		break;
+	case PositionSpecified:
 		break;
 	case PositionIconGeom:
 		if (position_icongeom(menu, wind, x, y))
@@ -753,7 +854,7 @@ have_button(int button)
 }
 
 void
-do_popup(int argc, char *argv[])
+do_run(int argc, char *argv[])
 {
 	GdkDisplay *disp;
 	WnckScreen *scrn;
@@ -780,7 +881,8 @@ do_popup(int argc, char *argv[])
 	g_signal_connect(G_OBJECT(menu), "selection-done",
 			 G_CALLBACK(on_selection_done), NULL);
 	gtk_menu_popup(GTK_MENU(menu), NULL, NULL, position_menu, wind,
-		       have_button(options.button), options.timestamp);
+		       have_button(options.button),
+		       options.timestamp ? : gtk_get_current_event_time());
 	gtk_main();
 }
 
@@ -815,7 +917,7 @@ reparse(Display *dpy, Window root)
 		if (xtp.value)
 			XFree(xtp.value);
 	} else
-		DPRINTF("could not get _XDE_THEME_NAME for root 0x%lx\n", root);
+		DPRINTF(1, "could not get _XDE_THEME_NAME for root 0x%lx\n", root);
 }
 
 static GdkFilterReturn
@@ -966,7 +1068,7 @@ copying(int argc, char *argv[])
 --------------------------------------------------------------------------------\n\
 %1$s\n\
 --------------------------------------------------------------------------------\n\
-Copyright (c) 2010-2018  Monavacon Limited <http://www.monavacon.com/>\n\
+Copyright (c) 2010-2019  Monavacon Limited <http://www.monavacon.com/>\n\
 Copyright (c) 2002-2009  OpenSS7 Corporation <http://www.openss7.com/>\n\
 Copyright (c) 1997-2001  Brian F. G. Bidulock <bidulock@openss7.org>\n\
 \n\
@@ -1010,7 +1112,7 @@ version(int argc, char *argv[])
 %1$s (OpenSS7 %2$s) %3$s\n\
 Written by Brian Bidulock.\n\
 \n\
-Copyright (c) 2010, 2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018  Monavacon Limited.\n\
+Copyright (c) 2010, 2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018, 2019  Monavacon Limited.\n\
 Copyright (c) 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009  OpenSS7 Corporation.\n\
 Copyright (c) 1997, 1998, 1999, 2000, 2001  Brian F. G. Bidulock.\n\
 This is free software; see the source for copying conditions.  There is NO\n\
@@ -1071,6 +1173,8 @@ show_which(UseWindow which)
 static const char *
 show_where(MenuPosition where)
 {
+	static char position[128] = { 0, };
+
 	switch (where) {
 	case PositionDefault:
 		return ("default");
@@ -1080,6 +1184,11 @@ show_where(MenuPosition where)
 		return ("center");
 	case PositionTopLeft:
 		return ("topleft");
+	case PositionBottomRight:
+		return ("bottomright");
+	case PositionSpecified:
+		snprintf(position, sizeof(position), "0x%lx", options.window);
+		return (position);
 	case PositionIconGeom:
 		return ("icongeom");
 	}
@@ -1174,7 +1283,7 @@ get_defaults(void)
 	    && (n = strspn(++p, "0123456789")) && *(p + n) == '\0')
 		options.screen = atoi(p);
 	if (options.command == CommandDefault)
-		options.command = CommandPopup;
+		options.command = CommandRun;
 }
 
 int
@@ -1241,8 +1350,8 @@ main(int argc, char *argv[])
 			if (options.command != CommandDefault)
 				goto bad_option;
 			if (command == CommandDefault)
-				command = CommandPopup;
-			options.command = CommandPopup;
+				command = CommandRun;
+			options.command = CommandRun;
 			break;
 		case 'b':	/* -b, --button BUTTON */
 			options.button = strtoul(optarg, &endptr, 0);
@@ -1286,6 +1395,8 @@ main(int argc, char *argv[])
 				options.where = PositionCenter;
 			else if (!strncasecmp("topleft", optarg, len))
 				options.where = PositionTopLeft;
+			else if (!strncasecmp("bottomright", optarg, len))
+				options.where = PositionBottomRight;
 			else if (!strncasecmp("icongeom", optarg, len))
 				options.where = PositionIconGeom;
 			else
@@ -1388,26 +1499,36 @@ main(int argc, char *argv[])
 	get_defaults();
 	startup(argc, argv);
 	switch (command) {
-	default:
 	case CommandDefault:
-	case CommandPopup:
-		DPRINTF("%s: popping the window menu\n", argv[0]);
-		do_popup(argc, argv);
+		options.command = CommandRun;
+		__attribute__((fallthrough));
+	case CommandRun:
+		DPRINTF(1, "popping the menu\n");
+		do_run(argc, argv);
+		break;
+	case CommandPopMenu:
+		DPRINTF(1, "popping the menu\n");
+		do_run(argc, argv);
 		break;
 	case CommandHelp:
-		DPRINTF("%s: printing help message\n", argv[0]);
+		DPRINTF(1, "printing help message\n");
 		help(argc, argv);
 		break;
 	case CommandVersion:
-		DPRINTF("%s: printing version message\n", argv[0]);
+		DPRINTF(1, "printing version message\n");
 		version(argc, argv);
 		break;
 	case CommandCopying:
-		DPRINTF("%s: printing copying message\n", argv[0]);
+		DPRINTF(1, "printing copying message\n");
 		copying(argc, argv);
 		break;
+	default:
+		usage(argc, argv);
+		exit(EXIT_FAILURE);
 	}
 	exit(EXIT_SUCCESS);
 }
 
-// vim: tw=100 com=sr0\:/**,mb\:*,ex\:*/,sr0\:/*,mb\:*,ex\:*/,b\:TRANS formatoptions+=tcqlor
+/** @} */
+
+// vim: set sw=8 tw=80 com=srO\:/**,mb\:*,ex\:*/,srO\:/*,mb\:*,ex\:*/,b\:TRANS fo+=tcqlorn foldmarker=@{,@} foldmethod=marker:
