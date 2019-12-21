@@ -7596,7 +7596,7 @@ set_defaults(void)
 		/* we can get the timestamp from the startup id */
 		if ((p = strstr(env, "_TIME"))) {
 			timestamp = strtoul(p + 5, &endptr, 10);
-			if (!*endptr)
+			if (endptr && !*endptr)
 				options.timestamp = timestamp;
 		}
 		/* we can get the monitor number from the startup id */
@@ -7943,14 +7943,14 @@ main(int argc, char *argv[])
 			options.display = strdup(optarg);
 			break;
 		case 's':	/* -s, --screen SCREEN */
-			val = strtol(optarg, &endptr, 0);
-			if (*endptr)
+			val = strtoul(optarg, &endptr, 0);
+			if (endptr && *endptr)
 				goto bad_option;
 			options.screen = val;
 			break;
 		case 'M':	/* -M, --monitor MONITOR */
-			val = strtol(optarg, &endptr, 0);
-			if (*endptr)
+			val = strtoul(optarg, &endptr, 0);
+			if (endptr && *endptr)
 				goto bad_option;
 			options.monitor = val;
 			break;
@@ -7982,7 +7982,7 @@ main(int argc, char *argv[])
 		case 'b':	/* -b, --button [BUTTON] */
 			if (optarg) {
 				val = strtoul(optarg, &endptr, 0);
-				if (*endptr)
+				if (endptr && *endptr)
 					goto bad_option;
 				if (val < 0 || val > 8)
 					goto bad_option;
@@ -8012,7 +8012,7 @@ main(int argc, char *argv[])
 				options.which = UseScreenPointer;
 			else {
 				options.screen = strtoul(optarg, &endptr, 0);
-				if (*endptr)
+				if (endptr && *endptr)
 					goto bad_option;
 				options.which = UseScreenSpecified;
 			}
@@ -8064,7 +8064,7 @@ main(int argc, char *argv[])
 
 		case 'T':	/* -T, --timestamp TIMESTAMP */
 			options.timestamp = strtoul(optarg, &endptr, 0);
-			if (*endptr)
+			if (endptr && *endptr)
 				goto bad_option;
 			break;
 
@@ -8112,7 +8112,7 @@ main(int argc, char *argv[])
 			}
 			if ((val = strtol(optarg, &endptr, 0)) < 0)
 				goto bad_option;
-			if (*endptr)
+			if (endptr && *endptr)
 				goto bad_option;
 			options.debug = val;
 			break;
@@ -8124,7 +8124,7 @@ main(int argc, char *argv[])
 			}
 			if ((val = strtol(optarg, &endptr, 0)) < 0)
 				goto bad_option;
-			if (*endptr)
+			if (endptr && *endptr)
 				goto bad_option;
 			options.output = val;
 			break;
