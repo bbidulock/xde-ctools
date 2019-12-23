@@ -1,5 +1,19 @@
 # created with git log --stat=76 -M -C -500|fmt -sct -w80
 
+commit f505a9a84688cf335766333d1a396fa058f7af3e
+Author: Brian Bidulock <bidulock@openss7.org>
+Date:   Mon Dec 23 03:11:21 2019 -0700
+
+    update release files
+
+ AUTHORS      |   2 +-
+ ChangeLog    | 373 ++++++++++++++++++++++++++-----------------------------
+ NEWS         |  63 +++++++---
+ README.md    |  20 +--
+ RELEASE.md   |  12 +-
+ configure.ac |  10 +-
+ 6 files changed, 249 insertions(+), 231 deletions(-)
+
 commit a19462b721df929309d5bffb8aab6d8ac4cb56c3
 Author: Brian Bidulock <bidulock@openss7.org>
 Date:   Mon Dec 23 02:55:52 2019 -0700
@@ -5310,12 +5324,3 @@ Date:   Thu Aug 14 10:33:47 2014 -0600
  src/xde-pager.c                  |  616 +++++++++++-----
  src/{xde-pager.c => xde-setbg.c} | 1349 +++++++++++-----------------------
  9 files changed, 1648 insertions(+), 1073 deletions(-)
-
-commit 25f273265c5eb8288368d5060289e29177c1efcf
-Author: Brian Bidulock <bidulock@openss7.org>
-Date:   Sun Aug 3 06:23:17 2014 -0600
-
-    set orientation and rows
-
- src/xde-pager.c | 2 ++
- 1 file changed, 2 insertions(+)

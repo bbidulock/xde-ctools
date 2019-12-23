@@ -26,7 +26,7 @@ git tag -n100 -l 1.11
 
 git shortlog -e -n -w80,6,8 1.10...1.11
 
-Brian Bidulock <bidulock@openss7.org> (18):
+Brian Bidulock <bidulock@openss7.org> (19):
       post-release update
       remove deprecated m4 macro from configure.ac
       better fix for gcc 9.1 string truncation stupidity
@@ -45,6 +45,7 @@ Brian Bidulock <bidulock@openss7.org> (18):
       remove libxxf86misc
       Revert "remove libxxf86misc"
       remove need for libxxf86misc
+      update release files
 
 
 Release xde-ctools-1.10 released 2019-09-03
