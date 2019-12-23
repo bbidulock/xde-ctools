@@ -1,9 +1,9 @@
-[xde-ctools -- release notes.  2019-09-03]: #
+[xde-ctools -- release notes.  2019-12-23]: #
 
-Maintenance Release 1.10
+Maintenance Release 1.11
 ========================
 
-This is the tenth release of the xde-ctools package.  This package
+This is the elevent release of the xde-ctools package.  This package
 contains various tools (menus, popup, pages, feedback mechanisms) for
 the _X Desktop Environment (XDE)_.  These tools are meant to have
 minimal dependencies, GTK2-based, and each tool able to run independent
@@ -12,9 +12,9 @@ environment): they work well with many light-weight window managers.
 Not all the tools are complete, but the many that are work nicely.  The
 nice ones I use daily and are quite stable.
 
-This release is a maintenance release that simply provides better
-autoconf directory defaults and improves the build process more.
-It also gets around gcc 9.1 compiler string truncation stupidity.
+This release is a maintenance release that simply provides some build
+system updates and handles gcc 9.2 compiler better.  Also, dependency on
+libxxf86misc has been removed.
 
 Included in the release is an autoconf tarball for building the package
 from source.  See the [NEWS](NEWS) and [TODO](TODO) file in the release

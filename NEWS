@@ -1,4 +1,51 @@
-xde-ctools -- history of user-visible changes.  2019-09-03
+xde-ctools -- history of user-visible changes.  2019-12-23
+
+Release xde-ctools-1.11 released 2019-12-23
+-------------------------------------------
+
+git tag -n100 -l 1.11
+
+1.11            Maintenance Release 1.11
+
+    This is the elevent release of the xde-ctools package. This package
+    contains various tools (menus, popup, pages, feedback mechanisms) for
+    the X Desktop Environment (XDE). These tools are meant to have minimal
+    dependencies, GTK2-based, and each tool able to run independent of the
+    others (and for that matter, independent of the desktop environment):
+    they work well with many light-weight window managers. Not all the
+    tools are complete, but the many that are work nicely. The nice ones I
+    use daily and are quite stable.
+
+    This release is a maintenance release that simply provides some build
+    system updates and handles gcc 9.2 compiler better. Also, dependency on
+    libxxf86misc has been removed.
+
+    Included in the release is an autoconf tarball for building the package
+    from source. See the NEWS and TODO file in the release for more
+    information. Please report problems to the issues list on GitHub.
+
+git shortlog -e -n -w80,6,8 1.10...1.11
+
+Brian Bidulock <bidulock@openss7.org> (18):
+      post-release update
+      remove deprecated m4 macro from configure.ac
+      better fix for gcc 9.1 string truncation stupidity
+      gtk2 uses deprecated glib2 declarations
+      update copyright header
+      update copyright header
+      update copyright header
+      update copyright header
+      update copyright header
+      update copyright header
+      update copyright header
+      update copyright header
+      update copyright header
+      rationalize menu popups
+      be careful
+      remove libxxf86misc
+      Revert "remove libxxf86misc"
+      remove need for libxxf86misc
+
 
 Release xde-ctools-1.10 released 2019-09-03
 -------------------------------------------
@@ -321,19 +368,5 @@ Brian Bidulock <bidulock@openss7.org> (57):
       kill temporaries now too
       strict prototypes
       more rationalization
-      update release files
-
-
-Release xde-ctools-1.4 released 2016-07-12
-------------------------------------------
-
-git shortlog -e -n -w80,6,8 1.3...1.4
-
-Brian Bidulock <bidulock@openss7.org> (6):
-      git hates trailing space
-      better formatting
-      limit changelog
-      added xde-input to ctools
-      move xde-setbg .desktop files here from xde-session
       update release files
 
