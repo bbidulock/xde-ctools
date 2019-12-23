@@ -106,7 +106,9 @@
 #endif
 #include <X11/extensions/scrnsaver.h>
 #include <X11/extensions/dpms.h>
+#ifdef XF86MISC
 #include <X11/extensions/xf86misc.h>
+#endif
 #include <X11/XKBlib.h>
 #ifdef STARTUP_NOTIFICATION
 #define SN_API_NOT_YET_FROZEN
@@ -692,7 +694,9 @@ typedef struct {
 	Bool ScreenSaver;		/* support for extension ScreenSaver */
 	Bool DPMS;			/* support for extension DPMS */
 	Bool XKeyboard;			/* support for extension XKEYBOARD */
+#ifdef XF86MISC
 	Bool XF86Misc;			/* support for extension XF86MISC */
+#endif
 	Bool RANDR;			/* suppott for extension RANDR */
 } Support;
 
@@ -735,6 +739,7 @@ typedef struct {
 		CARD16 suspend;
 		CARD16 off;
 	} DPMS;
+#ifdef XF86MISC
 	struct {
 		int event;		/* event base */
 		int error;		/* error base */
@@ -743,6 +748,7 @@ typedef struct {
 		XF86MiscMouseSettings mouse;
 		XF86MiscKbdSettings keyboard;
 	} XF86Misc;
+#endif
 	struct {
 		int event;		/* event base */
 		int error;		/* error base */
@@ -801,6 +807,7 @@ typedef struct {
 		GtkWidget *MouseKeysMaxSpeed;
 		GtkWidget *MouseKeysCurve;
 	} XKeyboard;
+#ifdef XF86MISC
 	struct {
 		GtkWidget *KeyboardRate;
 		GtkWidget *KeyboardDelay;
@@ -808,6 +815,7 @@ typedef struct {
 		GtkWidget *MouseEmulate3Timeout;
 		GtkWidget *MouseChordMiddle;
 	} XF86Misc;
+#endif
 } Controls;
 
 Controls controls;
@@ -857,6 +865,7 @@ typedef struct {
 		unsigned int MouseKeysMaxSpeed;
 		unsigned int MouseKeysCurve;
 	} XKeyboard;
+#ifdef XF86MISC
 	struct {
 		unsigned int KeyboardRate;
 		unsigned int KeyboardDelay;
@@ -864,6 +873,7 @@ typedef struct {
 		unsigned int MouseEmulate3Timeout;
 		Bool MouseChordMiddle;
 	} XF86Misc;
+#endif
 } Resources;
 
 Resources resources = {
@@ -874,7 +884,9 @@ static const char *KFG_Keyboard = "Keyboard";
 static const char *KFG_XKeyboard = "XKeyboard";
 static const char *KFG_ScreenSaver = "ScreenSaver";
 static const char *KFG_DPMS = "DPMS";
+#ifdef XF86MISC
 const char *KFG_XF86Misc = "XF86Misc";
+#endif
 
 static const char *KFK_Pointer_AccelerationDenominator = "AccelerationDenominator";
 static const char *KFK_Pointer_AccelerationNumerator = "AccelerationNumerator";
@@ -937,11 +949,13 @@ static const char *KFK_DPMS_StandbyTimeout = "StandbyTimeout";
 static const char *KFK_DPMS_State = "State";
 static const char *KFK_DPMS_SuspendTimeout = "SuspendTimeout";
 
+#ifdef XF86MISC
 const char *KFK_XF86Misc_KeyboardRate = "KeyboardRate";
 const char *KFK_XF86Misc_KeyboardDelay = "KeyboardDelay";
 const char *KFK_XF86Misc_MouseEmulate3Buttons = "MouseEmulate3Buttons";
 const char *KFK_XF86Misc_MouseEmulate3Timeout = "MouseEmulate3Timeout";
 const char *KFK_XF86Misc_MouseChordMiddle = "MouseChordMiddle";
+#endif
 
 /** @} */
 
@@ -1059,6 +1073,7 @@ edit_set_values(void)
 		flag = g_key_file_get_boolean(file, KFG_DPMS, KFK_DPMS_State, NULL);
 		gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(controls.DPMS.State), flag);
 	}
+#ifdef XF86MISC
 	if (support.XF86Misc) {
 		value = g_key_file_get_integer(file, KFG_XF86Misc, KFK_XF86Misc_KeyboardRate, NULL);
 		gtk_range_set_value(GTK_RANGE(controls.XF86Misc.KeyboardRate), value);
@@ -1071,6 +1086,7 @@ edit_set_values(void)
 		flag = g_key_file_get_boolean(file, KFG_XF86Misc, KFK_XF86Misc_MouseChordMiddle, NULL);
 		gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(controls.XF86Misc.MouseChordMiddle), flag);
 	}
+#endif
 }
 
 /** @brief read input settings
@@ -1557,6 +1573,7 @@ edit_get_values(void)
 			g_key_file_set_string(file, KFG_XKeyboard, KFK_XKeyboard_AccessXTimeoutValues, buf);
 		}
 	}
+#ifdef XF86MISC
 	if (support.XF86Misc) {
 		XF86MiscGetKbdSettings(dpy, &state.XF86Misc.keyboard);
 		g_key_file_set_integer(file, KFG_XF86Misc,
@@ -1574,6 +1591,7 @@ edit_get_values(void)
 				       KFK_XF86Misc_MouseChordMiddle,
 				       state.XF86Misc.mouse.chordmiddle ? TRUE : FALSE);
 	}
+#endif
 	PTRACE(5);
 }
 
@@ -1806,6 +1824,7 @@ init_extensions(void)
 		support.DPMS = False;
 		DPRINTF(1, "DPMS: not supported\n");
 	}
+#ifdef XF86MISC
 	if (XF86MiscQueryExtension(dpy, &state.XF86Misc.event, &state.XF86Misc.error) &&
 	    XF86MiscQueryVersion(dpy, &state.XF86Misc.major_version, &state.XF86Misc.minor_version)) {
 		support.XF86Misc = True;
@@ -1817,6 +1836,7 @@ init_extensions(void)
 		support.XF86Misc = False;
 		DPRINTF(1, "XF86Misc: not supported\n");
 	}
+#endif
 	if (XRRQueryExtension(dpy, &state.RANDR.event, &state.RANDR.error) &&
 	    XRRQueryVersion(dpy, &state.RANDR.major_version, &state.RANDR.minor_version)) {
 		support.RANDR = True;
@@ -2464,6 +2484,7 @@ activate_off_clicked(GtkButton *button, gpointer user_data)
 	DPMSForceLevel(dpy, DPMSModeOff);
 }
 
+#ifdef XF86MISC
 static void
 keyboard_rate_value_changed(GtkRange * range, gpointer user_data)
 {
@@ -2535,6 +2556,7 @@ chord_middle_toggled(GtkToggleButton * button, gpointer user_data)
 	XF86MiscSetMouseSettings(dpy, &state.XF86Misc.mouse);
 	reprocess_input();
 }
+#endif
 
 GtkWindow *
 create_window(void)
@@ -3104,6 +3126,7 @@ monitor will be turned off.  A typical value is\n\
 		g_signal_connect(G_OBJECT(h), "value-changed", G_CALLBACK(off_timeout_value_changed), NULL);
 		controls.DPMS.OffTimeout = h;
 	}
+#ifdef XF86MISC
 	if (support.XF86Misc) {
 		v = gtk_vbox_new(FALSE, 5);
 		gtk_container_set_border_width(GTK_CONTAINER(v), 5);
@@ -3181,6 +3204,7 @@ considered independent.");
 		g_signal_connect(G_OBJECT(u), "toggled", G_CALLBACK(chord_middle_toggled), NULL);
 		controls.XF86Misc.MouseChordMiddle = u;
 	}
+#endif
 
 	return (w);
 }
@@ -6045,6 +6069,7 @@ put_resources(void)
 		put_resource(rdb, "xKeyboard.mouseKeysMaxSpeed", val);
 	if ((val = putXrmUint(resources.XKeyboard.MouseKeysCurve)))
 		put_resource(rdb, "xKeyboard.mouseKeysCurve", val);
+#ifdef XF86MISC
 	if ((val = putXrmUint(resources.XF86Misc.KeyboardRate)))
 		put_resource(rdb, "xF86Misc.keyboardRate", val);
 	if ((val = putXrmUint(resources.XF86Misc.KeyboardDelay)))
@@ -6055,6 +6080,7 @@ put_resources(void)
 		put_resource(rdb, "xF86Misc.mouseEmulate3Timeout", val);
 	if ((val = putXrmBool(resources.XF86Misc.MouseChordMiddle)))
 		put_resource(rdb, "xF86Misc.mouseChordMiddle", val);
+#endif
 	if ((val = putXrmBool(options.systray)))
 		put_resource(rdb, "systray", val);
 	if ((val = putXrmBool(options.tooltips)))
@@ -6676,6 +6702,7 @@ get_resources(void)
 		getXrmUint(val, &resources.XKeyboard.MouseKeysMaxSpeed);
 	if ((val = get_resource(rdb, "xKeyboard.mouseKeysCurve", NULL)))
 		getXrmUint(val, &resources.XKeyboard.MouseKeysCurve);
+#ifdef XF86MISC
 	if ((val = get_resource(rdb, "xF86Misc.keyboardRate", NULL)))
 		getXrmUint(val, &resources.XF86Misc.KeyboardRate);
 	if ((val = get_resource(rdb, "xF86Misc.keyboardDelay", NULL)))
@@ -6686,6 +6713,7 @@ get_resources(void)
 		getXrmUint(val, &resources.XF86Misc.MouseEmulate3Timeout);
 	if ((val = get_resource(rdb, "xF86Misc.mouseChordMiddle", NULL)))
 		getXrmBool(val, &resources.XF86Misc.MouseChordMiddle);
+#endif
 	if ((val = get_resource(rdb, "sysTray", NULL)))
 		getXrmBool(val, &options.systray);
 	if ((val = get_resource(rdb, "tooltips", "false")))

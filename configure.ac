@@ -115,7 +115,6 @@ PKG_CHECK_MODULES([X11],[x11])
 PKG_CHECK_MODULES([XEXT],[xext])
 PKG_CHECK_MODULES([XAU],[xau])
 PKG_CHECK_MODULES([XSCRNSAVER],[xscrnsaver])
-PKG_CHECK_MODULES([XF86MISC],[xxf86misc])
 PKG_CHECK_MODULES([XDMCP],[xdmcp])
 PKG_CHECK_MODULES([ICE],[ice])
 PKG_CHECK_MODULES([SMLIB],[sm])
@@ -131,6 +130,19 @@ PKG_CHECK_MODULES([UNIQUE],[unique-1.0])
 PKG_CHECK_MODULES([WNCK],[libwnck-1.0])
 PKG_CHECK_MODULES([CAIRO],[cairo])
 PKG_CHECK_MODULES([SYSTEMD],[libsystemd])
+
+AC_ARG_ENABLE([xxf86misc],
+	AC_HELP_STRING([--disable-xxf86misc],
+		[Disable XF86MISC support @<:@default=auto@:>@]))
+if test "x$enable_xxf86misc" != xno ; then
+	PKG_CHECK_MODULES([XF86MISC],[xxf86misc],
+		[AC_DEFINE([XF86MISC],[1],[Define to 1 to support XF86MISC extension.])],
+		[enable_xxf86misc=no])
+fi
+AM_CONDITIONAL([XF86MISC],[test "x$enable_xxf86misc" != xno])
+AC_MSG_CHECKING([for XF86MISC support])
+AC_MSG_RESULT([${enable_xxf86misc:-yes}])
+AM_CONDITIONAL([HAVE_XF86MISC],[test  "x$enable_xxf86msic" != "xno"])
 
 AC_ARG_ENABLE([xrandr],
 	AC_HELP_STRING([--disable-xrandr],

@@ -33,7 +33,8 @@ esac
 	CXXFLAGS="$DEBUG_CXXFLAGS -Wall -Werror -Wno-deprecated-declarations $CXXFLAGS" \
 	LDFLAGS="$LDFLAGS" \
 	DEBUG_CFLAGS="$DEBUG_CFLAGS" \
-	DEBUG_CXXFLAGS="$DEBUG_CXXFLAGS"
+	DEBUG_CXXFLAGS="$DEBUG_CXXFLAGS" \
+	--disable-xxf86misc
 
 # cscope target won't work without this
 #
