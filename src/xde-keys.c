@@ -178,26 +178,37 @@ Options options = {
 void
 do_run(int argc, char *argv[], Bool replace)
 {
+	(void) argc;
+	(void) argv;
+	(void) replace;
 }
 
 void
 do_replace(int argc, char *argv[])
 {
+	(void) argc;
+	(void) argv;
 }
 
 void
 do_quit(int argc, char *argv[])
 {
+	(void) argc;
+	(void) argv;
 }
 
 void
 do_edit(int argc, char *argv[])
 {
+	(void) argc;
+	(void) argv;
 }
 
 static void
 copying(int argc, char *argv[])
 {
+	(void) argc;
+	(void) argv;
 	if (!options.output && !options.debug)
 		return;
 	(void) fprintf(stdout, "\
@@ -242,6 +253,8 @@ regulations).\n\
 static void
 version(int argc, char *argv[])
 {
+	(void) argc;
+	(void) argv;
 	if (!options.output && !options.debug)
 		return;
 	(void) fprintf(stdout, "\
@@ -264,6 +277,7 @@ See `%1$s --copying' for copying permissions.\n\
 static void
 usage(int argc, char *argv[])
 {
+	(void) argc;
 	if (!options.output && !options.debug)
 		return;
 	(void) fprintf(stderr, "\
@@ -289,6 +303,7 @@ show_bool(Bool val)
 static void
 help(int argc, char *argv[])
 {
+	(void) argc;
 	if (!options.output && !options.debug)
 		return;
         /* *INDENT-OFF* */
@@ -356,6 +371,8 @@ set_defaults(int argc, char *argv[])
 {
 	char *p;
 
+	(void) argc;
+	(void) argv;
 	if ((p = getenv("XDE_DEBUG")))
 		options.debug = atoi(p);
 	if ((p = getenv("DISPLAY")))
