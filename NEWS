@@ -1,4 +1,55 @@
-xde-ctools -- history of user-visible changes.  2019-12-23
+xde-ctools -- history of user-visible changes.  2020-02-11
+
+Release xde-ctools-1.12 released 2020-02-11
+-------------------------------------------
+
+git tag -n100 -l 1.12
+
+1.12            Maintenance Release 1.12
+
+    This is the twelfth release of the xde-ctools package. This package
+    contains various tools (menus, popup, pages, feedback mechanisms) for
+    the X Desktop Environment (XDE). These tools are meant to have minimal
+    dependencies, GTK2-based, and each tool able to run independent of the
+    others (and for that matter, independent of the desktop environment):
+    they work well with many light-weight window managers. Not all the
+    tools are complete, but the many that are work nicely. The nice ones I
+    use daily and are quite stable.
+
+    This release is a maintenance release that simply provides some build
+    system updates and test compiles with -Wextra flag.
+
+    Included in the release is an autoconf tarball for building the package
+    from source. See the NEWS and TODO file in the release for more
+    information. Please report problems to the issues list on GitHub.
+
+git shortlog -e -n -w80,6,8 1.11...1.12
+
+Brian Bidulock <bidulock@openss7.org> (23):
+      post-release update
+      better cscope and MDOCDATE
+      fixups for -Wextra
+      fixups for -Wextra
+      fixups for -Wextra
+      fixups for -Wextra
+      fixups for -Wextra
+      fixups for -Wextra
+      fixups for -Wextra
+      fixups for -Wextra
+      fixups for -Wextra
+      fixups for -Wextra
+      fixups for -Wextra
+      fixups for -Wextra
+      fixups for -Wextra
+      fixups for -Wextra
+      fixups for -Wextra
+      fixups for -Wextra
+      fixups for -Wextra
+      fixups for -Wextra
+      fixups for -Wextra
+      fixups for -Wextra
+      update copyright headers
+
 
 Release xde-ctools-1.11 released 2019-12-23
 -------------------------------------------
@@ -305,69 +356,4 @@ Brian Bidulock <bidulock@openss7.org> (26):
       update TODO
       update release files
       update changelog
-
-
-Release xde-ctools-1.5 released 2017-07-27
-------------------------------------------
-
-git shortlog -e -n -w80,6,8 1.4...1.5
-
-Brian Bidulock <bidulock@openss7.org> (57):
-      correct a few problems with blanking and exposures
-      start of a feedback for launchers
-      xde-monitor knows about autostart and xsession now
-      xde-monitor feedback working better
-      xde-monitor works ok: now themes
-      a few fixups
-      working up new xde-monitor
-      working up new approach to several tools
-      working up various tools
-      correct sequence handling
-      compiles, working up feedback
-      add resource get and put
-      big workup compiles
-      find the correct monitor
-      convert to use monitors
-      rationalize
-      rationalize
-      rationalize
-      updates from xde-menu, compiles
-      rationalize xde-winlist
-      rationalize xde-wkspmenu
-      more rationalization
-      more rationalization
-      more rationalization of similar programs
-      more rationalization of popup programs
-      rationalize xde-places
-      more updates to common methods
-      xde-monitor works good now
-      update TODO
-      note monitor todos
-      compiles
-      still compiles
-      rationalize back to xde-menu
-      rationalize to xde-menu
-      install app-defaults files
-      add more app-defaults
-      rationalize xde-wkspmenu
-      rationalize menus
-      correct xde-setbg
-      propagage xde-setbg changes to xde-pager
-      rationalize some more
-      xde-pager works now
-      rationalize back
-      some manual updates
-      missed one when rationalizing
-      do not mess with default sizes
-      missed two programs on last rationalization
-      fix DPMS state and file places
-      resize icon view on deletion
-      display when killing pixmap clients
-      add timestamps to debug messages
-      try just freeing old pixmaps
-      do not us temporary pixmaps
-      kill temporaries now too
-      strict prototypes
-      more rationalization
-      update release files
 
