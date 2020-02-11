@@ -186,6 +186,8 @@ Options defaults = {
 static void
 copying(int argc, char *argv[])
 {
+	(void) argc;
+	(void) argv;
 	if (!options.output && !options.debug)
 		return;
 	(void) fprintf(stdout, "\
@@ -230,6 +232,8 @@ regulations).\n\
 static void
 version(int argc, char *argv[])
 {
+	(void) argc;
+	(void) argv;
 	if (!options.output && !options.debug)
 		return;
 	(void) fprintf(stdout, "\
@@ -252,6 +256,7 @@ See `%1$s --copying' for copying permissions.\n\
 static void
 usage(int argc, char *argv[])
 {
+	(void) argc;
 	if (!options.output && !options.debug)
 		return;
 	(void) fprintf(stderr, "\
@@ -266,6 +271,7 @@ Usage:\n\
 static void
 help(int argc, char *argv[])
 {
+	(void) argc;
 	if (!options.output && !options.debug)
 		return;
 	(void) fprintf(stdout, "\
@@ -342,6 +348,8 @@ xbel_start_element(GMarkupParseContext *ctx, const gchar *name, const gchar
 	GList *item = g_list_last(*list);
 	RecentItem *mark = item ? item->data : NULL;
 
+	(void) ctx;
+	(void) err;
 	if (!strcmp(name, "xbel")) {
 	} else if (!strcmp(name, "bookmark")) {
 		struct tm tm = { 0, };
@@ -440,6 +448,7 @@ xbel_text(GMarkupParseContext *ctx, const gchar *text, gsize len, gpointer user,
 	RecentItem *mark = item ? item->data : NULL;
 	const gchar *name;
 
+	(void) err;
 	name = g_markup_parse_context_get_element(ctx);
 
 	if (!strcmp(name, "xbel")) {
@@ -636,6 +645,10 @@ recent_start_element(GMarkupParseContext *ctx, const gchar *name, const gchar **
 	GList *item = g_list_last(*list);
 	RecentItem *mark = item ? item->data : NULL;
 
+	(void) ctx;
+	(void) attrs;
+	(void) values;
+	(void) err;
 	if (!strcmp(name, "RecentItem")) {
 		if (!(mark = calloc(1, sizeof(*mark)))) {
 			EPRINTF("could not allocate element\n");
@@ -658,6 +671,7 @@ recent_text(GMarkupParseContext *ctx, const gchar *text, gsize len, gpointer use
 	char *buf, *end = NULL;
 	unsigned long int val;
 
+	(void) err;
 	name = g_markup_parse_context_get_element(ctx);
 
 	if (!strcmp(name, "URI")) {
@@ -1024,6 +1038,8 @@ on_entry_changed(GtkTextBuffer *textbuffer, gpointer data)
 	char *p;
 	const char *command = gtk_entry_get_text(GTK_ENTRY(entry));
 
+	(void) textbuffer;
+	(void) data;
 	if (command && *command) {
 		char *copy = strdup(command);
 
@@ -1038,6 +1054,7 @@ on_entry_changed(GtkTextBuffer *textbuffer, gpointer data)
 void
 on_file_response(GtkDialog *dialog, gint response_id, gpointer data)
 {
+	(void) data;
 	if (response_id == GTK_RESPONSE_OK || response_id == 0) {
 		char *file = gtk_file_chooser_get_filename(GTK_FILE_CHOOSER(dialog));
 		const char *text = gtk_entry_get_text(GTK_ENTRY(entry));
@@ -1062,6 +1079,8 @@ on_file_clicked(GtkButton *button, gpointer data)
 							GTK_STOCK_CANCEL, GTK_RESPONSE_CANCEL,
 							GTK_STOCK_OK, GTK_RESPONSE_OK, NULL);
 
+	(void) button;
+	(void) data;
 	g_signal_connect(G_OBJECT(choose), "response", G_CALLBACK(on_file_response), NULL);
 	gtk_dialog_run(GTK_DIALOG(choose));
 }
@@ -1071,6 +1090,7 @@ on_dialog_response(GtkDialog *dialog, gint response_id, gpointer data)
 {
 	GList **hist = data, *item;
 
+	(void) dialog;
 	if (response_id == GTK_RESPONSE_OK || response_id == 0) {
 		char *command;
 		const char *text;
@@ -1132,6 +1152,7 @@ on_dialog_response(GtkDialog *dialog, gint response_id, gpointer data)
 void
 on_entry_activate(GtkEntry *entry, gpointer data)
 {
+	(void) entry;
 	gtk_signal_emit_by_name(GTK_OBJECT(dialog), "response", GTK_RESPONSE_OK, data);
 }
 
@@ -1322,6 +1343,7 @@ filter_handler(GdkXEvent *xevent, GdkEvent *event, gpointer data)
 	XEvent *xev = (typeof(xev)) xevent;
 	Display *dpy = data;
 
+	(void) event;
 	return handle_event(dpy, xev);
 }
 
