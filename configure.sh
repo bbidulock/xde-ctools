@@ -29,13 +29,10 @@ esac
 	--enable-maintainer-mode \
 	--enable-dependency-tracking \
 	CPPFLAGS="$CPPFLAGS" \
-	CFLAGS="$DEBUG_CFLAGS -Wall -Werror -Wno-deprecated-declarations $CFLAGS" \
-	CXXFLAGS="$DEBUG_CXXFLAGS -Wall -Werror -Wno-deprecated-declarations $CXXFLAGS" \
+	CFLAGS="$DEBUG_CFLAGS -Wall -Wextra -Werror -Wno-deprecated-declarations $CFLAGS" \
+	CXXFLAGS="$DEBUG_CXXFLAGS -Wall -Wextra -Werror -Wno-deprecated-declarations $CXXFLAGS" \
 	LDFLAGS="$LDFLAGS" \
 	DEBUG_CFLAGS="$DEBUG_CFLAGS" \
 	DEBUG_CXXFLAGS="$DEBUG_CXXFLAGS" \
 	--disable-xxf86misc
 
-# cscope target won't work without this
-#
-[ -f po/Makefile ] && echo -e '\n%:\n\t@:\n\n' >> po/Makefile
