@@ -25,7 +25,7 @@ git tag -n100 -l 1.12
 
 git shortlog -e -n -w80,6,8 1.11...1.12
 
-Brian Bidulock <bidulock@openss7.org> (23):
+Brian Bidulock <bidulock@openss7.org> (24):
       post-release update
       better cscope and MDOCDATE
       fixups for -Wextra
@@ -49,6 +49,7 @@ Brian Bidulock <bidulock@openss7.org> (23):
       fixups for -Wextra
       fixups for -Wextra
       update copyright headers
+      update release files
 
 
 Release xde-ctools-1.11 released 2019-12-23
