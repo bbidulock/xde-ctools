@@ -386,12 +386,15 @@ find_screen(GdkDisplay *disp)
 WnckWindow *
 find_specified_window(GdkDisplay *disp, WnckScreen *scrn)
 {
+	(void) disp;
+	(void) scrn;
 	return wnck_window_get(options.window);
 }
 
 WnckWindow *
 find_active_window(GdkDisplay *disp, WnckScreen *scrn)
 {
+	(void) disp;
 	return wnck_screen_get_active_window(scrn);
 }
 
@@ -558,6 +561,7 @@ position_pointer(GtkMenu *menu, WnckWindow *wind, gint *x, gint *y)
 {
 	GdkDisplay *disp;
 
+	(void) wind;
 	PTRACE(1);
 	disp = gtk_widget_get_display(GTK_WIDGET(menu));
 	gdk_display_get_pointer(disp, NULL, x, y, NULL);
@@ -584,6 +588,7 @@ position_topleft(GtkMenu *menu, WnckWindow *wind, gint *x, gint *y)
 {
 	int cx, cy, cw, ch;
 
+	(void) menu;
 	PTRACE(1);
 	wnck_window_get_client_window_geometry(wind, &cx, &cy, &cw, &ch);
 
@@ -618,7 +623,7 @@ position_icongeom(GtkMenu *menu, WnckWindow *wind, gint *x, gint *y)
 	GtkRequisition req;
 	XWMIconGeometry xig;
 	GdkScreen *scrn;
-	int height;
+	unsigned long height;
 
 	PTRACE(1);
 	disp = gtk_widget_get_display(GTK_WIDGET(menu));
@@ -634,7 +639,7 @@ position_icongeom(GtkMenu *menu, WnckWindow *wind, gint *x, gint *y)
 	height = gdk_screen_get_height(scrn);
 
 	*x = xig.x;
-	*y = (xig.y + xig.height < height / 2) ? xig.y + xig.height : xig.y - req.height;
+	*y = (xig.y + xig.height < height / 2) ? (int) (xig.y + xig.height) : (int) (xig.y - req.height);
 
 	return TRUE;
 }
@@ -648,6 +653,7 @@ position_center_monitor(GtkMenu *menu, WnckWindow *wind, gint *x, gint *y)
 	gint px, py, nmon;
 	GtkRequisition req;
 
+	(void) wind;
 	PTRACE(1);
 	disp = gtk_widget_get_display(GTK_WIDGET(menu));
 	gdk_display_get_pointer(disp, &scrn, &px, &py, NULL);
@@ -739,6 +745,7 @@ position_menu(GtkMenu *menu, gint *x, gint *y, gboolean *push_in, gpointer user_
 	WnckWindow *wind = (typeof(wind)) user_data;
 	gboolean visible = is_visible(menu, wind);
 
+	(void) push_in;
 	switch (options.where) {
 	case PositionDefault:
 		if (options.button) {
@@ -812,6 +819,8 @@ position_menu(GtkMenu *menu, gint *x, gint *y, gboolean *push_in, gpointer user_
 void
 on_selection_done(GtkMenuShell *menushell, gpointer user_data)
 {
+	(void) menushell;
+	(void) user_data;
 	gtk_main_quit();
 }
 
@@ -861,6 +870,8 @@ do_run(int argc, char *argv[])
 	WnckWindow *wind;
 	GtkWidget *menu;
 
+	(void) argc;
+	(void) argv;
 	if (!(disp = gdk_display_get_default())) {
 		EPRINTF("cannot get default display\n");
 		exit(EXIT_FAILURE);
@@ -993,11 +1004,12 @@ handle_event(Display *dpy, XEvent *xev)
 }
 
 static GdkFilterReturn
-filter_handler(GdkXEvent * xevent, GdkEvent * event, gpointer data)
+filter_handler(GdkXEvent *xevent, GdkEvent *event, gpointer data)
 {
 	XEvent *xev = (typeof(xev)) xevent;
 	Display *dpy = data;
 
+	(void) event;
 	return handle_event(dpy, xev);
 }
 
@@ -1062,6 +1074,8 @@ startup(int argc, char *argv[])
 static void
 copying(int argc, char *argv[])
 {
+	(void) argc;
+	(void) argv;
 	if (!options.output && !options.debug)
 		return;
 	(void) fprintf(stdout, "\
@@ -1106,6 +1120,8 @@ regulations).\n\
 static void
 version(int argc, char *argv[])
 {
+	(void) argc;
+	(void) argv;
 	if (!options.output && !options.debug)
 		return;
 	(void) fprintf(stdout, "\
@@ -1128,6 +1144,7 @@ See `%1$s --copying' for copying permissions.\n\
 static void
 usage(int argc, char *argv[])
 {
+	(void) argc;
 	if (!options.output && !options.debug)
 		return;
 	(void) fprintf(stderr, "\
@@ -1144,6 +1161,7 @@ show_window(Window win)
 {
 	static char window[64] = { 0, };
 
+	(void) win;
 	if (!options.window)
 		return ("None");
 	snprintf(window, sizeof(window), "0x%lx", options.window);
@@ -1198,6 +1216,7 @@ show_where(MenuPosition where)
 static void
 help(int argc, char *argv[])
 {
+	(void) argc;
 	if (!options.output && !options.debug)
 		return;
 	/* *INDENT-OFF* */
