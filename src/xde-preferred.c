@@ -224,6 +224,8 @@ Options options = {
 static void
 copying(int argc, char *argv[])
 {
+	(void) argc;
+	(void) argv;
 	if (!options.output && !options.debug)
 		return;
 	(void) fprintf(stdout, "\
@@ -268,6 +270,8 @@ regulations).\n\
 static void
 version(int argc, char *argv[])
 {
+	(void) argc;
+	(void) argv;
 	if (!options.output && !options.debug)
 		return;
 	(void) fprintf(stdout, "\
@@ -290,6 +294,7 @@ See `%1$s --copying' for copying permissions.\n\
 static void
 usage(int argc, char *argv[])
 {
+	(void) argc;
 	if (!options.output && !options.debug)
 		return;
 	(void) fprintf(stderr, "\
@@ -356,6 +361,7 @@ show_kind(Kind kind)
 static void
 help(int argc, char *argv[])
 {
+	(void) argc;
 	if (!options.output && !options.debug)
 		return;
 	/* *INDENT-OFF* */
@@ -449,6 +455,7 @@ check_type(int argc, char *argv[])
 {
 	char *t, *p;
 
+	(void) argc;
 	if ((t = options.type)) {
 		if ((p = strchr(options.type, '/'))) {
 			options.types = g_list_append(options.types, t);
@@ -596,16 +603,22 @@ check_type(int argc, char *argv[])
 void
 startup(int argc, char *argv[])
 {
+	(void) argc;
+	(void) argv;
 }
 
 void
 do_launch(int argc, char *argv[])
 {
+	(void) argc;
+	(void) argv;
 }
 
 void
 do_list(int argc, char *argv[])
 {
+	(void) argc;
+	(void) argv;
 	if (!options.type && !options.category) {
 		EPRINTF("%s: must specify content type or category\n", argv[0]);
 		exit(EXIT_SYNTAXERR);
@@ -615,11 +628,15 @@ do_list(int argc, char *argv[])
 void
 do_setapp(int argc, char *argv[])
 {
+	(void) argc;
+	(void) argv;
 }
 
 void
 do_editapps(int argc, char *argv[])
 {
+	(void) argc;
+	(void) argv;
 }
 
 int
