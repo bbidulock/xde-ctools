@@ -5829,19 +5829,74 @@ window_closed(WnckScreen *wnck, WnckWindow *window, gpointer user)
 	XdeScreen *xscr = user;
 	ca_context *ca = ca_gtk_context_get_for_screen(xscr->scrn);
 	ca_proplist *pl = NULL;
+	int r, x = 0, y = 0, width = 0, height = 0;
 	const char *id;
-	int r;
 
 	(void) window;
 	clients_changed(wnck, xscr);
 
-	/* FIXME: add X11 info to properties */
 	ca_context_cancel(ca, CaEventWindowChange);
 	if ((r = ca_proplist_create(&pl)) < 0) {
 		EPRINTF("Cannot create property list: %s\n", ca_strerror(r));
 		return;
 	}
 	ca_proplist_sets(pl, CA_PROP_CANBERRA_CACHE_CONTROL, "volatile");
+	/* CA_PROP_WINDOW_NAME: the name of this window as human readable string. */
+	if ((r = ca_proplist_sets(pl, CA_PROP_WINDOW_NAME, wnck_window_get_name(window))) < 0)
+		EPRINTF("Cannot set window name: %s\n", ca_strerror(r));
+	/* CA_PROP_WINDOW_ID: identification string for this window */
+	if ((id = wnck_window_get_session_id(window))) {
+		if ((r = ca_proplist_setf(pl, CA_PROP_WINDOW_ID, "%s#%s", wnck_window_get_name(window), id)) < 0)
+			EPRINTF("Cannot set window id: %s\n", ca_strerror(r));
+	} else {
+		if ((r = ca_proplist_setf(pl, CA_PROP_WINDOW_ID, "%s", wnck_window_get_name(window))) < 0)
+			EPRINTF("Cannot set window id: %s\n", ca_strerror(r));
+	}
+	/* CA_PROP_WINDOW_ICON: binary icon data in PNG format */
+	/* CA_PROP_WINDOW_ICON_NAME: icon name as string */
+	if ((r = ca_proplist_sets(pl, CA_PROP_WINDOW_ICON_NAME, wnck_window_get_icon_name(window))) < 0)
+		EPRINTF("Cannot set window icon name: %s\n", ca_strerror(r));
+
+	wnck_window_get_client_window_geometry(window, &x, &y, &width, &height);
+	/* CA_PROP_WINDOW_X: x coordinate of window */
+	if ((r = ca_proplist_setf(pl, CA_PROP_WINDOW_X, "%i", x)) < 0)
+		EPRINTF("Cannot set window x coord: %s\n", ca_strerror(r));
+	/* CA_PROP_WINDOW_Y: Y coordinate of window */
+	if ((r = ca_proplist_setf(pl, CA_PROP_WINDOW_Y, "%i", y)) < 0)
+		EPRINTF("Cannot set window y coord: %s\n", ca_strerror(r));
+	/* CA_PROP_WINDOW_WIDTH: pixel width of window */
+	if ((r = ca_proplist_setf(pl, CA_PROP_WINDOW_WIDTH, "%i", width)) < 0)
+		EPRINTF("Cannot set window width: %s\n", ca_strerror(r));
+	/* CA_PROP_WINDOW_HEIGHT: pixel height of window */
+	if ((r = ca_proplist_setf(pl, CA_PROP_WINDOW_HEIGHT, "%i", height)) < 0)
+		EPRINTF("Cannot set window height: %s\n", ca_strerror(r));
+
+	/* CA_PROP_WINDOW_HPOS: horizontal position (0.0 to 1.0) as string of window */
+	/* CA_PROP_WINDOW_VPOS: vertical position (0.0 to 1.0) as string of window */
+
+	/* CA_PROP_WINDOW_DESKTOP: comma separated string (null string for omnipresent) */
+	if (wnck_window_is_pinned(window)) {
+		if ((r = ca_proplist_sets(pl, CA_PROP_WINDOW_DESKTOP, "")) < 0)
+			EPRINTF("Cannot set window desktop: %s\n", ca_strerror(r));
+	} else {
+#if 0
+		/* FIXME */
+		char *desktops = calloc(PATH_MAX + 1, sizeof(*desktops));
+#endif
+	}
+
+	/* CA_PROP_WINDOW_X11_DISPLAY: display as string (e.g. :0) */
+	if ((r = ca_proplist_sets(pl, CA_PROP_WINDOW_X11_DISPLAY, gdk_display_get_name(disp))) < 0)
+		EPRINTF("Cannot set display: %s\n", ca_strerror(r));
+	/* CA_PROP_WINDOW_X11_SCREEN: screen as string (e.g. 0) */
+	if ((r = ca_proplist_setf(pl, CA_PROP_WINDOW_X11_SCREEN, "%i", gdk_screen_get_number(xscr->scrn))) < 0)
+		EPRINTF("Cannot set screen: %s\n", ca_strerror(r));
+	/* CA_PROP_WINDOW_X11_MONITOR: monitor as string (e.g. 0) */
+	if ((r = ca_proplist_setf(pl, CA_PROP_WINDOW_X11_MONITOR, "%i", gdk_screen_get_monitor_at_point(xscr->scrn, x, y))) < 0)
+		EPRINTF("Cannot set monitor: %s\n", ca_strerror(r));
+	/* CA_PROP_WINDOW_X11_XID: XID formatted as string */
+	if ((r = ca_proplist_setf(pl, CA_PROP_WINDOW_X11_XID, "%lu", (unsigned long) wnck_window_get_xid(window))) < 0)
+		EPRINTF("Cannot set window xid: %s\n", ca_strerror(r));
 	ca_proplist_sets(pl, CA_PROP_EVENT_ID, (id = "window-close"));
 	if ((r = ca_context_play_full(ca, CaEventWindowChange, pl, NULL, NULL)) < 0)
 		EPRINTF("Cannot play %s: %s\n", id, ca_strerror(r));
@@ -5854,8 +5909,8 @@ window_opened(WnckScreen *wnck, WnckWindow *window, gpointer user)
 	XdeScreen *xscr = user;
 	ca_context *ca = ca_gtk_context_get_for_screen(xscr->scrn);
 	ca_proplist *pl = NULL;
+	int r, x = 0, y = 0, width = 0, height = 0;
 	const char *id;
-	int r;
 
 	g_signal_connect(G_OBJECT(window), "actions_changed", G_CALLBACK(actions_changed), xscr);
 	g_signal_connect(G_OBJECT(window), "geometry_changed", G_CALLBACK(geometry_changed), xscr);
@@ -5871,6 +5926,62 @@ window_opened(WnckScreen *wnck, WnckWindow *window, gpointer user)
 		return;
 	}
 	ca_proplist_sets(pl, CA_PROP_CANBERRA_CACHE_CONTROL, "volatile");
+	/* CA_PROP_WINDOW_NAME: the name of this window as human readable string. */
+	if ((r = ca_proplist_sets(pl, CA_PROP_WINDOW_NAME, wnck_window_get_name(window))) < 0)
+		EPRINTF("Cannot set window name: %s\n", ca_strerror(r));
+	/* CA_PROP_WINDOW_ID: identification string for this window */
+	if ((id = wnck_window_get_session_id(window))) {
+		if ((r = ca_proplist_setf(pl, CA_PROP_WINDOW_ID, "%s#%s", wnck_window_get_name(window), id)) < 0)
+			EPRINTF("Cannot set window id: %s\n", ca_strerror(r));
+	} else {
+		if ((r = ca_proplist_setf(pl, CA_PROP_WINDOW_ID, "%s", wnck_window_get_name(window))) < 0)
+			EPRINTF("Cannot set window id: %s\n", ca_strerror(r));
+	}
+	/* CA_PROP_WINDOW_ICON: binary icon data in PNG format */
+	/* CA_PROP_WINDOW_ICON_NAME: icon name as string */
+	if ((r = ca_proplist_sets(pl, CA_PROP_WINDOW_ICON_NAME, wnck_window_get_icon_name(window))) < 0)
+		EPRINTF("Cannot set window icon name: %s\n", ca_strerror(r));
+
+	wnck_window_get_client_window_geometry(window, &x, &y, &width, &height);
+	/* CA_PROP_WINDOW_X: x coordinate of window */
+	if ((r = ca_proplist_setf(pl, CA_PROP_WINDOW_X, "%i", x)) < 0)
+		EPRINTF("Cannot set window x coord: %s\n", ca_strerror(r));
+	/* CA_PROP_WINDOW_Y: Y coordinate of window */
+	if ((r = ca_proplist_setf(pl, CA_PROP_WINDOW_Y, "%i", y)) < 0)
+		EPRINTF("Cannot set window y coord: %s\n", ca_strerror(r));
+	/* CA_PROP_WINDOW_WIDTH: pixel width of window */
+	if ((r = ca_proplist_setf(pl, CA_PROP_WINDOW_WIDTH, "%i", width)) < 0)
+		EPRINTF("Cannot set window width: %s\n", ca_strerror(r));
+	/* CA_PROP_WINDOW_HEIGHT: pixel height of window */
+	if ((r = ca_proplist_setf(pl, CA_PROP_WINDOW_HEIGHT, "%i", height)) < 0)
+		EPRINTF("Cannot set window height: %s\n", ca_strerror(r));
+
+	/* CA_PROP_WINDOW_HPOS: horizontal position (0.0 to 1.0) as string of window */
+	/* CA_PROP_WINDOW_VPOS: vertical position (0.0 to 1.0) as string of window */
+
+	/* CA_PROP_WINDOW_DESKTOP: comma separated string (null string for omnipresent) */
+	if (wnck_window_is_pinned(window)) {
+		if ((r = ca_proplist_sets(pl, CA_PROP_WINDOW_DESKTOP, "")) < 0)
+			EPRINTF("Cannot set window desktop: %s\n", ca_strerror(r));
+	} else {
+#if 0
+		/* FIXME */
+		char *desktops = calloc(PATH_MAX + 1, sizeof(*desktops));
+#endif
+	}
+
+	/* CA_PROP_WINDOW_X11_DISPLAY: display as string (e.g. :0) */
+	if ((r = ca_proplist_sets(pl, CA_PROP_WINDOW_X11_DISPLAY, gdk_display_get_name(disp))) < 0)
+		EPRINTF("Cannot set display: %s\n", ca_strerror(r));
+	/* CA_PROP_WINDOW_X11_SCREEN: screen as string (e.g. 0) */
+	if ((r = ca_proplist_setf(pl, CA_PROP_WINDOW_X11_SCREEN, "%i", gdk_screen_get_number(xscr->scrn))) < 0)
+		EPRINTF("Cannot set screen: %s\n", ca_strerror(r));
+	/* CA_PROP_WINDOW_X11_MONITOR: monitor as string (e.g. 0) */
+	if ((r = ca_proplist_setf(pl, CA_PROP_WINDOW_X11_MONITOR, "%i", gdk_screen_get_monitor_at_point(xscr->scrn, x, y))) < 0)
+		EPRINTF("Cannot set monitor: %s\n", ca_strerror(r));
+	/* CA_PROP_WINDOW_X11_XID: XID formatted as string */
+	if ((r = ca_proplist_setf(pl, CA_PROP_WINDOW_X11_XID, "%lu", (unsigned long) wnck_window_get_xid(window))) < 0)
+		EPRINTF("Cannot set window xid: %s\n", ca_strerror(r));
 	ca_proplist_sets(pl, CA_PROP_EVENT_ID, (id = "window-new"));
 	if ((r = ca_context_play_full(ca, CaEventWindowChange, pl, NULL, NULL)) < 0)
 		EPRINTF("Cannot play %s: %s\n", id, ca_strerror(r));
