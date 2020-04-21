@@ -1,6 +1,6 @@
 /*****************************************************************************
 
- Copyright (c) 2010-2018  Monavacon Limited <http://www.monavacon.com/>
+ Copyright (c) 2010-2020  Monavacon Limited <http://www.monavacon.com/>
  Copyright (c) 2002-2009  OpenSS7 Corporation <http://www.openss7.com/>
  Copyright (c) 1997-2001  Brian F. G. Bidulock <bidulock@openss7.org>
 
@@ -224,13 +224,15 @@ Options options = {
 static void
 copying(int argc, char *argv[])
 {
+	(void) argc;
+	(void) argv;
 	if (!options.output && !options.debug)
 		return;
 	(void) fprintf(stdout, "\
 --------------------------------------------------------------------------------\n\
 %1$s\n\
 --------------------------------------------------------------------------------\n\
-Copyright (c) 2010-2018  Monavacon Limited <http://www.monavacon.com/>\n\
+Copyright (c) 2010-2020  Monavacon Limited <http://www.monavacon.com/>\n\
 Copyright (c) 2002-2009  OpenSS7 Corporation <http://www.openss7.com/>\n\
 Copyright (c) 1997-2001  Brian F. G. Bidulock <bidulock@openss7.org>\n\
 \n\
@@ -268,13 +270,15 @@ regulations).\n\
 static void
 version(int argc, char *argv[])
 {
+	(void) argc;
+	(void) argv;
 	if (!options.output && !options.debug)
 		return;
 	(void) fprintf(stdout, "\
 %1$s (OpenSS7 %2$s) %3$s\n\
 Written by Brian Bidulock.\n\
 \n\
-Copyright (c) 2010, 2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018  Monavacon Limited.\n\
+Copyright (c) 2010, 2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018, 2020  Monavacon Limited.\n\
 Copyright (c) 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009  OpenSS7 Corporation.\n\
 Copyright (c) 1997, 1998, 1999, 2000, 2001  Brian F. G. Bidulock.\n\
 This is free software; see the source for copying conditions.  There is NO\n\
@@ -290,6 +294,7 @@ See `%1$s --copying' for copying permissions.\n\
 static void
 usage(int argc, char *argv[])
 {
+	(void) argc;
 	if (!options.output && !options.debug)
 		return;
 	(void) fprintf(stderr, "\
@@ -356,6 +361,7 @@ show_kind(Kind kind)
 static void
 help(int argc, char *argv[])
 {
+	(void) argc;
 	if (!options.output && !options.debug)
 		return;
 	/* *INDENT-OFF* */
@@ -449,6 +455,7 @@ check_type(int argc, char *argv[])
 {
 	char *t, *p;
 
+	(void) argc;
 	if ((t = options.type)) {
 		if ((p = strchr(options.type, '/'))) {
 			options.types = g_list_append(options.types, t);
@@ -596,16 +603,22 @@ check_type(int argc, char *argv[])
 void
 startup(int argc, char *argv[])
 {
+	(void) argc;
+	(void) argv;
 }
 
 void
 do_launch(int argc, char *argv[])
 {
+	(void) argc;
+	(void) argv;
 }
 
 void
 do_list(int argc, char *argv[])
 {
+	(void) argc;
+	(void) argv;
 	if (!options.type && !options.category) {
 		EPRINTF("%s: must specify content type or category\n", argv[0]);
 		exit(EXIT_SYNTAXERR);
@@ -615,11 +628,15 @@ do_list(int argc, char *argv[])
 void
 do_setapp(int argc, char *argv[])
 {
+	(void) argc;
+	(void) argv;
 }
 
 void
 do_editapps(int argc, char *argv[])
 {
+	(void) argc;
+	(void) argv;
 }
 
 int

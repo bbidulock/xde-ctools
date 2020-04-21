@@ -1,6 +1,6 @@
 /*****************************************************************************
 
- Copyright (c) 2010-2018  Monavacon Limited <http://www.monavacon.com/>
+ Copyright (c) 2010-2020  Monavacon Limited <http://www.monavacon.com/>
  Copyright (c) 2002-2009  OpenSS7 Corporation <http://www.openss7.com/>
  Copyright (c) 1997-2001  Brian F. G. Bidulock <bidulock@openss7.org>
 
@@ -178,33 +178,44 @@ Options options = {
 void
 do_run(int argc, char *argv[], Bool replace)
 {
+	(void) argc;
+	(void) argv;
+	(void) replace;
 }
 
 void
 do_replace(int argc, char *argv[])
 {
+	(void) argc;
+	(void) argv;
 }
 
 void
 do_quit(int argc, char *argv[])
 {
+	(void) argc;
+	(void) argv;
 }
 
 void
 do_edit(int argc, char *argv[])
 {
+	(void) argc;
+	(void) argv;
 }
 
 static void
 copying(int argc, char *argv[])
 {
+	(void) argc;
+	(void) argv;
 	if (!options.output && !options.debug)
 		return;
 	(void) fprintf(stdout, "\
 --------------------------------------------------------------------------------\n\
 %1$s\n\
 --------------------------------------------------------------------------------\n\
-Copyright (c) 2010-2018  Monavacon Limited <http://www.monavacon.com/>\n\
+Copyright (c) 2010-2020  Monavacon Limited <http://www.monavacon.com/>\n\
 Copyright (c) 2002-2009  OpenSS7 Corporation <http://www.openss7.com/>\n\
 Copyright (c) 1997-2001  Brian F. G. Bidulock <bidulock@openss7.org>\n\
 \n\
@@ -242,13 +253,15 @@ regulations).\n\
 static void
 version(int argc, char *argv[])
 {
+	(void) argc;
+	(void) argv;
 	if (!options.output && !options.debug)
 		return;
 	(void) fprintf(stdout, "\
 %1$s (OpenSS7 %2$s) %3$s\n\
 Written by Brian Bidulock.\n\
 \n\
-Copyright (c) 2010, 2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018  Monavacon Limited.\n\
+Copyright (c) 2010, 2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018, 2020  Monavacon Limited.\n\
 Copyright (c) 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009  OpenSS7 Corporation.\n\
 Copyright (c) 1997, 1998, 1999, 2000, 2001  Brian F. G. Bidulock.\n\
 This is free software; see the source for copying conditions.  There is NO\n\
@@ -264,6 +277,7 @@ See `%1$s --copying' for copying permissions.\n\
 static void
 usage(int argc, char *argv[])
 {
+	(void) argc;
 	if (!options.output && !options.debug)
 		return;
 	(void) fprintf(stderr, "\
@@ -289,6 +303,7 @@ show_bool(Bool val)
 static void
 help(int argc, char *argv[])
 {
+	(void) argc;
 	if (!options.output && !options.debug)
 		return;
         /* *INDENT-OFF* */
@@ -356,6 +371,8 @@ set_defaults(int argc, char *argv[])
 {
 	char *p;
 
+	(void) argc;
+	(void) argv;
 	if ((p = getenv("XDE_DEBUG")))
 		options.debug = atoi(p);
 	if ((p = getenv("DISPLAY")))

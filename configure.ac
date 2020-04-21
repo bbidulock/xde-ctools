@@ -2,8 +2,8 @@
 # Process this file with autoconf to produce a configure script.
 
 AC_PREREQ([2.69])
-AC_INIT([xde-ctools],[1.11],[http://github.com/bbidulock/xde-ctools],[xde-ctools],[http://github.com/bbidulock/xde-ctools/issues])
-AC_REVISION([1.11])
+AC_INIT([xde-ctools],[1.12],[http://github.com/bbidulock/xde-ctools],[xde-ctools],[http://github.com/bbidulock/xde-ctools/issues])
+AC_REVISION([1.12])
 
 # set better defaults
 AC_PREFIX_DEFAULT([/usr])
@@ -20,13 +20,13 @@ AC_CONFIG_AUX_DIR([scripts])
 AC_USE_SYSTEM_EXTENSIONS
 AC_CANONICAL_TARGET
 
-DATE='2019-12-23'
+DATE='2020-02-11'
 AC_SUBST([DATE])
 
-MDOCDATE='December 23, 2019'
+MDOCDATE='February 11, 2020'
 AC_SUBST([MDOCDATE])
 
-BRANCH='1.11'
+BRANCH='1.12'
 AC_SUBST([BRANCH])
 
 # Initialize Automake

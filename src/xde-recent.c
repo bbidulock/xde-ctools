@@ -1,6 +1,6 @@
 /*****************************************************************************
 
- Copyright (c) 2010-2019  Monavacon Limited <http://www.monavacon.com/>
+ Copyright (c) 2010-2020  Monavacon Limited <http://www.monavacon.com/>
  Copyright (c) 2002-2009  OpenSS7 Corporation <http://www.openss7.com/>
  Copyright (c) 1997-2001  Brian F. G. Bidulock <bidulock@openss7.org>
 
@@ -524,6 +524,7 @@ static void mainloop_quit(void);
 static void
 selection_done(GtkMenuShell *menushell, gpointer user_data)
 {
+	(void) user_data;
 	OPRINTF(1, "Selection done: exiting\n");
 	if (!gtk_menu_get_tearoff_state(GTK_MENU(menushell)))
 		mainloop_quit();
@@ -615,6 +616,10 @@ xml_start_element(GMarkupParseContext *context, const gchar *element_name,
 {
 	RecentContext *rc = user_data;
 
+	(void) context;
+	(void) attribute_names;
+	(void) attribute_values;
+	(void) error;
 	if (!strcmp(element_name, "RecentFiles")) {
 		/* don't care */
 	} else if (!strcmp(element_name, "RecentItem")) {
@@ -646,6 +651,8 @@ xml_end_element(GMarkupParseContext *context, const gchar *element_name, gpointe
 {
 	RecentContext *rc = user_data;
 
+	(void) context;
+	(void) error;
 	if (!strcmp(element_name, "RecentFiles")) {
 		/* don't care */
 	} else if (!strcmp(element_name, "RecentItem")) {
@@ -676,6 +683,7 @@ xml_character_data(GMarkupParseContext *context, const gchar *text, gsize text_l
 	RecentContext *rc = user_data;
 	const gchar *element_name;
 
+	(void) error;
 	element_name = g_markup_parse_context_get_element(context);
 	if (!strcmp(element_name, "RecentFiles")) {
 		/* don't care */
@@ -719,12 +727,20 @@ static void
 xml_passthrough(GMarkupParseContext *context, const gchar *passthrough_text, gsize text_len,
 		gpointer user_data, GError **error)
 {
+	(void) context;
+	(void) passthrough_text;
+	(void) text_len;
+	(void) user_data;
+	(void) error;
 	/* don't care */
 }
 
 static void
 xml_error(GMarkupParseContext *context, GError *error, gpointer user_data)
 {
+	(void) context;
+	(void) error;
+	(void) user_data;
 	EPRINTF("got an error during parsing\n");
 	exit(1);
 }
@@ -1142,6 +1158,7 @@ get_xml_recent_list(GList *list, const char *file)
 static GList *
 get_simple_recent_list(GList *list, const char *filename)
 {
+	(void) filename;
 	return (list);
 }
 
@@ -1439,6 +1456,7 @@ popup_menu_new(XdeMonitor *xmon)
 	GList *list = NULL, *node;
 	unsigned int i, max = options.maximum;
 
+	(void) xmon;
 	get_mime_databases();
 
 	menu = gtk_menu_new();
@@ -1858,6 +1876,8 @@ find_monitor(void)
 static gboolean
 position_pointer(GtkWidget *widget, XdeMonitor *xmon, gint *x, gint *y)
 {
+	(void) widget;
+	(void) xmon;
 	PTRACE(5);
 	gdk_display_get_pointer(disp, NULL, x, y, NULL);
 	return TRUE;
@@ -1880,6 +1900,7 @@ position_center_monitor(GtkWidget *widget, XdeMonitor *xmon, gint *x, gint *y)
 static gboolean
 position_topleft_workarea(GtkWidget *widget, XdeMonitor *xmon, gint *x, gint *y)
 {
+	(void) widget;
 #if 1
 	WnckWorkspace *wkspc;
 
@@ -5031,7 +5052,7 @@ about_selected(GtkMenuItem *item, gpointer user_data)
 	gtk_show_about_dialog(NULL,
 			      "authors", authors,
 			      "comments", XDE_DESCRIP,
-			      "copyright", "Copyright (c) 2013, 2014, 2015, 2016, 2017, 2018, 2019  OpenSS7 Corporation",
+			      "copyright", "Copyright (c) 2013, 2014, 2015, 2016, 2017, 2018, 2019, 2020  OpenSS7 Corporation",
 			      "license", "Do what thou wilt shall be the whole of the law.\n\n-- Aleister Crowley",
 			      "logo-icon-name", LOGO_NAME,
 			      "program-name", NAME,
@@ -6132,17 +6153,22 @@ update_client_list(XdeScreen *xscr, Atom prop)
 			mstacked[m] = g_list_append(mstacked[m], window);
 		}
 	}
+#else
+	(void) xscr;
+	(void) prop;
 #endif
 }
 
 static void
 update_screen_active_window(XdeScreen *xscr)
 {
+	(void) xscr;
 }
 
 static void
 update_monitor_active_window(XdeMonitor *xmon)
 {
+	(void) xmon;
 }
 
 static void
@@ -6153,7 +6179,7 @@ update_active_window(XdeScreen *xscr, Atom prop)
 	int format = 0;
 	unsigned long nitems = 0, after = 0;
 	unsigned long *data = NULL;
-	int i, j = 0, *x;
+	unsigned long i, j = 0, *x;
 	Window *active;
 	GdkWindow **window;
 	XdeMonitor *xmon;
@@ -6168,7 +6194,7 @@ update_active_window(XdeScreen *xscr, Atom prop)
 				       &nitems, &after, (unsigned char **) &data) == Success &&
 		    format == 32 && nitems >= 1 && data) {
 			active[0] = data[0];
-			if (nitems > 1 && nitems == xscr->nmon) {
+			if (nitems > 1 && nitems == (unsigned long) xscr->nmon) {
 				xscr->mhaware = True;
 				x = &i;
 			} else
@@ -6184,7 +6210,7 @@ update_active_window(XdeScreen *xscr, Atom prop)
 				       &nitems, &after, (unsigned char **) &data) == Success &&
 		    format == 32 && nitems >= 1 && data) {
 			active[0] = data[0];
-			if (nitems > 1 && nitems == xscr->nmon) {
+			if (nitems > 1 && nitems == (unsigned long) xscr->nmon) {
 				xscr->mhaware = True;
 				x = &i;
 			} else
@@ -6202,9 +6228,9 @@ update_active_window(XdeScreen *xscr, Atom prop)
 		xscr->active.now = window[0];
 		update_screen_active_window(xscr);
 	}
-	for (i = 0, xmon = xscr->mons; i < xscr->nmon; i++, xmon++) {
+	for (i = 0, xmon = xscr->mons; i < (unsigned long) xscr->nmon; i++, xmon++) {
 		if ((window[i + 1] = gdk_x11_window_foreign_new_for_display(disp, active[i + 1]))) {
-			if ((i != gdk_screen_get_monitor_at_window(xscr->scrn, window[i + 1]))) {
+			if ((i != (unsigned long) gdk_screen_get_monitor_at_window(xscr->scrn, window[i + 1]))) {
 				g_object_unref(G_OBJECT(window[i + 1]));
 				window[i + 1] = NULL;
 				continue;
@@ -6321,8 +6347,8 @@ update_current_desktop(XdeScreen *xscr, Atom prop)
 		    format == 32 && actual && nitems >= 1 && data) {
 			gotone = True;
 			current[0] = data[0];
-			x = (xscr->mhaware = (nitems >= xscr->nmon)) ? &i : &j;
-			for (i = 0; i < xscr->nmon; i++)
+			x = (xscr->mhaware = (nitems >= (unsigned long) xscr->nmon)) ? &i : &j;
+			for (i = 0; i < (unsigned long) xscr->nmon; i++)
 				current[i + 1] = data[*x];
 		}
 		if (data) {
@@ -6337,8 +6363,8 @@ update_current_desktop(XdeScreen *xscr, Atom prop)
 		    format == 32 && actual && nitems >= 1 && data) {
 			gotone = True;
 			current[0] = data[0];
-			x = (xscr->mhaware = (nitems >= xscr->nmon)) ? &i : &j;
-			for (i = 0; i < xscr->nmon; i++)
+			x = (xscr->mhaware = (nitems >= (unsigned long) xscr->nmon)) ? &i : &j;
+			for (i = 0; i < (unsigned long) xscr->nmon; i++)
 				current[i + 1] = data[*x];
 		}
 		if (data) {
@@ -6353,8 +6379,8 @@ update_current_desktop(XdeScreen *xscr, Atom prop)
 		    format == 32 && actual && nitems >= 1 && data) {
 			gotone = True;
 			current[0] = data[0];
-			x = (xscr->mhaware = (nitems >= xscr->nmon)) ? &i : &j;
-			for (i = 0; i < xscr->nmon; i++)
+			x = (xscr->mhaware = (nitems >= (unsigned long) xscr->nmon)) ? &i : &j;
+			for (i = 0; i < (unsigned long) xscr->nmon; i++)
 				current[i + 1] = data[*x];
 		}
 		if (data) {
@@ -6367,13 +6393,13 @@ update_current_desktop(XdeScreen *xscr, Atom prop)
 		/* First off, drop any cycle or task windows that we have open. */
 		/* Second, queue deferred action to refresh pixmaps on the desktop. */
 		/* Third, pop the pager window. */
-		if (xscr->current != current[0]) {
+		if ((unsigned long) xscr->current != current[0]) {
 			DPRINTF(1, "Current desktop for screen %d changed from %d to %lu\n", xscr->index,
 				xscr->current, current[0]);
 			xscr->current = current[0];
 		}
-		for (i = 0, xmon = xscr->mons; i < xscr->nmon; i++, xmon++) {
-			if (xmon->current != current[i + 1]) {
+		for (i = 0, xmon = xscr->mons; i < (unsigned long) xscr->nmon; i++, xmon++) {
+			if ((unsigned long) xmon->current != current[i + 1]) {
 				DPRINTF(1, "Current view for monitor %d changed from %d to %lu\n", xmon->index,
 					xmon->current, current[i + 1]);
 				xmon->current = current[i + 1];
@@ -6838,6 +6864,8 @@ client_handler(GdkXEvent *xevent, GdkEvent *event, gpointer data)
 {
 	XEvent *xev = (typeof(xev)) xevent;
 
+	(void) event;
+	(void) data;
 	PTRACE(5);
 	switch (xev->type) {
 	case ClientMessage:
@@ -6893,6 +6921,7 @@ selwin_handler(GdkXEvent *xevent, GdkEvent *event, gpointer data)
 	XEvent *xev = (typeof(xev)) xevent;
 	XdeScreen *xscr = data;
 
+	(void) event;
 	PTRACE(5);
 	switch (xev->type) {
 	case SelectionClear:
@@ -6909,6 +6938,7 @@ laywin_handler(GdkXEvent *xevent, GdkEvent *event, gpointer data)
 	XEvent *xev = (typeof(xev)) xevent;
 	XdeScreen *xscr = data;
 
+	(void) event;
 	PTRACE(5);
 	switch (xev->type) {
 	case SelectionClear:
@@ -6993,6 +7023,7 @@ root_handler(GdkXEvent *xevent, GdkEvent *event, gpointer data)
 	XEvent *xev = (typeof(xev)) xevent;
 	XdeScreen *xscr = data;
 
+	(void) event;
 	PTRACE(5);
 	switch (xev->type) {
 	case PropertyNotify:
@@ -7004,12 +7035,16 @@ root_handler(GdkXEvent *xevent, GdkEvent *event, gpointer data)
 static GdkFilterReturn
 events_handler(GdkXEvent *xevent, GdkEvent *event, gpointer data)
 {
+	(void) xevent;
+	(void) event;
+	(void) data;
 	return GDK_FILTER_CONTINUE;
 }
 
 int
 handler(Display *display, XErrorEvent *xev)
 {
+	(void) display;
 	if (options.debug) {
 		char msg[80], req[80], num[80], def[80];
 
@@ -7027,6 +7062,7 @@ handler(Display *display, XErrorEvent *xev)
 int
 iohandler(Display *display)
 {
+	(void) display;
 	dumpstack(__FILE__, __LINE__, __func__);
 	exit(EXIT_FAILURE);
 }
@@ -7037,6 +7073,7 @@ int (*oldiohandler) (Display *) = NULL;
 gboolean
 hup_signal_handler(gpointer data)
 {
+	(void) data;
 	/* perform reload */
 	return G_SOURCE_CONTINUE;
 }
@@ -7044,6 +7081,7 @@ hup_signal_handler(gpointer data)
 gboolean
 int_signal_handler(gpointer data)
 {
+	(void) data;
 	exit(EXIT_SUCCESS);
 	return G_SOURCE_CONTINUE;
 }
@@ -7051,6 +7089,7 @@ int_signal_handler(gpointer data)
 gboolean
 term_signal_handler(gpointer data)
 {
+	(void) data;
 	mainloop_quit();
 	return G_SOURCE_CONTINUE;
 }
@@ -7585,6 +7624,8 @@ do_run(int argc, char *argv[])
 	XdeMonitor *xmon;
 	GtkWidget *menu;
 
+	(void) argc;
+	(void) argv;
 	oldhandler = XSetErrorHandler(handler);
 	oldiohandler = XSetIOErrorHandler(iohandler);
 
@@ -7613,13 +7654,15 @@ do_run(int argc, char *argv[])
 static void
 copying(int argc, char *argv[])
 {
+	(void) argc;
+	(void) argv;
 	if (!options.output && !options.debug)
 		return;
 	(void) fprintf(stdout, "\
 --------------------------------------------------------------------------------\n\
 %1$s\n\
 --------------------------------------------------------------------------------\n\
-Copyright (c) 2010-2019  Monavacon Limited <http://www.monavacon.com/>\n\
+Copyright (c) 2010-2020  Monavacon Limited <http://www.monavacon.com/>\n\
 Copyright (c) 2002-2009  OpenSS7 Corporation <http://www.openss7.com/>\n\
 Copyright (c) 1997-2001  Brian F. G. Bidulock <bidulock@openss7.org>\n\
 \n\
@@ -7657,13 +7700,15 @@ regulations).\n\
 static void
 version(int argc, char *argv[])
 {
+	(void) argc;
+	(void) argv;
 	if (!options.output && !options.debug)
 		return;
 	(void) fprintf(stdout, "\
 %1$s (OpenSS7 %2$s) %3$s\n\
 Written by Brian Bidulock.\n\
 \n\
-Copyright (c) 2010, 2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018, 2019  Monavacon Limited.\n\
+Copyright (c) 2010, 2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018, 2019, 2020  Monavacon Limited.\n\
 Copyright (c) 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009  OpenSS7 Corporation.\n\
 Copyright (c) 1997, 1998, 1999, 2000, 2001  Brian F. G. Bidulock.\n\
 This is free software; see the source for copying conditions.  There is NO\n\
@@ -7679,6 +7724,7 @@ See `%1$s --copying' for copying permissions.\n\
 static void
 usage(int argc, char *argv[])
 {
+	(void) argc;
 	if (!options.output && !options.debug)
 		return;
 	(void) fprintf(stderr, "\
@@ -7854,6 +7900,7 @@ show_organize(Organize organize)
 static void
 help(int argc, char *argv[])
 {
+	(void) argc;
 	if (!options.output && !options.debug)
 		return;
 	/* *INDENT-OFF* */

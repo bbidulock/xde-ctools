@@ -1,6 +1,6 @@
 /*****************************************************************************
 
- Copyright (c) 2010-2018  Monavacon Limited <http://www.monavacon.com/>
+ Copyright (c) 2010-2020  Monavacon Limited <http://www.monavacon.com/>
  Copyright (c) 2002-2009  OpenSS7 Corporation <http://www.openss7.com/>
  Copyright (c) 1997-2001  Brian F. G. Bidulock <bidulock@openss7.org>
 
@@ -579,6 +579,8 @@ workspace_destroyed(WnckScreen *wnck, WnckWorkspace *space, gpointer user)
 {
 	XdeScreen *xscr = (typeof(xscr)) user;
 
+	(void) wnck;
+	(void) space;
 	DPRINT();
 	if (!xscr) {
 		EPRINTF("xscr is NULL\n");
@@ -591,6 +593,8 @@ workspace_created(WnckScreen *wnck, WnckWorkspace *space, gpointer user)
 {
 	XdeScreen *xscr = (typeof(xscr)) user;
 
+	(void) wnck;
+	(void) space;
 	DPRINT();
 	if (!xscr) {
 		EPRINTF("xscr is NULL\n");
@@ -888,6 +892,7 @@ something_changed(WnckScreen *wnck, XdeScreen *xscr)
 	Display *dpy;
 	Window win;
 
+	(void) wnck;
 	if (!xscr) {
 		EPRINTF("xscr is NULL\n");
 		exit(EXIT_FAILURE);
@@ -983,6 +988,7 @@ background_changed(WnckScreen *wnck, gpointer user)
 {
 	XdeScreen *xscr = (typeof(xscr)) user;
 
+	(void) wnck;
 	DPRINT();
 	if (!xscr) {
 		EPRINTF("xscr is NULL\n");
@@ -995,6 +1001,7 @@ active_workspace_changed(WnckScreen *wnck, WnckWorkspace *prev, gpointer user)
 {
 	XdeScreen *xscr = (typeof(xscr)) user;
 
+	(void) prev;
 	DPRINT();
 	if (!xscr) {
 		EPRINTF("xscr is NULL\n");
@@ -1048,6 +1055,7 @@ windows_changed(WnckScreen *wnck, XdeScreen *xscr)
 	Display *dpy;
 	Window win;
 
+	(void) wnck;
 	if (!xscr) {
 		EPRINTF("xscr is NULL\n");
 		exit(EXIT_FAILURE);
@@ -1128,6 +1136,8 @@ windows_changed(WnckScreen *wnck, XdeScreen *xscr)
 static void
 clients_changed(WnckScreen *wnck, XdeScreen *xscr)
 {
+	(void) wnck;
+	(void) xscr;
 }
 
 static void
@@ -1147,36 +1157,42 @@ active_window_changed(WnckScreen *wnck, WnckWindow *previous, gpointer user)
 static void
 application_closed(WnckScreen *wnck, WnckApplication *app, gpointer xscr)
 {
+	(void) app;
 	clients_changed(wnck, xscr);
 }
 
 static void
 application_opened(WnckScreen *wnck, WnckApplication *app, gpointer xscr)
 {
+	(void) app;
 	clients_changed(wnck, xscr);
 }
 
 static void
 class_group_closed(WnckScreen *wnck, WnckClassGroup *class_group, gpointer xscr)
 {
+	(void) class_group;
 	clients_changed(wnck, xscr);
 }
 
 static void
 class_group_opened(WnckScreen *wnck, WnckClassGroup *class_group, gpointer xscr)
 {
+	(void) class_group;
 	clients_changed(wnck, xscr);
 }
 
 static void
 window_closed(WnckScreen *wnck, WnckWindow *window, gpointer xscr)
 {
+	(void) window;
 	clients_changed(wnck, xscr);
 }
 
 static void
 window_opened(WnckScreen *wnck, WnckWindow *window, gpointer xscr)
 {
+	(void) window;
 	clients_changed(wnck, xscr);
 }
 
@@ -1200,6 +1216,7 @@ grab_broken_event(GtkWidget *widget, GdkEvent *event, gpointer user)
 	XdeScreen *xscr = (typeof(xscr)) user;
 	GdkEventGrabBroken *ev = (typeof(ev)) event;
 
+	(void) widget;
 	if (!xscr) {
 		EPRINTF("xscr is NULL\n");
 		exit(EXIT_FAILURE);
@@ -1253,6 +1270,8 @@ button_press_event(GtkWidget *widget, GdkEvent *event, gpointer user)
 {
 	XdeScreen *xscr = (typeof(xscr)) user;
 
+	(void) widget;
+	(void) event;
 	if (!xscr) {
 		EPRINTF("xscr is NULL\n");
 		exit(EXIT_FAILURE);
@@ -1267,6 +1286,8 @@ button_release_event(GtkWidget *widget, GdkEvent *event, gpointer user)
 {
 	XdeScreen *xscr = (typeof(xscr)) user;
 
+	(void) widget;
+	(void) event;
 	if (!xscr) {
 		EPRINTF("xscr is NULL\n");
 		exit(EXIT_FAILURE);
@@ -1281,6 +1302,8 @@ enter_notify_event(GtkWidget *widget, GdkEvent *event, gpointer user)
 {
 	XdeScreen *xscr = (typeof(xscr)) user;
 
+	(void) widget;
+	(void) event;
 	if (!xscr) {
 		EPRINTF("xscr is NULL\n");
 		exit(EXIT_FAILURE);
@@ -1297,6 +1320,8 @@ focus_in_event(GtkWidget *widget, GdkEvent *event, gpointer user)
 {
 	XdeScreen *xscr = (typeof(xscr)) user;
 
+	(void) widget;
+	(void) event;
 	if (!xscr) {
 		EPRINTF("xscr is NULL\n");
 		exit(EXIT_FAILURE);
@@ -1311,6 +1336,8 @@ focus_out_event(GtkWidget *widget, GdkEvent *event, gpointer user)
 {
 	XdeScreen *xscr = (typeof(xscr)) user;
 
+	(void) widget;
+	(void) event;
 	if (!xscr) {
 		EPRINTF("xscr is NULL\n");
 		exit(EXIT_FAILURE);
@@ -1325,6 +1352,7 @@ grab_focus(GtkWidget *widget, gpointer user)
 {
 	XdeScreen *xscr = (typeof(xscr)) user;
 
+	(void) widget;
 	if (!xscr) {
 		EPRINTF("xscr is NULL\n");
 		exit(EXIT_FAILURE);
@@ -1338,6 +1366,8 @@ key_press_event(GtkWidget *widget, GdkEvent *event, gpointer user)
 {
 	XdeScreen *xscr = (typeof(xscr)) user;
 
+	(void) widget;
+	(void) event;
 	if (!xscr) {
 		EPRINTF("xscr is NULL\n");
 		exit(EXIT_FAILURE);
@@ -1353,6 +1383,7 @@ key_release_event(GtkWidget *widget, GdkEvent *event, gpointer user)
 	XdeScreen *xscr = (typeof(xscr)) user;
 	GdkEventKey *ev = (typeof(ev)) event;
 
+	(void) widget;
 	if (!xscr) {
 		EPRINTF("xscr is NULL\n");
 		exit(EXIT_FAILURE);
@@ -1370,6 +1401,8 @@ leave_notify_event(GtkWidget *widget, GdkEvent *event, gpointer user)
 {
 	XdeScreen *xscr = (typeof(xscr)) user;
 
+	(void) widget;
+	(void) event;
 	if (!xscr) {
 		EPRINTF("xscr is NULL\n");
 		exit(EXIT_FAILURE);
@@ -1386,6 +1419,8 @@ map_event(GtkWidget *widget, GdkEvent *event, gpointer user)
 {
 	XdeScreen *xscr = (typeof(xscr)) user;
 
+	(void) widget;
+	(void) event;
 	if (!xscr) {
 		EPRINTF("xscr is NULL\n");
 		exit(EXIT_FAILURE);
@@ -1400,6 +1435,8 @@ scroll_event(GtkWidget *widget, GdkEvent *event, gpointer user)
 {
 	XdeScreen *xscr = (typeof(xscr)) user;
 
+	(void) widget;
+	(void) event;
 	if (!xscr) {
 		EPRINTF("xscr is NULL\n");
 		exit(EXIT_FAILURE);
@@ -1431,8 +1468,8 @@ update_current_desktop(XdeScreen *xscr, Atom prop)
 				xscr->current = data[0];
 				changed = True;
 			}
-			x = (xscr->mhaware = (nitems >= xscr->nmon)) ? &i : &j;
-			for (i = 0, xmon = xscr->mons; i < xscr->nmon; i++, xmon++) {
+			x = (xscr->mhaware = (nitems >= (unsigned long) xscr->nmon)) ? &i : &j;
+			for (i = 0, xmon = xscr->mons; i < (unsigned long) xscr->nmon; i++, xmon++) {
 				if (xmon->current != (int) data[*x]) {
 					xmon->current = data[*x];
 					changed = True;
@@ -1453,8 +1490,8 @@ update_current_desktop(XdeScreen *xscr, Atom prop)
 				xscr->current = data[0];
 				changed = True;
 			}
-			x = (xscr->mhaware = (nitems >= xscr->nmon)) ? &i : &j;
-			for (i = 0, xmon = xscr->mons; i < xscr->nmon; i++, xmon++) {
+			x = (xscr->mhaware = (nitems >= (unsigned long) xscr->nmon)) ? &i : &j;
+			for (i = 0, xmon = xscr->mons; i < (unsigned long) xscr->nmon; i++, xmon++) {
 				if (xmon->current != (int) data[*x]) {
 					xmon->current = data[*x];
 					changed = True;
@@ -1475,8 +1512,8 @@ update_current_desktop(XdeScreen *xscr, Atom prop)
 				xscr->current = data[0];
 				changed = True;
 			}
-			x = (xscr->mhaware = (nitems >= xscr->nmon)) ? &i : &j;
-			for (i = 0, xmon = xscr->mons; i < xscr->nmon; i++, xmon++) {
+			x = (xscr->mhaware = (nitems >= (unsigned long) xscr->nmon)) ? &i : &j;
+			for (i = 0, xmon = xscr->mons; i < (unsigned long) xscr->nmon; i++, xmon++) {
 				if (xmon->current != (int) data[*x]) {
 					xmon->current = data[*x];
 					changed = True;
@@ -1498,6 +1535,7 @@ update_current_desktop(XdeScreen *xscr, Atom prop)
 static void
 update_client_list(XdeScreen *xscr, Atom prop)
 {
+	(void) xscr;
 	if (prop == None || prop == _XA_NET_CLIENT_LIST_STACKING) {
 	}
 	if (prop == None || prop == _XA_NET_CLIENT_LIST) {
@@ -1509,6 +1547,8 @@ update_client_list(XdeScreen *xscr, Atom prop)
 static void
 update_window(XdeScreen *xscr, Atom prop)
 {
+	(void) xscr;
+	(void) prop;
 }
 
 static void
@@ -1573,27 +1613,39 @@ init_window(XdeScreen *xscr)
 static void
 update_screen_size(XdeScreen *xscr, int new_width, int new_height)
 {
+	(void) xscr;
+	(void) new_width;
+	(void) new_height;
 }
 
 static void
 create_monitor(XdeScreen *xscr, XdeMonitor *mon, int m)
 {
+	(void) xscr;
+	(void) m;
 	memset(mon, 0, sizeof(*mon));
 }
 
 static void
 delete_monitor(XdeScreen *xscr, XdeMonitor *mon, int m)
 {
+	(void) xscr;
+	(void) mon;
+	(void) m;
 }
 
 static void
 update_monitor(XdeScreen *xscr, XdeMonitor *mon, int m)
 {
+	(void) xscr;
+	(void) mon;
+	(void) m;
 }
 
 static void
 update_screen(XdeScreen *xscr)
 {
+	(void) xscr;
 }
 
 static void
@@ -1792,6 +1844,8 @@ do_run(int argc, char *argv[], Bool replace)
 	XdeScreen *xscr;
 	int s, nscr;
 
+	(void) argc;
+	(void) argv;
 	DPRINT();
 	selwin = XCreateSimpleWindow(dpy, GDK_WINDOW_XID(root), 0, 0, 1, 1, 0, 0, 0);
 
@@ -1845,6 +1899,8 @@ do_run(int argc, char *argv[], Bool replace)
 static void
 do_quit(int argc, char *argv[])
 {
+	(void) argc;
+	(void) argv;
 	DPRINT();
 	get_selection(True, None);
 }
@@ -1860,6 +1916,7 @@ update_theme(XdeScreen *xscr, Atom prop)
 	Bool changed = False;
 	GtkSettings *set;
 
+	(void) prop;
 	DPRINT();
 	gtk_rc_reparse_all();
 	if (XGetTextProperty(dpy, root, &xtp, _XA_XDE_THEME_NAME)) {
@@ -2358,6 +2415,7 @@ show_detail(int detail)
 static GdkFilterReturn
 event_handler_EnterNotify(Display *dpy, XEvent *xev, XdeScreen *xscr)
 {
+	(void) dpy;
 	DPRINT();
 	if (options.debug > 1) {
 		fprintf(stderr, "==> EnterNotify: %p\n", xscr);
@@ -2393,6 +2451,7 @@ event_handler_EnterNotify(Display *dpy, XEvent *xev, XdeScreen *xscr)
 static GdkFilterReturn
 event_handler_LeaveNotify(Display *dpy, XEvent *xev, XdeScreen *xscr)
 {
+	(void) dpy;
 	DPRINT();
 	if (options.debug > 1) {
 		fprintf(stderr, "==> LeaveNotify: %p\n", xscr);
@@ -2428,6 +2487,7 @@ event_handler_LeaveNotify(Display *dpy, XEvent *xev, XdeScreen *xscr)
 static GdkFilterReturn
 event_handler_FocusIn(Display *dpy, XEvent *xev, XdeScreen *xscr)
 {
+	(void) dpy;
 	DPRINT();
 	if (options.debug > 1) {
 		fprintf(stderr, "==> FocusIn: %p\n", xscr);
@@ -2450,6 +2510,7 @@ event_handler_FocusIn(Display *dpy, XEvent *xev, XdeScreen *xscr)
 static GdkFilterReturn
 event_handler_FocusOut(Display *dpy, XEvent *xev, XdeScreen *xscr)
 {
+	(void) dpy;
 	DPRINT();
 	if (options.debug > 1) {
 		fprintf(stderr, "==> FocusOut: %p\n", xscr);
@@ -2481,6 +2542,7 @@ root_handler(GdkXEvent *xevent, GdkEvent *event, gpointer data)
 	XdeScreen *xscr = (typeof(xscr)) data;
 	Display *dpy = GDK_DISPLAY_XDISPLAY(xscr->disp);
 
+	(void) event;
 	DPRINT();
 	if (!xscr) {
 		EPRINTF("xscr is NULL\n");
@@ -2500,6 +2562,7 @@ popup_handler(GdkXEvent *xevent, GdkEvent *event, gpointer data)
 	XdeScreen *xscr = (typeof(xscr)) data;
 	Display *dpy = GDK_DISPLAY_XDISPLAY(xscr->disp);
 
+	(void) event;
 	DPRINT();
 	if (!xscr) {
 		EPRINTF("xscr is NULL\n");
@@ -2533,6 +2596,7 @@ selwin_handler(GdkXEvent *xevent, GdkEvent *event, gpointer data)
 	XdeScreen *xscr = data;
 	Display *dpy = GDK_DISPLAY_XDISPLAY(xscr->disp);
 
+	(void) event;
 	DPRINT();
 	if (!xscr) {
 		EPRINTF("xscr is NULL\n");
@@ -2574,6 +2638,7 @@ client_handler(GdkXEvent *xevent, GdkEvent *event, gpointer data)
 	XEvent *xev = (typeof(xev)) xevent;
 	Display *dpy = (typeof(dpy)) data;
 
+	(void) event;
 	DPRINT();
 	switch (xev->type) {
 	case ClientMessage:
@@ -2617,6 +2682,7 @@ proxy_handler(GdkXEvent *xevent, GdkEvent *event, gpointer data)
 	Display *dpy = GDK_DISPLAY_XDISPLAY(xscr->disp);
 	int num;
 
+	(void) event;
 	DPRINT();
 	if (!xscr) {
 		EPRINTF("xscr is NULL\n");
@@ -2723,6 +2789,7 @@ clientSetProperties(SmcConn smcConn, SmPointer data)
 		&prop[10]
 	};
 
+	(void) data;
 	j = 0;
 
 	/* CloneCommand: This is like the RestartCommand except it restarts a copy of the
@@ -2986,6 +3053,9 @@ static void
 clientSaveYourselfCB(SmcConn smcConn, SmPointer data, int saveType, Bool shutdown,
 		     int interactStyle, Bool fast)
 {
+	(void) saveType;
+	(void) interactStyle;
+	(void) fast;
 	if (!(shutting_down = shutdown)) {
 		if (!SmcRequestSaveYourselfPhase2(smcConn, clientSaveYourselfPhase2CB, data))
 			SmcSaveYourselfDone(smcConn, False);
@@ -3005,6 +3075,7 @@ clientSaveYourselfCB(SmcConn smcConn, SmPointer data, int saveType, Bool shutdow
 static void
 clientDieCB(SmcConn smcConn, SmPointer data)
 {
+	(void) data;
 	SmcCloseConnection(smcConn, 0, NULL);
 	shutting_down = False;
 	gtk_main_quit();
@@ -3013,6 +3084,8 @@ clientDieCB(SmcConn smcConn, SmPointer data)
 static void
 clientSaveCompleteCB(SmcConn smcConn, SmPointer data)
 {
+	(void) smcConn;
+	(void) data;
 	if (saving_yourself) {
 		saving_yourself = False;
 		gtk_main_quit();
@@ -3034,6 +3107,8 @@ clientSaveCompleteCB(SmcConn smcConn, SmPointer data)
 static void
 clientShutdownCancelledCB(SmcConn smcConn, SmPointer data)
 {
+	(void) smcConn;
+	(void) data;
 	shutting_down = False;
 	gtk_main_quit();
 }
@@ -3071,6 +3146,7 @@ on_ifd_watch(GIOChannel *chan, GIOCondition cond, pointer data)
 	SmcConn smcConn = data;
 	IceConn iceConn = SmcGetIceConnection(smcConn);
 
+	(void) chan;
 	if (cond & (G_IO_NVAL | G_IO_HUP | G_IO_ERR)) {
 		EPRINTF("poll failed: %s %s %s\n",
 			(cond & G_IO_NVAL) ? "NVAL" : "",
@@ -3207,13 +3283,15 @@ startup(int argc, char *argv[])
 static void
 copying(int argc, char *argv[])
 {
+	(void) argc;
+	(void) argv;
 	if (!options.output && !options.debug)
 		return;
 	(void) fprintf(stdout, "\
 --------------------------------------------------------------------------------\n\
 %1$s\n\
 --------------------------------------------------------------------------------\n\
-Copyright (c) 2010-2018  Monavacon Limited <http://www.monavacon.com/>\n\
+Copyright (c) 2010-2020  Monavacon Limited <http://www.monavacon.com/>\n\
 Copyright (c) 2002-2009  OpenSS7 Corporation <http://www.openss7.com/>\n\
 Copyright (c) 1997-2001  Brian F. G. Bidulock <bidulock@openss7.org>\n\
 \n\
@@ -3251,13 +3329,15 @@ regulations).\n\
 static void
 version(int argc, char *argv[])
 {
+	(void) argc;
+	(void) argv;
 	if (!options.output && !options.debug)
 		return;
 	(void) fprintf(stdout, "\
 %1$s (OpenSS7 %2$s) %3$s\n\
 Written by Brian Bidulock.\n\
 \n\
-Copyright (c) 2010, 2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018  Monavacon Limited.\n\
+Copyright (c) 2010, 2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018, 2020  Monavacon Limited.\n\
 Copyright (c) 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2009  OpenSS7 Corporation.\n\
 Copyright (c) 1997, 1998, 1999, 2000, 2001  Brian F. G. Bidulock.\n\
 This is free software; see the source for copying conditions.  There is NO\n\
@@ -3273,6 +3353,7 @@ See `%1$s --copying' for copying permissions.\n\
 static void
 usage(int argc, char *argv[])
 {
+	(void) argc;
 	if (!options.output && !options.debug)
 		return;
 	(void) fprintf(stderr, "\
@@ -3365,6 +3446,7 @@ show_where(MenuPosition where)
 static void
 help(int argc, char *argv[])
 {
+	(void) argc;
 	if (!options.output && !options.debug)
 		return;
 	/* *INDENT-OFF* */

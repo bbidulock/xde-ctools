@@ -1,6 +1,6 @@
 /*****************************************************************************
 
- Copyright (c) 2010-2018  Monavacon Limited <http://www.monavacon.com/>
+ Copyright (c) 2010-2020  Monavacon Limited <http://www.monavacon.com/>
  Copyright (c) 2002-2009  OpenSS7 Corporation <http://www.openss7.com/>
  Copyright (c) 1997-2001  Brian F. G. Bidulock <bidulock@openss7.org>
 
@@ -287,13 +287,15 @@ Options options = {
 static void
 copying(int argc, char *argv[])
 {
+	(void) argc;
+	(void) argv;
 	if (!options.output && !options.debug)
 		return;
 	(void) fprintf(stdout, "\
 --------------------------------------------------------------------------------\n\
 %1$s\n\
 --------------------------------------------------------------------------------\n\
-Copyright (c) 2010-2018  Monavacon Limited <http://www.monavacon.com/>\n\
+Copyright (c) 2010-2020  Monavacon Limited <http://www.monavacon.com/>\n\
 Copyright (c) 2002-2009  OpenSS7 Corporation <http://www.openss7.com/>\n\
 Copyright (c) 1997-2001  Brian F. G. Bidulock <bidulock@openss7.org>\n\
 \n\
@@ -331,13 +333,15 @@ regulations).\n\
 static void
 version(int argc, char *argv[])
 {
+	(void) argc;
+	(void) argv;
 	if (!options.output && !options.debug)
 		return;
 	(void) fprintf(stdout, "\
 %1$s (OpenSS7 %2$s) %3$s\n\
 Written by Brian Bidulock.\n\
 \n\
-Copyright (c) 2010, 2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018  Monavacon Limited.\n\
+Copyright (c) 2010, 2011, 2012, 2013, 2014, 2015, 2016, 2017, 2018, 2020  Monavacon Limited.\n\
 Copyright (c) 2002, 2003, 2004, 2005, 2006, 2007, 2008, 2010  OpenSS7 Corporation.\n\
 Copyright (c) 1997, 1998, 1999, 2000, 2001  Brian F. G. Bidulock.\n\
 This is free software; see the source for copying conditions.  There is NO\n\
@@ -353,6 +357,7 @@ See `%1$s --copying' for copying permissions.\n\
 static void
 usage(int argc, char *argv[])
 {
+	(void) argc;
 	if (!options.output && !options.debug)
 		return;
 	(void) fprintf(stderr, "\
@@ -369,6 +374,7 @@ Usage:\n\
 static void
 help(int argc, char *argv[])
 {
+	(void) argc;
 	if (!options.output && !options.debug)
 		return;
 	/* *INDENT-OFF* */
@@ -622,11 +628,12 @@ dock_rearrange(XdeDock *dock)
 void add_dockapp(XdeDock *d, XdeClient *c, XdeWindow *cwin);
 
 gboolean
-on_plug_removed(GtkSocket * s, gpointer data)
+on_plug_removed(GtkSocket *s, gpointer data)
 {
 	XdeClient *c = data;
 	XdeDock *d = c->dock;
 
+	(void) s;
 	if (options.debug)
 		fprintf(stderr, "*** PLUG REMOVED: wind.window = 0x%08lx icon.window = 0x%08lx\n",
 			c->wind.window, c->icon.window);
@@ -1305,6 +1312,8 @@ create_dock(XdeScreen *xscr)
 static GdkFilterReturn
 event_handler_CreateNotify(Display *dpy, XEvent *xev, XdeScreen *xscr)
 {
+	(void) dpy;
+	(void) xscr;
 	if (options.debug) {
 		fprintf(stderr, "==> CreateNotify:\n");
 		fprintf(stderr, "    --> parent = 0x%08lx\n", xev->xcreatewindow.parent);
@@ -1323,6 +1332,8 @@ event_handler_CreateNotify(Display *dpy, XEvent *xev, XdeScreen *xscr)
 static GdkFilterReturn
 event_handler_DestroyNotify(Display *dpy, XEvent *xev, XdeScreen *xscr)
 {
+	(void) dpy;
+	(void) xscr;
 	if (options.debug) {
 		fprintf(stderr, "==> DestroyNotify:\n");
 		fprintf(stderr, "    --> event = 0x%08lx\n", xev->xdestroywindow.event);
@@ -1335,6 +1346,8 @@ event_handler_DestroyNotify(Display *dpy, XEvent *xev, XdeScreen *xscr)
 static GdkFilterReturn
 event_handler_ReparentNotify(Display *dpy, XEvent *xev, XdeScreen *xscr)
 {
+	(void) dpy;
+	(void) xscr;
 #ifdef XDE_DOCK_DONT_WAIT
 	if (options.debug) {
 		fprintf(stderr, "==> ReparentNotify:\n");
@@ -1482,6 +1495,8 @@ event_handler_ReparentNotify(Display *dpy, XEvent *xev, XdeScreen *xscr)
 static GdkFilterReturn
 event_handler_UnmapNotify(Display *dpy, XEvent *xev, XdeScreen *xscr)
 {
+	(void) dpy;
+	(void) xscr;
 	if (options.debug) {
 		fprintf(stderr, "==> UnmapNotify:\n");
 		fprintf(stderr, "    --> event = 0x%08lx\n", xev->xunmap.event);
@@ -1626,6 +1641,7 @@ window_handler(GdkXEvent *xevent, GdkEvent *event, gpointer data)
 	XdeScreen *xscr = (typeof(xscr)) data;
 	Display *dpy = GDK_DISPLAY_XDISPLAY(xscr->disp);
 
+	(void) event;
 	DPRINT();
 	if (!xscr) {
 		EPRINTF("xscr is NULL\n");
@@ -1655,6 +1671,7 @@ root_handler(GdkXEvent *xevent, GdkEvent *event, gpointer data)
 	XdeScreen *xscr = (typeof(xscr)) data;
 	Display *dpy = GDK_DISPLAY_XDISPLAY(xscr->disp);
 
+	(void) event;
 	DPRINT();
 	if (!xscr) {
 		EPRINTF("xscr is NULL\n");
@@ -1683,6 +1700,8 @@ window_opened(WnckScreen *wscreen, WnckWindow *win, gpointer data)
 	XdeScreen *xscr = data;
 	Window w;
 
+	(void) wscreen;
+	(void) win;
 	if ((w = wnck_window_get_xid(win)))
 		test_window(xscr, w);
 }
@@ -1774,6 +1793,7 @@ window_manager_changed(WnckScreen *wscreen, gpointer data)
 	XdeScreen *xscr = data;
 	const char *name;
 
+	(void) wscreen;
 	DPRINT();
 	wnck_screen_force_update(xscr->wnck);
 	free(xscr->wmname);
@@ -1803,6 +1823,7 @@ window_manager_changed(WnckScreen *wscreen, gpointer data)
 gboolean
 on_int_signal(gpointer user_data)
 {
+	(void) user_data;
 	shut_it_down = True;
 	gtk_main_quit();
 	return G_SOURCE_CONTINUE;
@@ -1811,6 +1832,7 @@ on_int_signal(gpointer user_data)
 gboolean
 on_hup_signal(gpointer user_data)
 {
+	(void) user_data;
 	shut_it_down = True;
 	gtk_main_quit();
 	return G_SOURCE_CONTINUE;
@@ -1819,6 +1841,7 @@ on_hup_signal(gpointer user_data)
 gboolean
 on_term_signal(gpointer user_data)
 {
+	(void) user_data;
 	shut_it_down = True;
 	gtk_main_quit();
 	return G_SOURCE_CONTINUE;
@@ -1827,6 +1850,7 @@ on_term_signal(gpointer user_data)
 gboolean
 on_quit_signal(gpointer user_data)
 {
+	(void) user_data;
 	shut_it_down = True;
 	gtk_main_quit();
 	return G_SOURCE_CONTINUE;
@@ -1843,6 +1867,7 @@ update_theme(XdeScreen *xscr, Atom prop)
 	Bool changed = False;
 	GtkSettings *set;
 
+	(void) prop;
 	DPRINT();
 	gtk_rc_reparse_all();
 	if (XGetTextProperty(dpy, root, &xtp, _XA_XDE_THEME_NAME)) {
@@ -1935,6 +1960,7 @@ client_handler(GdkXEvent *xevent, GdkEvent *event, gpointer data)
 	XEvent *xev = (typeof(xev)) xevent;
 	Display *dpy = data;
 
+	(void) event;
 	DPRINT();
 	switch (xev->type) {
 	case ClientMessage:
@@ -2024,27 +2050,39 @@ get_selection(Bool replace, Window selwin)
 static void
 update_screen_size(XdeScreen *xscr, int new_width, int new_height)
 {
+	(void) xscr;
+	(void) new_width;
+	(void) new_height;
 }
 
 static void
 create_monitor(XdeScreen *xscr, XdeMonitor *mon, int m)
 {
+	(void) xscr;
+	(void) m;
 	memset(mon, 0, sizeof(*mon));
 }
 
 static void
 delete_monitor(XdeScreen *xscr, XdeMonitor *mon, int m)
 {
+	(void) xscr;
+	(void) mon;
+	(void) m;
 }
 
 static void
 update_monitor(XdeScreen *xscr, XdeMonitor *mon, int m)
 {
+	(void) xscr;
+	(void) mon;
+	(void) m;
 }
 
 static void
 update_screen(XdeScreen *xscr)
 {
+	(void) xscr;
 }
 
 static void
@@ -2147,6 +2185,7 @@ selwin_handler(GdkXEvent *xevent, GdkEvent *event, gpointer data)
 	XdeScreen *xscr = data;
 	Display *dpy = GDK_DISPLAY_XDISPLAY(xscr->disp);
 
+	(void) event;
 	DPRINT();
 	if (!xscr) {
 		EPRINTF("xscr is NULL\n");
@@ -2181,6 +2220,8 @@ init_wnck(XdeScreen *xscr)
 static void
 do_quit(int argc, char *argv[])
 {
+	(void) argc;
+	(void) argv;
 	DPRINT();
 	get_selection(True, None);
 }
@@ -2197,6 +2238,8 @@ do_run(int argc, char *argv[], Bool replace)
 	XdeScreen *xscr;
 	int s, nscr;
 
+	(void) argc;
+	(void) argv;
 	DPRINT();
 	selwin = XCreateSimpleWindow(dpy, GDK_WINDOW_XID(root), 0, 0, 1, 1, 0, 0, 0);
 
@@ -2254,6 +2297,7 @@ clientSetProperties(SmcConn smcConn, SmPointer data)
 		&prop[10]
 	};
 
+	(void) data;
 	j = 0;
 
 	/* CloneCommand: This is like the RestartCommand except it restarts a copy of the
@@ -2517,6 +2561,9 @@ static void
 clientSaveYourselfCB(SmcConn smcConn, SmPointer data, int saveType, Bool shutdown,
 		     int interactStyle, Bool fast)
 {
+	(void) saveType;
+	(void) interactStyle;
+	(void) fast;
 	if (!(shutting_down = shutdown)) {
 		if (!SmcRequestSaveYourselfPhase2(smcConn, clientSaveYourselfPhase2CB, data))
 			SmcSaveYourselfDone(smcConn, False);
@@ -2536,6 +2583,7 @@ clientSaveYourselfCB(SmcConn smcConn, SmPointer data, int saveType, Bool shutdow
 static void
 clientDieCB(SmcConn smcConn, SmPointer data)
 {
+	(void) data;
 	SmcCloseConnection(smcConn, 0, NULL);
 	shutting_down = False;
 	gtk_main_quit();
@@ -2544,6 +2592,8 @@ clientDieCB(SmcConn smcConn, SmPointer data)
 static void
 clientSaveCompleteCB(SmcConn smcConn, SmPointer data)
 {
+	(void) smcConn;
+	(void) data;
 	if (saving_yourself) {
 		saving_yourself = False;
 		gtk_main_quit();
@@ -2565,6 +2615,8 @@ clientSaveCompleteCB(SmcConn smcConn, SmPointer data)
 static void
 clientShutdownCancelledCB(SmcConn smcConn, SmPointer data)
 {
+	(void) smcConn;
+	(void) data;
 	shutting_down = False;
 	gtk_main_quit();
 }
@@ -2602,6 +2654,7 @@ on_ifd_watch(GIOChannel *chan, GIOCondition cond, pointer data)
 	SmcConn smcConn = data;
 	IceConn iceConn = SmcGetIceConnection(smcConn);
 
+	(void) chan;
 	if (cond & (G_IO_NVAL | G_IO_HUP | G_IO_ERR)) {
 		EPRINTF("poll failed: %s %s %s\n",
 			(cond & G_IO_NVAL) ? "NVAL" : "",
