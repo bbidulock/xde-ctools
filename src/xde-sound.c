@@ -4986,6 +4986,8 @@ window_manager_changed(WnckScreen *wnck, gpointer user)
 	const char *name;
 	ca_context *ca = ca_gtk_context_get_for_screen(xscr->scrn);
 	ca_proplist *pl = NULL;
+	const char *id;
+	int r;
 
 	PTRACE(5);
 	/* I suppose that what we should do here is set a timer and wait before doing
@@ -5029,18 +5031,17 @@ window_manager_changed(WnckScreen *wnck, gpointer user)
 			xscr->start = False;
 			xscr->input = False;
 		}
-		ca_context_cancel(ca, CaEventWindowManager);
-		ca_proplist_create(&pl);
-		ca_proplist_sets(pl, CA_PROP_EVENT_ID, "desktop-login");
-		ca_context_play_full(ca, CaEventWindowManager, pl, NULL, NULL);
-		ca_proplist_destroy(pl);
-	} else {
-		ca_context_cancel(ca, CaEventWindowManager);
-		ca_proplist_create(&pl);
-		ca_proplist_sets(pl, CA_PROP_EVENT_ID, "desktop-logout");
-		ca_context_play_full(ca, CaEventWindowManager, pl, NULL, NULL);
-		ca_proplist_destroy(pl);
 	}
+	ca_context_cancel(ca, CaEventWindowManager);
+	if ((r = ca_proplist_create(&pl)) < 0) {
+		EPRINTF("Cannot create property list: %s\n", ca_strerror(r));
+		return;
+	}
+	ca_proplist_sets(pl, CA_PROP_CANBERRA_CACHE_CONTROL, "never");
+	ca_proplist_sets(pl, CA_PROP_EVENT_ID, (id = name ? "desktop-login" : "desktop-logout"));
+	if ((r = ca_context_play_full(ca, CaEventWindowManager, pl, NULL, NULL)) < 0)
+		EPRINTF("Cannot play %s: %s\n", id, ca_strerror(r));
+	ca_proplist_destroy(pl);
 	DPRINTF(1, "window manager is '%s'\n", xscr->wmname);
 	DPRINTF(1, "window manager is %s\n", xscr->goodwm ? "usable" : "unusable");
 }
@@ -5048,15 +5049,28 @@ window_manager_changed(WnckScreen *wnck, gpointer user)
 static void
 workspace_destroyed(WnckScreen *wnck, WnckWorkspace *space, gpointer data)
 {
-#if 0
+#if 1
 	XdeScreen *xscr = data;
 	ca_context *ca = ca_gtk_context_get_for_screen(xscr->scrn);
 	ca_proplist *pl = NULL;
+	const char *id;
+	int r;
 
 	ca_context_cancel(ca, CaEventWorkspaceChange);
-	ca_proplist_create(&pl);
-	ca_proplist_sets(pl, CA_PROP_EVENT_ID, "workspace-destroyed");
-	ca_context_play_full(ca, CaEventWorkspaceChange, pl, NULL, NULL);
+	if ((r = ca_proplist_create(&pl)) < 0) {
+		EPRINTF("Cannot create property list: %s\n", ca_strerror(r));
+		return;
+	}
+	if ((r = ca_proplist_sets(pl, CA_PROP_CANBERRA_CACHE_CONTROL, "never")) < 0)
+		EPRINTF("Cannot set cache control: %s\n", ca_strerror(r));
+	ca_proplist_sets(pl, CA_PROP_EVENT_ID, (id = "workspace-destroyed"));
+	if ((r = ca_context_play_full(ca, CaEventWorkspaceChange, pl, NULL, NULL)) < 0)
+		EPRINTF("Cannot play %s: %s\n", id, ca_strerror(r));
+	if (r == CA_ERROR_NOTFOUND) {
+		ca_proplist_sets(pl, CA_PROP_EVENT_ID, (id = "desktop-destroyed"));
+		if ((r = ca_context_play_full(ca, CaEventWorkspaceChange, pl, NULL, NULL)) < 0)
+			EPRINTF("Cannot play %s: %s\n", id, ca_strerror(r));
+	}
 	ca_proplist_destroy(pl);
 #endif
 }
@@ -5064,15 +5078,28 @@ workspace_destroyed(WnckScreen *wnck, WnckWorkspace *space, gpointer data)
 static void
 workspace_created(WnckScreen *wnck, WnckWorkspace *space, gpointer data)
 {
-#if 0
+#if 1
 	XdeScreen *xscr = data;
 	ca_context *ca = ca_gtk_context_get_for_screen(xscr->scrn);
 	ca_proplist *pl = NULL;
+	const char *id;
+	int r;
 
 	ca_context_cancel(ca, CaEventWorkspaceChange);
-	ca_proplist_create(&pl);
-	ca_proplist_sets(pl, CA_PROP_EVENT_ID, "workspace-created");
-	ca_context_play_full(ca, CaEventWorkspaceChange, pl, NULL, NULL);
+	if ((r = ca_proplist_create(&pl)) < 0) {
+		EPRINTF("Cannot create property list: %s\n", ca_strerror(r));
+		return;
+	}
+	if ((r = ca_proplist_sets(pl, CA_PROP_CANBERRA_CACHE_CONTROL, "never")) < 0)
+		EPRINTF("Cannot set cache control: %s\n", ca_strerror(r));
+	ca_proplist_sets(pl, CA_PROP_EVENT_ID, (id = "workspace-created"));
+	if ((r = ca_context_play_full(ca, CaEventWorkspaceChange, pl, NULL, NULL)) < 0)
+		EPRINTF("Cannot play %s: %s\n", id, ca_strerror(r));
+	if (r == CA_ERROR_NOTFOUND) {
+		ca_proplist_sets(pl, CA_PROP_EVENT_ID, (id = "desktop-created"));
+		if ((r = ca_context_play_full(ca, CaEventWorkspaceChange, pl, NULL, NULL)) < 0)
+			EPRINTF("Cannot play %s: %s\n", id, ca_strerror(r));
+	}
 	ca_proplist_destroy(pl);
 #endif
 }
@@ -5093,7 +5120,7 @@ static void
 active_workspace_changed(WnckScreen *wnck, WnckWorkspace *prev, gpointer data)
 {
 	/* XXX: should be handled by update_current_desktop */
-#if 0
+#if 1
 #ifdef CANBERRA_SOUND
 	XdeScreen *xscr = (typeof(xscr)) data;
 	ca_context *ca = ca_gtk_context_get_for_screen(xscr->scrn);
@@ -5103,6 +5130,8 @@ active_workspace_changed(WnckScreen *wnck, WnckWorkspace *prev, gpointer data)
 	int nind = wnck_screen_get_workspace_index(wnck, next);
 	int numb = wnck_screen_get_workspace_count(wnck);
 	WnckMotionDirection dir;
+	const char *id;
+	int r;
 
 	if (pind == nind)
 		return;
@@ -5133,25 +5162,44 @@ active_workspace_changed(WnckScreen *wnck, WnckWorkspace *prev, gpointer data)
 		EPRINTF("Cannot determine desktop change direction from %d to %d\n", pind, nind);
 		return;
 	}
-	ca_proplist_create(&pl);
-	switch (dir) {
-	case WNCK_MOTION_UP:
-		ca_proplist_sets(pl, CA_PROP_EVENT_ID, "desktop-switch-up");
-		break;
-	case WNCK_MOTION_DOWN:
-		ca_proplist_sets(pl, CA_PROP_EVENT_ID, "desktop-switch-down");
-		break;
-	case WNCK_MOTION_LEFT:
-		ca_proplist_sets(pl, CA_PROP_EVENT_ID, "desktop-switch-left");
-		break;
-	case WNCK_MOTION_RIGHT:
-		ca_proplist_sets(pl, CA_PROP_EVENT_ID, "desktop-switch-right");
-		break;
-	default:
-		ca_proplist_destroy(pl);
+	if ((r = ca_proplist_create(&pl)) < 0) {
+		EPRINTF("Cannoc create property list: %s\n", ca_strerror(r));
 		return;
 	}
-	ca_context_play_full(ca, CaEventDesktopChange, pl, NULL, NULL);
+	if ((r = ca_proplist_sets(pl, CA_PROP_CANBERRA_CACHE_CONTROL, "permanent")) < 0)
+		EPRINTF("Cannot set cache control: %s\n", ca_strerror(r));
+
+	switch (dir) {
+	case WNCK_MOTION_UP:
+		ca_proplist_sets(pl, CA_PROP_EVENT_ID, (id = "desktop-switch-up"));
+		if ((r = ca_context_play_full(ca, CaEventDesktopChange, pl, NULL, NULL)) < 0)
+			EPRINTF("Cannot play %s: %s\n", id, ca_strerror(r));
+		if (r == CA_ERROR_NOTFOUND) {
+			ca_proplist_sets(pl, CA_PROP_EVENT_ID, (id = "desktop-switch-left"));
+			if ((r = ca_context_play_full(ca, CaEventDesktopChange, pl, NULL, NULL)) < 0)
+				EPRINTF("Cannot play %s: %s\n", id, ca_strerror(r));
+		}
+		break;
+	case WNCK_MOTION_DOWN:
+		if ((r = ca_proplist_sets(pl, CA_PROP_EVENT_ID, (id = "desktop-switch-down"))) < 0)
+			EPRINTF("Cannot play %s: %s\n", id, ca_strerror(r));
+		if (r == CA_ERROR_NOTFOUND) {
+			ca_proplist_sets(pl, CA_PROP_EVENT_ID, (id = "desktop-switch-right"));
+			if ((r = ca_context_play_full(ca, CaEventDesktopChange, pl, NULL, NULL)) < 0)
+				EPRINTF("Cannot play %s: %s\n", id, ca_strerror(r));
+		}
+		break;
+	case WNCK_MOTION_LEFT:
+		if ((r = ca_proplist_sets(pl, CA_PROP_EVENT_ID, (id = "desktop-switch-left"))) < 0)
+			EPRINTF("Cannot play %s: %s\n", id, ca_strerror(r));
+		break;
+	case WNCK_MOTION_RIGHT:
+		if ((r = ca_proplist_sets(pl, CA_PROP_EVENT_ID, (id = "desktop-switch-right"))) < 0)
+			EPRINTF("Cannot play %s: %s\n", id, ca_strerror(r));
+		break;
+	default:
+		break;
+	}
 	ca_proplist_destroy(pl);
 #endif				/* CANBERRA_SOUND */
 #endif
@@ -5190,73 +5238,195 @@ state_changed(WnckWindow *window, WnckWindowState changed, WnckWindowState state
 	XdeScreen *xscr = data;
 	ca_context *ca = ca_gtk_context_get_for_screen(xscr->scrn);
 	ca_proplist *pl = NULL;
+	int r, x = 0, y = 0, width = 0, height = 0;
+	const char *id;
 
 	ca_context_cancel(ca, CaEventWindowChange);
-	ca_proplist_create(&pl);
+	if ((r = ca_proplist_create(&pl)) < 0) {
+		EPRINTF("Cannot create proplist: %s\n", ca_strerror(r));
+		return;
+	}
+	if ((r = ca_proplist_sets(pl, CA_PROP_CANBERRA_CACHE_CONTROL, "volatile")) < 0)
+		EPRINTF("Cannot set cache control: %s\n", ca_strerror(r));
+
+	/* CA_PROP_WINDOW_NAME: the name of this window as human readable string. */
+	if ((r = ca_proplist_sets(pl, CA_PROP_WINDOW_NAME, wnck_window_get_name(window))) < 0)
+		EPRINTF("Cannot set window name: %s\n", ca_strerror(r));
+	/* CA_PROP_WINDOW_ID: identification string for this window */
+	if ((id = wnck_window_get_session_id(window))) {
+		if ((r = ca_proplist_setf(pl, CA_PROP_WINDOW_ID, "%s#%s", wnck_window_get_name(window), id)) < 0)
+			EPRINTF("Cannot set window id: %s\n", ca_strerror(r));
+	} else {
+		if ((r = ca_proplist_setf(pl, CA_PROP_WINDOW_ID, "%s", wnck_window_get_name(window))) < 0)
+			EPRINTF("Cannot set window id: %s\n", ca_strerror(r));
+	}
+	/* CA_PROP_WINDOW_ICON: binary icon data in PNG format */
+	/* CA_PROP_WINDOW_ICON_NAME: icon name as string */
+	if ((r = ca_proplist_sets(pl, CA_PROP_WINDOW_ICON_NAME, wnck_window_get_icon_name(window))) < 0)
+		EPRINTF("Cannot set window icon name: %s\n", ca_strerror(r));
+
+	wnck_window_get_client_window_geometry(window, &x, &y, &width, &height);
+	/* CA_PROP_WINDOW_X: x coordinate of window */
+	if ((r = ca_proplist_setf(pl, CA_PROP_WINDOW_X, "%i", x)) < 0)
+		EPRINTF("Cannot set window x coord: %s\n", ca_strerror(r));
+	/* CA_PROP_WINDOW_Y: Y coordinate of window */
+	if ((r = ca_proplist_setf(pl, CA_PROP_WINDOW_Y, "%i", y)) < 0)
+		EPRINTF("Cannot set window y coord: %s\n", ca_strerror(r));
+	/* CA_PROP_WINDOW_WIDTH: pixel width of window */
+	if ((r = ca_proplist_setf(pl, CA_PROP_WINDOW_WIDTH, "%i", width)) < 0)
+		EPRINTF("Cannot set window width: %s\n", ca_strerror(r));
+	/* CA_PROP_WINDOW_HEIGHT: pixel height of window */
+	if ((r = ca_proplist_setf(pl, CA_PROP_WINDOW_HEIGHT, "%i", height)) < 0)
+		EPRINTF("Cannot set window height: %s\n", ca_strerror(r));
+
+	/* CA_PROP_WINDOW_HPOS: horizontal position (0.0 to 1.0) as string of window */
+	/* CA_PROP_WINDOW_VPOS: vertical position (0.0 to 1.0) as string of window */
+
+	/* CA_PROP_WINDOW_DESKTOP: comma separated string (null string for omnipresent) */
+	if (wnck_window_is_pinned(window)) {
+		if ((r = ca_proplist_sets(pl, CA_PROP_WINDOW_DESKTOP, "")) < 0)
+			EPRINTF("Cannot set window desktop: %s\n", ca_strerror(r));
+	} else {
+#if 0
+		/* FIXME */
+		char *desktops = calloc(PATH_MAX + 1, sizeof(*desktops));
+#endif
+	}
+
+	/* CA_PROP_WINDOW_X11_DISPLAY: display as string (e.g. :0) */
+	if ((r = ca_proplist_sets(pl, CA_PROP_WINDOW_X11_DISPLAY, gdk_display_get_name(disp))) < 0)
+		EPRINTF("Cannot set display: %s\n", ca_strerror(r));
+	/* CA_PROP_WINDOW_X11_SCREEN: screen as string (e.g. 0) */
+	if ((r = ca_proplist_setf(pl, CA_PROP_WINDOW_X11_SCREEN, "%i", gdk_screen_get_number(xscr->scrn))) < 0)
+		EPRINTF("Cannot set screen: %s\n", ca_strerror(r));
+	/* CA_PROP_WINDOW_X11_MONITOR: monitor as string (e.g. 0) */
+	if ((r = ca_proplist_setf(pl, CA_PROP_WINDOW_X11_MONITOR, "%i", gdk_screen_get_monitor_at_point(xscr->scrn, x, y))) < 0)
+		EPRINTF("Cannot set monitor: %s\n", ca_strerror(r));
+	/* CA_PROP_WINDOW_X11_XID: XID formatted as string */
+	if ((r = ca_proplist_setf(pl, CA_PROP_WINDOW_X11_XID, "%lu", (unsigned long) wnck_window_get_xid(window))) < 0)
+		EPRINTF("Cannot set window xid: %s\n", ca_strerror(r));
 
 	if (changed & WNCK_WINDOW_STATE_MINIMIZED) {
 		if (state & WNCK_WINDOW_STATE_MINIMIZED) {
-			ca_proplist_sets(pl, CA_PROP_EVENT_ID, "window-minimized");
+			ca_proplist_sets(pl, CA_PROP_EVENT_ID, (id = "window-minimized"));
 		} else {
-			ca_proplist_sets(pl, CA_PROP_EVENT_ID, "window-unminimized");
+			ca_proplist_sets(pl, CA_PROP_EVENT_ID, (id = "window-unminimized"));
 		}
+		if ((r = ca_context_play_full(ca, CaEventWindowChange, pl, NULL, NULL)) < 0)
+			EPRINTF("Could not play %s: %s\n", id, ca_strerror(r));
 	}
-	if (changed & (WNCK_WINDOW_STATE_MAXIMIZED_HORIZONTALLY|WNCK_WINDOW_STATE_MAXIMIZED_VERTICALLY)) {
+	if ((changed & (WNCK_WINDOW_STATE_MAXIMIZED_HORIZONTALLY|WNCK_WINDOW_STATE_MAXIMIZED_VERTICALLY)) ==
+			(WNCK_WINDOW_STATE_MAXIMIZED_HORIZONTALLY|WNCK_WINDOW_STATE_MAXIMIZED_VERTICALLY) &&
+	    ((state & (WNCK_WINDOW_STATE_MAXIMIZED_HORIZONTALLY|WNCK_WINDOW_STATE_MAXIMIZED_VERTICALLY)) ==
+			(WNCK_WINDOW_STATE_MAXIMIZED_HORIZONTALLY|WNCK_WINDOW_STATE_MAXIMIZED_VERTICALLY) ||
+	     (state & (WNCK_WINDOW_STATE_MAXIMIZED_HORIZONTALLY|WNCK_WINDOW_STATE_MAXIMIZED_VERTICALLY)) == 0)) {
 		if (state & (WNCK_WINDOW_STATE_MAXIMIZED_HORIZONTALLY|WNCK_WINDOW_STATE_MAXIMIZED_VERTICALLY)) {
-			ca_proplist_sets(pl, CA_PROP_EVENT_ID, "window-maximized");
+			ca_proplist_sets(pl, CA_PROP_EVENT_ID, (id = "window-maximized"));
 		} else {
-			ca_proplist_sets(pl, CA_PROP_EVENT_ID, "window-unmaximized");
+			ca_proplist_sets(pl, CA_PROP_EVENT_ID, (id = "window-unmaximized"));
+		}
+		if ((r = ca_context_play_full(ca, CaEventWindowChange, pl, NULL, NULL)) < 0)
+			EPRINTF("Could not play %s: %s\n", id, ca_strerror(r));
+	} else {
+		if (changed & WNCK_WINDOW_STATE_MAXIMIZED_HORIZONTALLY) {
+			if (state & WNCK_WINDOW_STATE_MAXIMIZED_HORIZONTALLY) {
+				ca_proplist_sets(pl, CA_PROP_EVENT_ID, (id = "window-maximized-horizontal"));
+			} else {
+				ca_proplist_sets(pl, CA_PROP_EVENT_ID, (id = "window-unmaximized-horizontal"));
+			}
+			if ((r = ca_context_play_full(ca, CaEventWindowChange, pl, NULL, NULL)) < 0)
+				EPRINTF("Could not play %s: %s\n", id, ca_strerror(r));
+		}
+		if (changed & WNCK_WINDOW_STATE_MAXIMIZED_VERTICALLY) {
+			if (state & WNCK_WINDOW_STATE_MAXIMIZED_VERTICALLY) {
+				ca_proplist_sets(pl, CA_PROP_EVENT_ID, (id = "window-maximized-vertical"));
+			} else {
+				ca_proplist_sets(pl, CA_PROP_EVENT_ID, (id = "window-unmaximized-vertical"));
+			}
+			if ((r = ca_context_play_full(ca, CaEventWindowChange, pl, NULL, NULL)) < 0)
+				EPRINTF("Could not play %s: %s\n", id, ca_strerror(r));
 		}
 	}
 	if (changed & WNCK_WINDOW_STATE_SHADED) {
 		if (state & WNCK_WINDOW_STATE_SHADED) {
-			ca_proplist_sets(pl, CA_PROP_EVENT_ID, "window-slide-in");
+			ca_proplist_sets(pl, CA_PROP_EVENT_ID, (id = "window-slide-out-shade"));
 		} else {
-			ca_proplist_sets(pl, CA_PROP_EVENT_ID, "window-slide-out");
+			ca_proplist_sets(pl, CA_PROP_EVENT_ID, (id = "window-slide-in-unshade"));
 		}
+		if ((r = ca_context_play_full(ca, CaEventWindowChange, pl, NULL, NULL)) < 0)
+			EPRINTF("Could not play %s: %s\n", id, ca_strerror(r));
 	}
 	if (changed & WNCK_WINDOW_STATE_SKIP_PAGER) {
 	}
 	if (changed & WNCK_WINDOW_STATE_SKIP_TASKLIST) {
 	}
 	if (changed & WNCK_WINDOW_STATE_STICKY) {
+		if (state & WNCK_WINDOW_STATE_STICKY) {
+			ca_proplist_sets(pl, CA_PROP_EVENT_ID, (id = "window-stick"));
+			if ((r = ca_context_play_full(ca, CaEventWindowChange, pl, NULL, NULL)) < 0)
+				EPRINTF("Could not play %s: %s\n", id, ca_strerror(r));
+		} else {
+			ca_proplist_sets(pl, CA_PROP_EVENT_ID, (id = "window-unstick"));
+			if ((r = ca_context_play_full(ca, CaEventWindowChange, pl, NULL, NULL)) < 0)
+				EPRINTF("Could not play %s: %s\n", id, ca_strerror(r));
+		}
 	}
 	if (changed & WNCK_WINDOW_STATE_HIDDEN) {
 		if (state & WNCK_WINDOW_STATE_HIDDEN) {
-			ca_proplist_sets(pl, CA_PROP_EVENT_ID, "window-minimized");
+			ca_proplist_sets(pl, CA_PROP_EVENT_ID, (id = "window-minimized-hidden"));
 		} else {
-			ca_proplist_sets(pl, CA_PROP_EVENT_ID, "window-unminimized");
+			ca_proplist_sets(pl, CA_PROP_EVENT_ID, (id = "window-unminimized-hidden"));
 		}
+		if ((r = ca_context_play_full(ca, CaEventWindowChange, pl, NULL, NULL)) < 0)
+			EPRINTF("Could not play %s: %s\n", id, ca_strerror(r));
 	}
 	if (changed & WNCK_WINDOW_STATE_FULLSCREEN) {
 		if (state & WNCK_WINDOW_STATE_FULLSCREEN) {
-			ca_proplist_sets(pl, CA_PROP_EVENT_ID, "window-maximized");
+			ca_proplist_sets(pl, CA_PROP_EVENT_ID, (id = "window-maximized-fullscreen"));
 		} else {
-			ca_proplist_sets(pl, CA_PROP_EVENT_ID, "window-unmaximized");
+			ca_proplist_sets(pl, CA_PROP_EVENT_ID, (id = "window-unmaximized-fullscreen"));
 		}
+		if ((r = ca_context_play_full(ca, CaEventWindowChange, pl, NULL, NULL)) < 0)
+			EPRINTF("Could not play %s: %s\n", id, ca_strerror(r));
 	}
 	if (changed & WNCK_WINDOW_STATE_DEMANDS_ATTENTION) {
 		if (state & WNCK_WINDOW_STATE_DEMANDS_ATTENTION) {
-			if (state & WNCK_WINDOW_STATE_HIDDEN) {
-				ca_proplist_sets(pl, CA_PROP_EVENT_ID, "window-attention-active");
+			if (state & WNCK_WINDOW_STATE_FOCUSED) {
+				ca_proplist_sets(pl, CA_PROP_EVENT_ID, (id = "window-attention-active"));
 			} else {
-				ca_proplist_sets(pl, CA_PROP_EVENT_ID, "window-attention-inactive");
+				ca_proplist_sets(pl, CA_PROP_EVENT_ID, (id = "window-attention-inactive"));
 			}
 		}
+		if ((r = ca_context_play_full(ca, CaEventWindowChange, pl, NULL, NULL)) < 0)
+			EPRINTF("Could not play %s: %s\n", id, ca_strerror(r));
 	}
 	if (changed & WNCK_WINDOW_STATE_URGENT) {
 		if (state & WNCK_WINDOW_STATE_URGENT) {
-			ca_proplist_sets(pl, CA_PROP_EVENT_ID, "window-urgent");
+			ca_proplist_sets(pl, CA_PROP_EVENT_ID, (id = "window-urgent"));
+			if ((r = ca_context_play_full(ca, CaEventWindowChange, pl, NULL, NULL)) < 0)
+				EPRINTF("Could not play %s: %s\n", id, ca_strerror(r));
 		}
 	}
 	if (changed & WNCK_WINDOW_STATE_ABOVE) {
+		if (state & WNCK_WINDOW_STATE_ABOVE) {
+			ca_proplist_sets(pl, CA_PROP_EVENT_ID, (id = "window-raise-above"));
+			if ((r = ca_context_play_full(ca, CaEventWindowChange, pl, NULL, NULL)) < 0)
+				EPRINTF("Could not play %s: %s\n", id, ca_strerror(r));
+		}
 	}
 	if (changed & WNCK_WINDOW_STATE_BELOW) {
+		if (state & WNCK_WINDOW_STATE_BELOW) {
+			ca_proplist_sets(pl, CA_PROP_EVENT_ID, (id = "window-lower-below"));
+			if ((r = ca_context_play_full(ca, CaEventWindowChange, pl, NULL, NULL)) < 0)
+				EPRINTF("Could not play %s: %s\n", id, ca_strerror(r));
+		}
 	}
 	if (changed & WNCK_WINDOW_STATE_FOCUSED) {
 		if (state & WNCK_WINDOW_STATE_FOCUSED) {
 			if (window != wnck_screen_get_active_window(xscr->wnck)) {
-				ca_proplist_sets(pl, CA_PROP_EVENT_ID, "window-inactive-click");
+				ca_proplist_sets(pl, CA_PROP_EVENT_ID, (id = "window-inactive-click"));
+				if ((r = ca_context_play_full(ca, CaEventWindowChange, pl, NULL, NULL)) < 0)
+					EPRINTF("Could not play %s: %s\n", id, ca_strerror(r));
 			}
 		}
 	}
@@ -5266,35 +5436,74 @@ state_changed(WnckWindow *window, WnckWindowState changed, WnckWindowState state
 	}
 	if (changed & WNCK_WINDOW_STATE_FILLED) {
 		if (state & WNCK_WINDOW_STATE_FILLED) {
-			ca_proplist_sets(pl, CA_PROP_EVENT_ID, "window-maximized");
+			ca_proplist_sets(pl, CA_PROP_EVENT_ID, (id = "window-maximized-filled"));
 		} else {
-			ca_proplist_sets(pl, CA_PROP_EVENT_ID, "window-unmaximized");
+			ca_proplist_sets(pl, CA_PROP_EVENT_ID, (id = "window-unmaximized-unfilled"));
 		}
+		if ((r = ca_context_play_full(ca, CaEventWindowChange, pl, NULL, NULL)) < 0)
+			EPRINTF("Could not play %s: %s\n", id, ca_strerror(r));
 	}
 	if (changed & WNCK_WINDOW_STATE_FLOATING) {
 		if (state & WNCK_WINDOW_STATE_FLOATING) {
-			ca_proplist_sets(pl, CA_PROP_EVENT_ID, "window-float");
+			ca_proplist_sets(pl, CA_PROP_EVENT_ID, (id = "window-unstick-float"));
+			if ((r = ca_context_play_full(ca, CaEventWindowChange, pl, NULL, NULL)) < 0)
+				EPRINTF("Could not play %s: %s\n", id, ca_strerror(r));
 		} else {
-			ca_proplist_sets(pl, CA_PROP_EVENT_ID, "window-unfloat");
+			ca_proplist_sets(pl, CA_PROP_EVENT_ID, (id = "window-stick-unfloat"));
+			if ((r = ca_context_play_full(ca, CaEventWindowChange, pl, NULL, NULL)) < 0)
+				EPRINTF("Could not play %s: %s\n", id, ca_strerror(r));
 		}
 	}
 	if (changed & WNCK_WINDOW_STATE_UNDECORATED) {
+		if (state & WNCK_WINDOW_STATE_UNDECORATED) {
+			ca_proplist_sets(pl, CA_PROP_EVENT_ID, (id = "window-undecorated"));
+		} else {
+			ca_proplist_sets(pl, CA_PROP_EVENT_ID, (id = "window-decorated"));
+		}
+		if ((r = ca_context_play_full(ca, CaEventWindowChange, pl, NULL, NULL)) < 0)
+			EPRINTF("Could not play %s: %s\n", id, ca_strerror(r));
 	}
-	ca_context_play_full(ca, CaEventWindowChange, pl, NULL, NULL);
 	ca_proplist_destroy(pl);
 }
 
 static void
 workspace_changed(WnckWindow *window, gpointer data)
 {
-#if 0
+#if 1
 	XdeScreen *xscr = data;
 	ca_context *ca = ca_gtk_context_get_for_screen(xscr->scrn);
 	ca_proplist *pl = NULL;
+	const char *id;
+	int r;
 
-	ca_proplist_create(&pl);
-	ca_proplist_sets(pl, CA_PROP_EVENT_ID, "window-switch");
-	ca_context_play_full(ca, CaEventWindowChange, pl, NULL, NULL);
+	WnckWorkspace *workspace;
+	int same = 0, pinned = 0;
+
+	if ((workspace = wnck_window_get_workspace(window))) {
+		WnckScreen *screen;
+		WnckWorkspace *active;
+
+		screen = wnck_workspace_get_screen(workspace);
+		if ((active = wnck_screen_get_active_workspace(screen)))
+			same = wnck_workspace_get_number(workspace) == wnck_workspace_get_number(active);
+
+	}
+	if ((pinned = wnck_window_is_pinned(window)))
+		id = "window-stick-pinned";
+	else if (same)
+		id = "window-slide-in-taketo";
+	else
+		id = "window-slide-out-sendto";
+
+	if ((r = ca_proplist_create(&pl)) < 0) {
+		EPRINTF("Cannot create proplist: %s\n", ca_strerror(r));
+		return;
+	}
+	if ((r = ca_proplist_sets(pl, CA_PROP_CANBERRA_CACHE_CONTROL, "volatile")) < 0)
+		EPRINTF("Cannot set cache control: %s\n", ca_strerror(r));
+	ca_proplist_sets(pl, CA_PROP_EVENT_ID, id);
+	if ((r = ca_context_play_full(ca, CaEventWindowChange, pl, NULL, NULL)) < 0)
+		EPRINTF("Cannot play %s: %s\n", id, ca_strerror(r));
 	ca_proplist_destroy(pl);
 #endif
 }
@@ -5417,12 +5626,20 @@ active_window_changed(WnckScreen *wnck, WnckWindow *prev, gpointer user)
 #if 1
 	ca_context *ca = ca_gtk_context_get_for_screen(xscr->scrn);
 	ca_proplist *pl = NULL;
+	const char *id;
+	int r;
 
 	ca_context_cancel(ca, CaEventWindowChange);
-	ca_proplist_create(&pl);
-	ca_proplist_sets(pl, CA_PROP_EVENT_ID, "window-switch");
-	ca_context_play_full(ca, CaEventWindowChange, pl, NULL, NULL);
-	ca_proplist_destroy(pl);
+	if ((r = ca_proplist_create(&pl)) < 0)
+		EPRINTF("Cannot create proplist: %s\n", ca_strerror(r));
+	else {
+		if ((r = ca_proplist_sets(pl, CA_PROP_CANBERRA_CACHE_CONTROL, "permanent")) < 0)
+			EPRINTF("Cannot set cache control: %s\n", ca_strerror(r));
+		ca_proplist_sets(pl, CA_PROP_EVENT_ID, (id = "window-switch"));
+		if ((r = ca_context_play_full(ca, CaEventWindowChange, pl, NULL, NULL)) < 0)
+			EPRINTF("Cannot play %s: %s\n", id, ca_strerror(r));
+		ca_proplist_destroy(pl);
+	}
 #endif
 
 	if (!options.show.cycle && !options.show.tasks && !options.show.winds)
@@ -5492,14 +5709,37 @@ class_group_opened(WnckScreen *wnck, WnckClassGroup * class_group, gpointer xscr
 }
 
 static void
-window_closed(WnckScreen *wnck, WnckWindow *window, gpointer xscr)
+window_closed(WnckScreen *wnck, WnckWindow *window, gpointer user)
 {
+	XdeScreen *xscr = user;
+	ca_context *ca = ca_gtk_context_get_for_screen(xscr->scrn);
+	ca_proplist *pl = NULL;
+	const char *id;
+	int r;
+
 	clients_changed(wnck, xscr);
+
+	ca_context_cancel(ca, CaEventWindowChange);
+	if ((r = ca_proplist_create(&pl)) < 0) {
+		EPRINTF("Cannot create property list: %s\n", ca_strerror(r));
+		return;
+	}
+	ca_proplist_sets(pl, CA_PROP_CANBERRA_CACHE_CONTROL, "volatile");
+	ca_proplist_sets(pl, CA_PROP_EVENT_ID, (id = "window-close"));
+	if ((r = ca_context_play_full(ca, CaEventWindowChange, pl, NULL, NULL)) < 0)
+		EPRINTF("Cannot play %s: %s\n", id, ca_strerror(r));
+	ca_proplist_destroy(pl);
 }
 
 static void
-window_opened(WnckScreen *wnck, WnckWindow *window, gpointer xscr)
+window_opened(WnckScreen *wnck, WnckWindow *window, gpointer user)
 {
+	XdeScreen *xscr = user;
+	ca_context *ca = ca_gtk_context_get_for_screen(xscr->scrn);
+	ca_proplist *pl = NULL;
+	const char *id;
+	int r;
+
 	g_signal_connect(G_OBJECT(window), "actions_changed", G_CALLBACK(actions_changed), xscr);
 	g_signal_connect(G_OBJECT(window), "geometry_changed", G_CALLBACK(geometry_changed), xscr);
 	g_signal_connect(G_OBJECT(window), "icon_changed", G_CALLBACK(icon_changed), xscr);
@@ -5507,17 +5747,30 @@ window_opened(WnckScreen *wnck, WnckWindow *window, gpointer xscr)
 	g_signal_connect(G_OBJECT(window), "state_changed", G_CALLBACK(state_changed), xscr);
 	g_signal_connect(G_OBJECT(window), "workspace_changed", G_CALLBACK(workspace_changed), xscr);
 	clients_changed(wnck, xscr);
+
+	ca_context_cancel(ca, CaEventWindowChange);
+	if ((r = ca_proplist_create(&pl)) < 0) {
+		EPRINTF("Cannot create property list: %s\n", ca_strerror(r));
+		return;
+	}
+	ca_proplist_sets(pl, CA_PROP_CANBERRA_CACHE_CONTROL, "volatile");
+	ca_proplist_sets(pl, CA_PROP_EVENT_ID, (id = "window-new"));
+	if ((r = ca_context_play_full(ca, CaEventWindowChange, pl, NULL, NULL)) < 0)
+		EPRINTF("Cannot play %s: %s\n", id, ca_strerror(r));
+	ca_proplist_destroy(pl);
 }
 
 static void
 window_stacking_changed(WnckScreen *wnck, gpointer xscr)
 {
 	clients_changed(wnck, xscr);
+	/* should emit a window stacking sound */
 }
 
 static void
 showing_desktop_changed(WnckScreen *wnck, gpointer xscr)
 {
+	/* FIXME: should emit some sound here. */
 }
 #endif
 
@@ -6953,6 +7206,7 @@ term_signal_handler(gpointer data)
 		int err;
 
 		ca_proplist_create(&pl);
+		ca_proplist_sets(pl, CA_PROP_CANBERRA_CACHE_CONTROL, "never");
 		ca_proplist_sets(pl, CA_PROP_EVENT_ID, "desktop-logout");
 
 		already_exiting = 1;
@@ -7712,7 +7966,7 @@ take_inhibit_lock(GDBusProxy *sd, const char *what, int *fdp)
 	if (result) {
 		GVariantIter iter;
 
-		DPRINTF(1, "received call result %s( %s )\n", "Inhi9bit", g_variant_get_type_string(result));
+		DPRINTF(1, "received call result %s( %s )\n", "Inhibit", g_variant_get_type_string(result));
 		g_variant_iter_init(&iter, result);
 		if ((handle = g_variant_iter_next_value(&iter))) {
 			*fdp = g_variant_get_handle(handle);
@@ -7745,6 +7999,7 @@ on_sd_proxy_manager_signal(GDBusProxy *proxy, gchar *sender_name, gchar
 		if ((value = g_variant_iter_next_value(&iter))) {
 			ca_context_cancel(ca, CaEventSleepSuspend);
 			ca_proplist_create(&pl);
+			ca_proplist_sets(pl, CA_PROP_CANBERRA_CACHE_CONTROL, "never");
 			flag = g_variant_get_boolean(value);
 			g_variant_unref(value);
 			if (flag) {
@@ -7766,6 +8021,7 @@ on_sd_proxy_manager_signal(GDBusProxy *proxy, gchar *sender_name, gchar
 		if ((value = g_variant_iter_next_value(&iter))) {
 			ca_context_cancel(ca, CaEventSleepSuspend);
 			ca_proplist_create(&pl);
+			ca_proplist_sets(pl, CA_PROP_CANBERRA_CACHE_CONTROL, "never");
 			flag = g_variant_get_boolean(value);
 			g_variant_unref(value);
 			if (flag) {
@@ -7868,6 +8124,7 @@ on_up_manager_proxy_props_changed(GDBusProxy *proxy, GVariant *changed_propertie
 			ca_proplist *pl;
 
 			ca_proplist_create(&pl);
+			ca_proplist_sets(pl, CA_PROP_CANBERRA_CACHE_CONTROL, "never");
 			if (!strcmp(name, "OnBattery")) {
 				if (setting) {
 					if (battery_low) {

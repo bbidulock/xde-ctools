@@ -12,7 +12,7 @@ B<xde-sound> [I<OPTIONS>]
 
 Provide desktop event sounds as feedback for window managers that do not
 provide audio feedback themselves or for those that provide an inferior
-feedback.  The audio feedback is uses the XDG sound theme specification
+feedback.  The audio feedback uses the XDG sound theme specification
 with a common set of event identifiers so that they can be themed.  This
 package also provides a default C<freedesktop> sound theme.  See the
 B<xde-style> and B<xde-theme> packages for more sounds.
@@ -168,6 +168,22 @@ exists) in the currently selected sound theme.
 
 =back
 
+=head1 BEHAVIOR
+
+The purpose of B<xde-sound> is to invoke XDG sound theme events that are
+the responsibility of the window manager.  Actions and input feedback
+associated with GUI elements (e.g: buttons, menus) are the
+responsibility of the GUI toolkit and are not detected or invoked by
+B<xde-sound>.
+
+Because there are action sound events typically associated with window
+manager actions (such as those provided for L<vtwm(1)> and L<fvwm(1)>)
+that are not represented in the standard event names provided by the XDG
+sound naming specification, and, because not many sound themes implement
+all of the standard ones anyway, it is necessary for B<xde-sound> to
+interrogate the extent of support for sounds in the current theme and
+potentially choose supported sounds to apply to unsupported actions.
+
 =head2  EVENTS
 
 B<xde-sound> detects the following events and takes the described
@@ -189,57 +205,208 @@ The following WnckWindow changes are supported:
 
 =item actions-changed
 
+Emitted when the action availabilities for window change.
+
 =item geometry-changed
+
+Emitted when the geometry of window changes.
 
 =item icon-changed
 
+Emitted when the icon of window changes.
+
 =item name-changed
 
+Emitted when the name of window changes.
+
 =item state-changed
+
+Emitted when the state of window changes.  This can happen when window
+is (un)minimized, (un)maximized, (un)sticked, (un)shaded, (un)made
+above, (un)made below, (un)set fullscreen, when it needs attention, etc.
 
 =over
 
 =item minimized
 
+=over
+
+=item I<window-minimized>
+
+=item I<window-unminimized>
+
+=back
+
 =item maximized horizontally
+
+=over
+
+=item I<window-maximized-horizontal>
+
+=item I<window-unmaximized-horizontal>
+
+=back
 
 =item maximized vertically
 
+=over
+
+=item I<window-maximized-vertical>
+
+=item I<window-unmaximized-vertical>
+
+=back
+
 =item shaded
+
+=over
+
+=item I<window-slide-out-shade>
+
+=item I<window-slide-in-unshaded>
+
+=back
 
 =item skip pager
 
 =item skip tasklist
 
+=over
+
+=item no sound
+
+=back
+
 =item sticky
+
+=over
+
+=item I<window-stick>, I<window-unfloat> (I<window-stick-unfloat>?)
+
+=item I<window-unstick>, I<window-float> (I<window-unstick-float>?)
+
+=back
 
 =item hidden
 
+=over
+
+=item I<window-minimized-hidden>
+
+=item I<window-unminimized-hidden>
+
+=back
+
 =item full screen
+
+=over
+
+=item I<window-maximized-fullscreen>
+
+=item I<window-unmaximized-fullscreen>
+
+=back
 
 =item demands attention
 
+=over
+
+=item I<window-attention-active>
+
+=item I<window-attention-inactive>
+
+=back
+
 =item urgent
+
+=over
+
+=item I<window-urgent>
+
+=back
 
 =item above
 
+=over
+
+=item I<window-raise-above>
+
+=back
+
 =item below
 
+=over
+
+=item I<window-lower-below>
+
+=back
+
 =item focused
+
+=over
+
+=item I<window-inactive-click>
+
+=back
 
 =item modal
 
 =item fixed
 
+=over
+
+=item no sound
+
+=back
+
 =item filled
+
+=over
+
+=item I<window-maximized-filled>
+
+=item I<window-unmaximized-unfilled>
+
+=back
 
 =item floating
 
+=over
+
+=item I<window-unstick-float>
+
+=item I<window-stick-unfloat>
+
+=back
+
 =item undecorated
+
+=over
+
+=item I<window-undecorated>
+
+=item I<window-decorated>
+
+=back
 
 =back
 
 =item workspace-changed
+
+Emitted when the current workspace of window changes, or if window has
+been pinned or unpinned.
+
+=over
+
+=item I<window-stick-pinned>
+
+=item I<window-slide-in-taketo>
+
+=item I<window-slide-out-sendto>
+
+=back
+
+Unfortunately, F<libwnck> cannot directly detect the unpinning of a window.
 
 =back
 
@@ -249,33 +416,130 @@ The following WnckWindow changes are supported:
 
 =item active-window-changed
 
+Emitted when the active window on screen has changed.
+
+=over
+
+=item I<window-switch>
+
+=back
+
 =item active-workspace-changed
+
+Emitted when the active workspace on screen has changed.
+
+=over
+
+=item I<desktop-switch-up>, I<desktop-switch-left> (I<desktop-switch-left-up>?)
+
+=item I<desktop-switch-down>, I<desktop-switch-right> (I<desktop-switch-right-down>?)
+
+=item I<desktop-switch-left>
+
+=item I<desktop-switch-right>
+
+=back
 
 =item application-closed
 
+Emitted when a WnckApplication is closed on screen.
+
 =item application-opened
+
+Emitted when a new WnckApplication is opened on screen.
 
 =item background-changed
 
+Emitted when the background on the root window of screen has changed.
+
 =item class-group-closed
+
+Emitted when a WnckClassGroup is closed on screen.
 
 =item class-group-opened
 
+Emitted when a WnckClassGroup is opened on screen.
+
 =item showing-desktop-changed
+
+Emitted when "showing the desktop" mod of screen is toggled.
+
+=over
+
+=item I<desktop-showing>?
+
+=item I<desktop-showing-not>?
+
+=back
 
 =item viewports-changed
 
+Emitted when a viewport position has changed in a WnckWorkspace of
+screen or when WnckWorkspace of screen gets or loses its viewport.
+
 =item window-closed
+
+Emitted when a WnckWindow is closed on screen.
+
+=over
+
+=item I<window-close>
+
+=back
 
 =item window-manager-changed
 
+Emitted when the window manager on screen has changed.
+
+=over
+
+=item I<desktop-login>
+
+=item I<desktop-logout>
+
+=back
+
 =item window-opened
+
+Emitted when a new WnckWindow is opened on screen.
+
+=over
+
+=item I<window-new>
+
+=back
 
 =item window-stacking-changed
 
+Emitted when the stacking order of WnckWindow on screen has changed.
+
+=over
+
+=item I<window-stack-raise>
+
+=item I<window-stack-lower>
+
+=back
+
 =item workspace-created
 
+Emitted when a WnckWorkspace is created on screen.
+
+=over
+
+=item I<workspace-created>, I<desktop-created>
+
+=back
+
 =item workspace-destroyed
+
+Emitted when a WnckWorkspace is destroyed on screen.
+
+=over
+
+=item I<workspace-destroyed>, I<desktop-destroyed>
+
+=back
 
 =back
 
@@ -291,21 +555,38 @@ The following WnckWindow changes are supported:
 
 =item network-connectivity-lost
 
+"The sound used when network connectivity is lost."
+
 =item network-connectivity-error
+
+"The sound used when an error occurs when it is tried to initialize the
+network connection of the computing device."
 
 =item dialog-error
 
+"The sound use when a dialog is opened to explain an error condition to
+the user."
+
 =item battery-low
 
-This event sound is played when the battery is low.  B<xde-sound> only
-plays battery event sounds when L<xde-up-applet(1)> is not running
-(C<_XDE_UP_APPLET_S%d> manager selection is missing).
+"The sound used when the battery is low (below 20%, for example)."
+This event sound is played when the battery is low (below 20%, for
+example).  B<xde-sound> only plays battery event sounds when
+L<xde-up-applet(1)> is not running (C<_XDE_UP_APPLET_S%d> manager
+selection is missing).
 
 =item suspend-error
 
+"The machine failed to suspend."
+
 =item software-update-urgent
 
+"The sound use when an urgent update is available through the system
+software update program."
+
 =item power-unplug-battery-low
+
+"The power cable has been unplugged and the battery level is low."
 
 This event sound is played when the power is unplugged and the battery
 is still low.  B<xde-sound> only plays battery event sounds when
@@ -320,42 +601,87 @@ selection is missing).
 
 =item message-new-instant
 
+"The sound used when a new IM is received."
+
 =item message-new-email
+
+"The sound used when a new email is received."
 
 =item complete-media-burn
 
+"The sound used when an optical medium completed burning."
+
 =item complete-media-rip
+
+"The sound used when an optical medium completed ripping."
 
 =item complete-download
 
+"The sound used when a file completed downloading."
+
 =item complete-copy
+
+"The sound used when a file completed copying."
 
 =item complete-scan
 
+"The sound used when a scanner completed image acquisition and software
+completed image processing."
+
 =item phone-incoming-call
+
+"The sound used when a phone/voip call is coming in.  Usually some kind
+of ring sound."
 
 =item phone-outgoing-busy
 
+"The sound used when a phone/voip call is dialed out and the responder is
+not available."
+
 =item phone-hangup
+
+"The sound used when a phone/voip call is ended due to hangup."
 
 =item phone-failure
 
+"The sound used when a phone/voip call is cancelled due to some error."
+
 =item network-connectivity-established
+
+"The sound used when network connectivity is established."
 
 =item system-bootup
 
+"The sound used when the computer is being booted up, played as early in
+bootup as possible."
+
 =item system-ready
+
+"The sound used when the computer is booted up and shows the login
+screen."
 
 =item system-shutdown
 
+"The sound used when the computer is being shut down."
+
+=item system-shutdown-reboot
+
+An extension to XDG sound naming specification used by libcanberra when
+the computer is being shut down for reboot.
+
 =item search-results
 
+"The sound used when one or more search results are returned."
+
 =item search-results-empty
+
+"The sound used when no search results are returned."
 
 =item desktop-login
 
 "The sound used when the user logs into the system, played as a welcome
 sound immediately after the login screen disappeared."
+
 This could be performed by systemd user unit.
 This could also be implemented as an autostart F<.desktop> entry, or can be
 performed by B<xde-sound> itself on startup.
@@ -363,6 +689,7 @@ performed by B<xde-sound> itself on startup.
 =item desktop-logout
 
 "The sound used when a user logs out of the system."
+
 This could be performed by systemd user unit.
 This could also be performed by B<xde-sound> itself on exit.
 
@@ -372,9 +699,16 @@ This could also be performed by B<xde-sound> itself on exit.
 
 =item service-login
 
+"The sound used when a user logs into a service (i.e. Gaim login)."
+
 =item service-logout
 
+"The sound used when a user logs out of a service (i.e. Gaim logout)."
+
 =item battery-caution
+
+"The sound used when the batter is nearing exhaustion (below 40%, for
+example)."
 
 This event sound is played when the battery is critically low.
 B<xde-sound> only plays battery event sounds when L<xde-up-applet(1)> is
@@ -382,28 +716,51 @@ not running (C<_XDE_UP_APPLET_S%d> manager selection is missing).
 
 =item battery-full
 
+"The sound used when the batter is fully loaded up."
 This event sound is played when the battery is full.  B<xde-sound> only
 plays battery event sounds when L<xde-up-applet(1)> is not running
 (C<_XDE_UP_APPLET_S%d> manager selection is missing).
 
 =item dialog-warning
 
+"The sound used when a dialog is opened to give information to the user
+that may be pertinent to the requested action."
+
 =item dialog-information
+
+"The sound used when a dialog is opened to give information to the user
+that may be pertinent to the requested action."
 
 =item dialog-question
 
+"The sound used when a dialog is opened to ask the user a question."
+
 =item software-update-available
+
+"The sound used when an update has become available for software
+installed on the computing device, through the system software update
+program."
 
 =item device-added
 
+"The sound used when a device has become available to the desktop, i.e.
+due to USB plugging."
+
 =item device-removed
 
+"The sound used when a device has become unavailable to the desktop,
+i.e. due to USB unplug."
+
 =item window-new
+
+"The sound used when a new window or dialog is opened."
 
 This sound can be driven by the C<window-opened> 
 B<WnckScreen> signal.
 
 =item power-plug
+
+"The power cable has been plugged in."
 
 This event sound is played when the power is plugged.  B<xde-sound> only
 plays power event sounds when L<xde-up-applet(1)> is not running
@@ -411,29 +768,50 @@ plays power event sounds when L<xde-up-applet(1)> is not running
 
 =item power-unplug
 
+"The power cable has been unplugged."
+
 This event sound is played when the power is unplugged.  B<xde-sound> only
 plays power event sounds when L<xde-up-applet(1)> is not running
 (C<_XDE_UP_APPLET_S%d> manager selection is missing).
 
 =item suspend-start
 
+"The machine is about to suspend."
+
 =item suspend-resume
+
+"The machine has returned from suspended state."
 
 =item lid-open
 
+"The lid has been opened (for laptops, mobile devices)."
+
 =item lid-close
+
+"The lid has been closed (for laptops, mobile devices)."
 
 =item alarm-clock-elapsed
 
+"A user configured alarm elapsed."
+
 =item window-attention-active
+
+"An active/visible window demands attention."
 
 This sound can be driven by a I<demands attention> or I<urgent> state
 change in response to a C<state-changed> B<WnckWindow> signal.
 
 =item window-attention-inactive
 
+"An inactive/invisible window demands attention."
+
 This sound can be driven by a I<demands attention> or I<urgent> state
 change in response to a C<state-changed> B<WnckWindow> signal.
+
+=item window-urgent
+
+An extension to the XDG sound naming specification for when a window is
+marked as urgent.
 
 =back
 
@@ -443,64 +821,135 @@ change in response to a C<state-changed> B<WnckWindow> signal.
 
 =item phone-outgoing-calling
 
+"The sound used when a phone/voip call is dialed out."
+
 =item message-sent-instant
+
+"The sound used when a new IM is sent."
 
 =item message-sent-email
 
+"The sound used when a new email is sent."
+
 =item bell-terminal
+
+"The sound to use as a terminal bell."
 
 =item bell-window-system
 
+"The sound to use as a generic bell for X11 or other window systems."
+
 =item trash-empty
+
+"The sound used when the user empties the trash."
 
 =item item-deleted
 
+"The sound used when an item is deleted."
+
 =item file-trash
+
+"The sound used when a file or folder is sent to the trash."
 
 =item camera-shutter
 
+"A photo has been shot."
+
 =item camera-focus
+
+"A camera has the focus."
 
 =item screen-capture
 
 "A screenshot was made."
+
 This needs to be done by the screenshot application.
 
 =item count-down
 
+"A countdown (e.g. for a photo shooting) sound that is repeated each
+second."
+
 =item completion-success
+
+"A text completion was attempted and was successful."
 
 =item completion-fail
 
+"A text completion was attempted and was not successful."
+
 =item completion-partial
+
+"A text completion was attempted and was partially successful."
 
 =item completion-rotation
 
+"A text completion was attempted and the list of available options
+reached the end and completion started from the beginning."
+
 =item audio-volume-change
+
+"The test sound that is used to make volume changes noticeable by the
+user when he uses a volume slider."
 
 =item audio-channel-left
 
+"The test sound for identifying the left speaker.  A mono file with a
+voice saying 'left'."
+
 =item audio-channel-right
+
+"The test sound for identifying the right speaker.  A mono file with a
+voice saying 'right'."
 
 =item audio-channel-front-left
 
+"The test sound for identifying the front-left speaker.  A mono file with a
+voice saying 'front left'."
+
 =item audio-channel-front-right
+
+"The test sound for identifying the front-right speaker.  A mono file with a
+voice saying 'front right'."
 
 =item audio-channel-front-center
 
+"The test sound for identifying the front-center speaker.  A mono file with a
+voice saying 'front center'."
+
 =item audio-channel-rear-left
+
+"The test sound for identifying the rear-left speaker.  A mono file with a
+voice saying 'rear left'."
 
 =item audio-channel-rear-right
 
+"The test sound for identifying the rear-right speaker.  A mono file with a
+voice saying 'rear right'."
+
 =item audio-channel-rear-center
+
+"The test sound for identifying the rear-center speaker.  A mono file with a
+voice saying 'rear center'."
 
 =item audio-channel-lfe
 
+"The test sound for identifying the lfe/subwoofer speaker.  A mono file with a
+voice saying 'subwoofer', alternatively a low frequency noise."
+
 =item audio-channel-side-left
+
+"The test sound for identifying the side-left speaker.  A mono file with a
+voice saying 'side left'."
 
 =item audio-channel-side-right
 
+"The test sound for identifying the side-right speaker.  A mono file with a
+voice saying 'side right'."
+
 =item audio-test-signal
+
+"The test sound for testing audio."
 
 =back
 
@@ -511,12 +960,14 @@ This needs to be done by the screenshot application.
 =item window-close
 
 "The sound used when an existing window is closed."
+
 This sound can be triggered by the C<window-closed> B<WnckScreen>
 signal.
 
 =item window-slide-in
 
 "The sound used when a window is slided in by some means. Example: panel."
+
 I suppose this is for things like auto-hiding panels and docks.
 This is rather hard to detect.  Perhaps restacking of a window of a
 particular type (desktop layer).
@@ -524,25 +975,127 @@ particular type (desktop layer).
 =item window-slide-out
 
 "The sound used when a window is slided out by some means. Example: panel."
+
 I suppose this is for things like auto-hiding panels and docks.
 This is rather hard to detect.  Perhaps restacking of a window of a
 particular type (desktop layer).
 
+=item window-slide-out-shade
+
+An extension to the XDG sound naming specification.  Used when a window
+is shaded.
+Falls back to I<window-slide-out>.
+
+=item window-slide-in-unshade
+
+An extension to the XDG sound naming specification.  Used when a window
+is unshaded.
+Falls back to I<window-slide-in>.
+
+=item window-slide-out-sendto
+
+An extension to the XDG sound naming specification.  Used when a window
+is sent to another workspace.
+Falls back to I<window-slide-out>.
+
+=item window-slide-in-taketo
+
+An extension to the XDG sound naming specification.  Used when a window
+is taken to another workspace.
+Falls back to I<window-slide-in>.
+
+=item window-stick
+
+An extension to the XDG sound naming specification.  Used when a window
+is stuck to the viewport.
+This sound can be triggered by the C<state-changed> B<WnckWindow> signal
+with a change in the I<sticky> state.
+
+=item window-unstick
+
+An extension to the XDG sound naming specification.  Used when a window
+is unstuck from the viewport.
+This sound can be triggered by the C<state-changed> B<WnckWindow> signal
+with a change in the I<sticky> state.
+
+=item window-stick-unfloat
+
+An extension to the XDG sound naming specification.  Used when a window
+is allowed to float in a tiling layout.
+Falls back to I<window-stick>.
+This sound can be triggered by the C<state-changed> B<WnckWindow> signal
+with a change in the I<floating> state.
+
+=item window-unstick-float
+
+An extension to the XDG sound naming specification.  Used when a window
+is not allowed to float in a tiling layout.
+Falls back to I<window-unstick>.
+This sound can be triggered by the C<state-changed> B<WnckWindow> signal
+with a change in the I<floating> state.
+
+=item window-stick-pinned
+
+An extension to the XDG sound naming specification.  Used when a window
+is pinned to all workspaces.
+Falls back to I<window-stick>.
+This sound can be triggered by the C<workspace-changed> B<WnckWindow>
+signal with a change to the pinned status.
+
+=item window-unstick-unpinned
+
+An extension to the XDG sound naming specification.  Used when a window
+is unpinned from all workspaces.
+Falls back to I<window-unstick>.
+
 =item window-minimized
 
 "The sound used when an existing window is minimized."
+
 This sound can be triggered by the C<state-changed> B<WnckWindow> signal
 with a change in the I<minimized> state.
 
 =item window-unminimized
 
 "The sound used when an existing window is unminimized."
+
 This sound can be triggered by the C<state-changed> B<WnckWindow> signal
 with a change in the I<minimized> state.
+
+=item window-minimized-hidden
+
+An extension to the XDG sound naming specification.
+Used when a window is hidden.
+Falls back to I<window-minimized>.
+This sound can be triggered by the C<state-changed> B<WnckWindow> signal
+with a change in the I<hidden> state.
+
+=item window-unminimized-unhidden
+
+An extension to the XDG sound naming specification.
+Used when a window is unhidden.
+Falls back to I<window-unminimized>.
+This sound can be triggered by the C<state-changed> B<WnckWindow> signal
+with a change in the I<hidden> state.
+
+=item window-decorated
+
+An extension to the XDG sound naming specification.
+Used when a window is decorated.
+This sound can be triggered by the C<state-changed> B<WnckWindow> signal
+with a change in the I<decorated> state.
+
+=item window-undecorated
+
+An extension to the XDG sound naming specification.
+Used when a window is undecorated.
+This sound can be triggered by the C<state-changed> B<WnckWindow> signal
+with a change in the I<decorated> state.
 
 =item window-maximized
 
 "The sound to use when an existing window is maximized."
+
 This sound can be triggered by the C<state-changed> B<WnckWindow> signal
 with a change in the I<maximized_horizontally> or
 I<maximized_vertically> state.
@@ -550,19 +1103,110 @@ I<maximized_vertically> state.
 =item window-unmaximized
 
 "The sound to use when an existing window is unmaximized."
+
 This sound can be triggered by the C<state-changed> B<WnckWindow> signal
 with a change in the I<maximized_horizontally> or
 I<maximized_vertically> state.
 
+=item window-maximized-vertical
+
+An extension to the XDG sound naming specification.
+Used when a window is maximized in the vertical direction only.
+Falls back to I<window-maximized>.
+This sound can be triggered by the C<state-changed> B<WnckWindow> signal
+with a change in the I<maximized_vertically> state.
+
+=item window-unmaximized-vertical
+
+An extension to the XDG sound naming specification.
+Used when a window is unmaximized in the vertical direction only.
+Falls back to I<window-unmaximized>.
+This sound can be triggered by the C<state-changed> B<WnckWindow> signal
+with a change in the I<maximized_vertically> state.
+
+=item window-maximized-horizontal
+
+An extension to the XDG sound naming specification.
+Used when a window is maximized in the horizontal direction only.
+Falls back to I<window-maximized>.
+This sound can be triggered by the C<state-changed> B<WnckWindow> signal
+with a change in the I<maximized_horizontally> state.
+
+=item window-unmaximized-horizontal
+
+An extension to the XDG sound naming specification.
+Used when a window is unmaximized in the horizontal direction only.
+Falls back to I<window-unmaximized>.
+This sound can be triggered by the C<state-changed> B<WnckWindow> signal
+with a change in the I<maximized_horizontally> state.
+
+=item window-maximized-left
+
+An extension to the XDG sound naming specification.
+Used when a window is maximized in the left half of the screen.
+Falls back to I<window-maximized>.
+
+=item window-unmaximized-left
+
+An extension to the XDG sound naming specification.
+Used when a window is unmaximized from the left half of the screen.
+Falls back to I<window-unmaximized>.
+
+=item window-maximized-right
+
+An extension to the XDG sound naming specification.
+Used when a window is maximized in the right half of the screen.
+Falls back to I<window-maximized>.
+
+=item window-unmaximized-right
+
+An extension to the XDG sound naming specification.
+Used when a window is unmaximized from the right half of the screen.
+Falls back to I<window-unmaximized>.
+
+=item window-maximized-fullscreen
+
+An extension to the XDG sound naming specification.
+Used when a window is maximized to fullscreen.
+Falls back to I<window-maximized>.
+This sound can be triggered by the C<state-changed> B<WnckWindow> signal
+with a change in the I<fullscreen> state.
+
+=item window-unmaximized-fullscreen
+
+An extension to the XDG sound naming specification.
+Used when a window is unmaximized from fullscreen.
+Falls back to I<window-unmaximized>.
+This sound can be triggered by the C<state-changed> B<WnckWindow> signal
+with a change in the I<fullscreen> state.
+
+=item window-maximized-filled
+
+An extension to the XDG sound naming specification.
+Used when a window is maximized to filling available area.
+Falls back to I<window-maximized>.
+This sound can be triggered by the C<state-changed> B<WnckWindow> signal
+with a change in the I<filled> state.
+
+=item window-unmaximized-unfilled
+
+An extension to the XDG sound naming specification.
+Used when a window is unmaximized from filling available area.
+Falls back to I<window-unmaximized>.
+This sound can be triggered by the C<state-changed> B<WnckWindow> signal
+with a change in the I<filled> state.
+
 =item window-inactive-click
 
 "Sound used when the user clicks on an inactive window."
+
 This sound can perhaps be triggered by the C<state-changed>
 B<WnckWindow> signal with a change in the I<focused> state.
 
 =item window-move-start
 
 "A window move started."
+
 This sound can be played when a C<_NET_WM_MOVERESIZE> client message is
 received on the root window that specifies C<_NET_WM_MOVERESIZE_MOVE> or
 C<_NET_WM_MOVERESIZE_MOVE_KEYBOARD>.
@@ -577,6 +1221,7 @@ be used to play this sound.
 =item window-move-end
 
 "A window move ended."
+
 This sound can be played when a C<_NET_WM_MOVERESIZE> client message is
 received on the root window that specifies C<_NET_WM_MOVERESIZE_CANCEL>
 (and a move initiation was previously received).
@@ -591,6 +1236,7 @@ be used to play this sound.
 =item window-resize-start
 
 "A window resize started."
+
 This sound will be be played when a C<_NET_WM_MOVERESIZE> client message is
 received on the root window that specifies C<_NET_WM_MOVERESIZE_SIZE_*> or
 C<_NET_WM_MOVERESIZE_SIZE_KEYBOARD>.
@@ -605,6 +1251,7 @@ be used to play this sound.
 =item window-resize-end
 
 "A window resize ended."
+
 This sound can be played when a C<_NET_WM_MOVERESIZE> client message is
 received on the root window that specifies C<_NET_WM_MOVERESIZE_CANCEL>
 (and a size initiation was previously received).
@@ -615,10 +1262,6 @@ An enhancement was made to L<adwm(1)> to place a C<_NET_WM_MOVERESIZE>
 property on a window while being moved or resized indicating the nature
 of the move or resize of the window.  The presence of this property can
 be used to play this sound.
-
-=item window-switch-left
-
-=item window-switch-right
 
 =item desktop-switch-left
 
@@ -632,17 +1275,37 @@ than C<_NET_NUMBER_OF_DESKTOPS>.
 
 "The sound used when the window manager switches to another desktop
 which [sic] is located to the right of the current screen."
-which [sic] is located to the left of the current screen."
 This can be played on a C<active-workspace-changed> B<WnckScreen> signal
 when the workspace index number increases by one or wraps from one less
 than C<_NET_NUMBER_OF_DESKTOPS> to zero.
 
+=item desktop-switch-left-up
+
+An extension to the XDG sound naming specification.
+Used when the window manager switches to another desktop that is located
+above the current desktop."
+Falls back to I<desktop-switch-left>.
+This can be played on a C<active-workspace-changed> B<WnckScreen>
+signal.
+
+=item desktop-switch-right-down
+
+An extension to the XDG sound naming specification.
+Used when the window manager switches to another desktop that is located
+below the current desktop."
+Falls back to I<desktop-switch-right>.
+This can be played on a C<active-workspace-changed> B<WnckScreen>
+signal.
+
 =item window-switch
 
 "The sound used when the window manager switches to another window."
+
 This can be played on a C<active-window-changed> B<WnckScreen> signal.
 
 =item notebook-tab-changed
+
+Responsibility of GUI toolkit.
 
 =item scroll-up
 
@@ -660,9 +1323,13 @@ This can be played on a C<active-window-changed> B<WnckScreen> signal.
 
 =item scroll-right-end
 
+Responsibility of GUI toolkit.
+
 =item dialog-ok
 
 =item dialog-cancel
+
+Responsibility of GUI toolkit.
 
 =item drag-start
 
@@ -670,61 +1337,85 @@ This can be played on a C<active-window-changed> B<WnckScreen> signal.
 
 =item drag-fail
 
+Responsibility of GUI toolkit.
+
 =item link-pressed
 
 =item link-released
+
+Responsibility of GUI toolkit.
 
 =item button-pressed
 
 =item button-released
 
+Responsibility of GUI toolkit.
+
 =item menu-click
+
+Responsibility of GUI toolkit.
 
 =item button-toggle-on
 
 =item button-toggle-off
 
+Responsibility of GUI toolkit.
+
 =item expander-toggle-on
 
 =item expander-toggle-off
 
+Responsibility of GUI toolkit.
+
 =item menu-popup
 
 "The sound used when a menu is popped up."
+
 This could be effected by the appearance of a window (override redirect
 or not) that has the B<_NET_WM_WINDOW_TYPE> set to
 B<_NET_WM_WINDOW_TYPE_MENU>.
+However, this is really the responsibility of GUI toolkit.
 
 =item menu-popdown
 
 "The sound used when a menu is popped down."
+
 This could be effected by the disappearance of a window (override redirect
 or not) that has the B<_NET_WM_WINDOW_TYPE> set to
 B<_NET_WM_WINDOW_TYPE_MENU>.
+However, this is really the responsibility of GUI toolkit.
 
 =item menu-replace
 
 "The sound use when replacing an active menu with another menu."
+
 This could be effected by the appearance of a window (override redirect
 or not) that has the B<_NET_WM_WINDOW_TYPE> set to
 B<_NET_WM_WINDOW_TYPE_MENU>, while another such window is also
 displayed.
+However, this is really the responsibility of GUI toolkit.
 
 =item tooltip-popup
 
 "The sound used when a tooltip is popped up."
+
 This could be effected by the appearance of a window (override redirect
 or not) that has the B<_NET_WM_WINDOW_TYPE> set to
 B<_NET_WM_WINDOW_TYPE_TOOLTIP>.
+However, this is really the responsibility of GUI toolkit.
 
 =item tooltip-popdown
 
 "The sound used when a tooltip is popped down."
+
 This could be effected by the disappearance of a window (override redirect
 or not) that has the B<_NET_WM_WINDOW_TYPE> set to
 B<_NET_WM_WINDOW_TYPE_TOOLTIP>.
+However, this is really the responsibility of GUI toolkit.
 
 =item item-selected
+
+Responsibility of GUI toolkit.
 
 =back
 
@@ -741,6 +1432,8 @@ B<_NET_WM_WINDOW_TYPE_TOOLTIP>.
 =item game-human-move
 
 =item game-computer-move
+
+Responsibility of the game.
 
 =back
 
