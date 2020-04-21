@@ -5144,6 +5144,8 @@ workspace_destroyed(WnckScreen *wnck, WnckWorkspace *space, gpointer data)
 	const char *id;
 	int r;
 
+	(void) wnck;
+	(void) space;
 	ca_context_cancel(ca, CaEventWorkspaceChange);
 	if ((r = ca_proplist_create(&pl)) < 0) {
 		EPRINTF("Cannot create property list: %s\n", ca_strerror(r));
@@ -5173,6 +5175,8 @@ workspace_created(WnckScreen *wnck, WnckWorkspace *space, gpointer data)
 	const char *id;
 	int r;
 
+	(void) wnck;
+	(void) space;
 	ca_context_cancel(ca, CaEventWorkspaceChange);
 	if ((r = ca_proplist_create(&pl)) < 0) {
 		EPRINTF("Cannot create property list: %s\n", ca_strerror(r));
@@ -5828,8 +5832,10 @@ window_closed(WnckScreen *wnck, WnckWindow *window, gpointer user)
 	const char *id;
 	int r;
 
+	(void) window;
 	clients_changed(wnck, xscr);
 
+	/* FIXME: add X11 info to properties */
 	ca_context_cancel(ca, CaEventWindowChange);
 	if ((r = ca_proplist_create(&pl)) < 0) {
 		EPRINTF("Cannot create property list: %s\n", ca_strerror(r));
@@ -5882,6 +5888,8 @@ static void
 showing_desktop_changed(WnckScreen *wnck, gpointer xscr)
 {
 	/* FIXME: should emit some sound here. */
+	(void) wnck;
+	(void) xscr;
 }
 #endif
 
