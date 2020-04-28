@@ -301,6 +301,8 @@ typedef enum {
 	CaEventLockScreen,
 	CaEventPowerChanged,
 	CaEventSleepSuspend,
+	CaEventBatteryLevel,
+	CaEventThermalEvent,
 } CaEventId;
 
 typedef enum {

@@ -202,8 +202,6 @@ dumpstack(const char *file, const int line, const char *func)
 
 const char *program = NAME;
 
-#define CA_CONTEXT_ID	55
-
 #define XA_PREFIX		"_XDE_FEEDBACK"
 #define XA_SELECTION_NAME	XA_PREFIX "_S%d"
 #define XA_NET_DESKTOP_LAYOUT	"_NET_DESKTOP_LAYOUT_S%d"
@@ -290,6 +288,20 @@ static Atom _XA_PREFIX_EDITOR;
 
 static Atom _XA_NET_STARTUP_INFO;
 static Atom _XA_NET_STARTUP_INFO_BEGIN;
+
+#define CA_CONTEXT_ID	55
+
+typedef enum {
+	CaEventWindowManager = CA_CONTEXT_ID,
+	CaEventWorkspaceChange,
+	CaEventDesktopChange,
+	CaEventWindowChange,
+	CaEventLockScreen,
+	CaEventPowerChanged,
+	CaEventSleepSuspend,
+	CaEventBatteryLevel,
+	CaEventThermalEvent,
+} CaEventId;
 
 typedef enum {
 	CommandDefault,
