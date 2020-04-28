@@ -106,7 +106,9 @@
 #endif
 #include <X11/extensions/scrnsaver.h>
 #include <X11/extensions/dpms.h>
+#ifdef XF86MISC
 #include <X11/extensions/xf86misc.h>
+#endif
 #include <X11/XKBlib.h>
 #ifdef STARTUP_NOTIFICATION
 #define SN_API_NOT_YET_FROZEN
@@ -736,6 +738,7 @@ typedef struct {
 		CARD16 suspend;
 		CARD16 off;
 	} DPMS;
+#ifdef XF86MISC
 	struct {
 		int event;		/* event base */
 		int error;		/* error base */
@@ -744,6 +747,7 @@ typedef struct {
 		XF86MiscMouseSettings mouse;
 		XF86MiscKbdSettings keyboard;
 	} XF86Misc;
+#endif
 	struct {
 		int event;		/* event base */
 		int error;		/* error base */
