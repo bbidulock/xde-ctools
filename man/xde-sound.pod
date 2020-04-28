@@ -173,8 +173,10 @@ exists) in the currently selected sound theme.
 The purpose of B<xde-sound> is to invoke XDG sound theme events that are
 the responsibility of the window manager.  Actions and input feedback
 associated with GUI elements (e.g: buttons, menus) are the
-responsibility of the GUI toolkit and are not detected or invoked by
-B<xde-sound>.
+responsibility of the GUI toolkit and are not detected nor invoked by
+B<xde-sound>.  Notifications associated with system facilities (e.g.:
+battery level, CPU temperature) are the responsibility of system
+facilities and are also not detected nor invoked by B<xde-sound>.
 
 Because there are action sound events typically associated with window
 manager actions (such as those provided for L<vtwm(1)> and L<fvwm(1)>)
@@ -281,9 +283,9 @@ above, (un)made below, (un)set fullscreen, when it needs attention, etc.
 
 =over
 
-=item I<window-stick>, I<window-unfloat> (I<window-stick-unfloat>?)
+=item I<window-stick>
 
-=item I<window-unstick>, I<window-float> (I<window-unstick-float>?)
+=item I<window-unstick>
 
 =back
 
@@ -387,6 +389,8 @@ above, (un)made below, (un)set fullscreen, when it needs attention, etc.
 
 =item I<window-decorated>
 
+=item
+
 =back
 
 =back
@@ -399,6 +403,8 @@ been pinned or unpinned.
 =over
 
 =item I<window-stick-pinned>
+
+=item I<window-unstick-unpinned>
 
 =item I<window-slide-in-taketo>
 
@@ -438,6 +444,8 @@ Emitted when the active workspace on screen has changed.
 
 =item I<desktop-switch-right>
 
+=item
+
 =back
 
 =item application-closed
@@ -466,9 +474,13 @@ Emitted when "showing the desktop" mod of screen is toggled.
 
 =over
 
-=item I<desktop-showing>?
+=item I<desktop-showing>
 
-=item I<desktop-showing-not>?
+=item I<desktop-showing-showall>
+
+=item I<desktop-showing-hideall>
+
+=item
 
 =back
 
@@ -485,6 +497,8 @@ Emitted when a WnckWindow is closed on screen.
 
 =item I<window-close>
 
+=item
+
 =back
 
 =item window-manager-changed
@@ -497,6 +511,8 @@ Emitted when the window manager on screen has changed.
 
 =item I<desktop-logout>
 
+=item
+
 =back
 
 =item window-opened
@@ -506,6 +522,8 @@ Emitted when a new WnckWindow is opened on screen.
 =over
 
 =item I<window-new>
+
+=item
 
 =back
 
@@ -519,6 +537,8 @@ Emitted when the stacking order of WnckWindow on screen has changed.
 
 =item I<window-stack-lower>
 
+=item
+
 =back
 
 =item workspace-created
@@ -528,6 +548,8 @@ Emitted when a WnckWorkspace is created on screen.
 =over
 
 =item I<workspace-created>, I<desktop-created>
+
+=item
 
 =back
 
@@ -539,7 +561,125 @@ Emitted when a WnckWorkspace is destroyed on screen.
 
 =item I<workspace-destroyed>, I<desktop-destroyed>
 
+=item
+
 =back
+
+=back
+
+=item X Window Root Properties
+
+Most root properties are already handled adequately by F<libwnck>:
+B<_NET_ACTIVE_WINDOW>, B<_NET_CLIENT_LIST_STACKING>,
+B<_NET_CLIENT_LIST>, B<_NET_CURRENT_DESKTOP>, B<_NET_DESKTOP_GEOMETRY>,
+B<_NET_DESKTOP_LAYOUT>, B<_NET_DESKTOP_NAMES>, B<_NET_DESKTOP_VIEWPORT>,
+B<_NET_NUMBER_OF_DESKTOPS>, B<_NET_SHOWING_DESKTOP>.
+However, the following root properties provide some addition
+information:
+
+=over
+
+=item B<_NET_DESKTOP_MODES>
+
+The property describes, using an array of atoms, the desktop window
+arrangement (layout) mode of each of the current desktops under window
+manager control.  This is an extension for tiling window managers to the
+NetWM/EWMH window manager specification.  It can be used to detect
+changes to the mode of the active desktop.
+
+=over
+
+=item I<desktop-mode>
+
+=item I<desktop-mode=floating>
+
+=item I<desktop-mode-grid>
+
+=item I<desktop-mode-monocle>
+
+=item I<desktop-mode-tiled>
+
+=item I<desktop-mode-tiled-left>
+
+=item I<desktop-mode-tiled-right>
+
+=item I<desktop-mode-tiled-top>
+
+=item I<desktop-mode-tiled-bottom>
+
+=item
+
+=back
+
+=item B<_NET_MONITOR_GEOMETRY>
+
+Changes when the geometry (or resolution) of a monitor on the screen
+changes.
+
+=item B<_NET_WORKAREA>
+
+Changes when the size and position of the work area on the desktop
+changes.
+
+=over
+
+=item I<desktop-workarea-resized>
+
+=item I<desktop-workarea-resized-expanded>
+
+=item I<desktop-workarea-resized-shrunk>
+
+=item
+
+=back
+
+=back
+
+=item X Window Client Properties
+
+=over
+
+=item B<_NET_FRAME_EXTENTS>
+
+Changes when the decorations change on the client window.
+
+=over
+
+=item I<window-decorated>
+
+=item I<window-undecorated>
+
+=item
+
+=back
+
+=item B<_NET_WM_ALLOWED_ACTIONS>
+
+=item B<_NET_WM_DESKTOP>
+
+=item B<_NET_WM_DESKTOP_MASK>
+
+=item B<_NET_WM_ICON>
+
+=item B<_NET_WM_ICON_GEOMETRY>
+
+=item B<_NET_WM_ICON_NAME>
+
+=item B<_NET_WM_NAME>
+
+=item B<_NET_WM_PID>
+
+=item B<_NET_WM_STATE>
+
+=item B<_NET_WM_SYNC_REQUEST_COUNTER>
+
+=item B<_NET_WM_USER_TIME_WINDOW>
+
+=item B<_NET_WM_VISIBLE_ICON_NAME>
+
+=item B<_NET_WM_VISIBLE_NAME>
+
+=item B<_NET_WM_WINDOW_TYPE>
 
 =back
 
@@ -562,10 +702,16 @@ Emitted when a WnckWorkspace is destroyed on screen.
 "The sound used when an error occurs when it is tried to initialize the
 network connection of the computing device."
 
+=item B<dialog-error-critical>
+
+=item B<dialog-error-serious>
+
 =item dialog-error
 
 "The sound use when a dialog is opened to explain an error condition to
 the user."
+
+=item B<thermal-hot>
 
 =item battery-low
 
@@ -592,6 +738,10 @@ This event sound is played when the power is unplugged and the battery
 is still low.  B<xde-sound> only plays battery event sounds when
 L<xde-up-applet(1)> is not running (C<_XDE_UP_APPLET_S%d> manager
 selection is missing).
+
+=item B<desktop-session-restore-failed>
+
+=item B<desktop-session-save-failed>
 
 =back
 
