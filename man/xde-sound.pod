@@ -665,6 +665,8 @@ Changes when the decorations change on the client window.
 
 =item B<_NET_WM_ICON_NAME>
 
+=item B<_NET_WM_MOVERESIZE>
+
 =item B<_NET_WM_NAME>
 
 =item B<_NET_WM_PID>
@@ -687,31 +689,71 @@ Changes when the decorations change on the client window.
 
 =head2 STANDARD SOUND NAMES
 
+For a full list of standard and extended event identifier names for
+which sounds are defined, see the L<sound(7)> manual page from the
+L<xde-sounds(5)> package.  Following is a list of event identifier names
+used by the B<xde-sound> program, and by other programs in the
+L<xde-ctools(5)> suite.  See also the L<xde-applets(5)> package for
+additional support for the full standard sound theme (I<battery-low>,
+I<battery-caution>, I<power-plug>, I<power-unplug>,
+I<power-unplug-battery-low> for example).
+
 =over
 
 =item Alerts
+
+This is to notify the user of an action or event which may have a major
+impact on the system or their current use case.
 
 =over
 
 =item network-connectivity-lost
 
 "The sound used when network connectivity is lost."
+Provides an audible indication to the user that network connectivity
+that was previously established has now been lost.  Activities that rely
+on network connectivity will cease, so this is a major change in the
+use case for the device, thus, this alert.
+
+B<Spoken words:>
+"Network connectivity lost."
 
 =item network-connectivity-error
 
 "The sound used when an error occurs when it is tried to initialize the
 network connection of the computing device."
+Provides an audible indication to the user that network connectivity
+that is normally automatically established has encountered an error.
+Activities that rely on network connectivity cannot start or proceed, so
+this is a major change in the use case for the devices, thus, this
+alert.
 
-=item B<dialog-error-critical>
-
-=item B<dialog-error-serious>
+B<Spoken words:>
+"Network connectivity error."
 
 =item dialog-error
 
 "The sound use when a dialog is opened to explain an error condition to
 the user."
 
-=item B<thermal-hot>
+B<Spoken words:>
+"Error dialog."
+
+=item B<dialog-error-critical>
+
+"Common sound used when a dialog is opened to explain a critical error
+condition to the user."
+
+B<Spoken words:>
+"Critical error dialog."
+
+=item B<dialog-error-serious>
+
+"Common sound used when a dialog is opened to explain a serious error
+condition to the user."
+
+B<Spoken words:>
+"Serious error dialog."
 
 =item battery-low
 
@@ -739,93 +781,209 @@ is still low.  B<xde-sound> only plays battery event sounds when
 L<xde-up-applet(1)> is not running (C<_XDE_UP_APPLET_S%d> manager
 selection is missing).
 
+=item B<thermal-hot>
+
+"The sound used when the computer or device has become hot (above 90% of
+thermal limits, for example)."
+Most mobile systems have limited thermal cooling capability under some
+circumstances (vents blocked, for example) and will automatically
+power-off to protect the CPU and other electronic components once
+temperatures reach a critical level.  Provides an audible indication to
+the user of an impending automatic power-down.
+
+B<Spoken words:>
+"Device hot! Device hot! Device hot!"
+
 =item B<desktop-session-restore-failed>
 
+"The sound used when saving a desktop session failed."
+
+B<Spoken words:>
+"Session save failed."
+
 =item B<desktop-session-save-failed>
+
+"The sound used when the restoration of a desktop session fails."
+
+B<Spoken words:>
+"Session restoration failed."
 
 =back
 
 =item Notifications
 
+This is to alert the user that the system, or their current use case,
+has changed state in some way - new email arriving, new non-critical
+update to an application available.
+
 =over
+
+=item B<message-new>
+
+The sound used when a new message is received.
+
+B<Spoken words:>
+New message.
 
 =item message-new-instant
 
 "The sound used when a new IM is received."
 
+B<Spoken words:>
+"New instant message."
+
 =item message-new-email
 
 "The sound used when a new email is received."
+
+B<Spoken words:>
+"New Email message."
+
+=item B<message-new-voicemail>
+
+"The sound used when a new voicemail is received."
+
+B<Spoken words:>
+"New Voicemail message."
+
+=item B<complete>
+
+"Common sound used when an action is complete."
+
+B<Spoken words:>
+"Action complete."
+
+=item B<complete-media>
+
+"The sound used when an optical medium completed processing."
+
+B<Spoken words:>
+"Optical medium processing complete."
 
 =item complete-media-burn
 
 "The sound used when an optical medium completed burning."
 
+B<Spoken words:>
+"Optical medium burning complete."
+
 =item complete-media-rip
 
 "The sound used when an optical medium completed ripping."
+
+B<Spoken words:>
+"Optical medium ripping complete."
 
 =item complete-download
 
 "The sound used when a file completed downloading."
 
+B<Spoken words:>
+"File download complete."
+
 =item complete-copy
 
 "The sound used when a file completed copying."
+
+B<Spoken words:>
+"File copy complete."
 
 =item complete-scan
 
 "The sound used when a scanner completed image acquisition and software
 completed image processing."
 
+B<Spoken words:>
+"Scanner completed image acquisition."
+
+=item B<complete-print>
+
+"Common sound used when a file has completed printing."
+
+B<Spoken words:>
+"File print complete."
+
 =item phone-incoming-call
 
-"The sound used when a phone/voip call is coming in.  Usually some kind
+"The sound used when a phone/VOIP call is coming in.  Usually some kind
 of ring sound."
+
+B<Spoken words:>
+"Incoming phone call."
 
 =item phone-outgoing-busy
 
 "The sound used when a phone/voip call is dialed out and the responder is
 not available."
 
+B<Spoken words:>
+"Outgoing phone call busy."
+
 =item phone-hangup
 
 "The sound used when a phone/voip call is ended due to hangup."
+
+B<Spoken words:>
+"Phone hung up."
 
 =item phone-failure
 
 "The sound used when a phone/voip call is cancelled due to some error."
 
+B<Spoken words:>
+"Phone call cancelled due to error."
+
 =item network-connectivity-established
 
 "The sound used when network connectivity is established."
+
+B<Spoken words:>
+"Network connectivity established."
 
 =item system-bootup
 
 "The sound used when the computer is being booted up, played as early in
 bootup as possible."
 
+B<Spoken words:>
+"Initiating startup sequence."
+
 =item system-ready
 
 "The sound used when the computer is booted up and shows the login
 screen."
 
+B<Spoken words:>
+"Ready for system log in."
+
 =item system-shutdown
 
 "The sound used when the computer is being shut down."
+
+B<Spoken words:>
+"Initiating shutdown sequence."
 
 =item system-shutdown-reboot
 
 An extension to XDG sound naming specification used by libcanberra when
 the computer is being shut down for reboot.
 
+B<Spoken words:>
+"Initiating restart sequence."
+
 =item search-results
 
 "The sound used when one or more search results are returned."
 
+B<Spoken words:>
+"Search results returned."
+
 =item search-results-empty
 
 "The sound used when no search results are returned."
+
+B<Spoken words:>
+"No search results returned."
 
 =item desktop-login
 
@@ -836,6 +994,9 @@ This could be performed by systemd user unit.
 This could also be implemented as an autostart F<.desktop> entry, or can be
 performed by B<xde-sound> itself on startup.
 
+B<Spoken words:>
+"Welcome to the X desktop environment."
+
 =item desktop-logout
 
 "The sound used when a user logs out of the system."
@@ -843,17 +1004,36 @@ performed by B<xde-sound> itself on startup.
 This could be performed by systemd user unit.
 This could also be performed by B<xde-sound> itself on exit.
 
+B<Spoken words:>
+"Logging out of the X desktop environment."
+
 =item desktop-screen-lock
 
 "The sound used when the user locks their current session."
+
+B<Spoken words:>
+"Screen locked."
+
+=item B<desktop-screen-unlock>
+
+"Common sound used when the user unlocks their current session."
+
+B<Spoken words:>
+"Screen unlocked."
 
 =item service-login
 
 "The sound used when a user logs into a service (i.e. Gaim login)."
 
+B<Spoken words:>
+"User logged into service."
+
 =item service-logout
 
 "The sound used when a user logs out of a service (i.e. Gaim logout)."
+
+B<Spoken words:>
+"User logged out of service."
 
 =item battery-caution
 
@@ -864,6 +1044,9 @@ This event sound is played when the battery is critically low.
 B<xde-sound> only plays battery event sounds when L<xde-up-applet(1)> is
 not running (C<_XDE_UP_APPLET_S%d> manager selection is missing).
 
+B<Spoken words:>
+"Caution battery nearing exhaustion."
+
 =item battery-full
 
 "The sound used when the batter is fully loaded up."
@@ -871,19 +1054,47 @@ This event sound is played when the battery is full.  B<xde-sound> only
 plays battery event sounds when L<xde-up-applet(1)> is not running
 (C<_XDE_UP_APPLET_S%d> manager selection is missing).
 
+B<Spoken words:>
+"Battery is fully charged."
+
+=item B<thermal-caution>
+
+"The sound to use when the computer or device has heated up (above 80% of
+thermal limits, for example)."
+
+B<Spoken words:>
+"Device has Heated Up."
+
+=item B<thermal-cool>
+
+"The sound to use when the computer or device has cooled down (below 20%
+of thermal limits, for example)."
+
+B<Spoken words:>
+"Device has Cooled Down."
+
 =item dialog-warning
 
 "The sound used when a dialog is opened to give information to the user
 that may be pertinent to the requested action."
+
+B<Spoken words:>
+"Warning dialog."
 
 =item dialog-information
 
 "The sound used when a dialog is opened to give information to the user
 that may be pertinent to the requested action."
 
+B<Spoken words:>
+"Information dialog."
+
 =item dialog-question
 
 "The sound used when a dialog is opened to ask the user a question."
+
+B<Spoken words:>
+"Question dialog."
 
 =item software-update-available
 
@@ -891,15 +1102,24 @@ that may be pertinent to the requested action."
 installed on the computing device, through the system software update
 program."
 
+B<Spoken words:>
+"A software update is available through the system software update program."
+
 =item device-added
 
 "The sound used when a device has become available to the desktop, i.e.
 due to USB plugging."
 
+B<Spoken words:>
+"Device added."
+
 =item device-removed
 
 "The sound used when a device has become unavailable to the desktop,
 i.e. due to USB unplug."
+
+B<Spoken words:>
+"Device removed."
 
 =item window-new
 
@@ -907,6 +1127,39 @@ i.e. due to USB unplug."
 
 This sound can be driven by the C<window-opened> 
 B<WnckScreen> signal.
+
+B<Spoken words:>
+"New window opened."
+
+=item B<window-close-kill>
+
+"The sound used when an existing window is killed."
+
+B<Spoken words:>
+"Window killed."
+
+=item B<window-close-kill-process>
+
+"The sound used when an existing window is killed by process identifier."
+
+B<Spoken words:>
+"Window killed by process identifier."
+
+=item B<window-close-kill-server>
+
+"The sound used when an existing window is killed by the windowing system server."
+
+B<Spoken words:>
+"Window killed by server."
+
+=item B<window-ping>
+
+"The sound used when an existing window is pinged on the windowing
+system server to determine whether it's application is still
+responsive."
+
+B<Spoken words:>
+"Window pinged."
 
 =item power-plug
 
@@ -916,6 +1169,9 @@ This event sound is played when the power is plugged.  B<xde-sound> only
 plays power event sounds when L<xde-up-applet(1)> is not running
 (C<_XDE_UP_APPLET_S%d> manager selection is missing).
 
+B<Spoken words:>
+"The power cable has been plugged in."
+
 =item power-unplug
 
 "The power cable has been unplugged."
@@ -924,25 +1180,50 @@ This event sound is played when the power is unplugged.  B<xde-sound> only
 plays power event sounds when L<xde-up-applet(1)> is not running
 (C<_XDE_UP_APPLET_S%d> manager selection is missing).
 
+B<Spoken words:>
+"The power cable has been unplugged."
+
 =item suspend-start
 
 "The machine is about to suspend."
+
+B<Spoken words:>
+"Machine suspending."
 
 =item suspend-resume
 
 "The machine has returned from suspended state."
 
+B<Spoken words:>
+"Machine returned from suspended state."
+
 =item lid-open
 
 "The lid has been opened (for laptops, mobile devices)."
+
+B<Spoken words:>
+"Lid opened."
 
 =item lid-close
 
 "The lid has been closed (for laptops, mobile devices)."
 
+B<Spoken words:>
+"Lid closed."
+
 =item alarm-clock-elapsed
 
 "A user configured alarm elapsed."
+
+B<Spoken words:>
+"Alarm clock elapsed."
+
+=item B<window-attention>
+
+"Common sound used when a window demands attention."
+
+B<Spoken words:>
+"Window requires attention."
 
 =item window-attention-active
 
@@ -951,6 +1232,9 @@ plays power event sounds when L<xde-up-applet(1)> is not running
 This sound can be driven by a I<demands attention> or I<urgent> state
 change in response to a C<state-changed> B<WnckWindow> signal.
 
+B<Spoken words:>
+"Active window requires attention."
+
 =item window-attention-inactive
 
 "An inactive/invisible window demands attention."
@@ -958,56 +1242,157 @@ change in response to a C<state-changed> B<WnckWindow> signal.
 This sound can be driven by a I<demands attention> or I<urgent> state
 change in response to a C<state-changed> B<WnckWindow> signal.
 
+B<Spoken words:>
+"Inactive window requires attention."
+
 =item window-urgent
 
 An extension to the XDG sound naming specification for when a window is
 marked as urgent.
 
+B<Spoken words:>
+"Urgent window."
+
+=item B<desktop-session-create>
+
+"The sound used when a new desktop session is created."
+
+B<Spoken words:>
+"Session created."
+
+=item B<desktop-session-save>
+
+"The sound used when a desktop session is saved."
+
+B<Spoken words:>
+"Session saved."
+
+=item B<desktop-session-checkpoint>
+
+"The sound used when a desktop session is check-pointed."
+
+B<Spoken words:>
+"Session check-point."
+
+=item B<desktop-session-restore>
+
+"The sound used when a desktop session is restored."
+
+B<Spoken words:>
+"Session restored."
+
+=item B<desktop-layout-changed>
+
+"The sound used when the desktop layout (rows and columns) changes."
+
+B<Spoken words:>
+"Desk top layout changed."
+
+=item B<screen-brighter>
+
+"The sound used when the device screen is made brighter."
+
+B<Spoken words:>
+"Screen brighter."
+
+=item B<screen-darker>
+
+"The sound used when the device screen is made darker."
+
+B<Spoken words:>
+"Screen darker."
+
+=item B<window-manager-reload>
+
+"The sound used when the window manager reloads."
+
+B<Spoken words:>
+"Window manager reloading."
+
+=item B<window-manager-start>
+
+"The sound used when the window manager starts."
+
+B<Spoken words:>
+"Window manager starting."
+
 =back
 
 =item Actions
+
+Action sounds are use as feedback for user operations.
 
 =over
 
 =item phone-outgoing-calling
 
-"The sound used when a phone/voip call is dialed out."
+"The sound used when a phone/VOIP call is dialed out."
+
+B<Spoken words:>
+"Outgoing phone call in progress."
 
 =item message-sent-instant
 
 "The sound used when a new IM is sent."
 
+B<Spoken words:>
+"Instant message sent."
+
 =item message-sent-email
 
 "The sound used when a new email is sent."
+
+B<Spoken words:>
+"Email message sent."
 
 =item bell-terminal
 
 "The sound to use as a terminal bell."
 
+B<Spoken words:>
+"Terminal bell."
+
 =item bell-window-system
 
 "The sound to use as a generic bell for X11 or other window systems."
+
+B<Spoken words:>
+"Window system bell."
 
 =item trash-empty
 
 "The sound used when the user empties the trash."
 
+B<Spoken words:>
+"Trash emptied."
+
 =item item-deleted
 
 "The sound used when an item is deleted."
+
+B<Spoken words:>
+"Item deleted."
 
 =item file-trash
 
 "The sound used when a file or folder is sent to the trash."
 
+B<Spoken words:>
+"File or folder sent to trash."
+
 =item camera-shutter
 
 "A photo has been shot."
 
+B<Spoken words:>
+"Say "Cheese"!"
+
 =item camera-focus
 
 "A camera has the focus."
+
+B<Spoken words:>
+"Camera focus."
 
 =item screen-capture
 
@@ -1015,95 +1400,208 @@ marked as urgent.
 
 This needs to be done by the screenshot application.
 
+B<Spoken words:>
+"Screen capture initiated."
+
+=item B<screen-capture-complete>
+
+"Common sound used when a screen capture completes."
+
+B<Spoken words:>
+"Screen capture complete."
+
 =item count-down
 
 "A countdown (e.g. for a photo shooting) sound that is repeated each
 second."
 
+B<Spoken words:>
+"Counting down."
+
 =item completion-success
 
 "A text completion was attempted and was successful."
+
+B<Spoken words:>
+"Text completion attempt successful."
 
 =item completion-fail
 
 "A text completion was attempted and was not successful."
 
+B<Spoken words:>
+"Text completion attempt not successful."
+
 =item completion-partial
 
 "A text completion was attempted and was partially successful."
+
+B<Spoken words:>
+"Text completion attempt partially successful."
 
 =item completion-rotation
 
 "A text completion was attempted and the list of available options
 reached the end and completion started from the beginning."
 
+B<Spoken words:>
+"Text completion attempt available options restarting."
+
 =item audio-volume-change
 
 "The test sound that is used to make volume changes noticeable by the
 user when he uses a volume slider."
+
+B<Spoken words:>
+"Volume change."
 
 =item audio-channel-left
 
 "The test sound for identifying the left speaker.  A mono file with a
 voice saying 'left'."
 
+B<Spoken words:>
+"Left."
+
 =item audio-channel-right
 
 "The test sound for identifying the right speaker.  A mono file with a
 voice saying 'right'."
+
+B<Spoken words:>
+"Right."
 
 =item audio-channel-front-left
 
 "The test sound for identifying the front-left speaker.  A mono file with a
 voice saying 'front left'."
 
+B<Spoken words:>
+"Front left."
+
 =item audio-channel-front-right
 
 "The test sound for identifying the front-right speaker.  A mono file with a
 voice saying 'front right'."
+
+B<Spoken words:>
+"Front right."
 
 =item audio-channel-front-center
 
 "The test sound for identifying the front-center speaker.  A mono file with a
 voice saying 'front center'."
 
+B<Spoken words:>
+"Front center."
+
 =item audio-channel-rear-left
 
 "The test sound for identifying the rear-left speaker.  A mono file with a
 voice saying 'rear left'."
+
+B<Spoken words:>
+"Rear left."
 
 =item audio-channel-rear-right
 
 "The test sound for identifying the rear-right speaker.  A mono file with a
 voice saying 'rear right'."
 
+B<Spoken words:>
+"Rear right."
+
 =item audio-channel-rear-center
 
 "The test sound for identifying the rear-center speaker.  A mono file with a
 voice saying 'rear center'."
+
+B<Spoken words:>
+"Rear center."
 
 =item audio-channel-lfe
 
 "The test sound for identifying the lfe/subwoofer speaker.  A mono file with a
 voice saying 'subwoofer', alternatively a low frequency noise."
 
+B<Spoken words:>
+"Sub-woofer."
+
 =item audio-channel-side-left
 
 "The test sound for identifying the side-left speaker.  A mono file with a
 voice saying 'side left'."
+
+B<Spoken words:>
+"Side left."
 
 =item audio-channel-side-right
 
 "The test sound for identifying the side-right speaker.  A mono file with a
 voice saying 'side right'."
 
+B<Spoken words:>
+"Side right."
+
 =item audio-test-signal
 
 "The test sound for testing audio."
 
+B<Spoken words:>
+"Test signal."
+
+=item B<desktop-created>
+
+"Common sound used when a new desktop is created."
+
+B<Spoken words:>
+"Desktop created."
+
+=item B<desktop-destroyed>
+
+"Common sound used when a desktop is destroyed."
+
+B<Spoken words:>
+"Desktop destroyed."
+
+=item B<workspace-created>
+
+"The sound used when a workspace is created on the screen."
+
+B<Spoken words:>
+"Work space created."
+
+=item B<workspace-destroyed>
+
+"The sound used when a workspace is destroyed on the screen."
+
+B<Spoken words:>
+"Work space destroyed."
+
+=item B<window-manager-quit>
+
+"The sound used when the window manager quits.  See also
+desktop-logout."
+
+B<Spoken words:>
+"Window manager shutting down."
+
+=item B<window-manager-restart>
+
+"The sound used when the window manager restarts."
+
+B<Spoken words:>
+"Window manager restarting."
+
 =back
 
 =item Input Feedback
+
+Actions sounds are used as feedback for user input events, such as mouse
+clicks, or key presses.  In contrast to the sounds listed in L</Actions>,
+these sounds contain much less context information and are solely used
+to give the user audible feedback to input events the user himself
+directly caused.
 
 =over
 
@@ -1114,6 +1612,16 @@ voice saying 'side right'."
 This sound can be triggered by the C<window-closed> B<WnckScreen>
 signal.
 
+B<Spoken words:>
+"Window closed."
+
+=item B<window-slide>
+
+"The sound used when a window is slid."
+
+B<Spoken words:>
+Window slided.
+
 =item window-slide-in
 
 "The sound used when a window is slided in by some means. Example: panel."
@@ -1121,6 +1629,9 @@ signal.
 I suppose this is for things like auto-hiding panels and docks.
 This is rather hard to detect.  Perhaps restacking of a window of a
 particular type (desktop layer).
+
+B<Spoken words:>
+"Window slided in."
 
 =item window-slide-out
 
@@ -1130,17 +1641,26 @@ I suppose this is for things like auto-hiding panels and docks.
 This is rather hard to detect.  Perhaps restacking of a window of a
 particular type (desktop layer).
 
+B<Spoken words:>
+"Window slided out."
+
 =item window-slide-out-shade
 
 An extension to the XDG sound naming specification.  Used when a window
 is shaded.
 Falls back to I<window-slide-out>.
 
+B<Spoken words:>
+"Window shaded."
+
 =item window-slide-in-unshade
 
 An extension to the XDG sound naming specification.  Used when a window
 is unshaded.
 Falls back to I<window-slide-in>.
+
+B<Spoken words:>
+"Window unshaded."
 
 =item window-slide-out-sendto
 
@@ -1363,7 +1883,7 @@ C<_NET_WM_MOVERESIZE_MOVE_KEYBOARD>.
 Unfortunately, this only handles move initiated by pager and panel,
 but not by the window manager itself.
 
-An enhancement will be made to L<adwm(1)> to place a C<_NET_WM_MOVERESIZE>
+An enhancement was made to L<adwm(1)> to place a C<_NET_WM_MOVERESIZE>
 property on a window while being moved or resized indicating the nature
 of the move or resize of the window.  The presence of this property can
 be used to play this sound.
@@ -1376,9 +1896,37 @@ This sound can be played when a C<_NET_WM_MOVERESIZE> client message is
 received on the root window that specifies C<_NET_WM_MOVERESIZE_CANCEL>
 (and a move initiation was previously received).
 Unfortunately, this only handles move initiated by pager and panel,
-but not by the window manager itself.
+but not by the window manager itself.  It also only handles move
+cancellation and not completion.
 
-An enhancement will be made to L<adwm(1)> to place a C<_NET_WM_MOVERESIZE>
+An enhancement was made to L<adwm(1)> to place a C<_NET_WM_MOVERESIZE>
+property on a window while being moved or resized indicating the nature
+of the move or resize of the window.  The presence of this property can
+be used to play this sound.
+
+=item B<window-move-end-cancel>
+
+"A window move was cancelled."
+
+=item B<window-move-start-topleft>
+
+=item B<window-move-start-top>
+
+=item B<window-move-start-topright>
+
+=item B<window-move-start-right>
+
+=item B<window-move-start-bottomright>
+
+=item B<window-move-start-bottom>
+
+=item B<window-move-start-bottomleft>
+
+=item B<window-move-start-left>
+
+"A window move started from the specified grip."
+
+An enhancement was made to L<adwm(1)> to place a C<_NET_WM_MOVERESIZE>
 property on a window while being moved or resized indicating the nature
 of the move or resize of the window.  The presence of this property can
 be used to play this sound.
@@ -1406,9 +1954,43 @@ This sound can be played when a C<_NET_WM_MOVERESIZE> client message is
 received on the root window that specifies C<_NET_WM_MOVERESIZE_CANCEL>
 (and a size initiation was previously received).
 Unfortunately, this only handles resize initiated by pager and panel,
-but not by the window manager itself.
+but not by the window manager itself.  It also only handles resize
+cancellation and not completion.
 
 An enhancement was made to L<adwm(1)> to place a C<_NET_WM_MOVERESIZE>
+property on a window while being moved or resized indicating the nature
+of the move or resize of the window.  The presence of this property can
+be used to play this sound.
+
+=item B<window-resize-end-cancel>
+
+"A window resize was cancelled."
+
+=item B<window-resize-start-topleft>
+
+=item B<window-resize-start-top>
+
+=item B<window-resize-start-topright>
+
+=item B<window-resize-start-right>
+
+=item B<window-resize-start-bottomright>
+
+=item B<window-resize-start-bottom>
+
+=item B<window-resize-start-bottomleft>
+
+=item B<window-resize-start-left>
+
+"A window resize started from the specified grip."
+
+This sound will be be played when a C<_NET_WM_MOVERESIZE> client message is
+received on the root window that specifies C<_NET_WM_MOVERESIZE_SIZE_*>,
+where the C<*> indicates the resize grip from which the resize is
+initiated.  Unfortunately, this only handles resize initiated by pager
+and panel, but not by the window manager itself.
+
+An enhancement will be made to L<adwm(1)> to place a C<_NET_WM_MOVERESIZE>
 property on a window while being moved or resized indicating the nature
 of the move or resize of the window.  The presence of this property can
 be used to play this sound.
@@ -1591,11 +2173,29 @@ Responsibility of the game.
 
 =head2 OTHER COMMON EVENT IDS
 
+Following are some other common sound names that have been used previous
+to the L<XDG Sound Naming> specification and are still in common use.
+They do not follow the L<XDG Sound Naming> specification guidelines,
+particularly with regard to hyphenation.
+
 =over
 
 =item bell
 
+Bell.  A common C<Action> sound acting as a fallback for bell-terminal
+and bell-window-system.
+
+B<Spoken words:>
+"Bell".
+
 =item busytone
+
+Busy Tone.  Common C<Notification> sound used when the phone/VOIP call
+is dialed out and the responder is already engaged.  See also
+I<phone-outgoing-busy>.
+
+B<Spoken words:>
+"Busy Tone! Busy! Busy Tone! Busy!".
 
 =item complete
 
@@ -1611,13 +2211,39 @@ Responsibility of the game.
 
 =item dialtone
 
+Dial Tone.  Common sound used when the receive of a telephone goes
+off-hook for dialing a call.
+
+B<Spoken words:>
+"Give me your digits, I want to make a call!"
+
 =item dummy-message
+
+Dummy Message.  Common sound used when any message is needed, usually to
+show how notifications are done.
+
+B<Spoken words:>
+"Dummy message."
 
 =item message
 
+Message.  Common C<Notification> sound used when a message is sent.
+
+B<Spoken words:>
+"Message sent."
+
 =item newmail
 
+New Mail.  Common C<Notification> sound used when new mail arrives.  See
+also I<message-new-email>.
+
+B<Spoken words:>
+"New mail."
+
 =item newmessage
+
+New Message.  Common C<Notification> sound used when a new IM arrives.
+See also I<message-new-instant>.
 
 =item ring
 
@@ -1645,9 +2271,22 @@ Responsibility of the game.
 
 =item L<2bwm(1)>
 
+is supported and works well.
+Only sound event identifiers based on B<NetWM/EWMH> events are directly
+supported.
+
 =item L<adwm(1)>
 
-is supported and works well.
+is fully supported and works well.
+
+There are a few sound event identifiers that need support from the
+window manager still: I<window-move> and I<window-move-end>, for
+example.  L<adwm(1)> will be extended to support those.
+
+There are a set of sound event identifiers that can only be invoked by
+the window manager.   This is because there is no external indication
+that the action is being performed: I<window-move-end-attract>, for
+example.  L<adwm(1)> will be extended to support these as well.
 
 =item L<aewm(1)>
 
@@ -1655,9 +2294,28 @@ is supported and works well.
 
 =item L<afterstep(1)>
 
+is supported and works well.
+Only sound event identifiers based on B<NetWM/EWMH> events are directly
+supported.
+
 =item L<awesome(1)>
 
+is supported and works well.
+Only sound event identifiers based on B<NetWM/EWMH> events are directly
+supported.
+
 =item L<blackbox(1)>
+
+is fully supported and works well.
+
+There are a few sound event identifiers that need support from the
+window manager still: I<window-move> and I<window-move-end>, for
+example.  L<blackbox(1)> will be extended to support those.
+
+There are a set of sound event identifiers that can only be invoked by
+the window manager.   This is because there is no external indication
+that the action is being performed: I<window-move-end-attract>, for
+example.  L<blackbox(1)> will be extended to support these as well.
 
 =item L<bspwm(1)>
 
