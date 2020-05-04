@@ -130,6 +130,16 @@
 #define WNCK_I_KNOW_THIS_IS_UNSTABLE
 #include <libwnck/libwnck.h>
 
+/* these are defined in the enhanced libwnck */
+#define WNCK_WINDOW_STATE_FOCUSED		(1 << 13)
+#define WNCK_WINDOW_STATE_MODAL			(1 << 14)
+#define WNCK_WINDOW_STATE_FIXED			(1 << 15)
+#define WNCK_WINDOW_STATE_FILLED		(1 << 16)
+#define WNCK_WINDOW_STATE_FLOATING		(1 << 17)
+#define WNCK_WINDOW_STATE_UNDECORATED		(1 << 18)
+#define WNCK_WINDOW_STATE_MAXIMIZED_LEFT	(1 << 19)
+#define WNCK_WINDOW_STATE_MAXIMIZED_RIGHT	(1 << 20)
+
 #include <pwd.h>
 #include <fontconfig/fontconfig.h>
 #include <pango/pangofc-fontmap.h>
@@ -242,6 +252,7 @@ static Atom _XA_NET_CURRENT_DESKTOP;
 static Atom _XA_NET_DESKTOP_LAYOUT;
 static Atom _XA_NET_DESKTOP_NAMES;
 static Atom _XA_NET_NUMBER_OF_DESKTOPS;
+static Atom _XA_NET_WM_MOVERESIZE;
 
 static Atom _XA_WIN_AREA;
 static Atom _XA_WIN_AREA_COUNT;
@@ -5132,10 +5143,16 @@ window_manager_changed(WnckScreen *wnck, gpointer user)
 		return;
 	}
 	ca_proplist_sets(pl, CA_PROP_CANBERRA_CACHE_CONTROL, "never");
-	ca_proplist_sets(pl, CA_PROP_EVENT_ID, (id = name ? "desktop-login" : "desktop-logout"));
-	DPRINTF(1, "Playing %s\n", id);
+	ca_proplist_setf(pl, CA_PROP_EVENT_ID, (id = name ? "window-manager-start-%s" : "window-manager-quit-%s"), xscr->wmname);
+	DPRINTF(1, "Playing %s, %s\n", id, xscr->wmname);
 	if ((r = ca_context_play_full(ca, CaEventWindowManager, pl, NULL, NULL)) < 0)
-		EPRINTF("Cannot play %s: %s\n", id, ca_strerror(r));
+		EPRINTF("Cannot play %s, %s: %s\n", id, xscr->wmname, ca_strerror(r));
+	if (r == CA_ERROR_NOTFOUND) {
+		ca_proplist_sets(pl, CA_PROP_EVENT_ID, (id = name ? "desktop-login" : "desktop-logout"));
+		DPRINTF(1, "Playing %s\n", id);
+		if ((r = ca_context_play_full(ca, CaEventWindowManager, pl, NULL, NULL)) < 0)
+			EPRINTF("Cannot play %s: %s\n", id, ca_strerror(r));
+	}
 	ca_proplist_destroy(pl);
 	DPRINTF(1, "window manager is '%s'\n", xscr->wmname);
 	DPRINTF(1, "window manager is %s\n", xscr->goodwm ? "usable" : "unusable");
@@ -5580,6 +5597,22 @@ state_changed(WnckWindow *window, WnckWindowState changed, WnckWindowState state
 		if ((r = ca_context_play_full(ca, CaEventWindowChange, pl, NULL, NULL)) < 0)
 			EPRINTF("Could not play %s: %s\n", id, ca_strerror(r));
 	}
+	if (changed & WNCK_WINDOW_STATE_MAXIMIZED_LEFT) {
+		id = (state & WNCK_WINDOW_STATE_MAXIMIZED_LEFT) ?
+			"window-maximized-left" : "window-unmaximized-left";
+		ca_proplist_sets(pl, CA_PROP_EVENT_ID, id);
+		DPRINTF(1, "Playing %s\n", id);
+		if ((r = ca_context_play_full(ca, CaEventWindowChange, pl, NULL, NULL)) < 0)
+			EPRINTF("Could not play %s: %s\n", id, ca_strerror(r));
+	}
+	if (changed & WNCK_WINDOW_STATE_MAXIMIZED_RIGHT) {
+		id = (state & WNCK_WINDOW_STATE_MAXIMIZED_RIGHT) ?
+			"window-maximized-right" : "window-unmaximized-right";
+		ca_proplist_sets(pl, CA_PROP_EVENT_ID, id);
+		DPRINTF(1, "Playing %s\n", id);
+		if ((r = ca_context_play_full(ca, CaEventWindowChange, pl, NULL, NULL)) < 0)
+			EPRINTF("Could not play %s: %s\n", id, ca_strerror(r));
+	}
 	ca_proplist_destroy(pl);
 }
 
@@ -5914,6 +5947,9 @@ window_closed(WnckScreen *wnck, WnckWindow *window, gpointer user)
 	ca_proplist_destroy(pl);
 }
 
+static GdkFilterReturn
+window_handler(GdkXEvent *xevent, GdkEvent *event, gpointer data);
+
 static void
 window_opened(WnckScreen *wnck, WnckWindow *window, gpointer user)
 {
@@ -5922,6 +5958,17 @@ window_opened(WnckScreen *wnck, WnckWindow *window, gpointer user)
 	ca_proplist *pl = NULL;
 	int r, x = 0, y = 0, width = 0, height = 0;
 	const char *id;
+	GdkWindow *win;
+
+
+	if ((win = gdk_x11_window_foreign_new_for_display(disp, (unsigned long) wnck_window_get_xid(window)))) {
+		GdkEventMask mask;
+
+		mask = gdk_window_get_events(win);
+		gdk_window_set_events(win, mask | GDK_PROPERTY_CHANGE_MASK);
+		gdk_window_add_filter(win, window_handler, NULL);
+		g_object_unref(G_OBJECT(win));
+	}
 
 	g_signal_connect(G_OBJECT(window), "actions_changed", G_CALLBACK(actions_changed), xscr);
 	g_signal_connect(G_OBJECT(window), "geometry_changed", G_CALLBACK(geometry_changed), xscr);
@@ -5954,11 +6001,11 @@ window_opened(WnckScreen *wnck, WnckWindow *window, gpointer user)
 		EPRINTF("Cannot set window icon name: %s\n", ca_strerror(r));
 
 	wnck_window_get_client_window_geometry(window, &x, &y, &width, &height);
-	/* CA_PROP_WINDOW_X: x coordinate of window */
-	if ((r = ca_proplist_setf(pl, CA_PROP_WINDOW_X, "%i", x)) < 0)
+	/* CA_PROP_WINDOW_X: x coordinate of (center of) window */
+	if ((r = ca_proplist_setf(pl, CA_PROP_WINDOW_X, "%i", x + width / 2)) < 0)
 		EPRINTF("Cannot set window x coord: %s\n", ca_strerror(r));
-	/* CA_PROP_WINDOW_Y: Y coordinate of window */
-	if ((r = ca_proplist_setf(pl, CA_PROP_WINDOW_Y, "%i", y)) < 0)
+	/* CA_PROP_WINDOW_Y: Y coordinate of (center of) window */
+	if ((r = ca_proplist_setf(pl, CA_PROP_WINDOW_Y, "%i", y + height / 2)) < 0)
 		EPRINTF("Cannot set window y coord: %s\n", ca_strerror(r));
 	/* CA_PROP_WINDOW_WIDTH: pixel width of window */
 	if ((r = ca_proplist_setf(pl, CA_PROP_WINDOW_WIDTH, "%i", width)) < 0)
@@ -7379,6 +7426,32 @@ event_handler_PropertyNotify(XEvent *xev, XdeScreen *xscr)
 }
 
 static GdkFilterReturn
+window_handler_PropertyNotify(XEvent *xev, XdeScreen *xscr)
+{
+	Atom atom;
+
+	(void) xscr;
+	PTRACE(5);
+	if (options.debug > 2) {
+		char *name = NULL;
+
+		fprintf(stderr, "==> PropertyNotify:\n");
+		fprintf(stderr, "    --> window = 0x%08lx\n", xev->xproperty.window);
+		fprintf(stderr, "    --> atom = %s\n", (name = XGetAtomName(dpy, xev->xproperty.atom)));
+		fprintf(stderr, "    --> time = %ld\n", xev->xproperty.time);
+		fprintf(stderr, "    --> state = %s\n",
+			(xev->xproperty.state == PropertyNewValue) ? "NewValue" : "Delete");
+		fprintf(stderr, "<== PropertyNotify:\n");
+		if (name)
+			XFree(name);
+	}
+	atom = xev->xproperty.atom;
+	if (atom == _XA_NET_WM_MOVERESIZE) {
+	}
+	return GDK_FILTER_CONTINUE;
+}
+
+static GdkFilterReturn
 root_handler(GdkXEvent *xevent, GdkEvent *event, gpointer data)
 {
 	XEvent *xev = (typeof(xev)) xevent;
@@ -7406,6 +7479,22 @@ events_handler(GdkXEvent *xevent, GdkEvent *event, gpointer data)
 		if (!deferred)
 			deferred = g_timeout_add(1, &deferred_update_settings, NULL);
 	}
+	return GDK_FILTER_CONTINUE;
+}
+
+static GdkFilterReturn
+window_handler(GdkXEvent *xevent, GdkEvent *event, gpointer data)
+{
+	XEvent *xev = (typeof(xev)) xevent;
+	XdeScreen *xscr = data;
+
+	(void) event;
+	(void) data;
+	switch (xev->type) {
+	case PropertyNotify:
+		return window_handler_PropertyNotify(xev, xscr);
+	}
+
 	return GDK_FILTER_CONTINUE;
 }
 
@@ -8044,6 +8133,9 @@ startup(int argc, char *argv[])
 
 	atom = gdk_atom_intern_static_string("_NET_NUMBER_OF_DESKTOPS");
 	_XA_NET_NUMBER_OF_DESKTOPS = gdk_x11_atom_to_xatom_for_display(disp, atom);
+
+	atom = gdk_atom_intern_static_string("_NET_WM_MOVERESIZE");
+	_XA_NET_WM_MOVERESIZE = gdk_x11_atom_to_xatom_for_display(disp, atom);
 
 	atom = gdk_atom_intern_static_string("_WIN_DESKTOP_BUTTON_PROXY");
 	_XA_WIN_DESKTOP_BUTTON_PROXY = gdk_x11_atom_to_xatom_for_display(disp, atom);
