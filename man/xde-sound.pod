@@ -667,6 +667,10 @@ Changes when the decorations change on the client window.
 
 =item B<_NET_WM_MOVERESIZE>
 
+=item B<_NET_WM_MOVING>
+
+=item B<_NET_WM_RESIZING>
+
 =item B<_NET_WM_NAME>
 
 =item B<_NET_WM_PID>
@@ -1883,10 +1887,10 @@ C<_NET_WM_MOVERESIZE_MOVE_KEYBOARD>.
 Unfortunately, this only handles move initiated by pager and panel,
 but not by the window manager itself.
 
-An enhancement was made to L<adwm(1)> to place a C<_NET_WM_MOVERESIZE>
-property on a window while being moved or resized indicating the nature
-of the move or resize of the window.  The presence of this property can
-be used to play this sound.
+An enhancement was made to L<adwm(1)> to place a C<_NET_WM_MOVING>
+property on a window while being moved indicating the nature of the move
+of the window.  The appearance of this property can be used to play this
+sound.
 
 =item window-move-end
 
@@ -1899,14 +1903,24 @@ Unfortunately, this only handles move initiated by pager and panel,
 but not by the window manager itself.  It also only handles move
 cancellation and not completion.
 
-An enhancement was made to L<adwm(1)> to place a C<_NET_WM_MOVERESIZE>
-property on a window while being moved or resized indicating the nature
-of the move or resize of the window.  The presence of this property can
-be used to play this sound.
+An enhancement was made to L<adwm(1)> to remove the C<_NET_WM_MOVING>
+property from a window after it has stopped being moved.  The removal
+of this property can be used to play this sound.
 
 =item B<window-move-end-cancel>
 
 "A window move was cancelled."
+
+This sound can be played when a C<_NET_WM_MOVERESIZE> client message is
+received on the root window that specifies C<_NET_WM_MOVERESIZE_CANCEL>
+(and a move initiation was previously received).
+Unfortunately, this only handles move initiated by pager and panel,
+but not by the window manager itself.  It also only handles move
+cancellation and not completion.
+
+An enhancement was made to L<adwm(1)> to place a flag in the
+C<_NET_WM_MOVING> property on a window when the move was cancelled.  The
+flag being placed in the property can be used to play this sound.
 
 =item B<window-move-start-topleft>
 
@@ -1926,10 +1940,30 @@ be used to play this sound.
 
 "A window move started from the specified grip."
 
-An enhancement was made to L<adwm(1)> to place a C<_NET_WM_MOVERESIZE>
-property on a window while being moved or resized indicating the nature
-of the move or resize of the window.  The presence of this property can
-be used to play this sound.
+An enhancement was made to L<adwm(1)> to place a C<_NET_WM_MOVING>
+property on a window while being moved indicating the nature of the move
+of the window.  The presence of this property can be used to play this
+sound.  The value of one of the cardinals of the property indicates the
+(nearest) grip from which the move was initiated, the value of which can
+be used to choose between the versions of this sound.
+
+=item B<window-move-end-snap>
+
+"A window move has snapped to a boundary and the window has stopped
+moving."
+
+An enhancement was made to L<adwm(1)> to place a flag in the
+C<_NET_WM_MOVING> property on a window when it snaps to a boundary while
+moving.  This flag in the property can be used to play this sound.
+
+=item B<window-move-start-unsnap>
+
+"A window move has unsnapped from a boundary and the window has resumed
+moving."
+
+An enhancement was made to L<adwm(1)> to place a flag in the
+C<_NET_WM_MOVING> property on a window when it unsnaps from a boundary
+while moving.  This flag in the property can be used to play this sound.
 
 =item window-resize-start
 
@@ -1941,10 +1975,10 @@ C<_NET_WM_MOVERESIZE_SIZE_KEYBOARD>.
 Unfortunately, this only handles resize initiated by pager and panel,
 but not by the window manager itself.
 
-An enhancement will be made to L<adwm(1)> to place a C<_NET_WM_MOVERESIZE>
-property on a window while being moved or resized indicating the nature
-of the move or resize of the window.  The presence of this property can
-be used to play this sound.
+An enhancement will be made to L<adwm(1)> to place a C<_NET_WM_RESIZING>
+property on a window while being resized indicating the nature of the
+resize of the window.  The appearance of this property can be used to
+play this sound.
 
 =item window-resize-end
 
@@ -1957,14 +1991,24 @@ Unfortunately, this only handles resize initiated by pager and panel,
 but not by the window manager itself.  It also only handles resize
 cancellation and not completion.
 
-An enhancement was made to L<adwm(1)> to place a C<_NET_WM_MOVERESIZE>
-property on a window while being moved or resized indicating the nature
-of the move or resize of the window.  The presence of this property can
-be used to play this sound.
+An enhancement was made to L<adwm(1)> to remove the C<_NET_WM_RESIZING>
+property from a window after it has stopped being resized.  The removal
+of this property can be used to play this sound.
 
 =item B<window-resize-end-cancel>
 
 "A window resize was cancelled."
+
+This sound can be played when a C<_NET_WM_MOVERESIZE> client message is
+received on the root window that specifies C<_NET_WM_MOVERESIZE_CANCEL>
+(and a size initiation was previously received).
+Unfortunately, this only handles resize initiated by pager and panel,
+but not by the window manager itself.  It also only handles resize
+cancellation and not completion.
+
+An enhancement was made to L<adwm(1)> to place a flag in the
+C<_NET_WM_RESIZING> property on a window when the resize was cancelled.  The
+flag being placed in the property can be used to play this sound.
 
 =item B<window-resize-start-topleft>
 
@@ -1984,16 +2028,30 @@ be used to play this sound.
 
 "A window resize started from the specified grip."
 
-This sound will be be played when a C<_NET_WM_MOVERESIZE> client message is
-received on the root window that specifies C<_NET_WM_MOVERESIZE_SIZE_*>,
-where the C<*> indicates the resize grip from which the resize is
-initiated.  Unfortunately, this only handles resize initiated by pager
-and panel, but not by the window manager itself.
+An enhancement was made to L<adwm(1)> to palce a C<_NET_WM_RESIZING>
+property on a window while being resized indicating the nature of the
+resize of the window.  The presence of this property can be used to play
+this sound.  The value of one of the cardinals of the property indicates
+the (nearest) grip from which the resize was initiated, the value of
+which can be used to choose between the versions of this sound.
 
-An enhancement will be made to L<adwm(1)> to place a C<_NET_WM_MOVERESIZE>
-property on a window while being moved or resized indicating the nature
-of the move or resize of the window.  The presence of this property can
-be used to play this sound.
+=item B<window-resize-end-snap>
+
+"A window resize has snapped to a boundary and the window has stopped
+resizing."
+
+An enhancement was made to L<adwm(1)> to place a flag in the
+C<_NET_WM_RESIZING> property on a window when it snaps to a boundary while
+resizing.  This flag in the property can be used to play this sound.
+
+=item B<window-resize-start-unsnap>
+
+"A window resize has unsnapped from a boundary and the window has resumed
+resizing."
+
+An enhancement was made to L<adwm(1)> to place a flag in the
+C<_NET_WM_RESIZING> property on a window when it unsnaps from a boundary
+while resizing.  This flag in the property can be used to play this sound.
 
 =item desktop-switch-left
 

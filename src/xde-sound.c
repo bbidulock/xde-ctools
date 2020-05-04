@@ -252,7 +252,10 @@ static Atom _XA_NET_CURRENT_DESKTOP;
 static Atom _XA_NET_DESKTOP_LAYOUT;
 static Atom _XA_NET_DESKTOP_NAMES;
 static Atom _XA_NET_NUMBER_OF_DESKTOPS;
+
 static Atom _XA_NET_WM_MOVERESIZE;
+static Atom _XA_NET_WM_MOVING;
+static Atom _XA_NET_WM_RESIZING;
 
 static Atom _XA_WIN_AREA;
 static Atom _XA_WIN_AREA_COUNT;
@@ -400,6 +403,21 @@ typedef enum {
 	PopupInput,			/* desktop input manager */
 	PopupLast,
 } PopupType;
+
+typedef enum {
+	FromTopLeft,
+	FromTop,
+	FromTopRight,
+	FromRight,
+	FromBottomRight,
+	FromBottom,
+	FromBottomLeft,
+	FromLeft,
+	FromEvery,
+	FromKeyboardResize,
+	FromKeyboardMove,
+	FromCancel,
+} FromType;
 
 typedef struct {
 	int mask, x, y;
@@ -5948,7 +5966,234 @@ window_closed(WnckScreen *wnck, WnckWindow *window, gpointer user)
 }
 
 static GdkFilterReturn
-window_handler(GdkXEvent *xevent, GdkEvent *event, gpointer data);
+window_handler_PropertyNotify(XEvent *xev, XdeScreen *xscr)
+{
+	Atom atom;
+	Window window;
+
+	PTRACE(5);
+	if (options.debug > 2) {
+		char *name = NULL;
+
+		fprintf(stderr, "==> PropertyNotify:\n");
+		fprintf(stderr, "    --> window = 0x%08lx\n", xev->xproperty.window);
+		fprintf(stderr, "    --> atom = %s\n", (name = XGetAtomName(dpy, xev->xproperty.atom)));
+		fprintf(stderr, "    --> time = %ld\n", xev->xproperty.time);
+		fprintf(stderr, "    --> state = %s\n",
+			(xev->xproperty.state == PropertyNewValue) ? "NewValue" : "Delete");
+		fprintf(stderr, "<== PropertyNotify:\n");
+		if (name)
+			XFree(name);
+	}
+	atom = xev->xproperty.atom;
+	window = xev->xproperty.window;
+	if (atom == _XA_NET_WM_MOVING) {
+		ca_context *ca = ca_gtk_context_get_for_screen(xscr->scrn);
+		ca_proplist *pl = NULL;
+		const char *id;
+		int r;
+
+		ca_context_cancel(ca, CaEventWindowChange);
+		if ((r = ca_proplist_create(&pl)) < 0) {
+			EPRINTF("Cannot create property list: %s\n", ca_strerror(r));
+			return GDK_FILTER_CONTINUE;
+		}
+		ca_proplist_sets(pl, CA_PROP_CANBERRA_CACHE_CONTROL, "volatile");
+		if (xev->xproperty.state == PropertyDelete) {
+			ca_proplist_sets(pl, CA_PROP_EVENT_ID, (id = "window-move-end"));
+			DPRINTF(1, "Playing %s\n", id);
+			if ((r = ca_context_play_full(ca, CaEventWindowChange, pl, NULL, NULL)) < 0)
+				EPRINTF("Cannot play %s: %s\n", id, ca_strerror(r));
+		} else {
+			Atom actual = None;
+			int format = 0;
+			unsigned long nitems = 0, after = 0;
+			long *data = NULL;
+
+			if (XGetWindowProperty(dpy, window, atom, 0L, 5, False,
+					       XA_CARDINAL, &actual, &format, &nitems, &after,
+					       (unsigned char **) &data)
+			    == Success && format == 32 && nitems >= 5 && data) {
+				if ((data[4] & 0x6) == 0) {
+					switch (data[2]) {
+					case FromTopLeft:
+						id = "window-move-start-topleft";
+						break;
+					case FromTopRight:
+						id = "window-move-start-topright";
+						break;
+					case FromBottomLeft:
+						id = "window-move-start-bottomleft";
+						break;
+					case FromBottomRight:
+						id = "window-move-start-bottomright";
+						break;
+					case FromTop:
+						id = "window-move-start-top";
+						break;
+					case FromBottom:
+						id = "window-move-start-bottom";
+						break;
+					case FromLeft:
+						id = "window-move-start-left";
+						break;
+					case FromRight:
+						id = "window-move-start-right";
+						break;
+					case FromEvery:
+						id = "window-move-start";
+						break;
+					case FromKeyboardMove:
+					case FromKeyboardResize:
+						id = "window-move-keyboard";
+						break;
+					case FromCancel:
+						id = "window-move-end-cancel";
+						break;
+					default:
+						id = "window-move-start";
+						break;
+					}
+					ca_proplist_sets(pl, CA_PROP_EVENT_ID, id);
+					DPRINTF(1, "Playing %s\n", id);
+					if ((r = ca_context_play_full(ca, CaEventWindowChange, pl, NULL, NULL)) < 0)
+						EPRINTF("Cannot play %s: %s\n", id, ca_strerror(r));
+				} else {
+					if (data[4] & 0x2) {
+						id = "window-move-end-snap";
+						ca_proplist_sets(pl, CA_PROP_EVENT_ID, id);
+						DPRINTF(1, "Playing %s\n", id);
+						if ((r = ca_context_play_full(ca, CaEventWindowChange, pl, NULL, NULL)) < 0)
+							EPRINTF("Cannot play %s: %s\n", id, ca_strerror(r));
+					}
+					if (data[4] & 0x4) {
+						id = "window-move-start-unsnap";
+						ca_proplist_sets(pl, CA_PROP_EVENT_ID, id);
+						DPRINTF(1, "Playing %s\n", id);
+						if ((r = ca_context_play_full(ca, CaEventWindowChange, pl, NULL, NULL)) < 0)
+							EPRINTF("Cannot play %s: %s\n", id, ca_strerror(r));
+					}
+				}
+			} else {
+				EPRINTF("Could not get window property for _NET_WM_MOVING\n");
+			}
+			if (data)
+				XFree(data);
+		}
+		ca_proplist_destroy(pl);
+	} else if (atom == _XA_NET_WM_RESIZING) {
+		ca_context *ca = ca_gtk_context_get_for_screen(xscr->scrn);
+		ca_proplist *pl = NULL;
+		const char *id;
+		int r;
+
+		ca_context_cancel(ca, CaEventWindowChange);
+		if ((r = ca_proplist_create(&pl)) < 0) {
+			EPRINTF("Cannot create property list: %s\n", ca_strerror(r));
+			return GDK_FILTER_CONTINUE;
+		}
+		ca_proplist_sets(pl, CA_PROP_CANBERRA_CACHE_CONTROL, "volatile");
+		if (xev->xproperty.state == PropertyDelete) {
+			ca_proplist_sets(pl, CA_PROP_EVENT_ID, (id = "window-resize-end"));
+			DPRINTF(1, "Playing %s\n", id);
+			if ((r = ca_context_play_full(ca, CaEventWindowChange, pl, NULL, NULL)) < 0)
+				EPRINTF("Cannot play %s: %s\n", id, ca_strerror(r));
+		} else {
+			Atom actual = None;
+			int format = 0;
+			unsigned long nitems = 0, after = 0;
+			long *data = NULL;
+
+			if (XGetWindowProperty(dpy, window, atom, 0L, 5, False,
+					       XA_CARDINAL, &actual, &format, &nitems, &after,
+					       (unsigned char **) &data)
+			    == Success && format == 32 && nitems >= 5 && data) {
+				if ((data[4] & 0x6) == 0) {
+					switch (data[2]) {
+					case FromTopLeft:
+						id = "window-resize-start-topleft";
+						break;
+					case FromTopRight:
+						id = "window-resize-start-topright";
+						break;
+					case FromBottomLeft:
+						id = "window-resize-start-bottomleft";
+						break;
+					case FromBottomRight:
+						id = "window-resize-start-bottomright";
+						break;
+					case FromTop:
+						id = "window-resize-start-top";
+						break;
+					case FromBottom:
+						id = "window-resize-start-bottom";
+						break;
+					case FromLeft:
+						id = "window-resize-start-left";
+						break;
+					case FromRight:
+						id = "window-resize-start-right";
+						break;
+					case FromEvery:
+						id = "window-resize-start";
+						break;
+					case FromKeyboardMove:
+					case FromKeyboardResize:
+						id = "window-resize-keyboard";
+						break;
+					case FromCancel:
+						id = "window-resize-end-cancel";
+						break;
+					default:
+						id = "window-resize-start";
+						break;
+					}
+					ca_proplist_sets(pl, CA_PROP_EVENT_ID, id);
+					DPRINTF(1, "Playing %s\n", id);
+					if ((r = ca_context_play_full(ca, CaEventWindowChange, pl, NULL, NULL)) < 0)
+						EPRINTF("Cannot play %s: %s\n", id, ca_strerror(r));
+				} else {
+					if (data[4] & 0x2) {
+						id = "window-resize-end-snap";
+						ca_proplist_sets(pl, CA_PROP_EVENT_ID, id);
+						DPRINTF(1, "Playing %s\n", id);
+						if ((r = ca_context_play_full(ca, CaEventWindowChange, pl, NULL, NULL)) < 0)
+							EPRINTF("Cannot play %s: %s\n", id, ca_strerror(r));
+					}
+					if (data[4] & 0x4) {
+						id = "window-resize-start-unsnap";
+						ca_proplist_sets(pl, CA_PROP_EVENT_ID, id);
+						DPRINTF(1, "Playing %s\n", id);
+						if ((r = ca_context_play_full(ca, CaEventWindowChange, pl, NULL, NULL)) < 0)
+							EPRINTF("Cannot play %s: %s\n", id, ca_strerror(r));
+					}
+				}
+			} else {
+				EPRINTF("Could not get window property for _NET_WM_RESIZING\n");
+			}
+			if (data)
+				XFree(data);
+		}
+		ca_proplist_destroy(pl);
+	}
+	return GDK_FILTER_CONTINUE;
+}
+
+static GdkFilterReturn
+window_handler(GdkXEvent *xevent, GdkEvent *event, gpointer data)
+{
+	XEvent *xev = (typeof(xev)) xevent;
+	XdeScreen *xscr = data;
+
+	(void) event;
+	(void) data;
+	switch (xev->type) {
+	case PropertyNotify:
+		return window_handler_PropertyNotify(xev, xscr);
+	}
+
+	return GDK_FILTER_CONTINUE;
+}
 
 static void
 window_opened(WnckScreen *wnck, WnckWindow *window, gpointer user)
@@ -5966,7 +6211,7 @@ window_opened(WnckScreen *wnck, WnckWindow *window, gpointer user)
 
 		mask = gdk_window_get_events(win);
 		gdk_window_set_events(win, mask | GDK_PROPERTY_CHANGE_MASK);
-		gdk_window_add_filter(win, window_handler, NULL);
+		gdk_window_add_filter(win, window_handler, xscr);
 		g_object_unref(G_OBJECT(win));
 	}
 
@@ -7426,32 +7671,6 @@ event_handler_PropertyNotify(XEvent *xev, XdeScreen *xscr)
 }
 
 static GdkFilterReturn
-window_handler_PropertyNotify(XEvent *xev, XdeScreen *xscr)
-{
-	Atom atom;
-
-	(void) xscr;
-	PTRACE(5);
-	if (options.debug > 2) {
-		char *name = NULL;
-
-		fprintf(stderr, "==> PropertyNotify:\n");
-		fprintf(stderr, "    --> window = 0x%08lx\n", xev->xproperty.window);
-		fprintf(stderr, "    --> atom = %s\n", (name = XGetAtomName(dpy, xev->xproperty.atom)));
-		fprintf(stderr, "    --> time = %ld\n", xev->xproperty.time);
-		fprintf(stderr, "    --> state = %s\n",
-			(xev->xproperty.state == PropertyNewValue) ? "NewValue" : "Delete");
-		fprintf(stderr, "<== PropertyNotify:\n");
-		if (name)
-			XFree(name);
-	}
-	atom = xev->xproperty.atom;
-	if (atom == _XA_NET_WM_MOVERESIZE) {
-	}
-	return GDK_FILTER_CONTINUE;
-}
-
-static GdkFilterReturn
 root_handler(GdkXEvent *xevent, GdkEvent *event, gpointer data)
 {
 	XEvent *xev = (typeof(xev)) xevent;
@@ -7479,22 +7698,6 @@ events_handler(GdkXEvent *xevent, GdkEvent *event, gpointer data)
 		if (!deferred)
 			deferred = g_timeout_add(1, &deferred_update_settings, NULL);
 	}
-	return GDK_FILTER_CONTINUE;
-}
-
-static GdkFilterReturn
-window_handler(GdkXEvent *xevent, GdkEvent *event, gpointer data)
-{
-	XEvent *xev = (typeof(xev)) xevent;
-	XdeScreen *xscr = data;
-
-	(void) event;
-	(void) data;
-	switch (xev->type) {
-	case PropertyNotify:
-		return window_handler_PropertyNotify(xev, xscr);
-	}
-
 	return GDK_FILTER_CONTINUE;
 }
 
@@ -8136,6 +8339,12 @@ startup(int argc, char *argv[])
 
 	atom = gdk_atom_intern_static_string("_NET_WM_MOVERESIZE");
 	_XA_NET_WM_MOVERESIZE = gdk_x11_atom_to_xatom_for_display(disp, atom);
+
+	atom = gdk_atom_intern_static_string("_NET_WM_MOVING");
+	_XA_NET_WM_MOVING = gdk_x11_atom_to_xatom_for_display(disp, atom);
+
+	atom = gdk_atom_intern_static_string("_NET_WM_RESIZING");
+	_XA_NET_WM_RESIZING = gdk_x11_atom_to_xatom_for_display(disp, atom);
 
 	atom = gdk_atom_intern_static_string("_WIN_DESKTOP_BUTTON_PROXY");
 	_XA_WIN_DESKTOP_BUTTON_PROXY = gdk_x11_atom_to_xatom_for_display(disp, atom);
