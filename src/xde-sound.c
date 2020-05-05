@@ -251,7 +251,20 @@ static Atom _XA_NET_CLIENT_LIST_STACKING;
 static Atom _XA_NET_CURRENT_DESKTOP;
 static Atom _XA_NET_DESKTOP_LAYOUT;
 static Atom _XA_NET_DESKTOP_NAMES;
+static Atom _XA_NET_DESKTOP_MODES;
+static Atom _XA_NET_WORKAREA;
+static Atom _XA_NET_DESKTOP_SHOWING;
+static Atom _XA_NET_DESKTOP_BORDER;
+static Atom _XA_NET_DESKTOP_MARGIN;
 static Atom _XA_NET_NUMBER_OF_DESKTOPS;
+
+static Atom _XA_NET_DESKTOP_MODE_BOTTOM_TILED;
+static Atom _XA_NET_DESKTOP_MODE_FLOATING;
+static Atom _XA_NET_DESKTOP_MODE_GRID;
+static Atom _XA_NET_DESKTOP_MODE_LEFT_TILED;
+static Atom _XA_NET_DESKTOP_MODE_MONOCLE;
+static Atom _XA_NET_DESKTOP_MODE_TILED;
+static Atom _XA_NET_DESKTOP_MODE_TOP_TILED;
 
 static Atom _XA_NET_WM_MOVERESIZE;
 static Atom _XA_NET_WM_MOVING;
@@ -588,6 +601,8 @@ struct XdeScreen;
 typedef struct XdeScreen XdeScreen;
 struct XdeMonitor;
 typedef struct XdeMonitor XdeMonitor;
+struct XdeDesktop;
+typedef struct XdeDesktop XdeDesktop;
 struct XdePopup;
 typedef struct XdePopup XdePopup;
 struct XdeImage;
@@ -644,6 +659,16 @@ struct XdePopup {
 	Bool pointer;			/* have a pointer grab */
 	Bool popped;			/* popup is popped */
 	GdkModifierType mask;
+};
+
+struct XdeDesktop {
+	int index;			/* 0-based index of this desktop */
+	Atom mode;			/* layout mode for desktop */
+	char *name;			/* desktop name */
+	GdkRectangle area;		/* work area */
+	int showing;			/* showing (struts, decorations) */
+	int border;			/* window border */
+	int margin;			/* margin between tiled windows */
 };
 
 struct XdeMonitor {
@@ -6300,11 +6325,27 @@ window_stacking_changed(WnckScreen *wnck, gpointer xscr)
 }
 
 static void
-showing_desktop_changed(WnckScreen *wnck, gpointer xscr)
+showing_desktop_changed(WnckScreen *wnck, gpointer data)
 {
-	/* FIXME: should emit some sound here. */
-	(void) wnck;
-	(void) xscr;
+	XdeScreen *xscr = data;
+	ca_context *ca = ca_gtk_context_get_for_screen(xscr->scrn);
+	ca_proplist *pl = NULL;
+	const char *id;
+	int r;
+
+	ca_context_cancel(ca, CaEventWorkspaceChange);
+	if ((r = ca_proplist_create(&pl)) < 0) {
+		EPRINTF("Cannot create property list: %s\n", ca_strerror(r));
+		return;
+	}
+	if ((r = ca_proplist_sets(pl, CA_PROP_CANBERRA_CACHE_CONTROL, "never")) < 0)
+		EPRINTF("Cannot set cache control: %s\n", ca_strerror(r));
+	ca_proplist_sets(pl, CA_PROP_EVENT_ID, (id = wnck_screen_get_showing_desktop(wnck) ?
+						"desktop-showing-hideall" : "desktop-showing-showall"));
+	DPRINTF(1, "Playing %s\n", id);
+	if ((r = ca_context_play_full(ca, CaEventWorkspaceChange, pl, NULL, NULL)) < 0)
+		EPRINTF("Cannot play %s: %s\n", id, ca_strerror(r));
+	ca_proplist_destroy(pl);
 }
 #endif
 
@@ -6995,6 +7036,299 @@ refresh_layout(XdeScreen *xscr)
 #endif
 
 #if 1
+void
+free_desk(gpointer data)
+{
+	XdeDesktop *desk;
+
+	if ((desk = data)) {
+		free(desk->name);
+		desk->name = NULL;
+		free(desk);
+	}
+}
+
+static void
+update_desktops(XdeScreen *xscr, Atom prop)
+{
+	Window root = RootWindow(dpy, xscr->index);
+	Atom actual = None;
+	int format = 0, i, current = 0, new_show = 0, any_show = 0, chg_show = 0, now_show = 0;
+	int any_bord = -1, was_bord = -1, new_bord = -1, old_bord = -1;
+	int any_marg = -1, was_marg = -1, new_marg = -1, old_marg = -1;
+	unsigned long nitems = 0, after = 0;
+	unsigned long *data = NULL;
+	Bool propok = False, mode_changed = False, name_changed = False, area_changed = False, show_changed = False,
+	     bord_changed = False, marg_changed = False;
+	Atom new_mode = None, any_mode = None;
+	WnckWorkspace *work;
+	XdeDesktop *desk;
+
+	if ((work = wnck_screen_get_active_workspace(xscr->wnck)))
+		current = wnck_workspace_get_number(work);
+
+	if (prop == None || prop == _XA_NET_DESKTOP_NAMES) {
+		/* FIXME: fill thie one out (don't really need it now) */
+		name_changed = True;
+		propok = True;
+	}
+	if (prop == None || prop == _XA_NET_DESKTOP_MODES) {
+		if (XGetWindowProperty(dpy, root, _XA_NET_DESKTOP_MODES, 0, xscr->desks,
+					False, XA_ATOM, &actual, &format,
+					&nitems, &after, (unsigned char **)
+					&data) == Success && format == 32 &&
+				actual && nitems >= (ulong) xscr->desks && data) {
+			for (i = 0; i < xscr->desks; i++) {
+				if ((work = wnck_screen_get_workspace(xscr->wnck, i))) {
+					if (!(desk = g_object_get_data(G_OBJECT(work), "XdeDesktop"))) {
+						desk = calloc(1, sizeof(*desk));
+						desk->showing = -1;
+						desk->border = -1;
+						desk->margin = -1;
+						g_object_set_data_full(G_OBJECT(work), "XdeDesktop", desk, free_desk);
+					}
+					if (desk) {
+						if (desk->mode && desk->mode != data[i]) {
+							mode_changed = True;
+							any_mode = data[i];
+							if (i == current)
+								new_mode = any_mode;
+						}
+						desk->mode = data[i];
+					} else
+						EPRINTF("Could not allocate XdeDesktop for desktop %d.\n", i);
+				}
+			}
+		}
+		if (data) {
+			XFree(data);
+			data = NULL;
+		}
+		propok = True;
+	}
+	if (prop == None || prop == _XA_NET_DESKTOP_SHOWING) {
+		if (XGetWindowProperty(dpy, root, _XA_NET_DESKTOP_SHOWING, 0, xscr->desks,
+					False, XA_CARDINAL, &actual, &format,
+					&nitems, &after, (unsigned char **)
+					&data) == Success && format == 32 &&
+				actual && nitems >= (ulong) xscr->desks && data) {
+			for (i = 0; i < xscr->desks; i++) {
+				if ((work = wnck_screen_get_workspace(xscr->wnck, i))) {
+					if (!(desk = g_object_get_data(G_OBJECT(work), "XdeDesktop"))) {
+						desk = calloc(1, sizeof(*desk));
+						desk->showing = -1;
+						desk->border = -1;
+						desk->margin = -1;
+						g_object_set_data_full(G_OBJECT(work), "XdeDesktop", desk, free_desk);
+					}
+					if (desk) {
+						if (desk->showing != -1 && desk->showing != (int) data[i]) {
+							show_changed = True;
+							any_show = data[i];
+							now_show = desk->showing ^ any_show;
+							if (i == current) {
+								new_show = any_show;
+								chg_show = now_show;
+							}
+						}
+						desk->showing = data[i];
+					}
+				}
+			}
+		}
+		propok = True;
+	}
+	if (prop == None || prop == _XA_NET_DESKTOP_BORDER) {
+		if (XGetWindowProperty(dpy, root, _XA_NET_DESKTOP_BORDER, 0, xscr->desks,
+					False, XA_CARDINAL, &actual, &format,
+					&nitems, &after, (unsigned char **)
+					&data) == Success && format == 32 &&
+				actual && nitems >= (ulong) xscr->desks && data) {
+			for (i = 0; i < xscr->desks; i++) {
+				if ((work = wnck_screen_get_workspace(xscr->wnck, i))) {
+					if (!(desk = g_object_get_data(G_OBJECT(work), "XdeDesktop"))) {
+						desk = calloc(1, sizeof(*desk));
+						desk->showing = -1;
+						desk->border = -1;
+						desk->margin = -1;
+						g_object_set_data_full(G_OBJECT(work), "XdeDesktop", desk, free_desk);
+					}
+					if (desk) {
+						if (desk->border != -1 && desk->border != (int) data[i]) {
+							bord_changed = True;
+							any_bord = data[i];
+							was_bord = desk->border;
+							if (i == current) {
+								new_bord = any_bord;
+								old_bord = was_bord;
+							}
+						}
+						desk->border = data[i];
+					}
+				}
+			}
+		}
+		propok = True;
+	}
+	if (prop == None || prop == _XA_NET_DESKTOP_MARGIN) {
+		if (XGetWindowProperty(dpy, root, _XA_NET_DESKTOP_MARGIN, 0, xscr->desks,
+					False, XA_CARDINAL, &actual, &format,
+					&nitems, &after, (unsigned char **)
+					&data) == Success && format == 32 &&
+				actual && nitems >= (ulong) xscr->desks && data) {
+			for (i = 0; i < xscr->desks; i++) {
+				if ((work = wnck_screen_get_workspace(xscr->wnck, i))) {
+					if (!(desk = g_object_get_data(G_OBJECT(work), "XdeDesktop"))) {
+						desk = calloc(1, sizeof(*desk));
+						desk->showing = -1;
+						desk->border = -1;
+						desk->margin = -1;
+						g_object_set_data_full(G_OBJECT(work), "XdeDesktop", desk, free_desk);
+					}
+					if (desk) {
+						if (desk->margin != -1 && desk->margin != (int) data[i]) {
+							marg_changed = True;
+							any_marg = data[i];
+							was_marg = desk->margin;
+							if (i == current) {
+								new_marg = any_marg;
+								old_marg = was_marg;
+							}
+						}
+						desk->border = data[i];
+					}
+				}
+			}
+		}
+		propok = True;
+	}
+	if (prop == None || prop == _XA_NET_WORKAREA) {
+		if (XGetWindowProperty(dpy, root, _XA_NET_WORKAREA, 0, xscr->desks * 4,
+					False, XA_CARDINAL, &actual, &format,
+					&nitems, &after, (unsigned char **)
+					&data) == Success && format == 32 &&
+				actual && nitems >= (ulong) (xscr->desks * 4) && data) {
+			for (i = 0; i < xscr->desks; i++) {
+				if ((work = wnck_screen_get_workspace(xscr->wnck, i))) {
+					if (!(desk = g_object_get_data(G_OBJECT(work), "XdeDesktop"))) {
+						desk = calloc(1, sizeof(*desk));
+						desk->showing = -1;
+						desk->border = -1;
+						desk->margin = -1;
+						g_object_set_data_full(G_OBJECT(work), "XdeDesktop", desk, free_desk);
+					}
+					if (desk) {
+						if (desk->area.width &&
+								(desk->area.x != (int) data[i*4+0] ||
+								 desk->area.y != (int) data[i*4+1] ||
+								 desk->area.width != (int) data[i*4+2] ||
+								 desk->area.height != (int) data[i*4+3])) {
+							area_changed = True;
+						}
+						desk->area.x = data[i*4+0];
+						desk->area.y = data[i*4+1];
+						desk->area.width = data[i*4+2];
+						desk->area.height = data[i*4+3];
+					}
+				}
+			}
+		}
+		propok = True;
+	}
+	if (!propok)
+		EPRINTF("wrong property passed\n");
+
+	if (mode_changed || name_changed || area_changed || show_changed || bord_changed || marg_changed) {
+		ca_context *ca = ca_gtk_context_get_for_screen(xscr->scrn);
+		ca_proplist *pl = NULL;
+		const char *id;
+		int r;
+
+		ca_context_cancel(ca, CaEventWorkspaceChange);
+		if ((r = ca_proplist_create(&pl)) < 0) {
+			EPRINTF("Cannot create property list: %s\n", ca_strerror(r));
+			return;
+		}
+		if ((r = ca_proplist_sets(pl, CA_PROP_CANBERRA_CACHE_CONTROL, "volatile")) < 0)
+			EPRINTF("Cannot set cache control: %s\n", ca_strerror(r));
+		if (mode_changed) {
+			if (!new_mode)
+				new_mode = any_mode;
+			if (new_mode == _XA_NET_DESKTOP_MODE_BOTTOM_TILED)
+				id = "desktop-mode-tiled-bottom";
+			else if (new_mode == _XA_NET_DESKTOP_MODE_FLOATING)
+				id = "desktop-mode-floating";
+			else if (new_mode == _XA_NET_DESKTOP_MODE_GRID)
+				id = "desktop-mode-grid";
+			else if (new_mode == _XA_NET_DESKTOP_MODE_LEFT_TILED)
+				id = "desktop-mode-tiled-left";
+			else if (new_mode == _XA_NET_DESKTOP_MODE_MONOCLE)
+				id = "desktop-mode-monocle";
+			else if (new_mode == _XA_NET_DESKTOP_MODE_TILED)
+				id = "desktop-mode-tiled-right";
+			else if (new_mode == _XA_NET_DESKTOP_MODE_TOP_TILED)
+				id = "desktop-mode-tiled-top";
+			else if (new_mode == None)
+				id = NULL;
+			else
+				id = "desktop-mode";
+			if (id) {
+				ca_proplist_sets(pl, CA_PROP_EVENT_ID, id);
+				DPRINTF(1, "Playing %s\n", id);
+				if ((r = ca_context_play_full(ca, CaEventWorkspaceChange, pl, NULL, NULL)) < 0)
+					EPRINTF("Cannot play %s: %s\n", id, ca_strerror(r));
+			}
+		}
+		if (show_changed) {
+			if (!chg_show) {
+				chg_show = now_show;
+				new_show = any_show;
+			}
+			if (chg_show) {
+				if (chg_show & 0x1) { /* struts */
+					ca_proplist_sets(pl, CA_PROP_EVENT_ID, (id = (new_show & 0x1) ? "desktop-showing-showall-struts" : "desktop-showing-hideall-struts"));
+					DPRINTF(1, "Playing %s\n", id);
+					if ((r = ca_context_play_full(ca, CaEventWorkspaceChange, pl, NULL, NULL)) < 0)
+						EPRINTF("Cannot play %s: %s\n", id, ca_strerror(r));
+				}
+				if (chg_show & 0x2) { /* decorations */
+					ca_proplist_sets(pl, CA_PROP_EVENT_ID, (id = (new_show & 0x2) ? "desktop-showing-showall-decorations" : "desktop-showing-hideall-decorations"));
+					DPRINTF(1, "Playing %s\n", id);
+					if ((r = ca_context_play_full(ca, CaEventWorkspaceChange, pl, NULL, NULL)) < 0)
+						EPRINTF("Cannot play %s: %s\n", id, ca_strerror(r));
+				}
+			}
+		}
+		if (bord_changed) {
+			if (new_bord == -1) {
+				new_bord = any_bord;
+				old_bord = was_bord;
+			}
+			if (new_bord != -1 && new_bord != old_bord) {
+				ca_proplist_sets(pl, CA_PROP_EVENT_ID, (id = (new_bord < old_bord) ?  "desktop-mode-decrease-border" : "desktop-mode-increase-border"));
+				DPRINTF(1, "Playing %s\n", id);
+				if ((r = ca_context_play_full(ca, CaEventWorkspaceChange, pl, NULL, NULL)) < 0)
+					EPRINTF("Cannot play %s: %s\n", id, ca_strerror(r));
+			}
+		}
+		if (marg_changed) {
+			if (new_marg == -1) {
+				new_marg = any_marg;
+				old_marg = was_marg;
+			}
+			if (new_marg != -1 && new_marg != old_marg) {
+				ca_proplist_sets(pl, CA_PROP_EVENT_ID, (id = (new_marg < old_marg) ?  "desktop-mode-decrease-margin" : "desktop-mode-increase-margin"));
+				DPRINTF(1, "Playing %s\n", id);
+				if ((r = ca_context_play_full(ca, CaEventWorkspaceChange, pl, NULL, NULL)) < 0)
+					EPRINTF("Cannot play %s: %s\n", id, ca_strerror(r));
+			}
+		}
+		ca_proplist_destroy(pl);
+	}
+}
+#endif
+
+#if 1
 static void
 update_layout(XdeScreen *xscr, Atom prop)
 {
@@ -7636,6 +7970,20 @@ event_handler_PropertyNotify(XEvent *xev, XdeScreen *xscr)
 			update_layout(xscr, None /* atom */);
 		} else if (atom == _XA_WIN_WORKSPACE_COUNT) {
 			update_layout(xscr, None /* atom */);
+#endif
+#if 1
+		} else if (atom == _XA_NET_DESKTOP_NAMES) {
+			update_desktops(xscr, atom);
+		} else if (atom == _XA_NET_DESKTOP_MODES) {
+			update_desktops(xscr, atom);
+		} else if (atom == _XA_NET_WORKAREA) {
+			update_desktops(xscr, atom);
+		} else if (atom == _XA_NET_DESKTOP_SHOWING) {
+			update_desktops(xscr, atom);
+		} else if (atom == _XA_NET_DESKTOP_BORDER) {
+			update_desktops(xscr, atom);
+		} else if (atom == _XA_NET_DESKTOP_MARGIN) {
+			update_desktops(xscr, atom);
 #endif
 #if 1
 		} else if (atom == _XA_NET_CURRENT_DESKTOP) {
@@ -8334,8 +8682,44 @@ startup(int argc, char *argv[])
 	atom = gdk_atom_intern_static_string("_NET_DESKTOP_NAMES");
 	_XA_NET_DESKTOP_NAMES = gdk_x11_atom_to_xatom_for_display(disp, atom);
 
+	atom = gdk_atom_intern_static_string("_NET_DESKTOP_MODES");
+	_XA_NET_DESKTOP_MODES = gdk_x11_atom_to_xatom_for_display(disp, atom);
+
+	atom = gdk_atom_intern_static_string("_NET_WORKAREA");
+	_XA_NET_WORKAREA = gdk_x11_atom_to_xatom_for_display(disp, atom);
+
+	atom = gdk_atom_intern_static_string("_NET_DESKTOP_SHOWING");
+	_XA_NET_DESKTOP_SHOWING = gdk_x11_atom_to_xatom_for_display(disp, atom);
+
+	atom = gdk_atom_intern_static_string("_NET_DESKTOP_BORDER");
+	_XA_NET_DESKTOP_BORDER = gdk_x11_atom_to_xatom_for_display(disp, atom);
+
+	atom = gdk_atom_intern_static_string("_NET_DESKTOP_MARGIN");
+	_XA_NET_DESKTOP_MARGIN = gdk_x11_atom_to_xatom_for_display(disp, atom);
+
 	atom = gdk_atom_intern_static_string("_NET_NUMBER_OF_DESKTOPS");
 	_XA_NET_NUMBER_OF_DESKTOPS = gdk_x11_atom_to_xatom_for_display(disp, atom);
+
+	atom = gdk_atom_intern_static_string("_NET_DESKTOP_MODE_BOTTOM_TILED");
+	_XA_NET_DESKTOP_MODE_BOTTOM_TILED = gdk_x11_atom_to_xatom_for_display(disp, atom);
+
+	atom = gdk_atom_intern_static_string("_NET_DESKTOP_MODE_FLOATING");
+	_XA_NET_DESKTOP_MODE_FLOATING = gdk_x11_atom_to_xatom_for_display(disp, atom);
+
+	atom = gdk_atom_intern_static_string("_NET_DESKTOP_MODE_GRID");
+	_XA_NET_DESKTOP_MODE_GRID = gdk_x11_atom_to_xatom_for_display(disp, atom);
+
+	atom = gdk_atom_intern_static_string("_NET_DESKTOP_MODE_LEFT_TILED");
+	_XA_NET_DESKTOP_MODE_LEFT_TILED = gdk_x11_atom_to_xatom_for_display(disp, atom);
+
+	atom = gdk_atom_intern_static_string("_NET_DESKTOP_MODE_MONOCLE");
+	_XA_NET_DESKTOP_MODE_MONOCLE = gdk_x11_atom_to_xatom_for_display(disp, atom);
+
+	atom = gdk_atom_intern_static_string("_NET_DESKTOP_MODE_TILED");
+	_XA_NET_DESKTOP_MODE_TILED = gdk_x11_atom_to_xatom_for_display(disp, atom);
+
+	atom = gdk_atom_intern_static_string("_NET_DESKTOP_MODE_TOP_TILED");
+	_XA_NET_DESKTOP_MODE_TOP_TILED = gdk_x11_atom_to_xatom_for_display(disp, atom);
 
 	atom = gdk_atom_intern_static_string("_NET_WM_MOVERESIZE");
 	_XA_NET_WM_MOVERESIZE = gdk_x11_atom_to_xatom_for_display(disp, atom);

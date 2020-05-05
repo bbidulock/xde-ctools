@@ -587,6 +587,12 @@ manager control.  This is an extension for tiling window managers to the
 NetWM/EWMH window manager specification.  It can be used to detect
 changes to the mode of the active desktop.
 
+=item B<_NET_DESKTOP_SHOWING>
+
+=item B<_NET_DESKTOP_BORDER>
+
+=item B<_NET_DESKTOP_MARGIN>
+
 =over
 
 =item I<desktop-mode>
@@ -2206,6 +2212,118 @@ However, this is really the responsibility of GUI toolkit.
 =item item-selected
 
 Responsibility of GUI toolkit.
+
+=item B<desktop-mode>
+
+"The sound used when the desktop mode changes its arrangement."
+
+=item B<desktop-mode=floating>
+
+"The sound used when the desktop mode is changed to a floating arrangement."
+
+=item B<desktop-mode-grid>
+
+"The sound used when the desktop mode is set to a grid arrangement."
+
+=item B<desktop-mode-monocle>
+
+"The sound used when the desktop mode is set to a monocle arrangement."
+
+=item B<desktop-mode-tiled>
+
+"The sound used when the desktop mode is set to a tiled arrangement."
+
+=item B<desktop-mode-tiled-left>
+
+"The sound used when the desktop mode is set to a tiled arrangement with a left master position."
+
+=item B<desktop-mode-tiled-right>
+
+"The sound used when the desktop mode is set to a tiled arrangement with a right master position."
+
+=item B<desktop-mode-tiled-top>
+
+"The sound used when the desktop mode is set to a tiled arrangement with a top master position."
+
+=item B<desktop-mode-tiled-bottom>
+
+"The sound used when the desktop mode is set to a tiled arrangement with a bottom master position."
+
+=item B<desktop-showing>
+
+"The sound used when showing the desktop changes."
+
+=item B<desktop-showing-hideall>
+
+"The sound used when the desktop is revealed (all windows are hidden)."
+
+=item B<desktop-showing-showall>
+
+"The sound used when the windows hidden to show the desktop are restored."
+
+=item B<desktop-showing-hideall-decorations>
+
+"The sound used when the desktop view undecorates tiled windows."
+
+L<adwm(1)> was enhanced to set an array of cardinals in a
+B<_NET_DESKTOP_SHOWING> property on the root window.  Changes to this
+property can be used to generate this sound.
+
+=item B<desktop-showing-showall-decorations>
+
+"The sound used when the desktop view decorates tiled windows."
+
+L<adwm(1)> was enhanced to set an array of cardinals in a
+B<_NET_DESKTOP_SHOWING> property on the root window.  Changes to this
+property can be used to generate this sound.
+
+=item B<desktop-showing-hideall-struts>
+
+"The sound used when the desktop view hides all struts (docks and panels)."
+
+L<adwm(1)> was enhanced to set an array of cardinals in a
+B<_NET_DESKTOP_SHOWING> property on the root window.  Changes to this
+property can be used to generate this sound.
+
+=item B<desktop-showing-showall-struts>
+
+"The sound used when the desktop view shows all struts (docks and panels)."
+
+L<adwm(1)> was enhanced to set an array of cardinals in a
+B<_NET_DESKTOP_SHOWING> property on the root window.  Changes to this
+property can be used to generate this sound.
+
+=item B<desktop-mode-increase-border>
+
+"The sound used when the desktop mode window border increases."
+
+L<adwm(1)> was enhanced to set the border width in a
+B<_NET_DESKTOP_BORDER> property on the root window.  Changes to this
+property can be used to generate this sound.
+
+=item B<desktop-mode-decrease-border>
+
+"The sound used when the desktop mode window border decreases."
+
+L<adwm(1)> was enhanced to set the border width in a
+B<_NET_DESKTOP_BORDER> property on the root window.  Changes to this
+property can be used to generate this sound.
+
+=item B<desktop-mode-increase-margin>
+
+"The sound used when the desktop mode window margin increases."
+
+L<adwm(1)> was enhanced to set the margin width in a
+B<_NET_DESKTOP_MARGIN> property on the root window.  Changes to this
+property can be used to generate this sound.
+
+=item B<desktop-mode-decrease-margin>
+
+"The sound used when the desktop mode window margin decreases."
+
+L<adwm(1)> was enhanced to set the margin width in a
+B<_NET_DESKTOP_MARGIN> property on the root window.  Changes to this
+property can be used to generate this sound.
 
 =back
 
