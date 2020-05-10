@@ -5134,7 +5134,7 @@ window_manager_changed(WnckScreen *wnck, gpointer user)
 	const char *name;
 	ca_context *ca = ca_gtk_context_get_for_screen(xscr->scrn);
 	ca_proplist *pl = NULL;
-	const char *id;
+	const char *id = NULL;
 	int r;
 
 	PTRACE(5);
@@ -5144,8 +5144,6 @@ window_manager_changed(WnckScreen *wnck, gpointer user)
 	wnck_screen_force_update(wnck);
 	if (options.proxy)
 		setup_button_proxy(xscr);
-	free(xscr->wmname);
-	xscr->wmname = NULL;
 	xscr->goodwm = False;
 	/* start with all True and let wm check set False */
 	xscr->winds = options.show.winds;
@@ -5156,6 +5154,7 @@ window_manager_changed(WnckScreen *wnck, gpointer user)
 	xscr->start = options.show.start;
 	xscr->input = options.show.input;
 	if ((name = wnck_screen_get_window_manager_name(wnck))) {
+		free(xscr->wmname);
 		xscr->wmname = strdup(name);
 		*strchrnul(xscr->wmname, ' ') = '\0';
 		/* Some versions of wmx have an error in that they only set the
@@ -5180,6 +5179,9 @@ window_manager_changed(WnckScreen *wnck, gpointer user)
 			xscr->input = False;
 		}
 	}
+	if (!xscr->wmname)
+		return;
+
 	ca_context_cancel(ca, CaEventWindowManager);
 	if ((r = ca_proplist_create(&pl)) < 0) {
 		EPRINTF("Cannot create property list: %s\n", ca_strerror(r));
@@ -5197,8 +5199,12 @@ window_manager_changed(WnckScreen *wnck, gpointer user)
 			EPRINTF("Cannot play %s: %s\n", id, ca_strerror(r));
 	}
 	ca_proplist_destroy(pl);
-	DPRINTF(1, "window manager is '%s'\n", xscr->wmname);
-	DPRINTF(1, "window manager is %s\n", xscr->goodwm ? "usable" : "unusable");
+	DPRINTF(1, "window manager is/was '%s'\n", xscr->wmname);
+	DPRINTF(1, "window manager is/was %s\n", xscr->goodwm ? "usable" : "unusable");
+	if (!name) {
+		free(xscr->wmname);
+		xscr->wmname = NULL;
+	}
 }
 
 static void
