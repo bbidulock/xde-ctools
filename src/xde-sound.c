@@ -5192,12 +5192,6 @@ window_manager_changed(WnckScreen *wnck, gpointer user)
 	DPRINTF(1, "Playing %s, %s\n", id, xscr->wmname);
 	if ((r = ca_context_play_full(ca, CaEventWindowManager, pl, NULL, NULL)) < 0)
 		EPRINTF("Cannot play %s, %s: %s\n", id, xscr->wmname, ca_strerror(r));
-	if (r == CA_ERROR_NOTFOUND) {
-		ca_proplist_sets(pl, CA_PROP_EVENT_ID, (id = name ? "desktop-login" : "desktop-logout"));
-		DPRINTF(1, "Playing %s\n", id);
-		if ((r = ca_context_play_full(ca, CaEventWindowManager, pl, NULL, NULL)) < 0)
-			EPRINTF("Cannot play %s: %s\n", id, ca_strerror(r));
-	}
 	ca_proplist_destroy(pl);
 	DPRINTF(1, "window manager is/was '%s'\n", xscr->wmname);
 	DPRINTF(1, "window manager is/was %s\n", xscr->goodwm ? "usable" : "unusable");
@@ -8468,6 +8462,10 @@ static void
 init_wnck(XdeScreen *xscr)
 {
 	WnckScreen *wnck = xscr->wnck = wnck_screen_get(xscr->index);
+	ca_context *ca = ca_gtk_context_get_for_screen(xscr->scrn);
+	ca_proplist *pl = NULL;
+	const char *id = NULL;
+	int r;
 
 	g_signal_connect(G_OBJECT(wnck), "window_manager_changed", G_CALLBACK(window_manager_changed), xscr);
 	g_signal_connect(G_OBJECT(wnck), "workspace_destroyed", G_CALLBACK(workspace_destroyed), xscr);
@@ -8488,7 +8486,18 @@ init_wnck(XdeScreen *xscr)
 	g_signal_connect(G_OBJECT(wnck), "showing_desktop_changed", G_CALLBACK(showing_desktop_changed), xscr);
 
 	wnck_screen_force_update(wnck);
-	window_manager_changed(wnck, xscr);
+
+	ca_context_cancel(ca, CaEventWindowManager);
+	if ((r = ca_proplist_create(&pl)) < 0) {
+		EPRINTF("Cannot create property list: %s\n", ca_strerror(r));
+		return;
+	}
+	ca_proplist_sets(pl, CA_PROP_CANBERRA_CACHE_CONTROL, "never");
+	ca_proplist_sets(pl, CA_PROP_EVENT_ID, (id = "desktop-login"));
+	DPRINTF(1, "Playing %s\n", id);
+	if ((r = ca_context_play_full(ca, CaEventWindowManager, pl, NULL, NULL)) < 0)
+		EPRINTF("Cannot play %s: %s\n", id, ca_strerror(r));
+	ca_proplist_destroy(pl);
 }
 
 static gboolean
