@@ -1122,7 +1122,7 @@ ca_context_play_queue(ca_context *ca, uint32_t id, ca_proplist *pl)
 	if (id >= CA_CONTEXT_ID && id < CaEventMaximumContextId) {
 		struct EventQueue *q = &CaEventQueues[id - CA_CONTEXT_ID];
 		int playing = 0;
-		
+
 		ca_context_playing(ca, id, &playing);
 		if (playing || !g_queue_is_empty(q->queue)) {
 			g_queue_push_tail(q->queue, pl);
@@ -9380,7 +9380,7 @@ queue_call(GIOChannel *channel, GIOCondition condition, gpointer data)
 	if (read(q->efd, &count, sizeof(count)) >= 0) {
 		ca_context *ca = get_default_ca_context();
 		int playing = 0;
-		
+
 		ca_context_playing(ca, q->context_id, &playing);
 		if (!playing) {
 			ca_proplist *pl;
