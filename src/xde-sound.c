@@ -68,6 +68,7 @@
 #include <sys/select.h>
 #include <sys/time.h>
 #include <sys/timerfd.h>
+#include <sys/eventfd.h>
 #include <sys/ioctl.h>
 #include <sys/wait.h>
 #include <sys/poll.h>
@@ -332,7 +333,18 @@ typedef enum {
 	CaEventSleepSuspend,
 	CaEventBatteryLevel,
 	CaEventThermalEvent,
+	CaEventBatteryState,
+	CaEventSystemChange,
+	CaEventMaximumContextId
 } CaEventId;
+
+struct EventQueue {
+	uint32_t context_id;
+	int efd;
+	GIOChannel *channel;
+	guint source_id;
+	GQueue *queue;
+} CaEventQueues[CaEventMaximumContextId-CA_CONTEXT_ID] = { {0, }, };
 
 typedef enum {
 	CommandDefault,
@@ -1060,6 +1072,71 @@ format_value_hertz(GtkScale *scale, gdouble value, gpointer user_data)
 	(void) user_data;
 	return g_strdup_printf("%.6g Hz", /* gtk_scale_get_digits(scale), */ value);
 }
+
+/** @section Queued Sound Functions
+  * @{ */
+
+void
+play_done(ca_context *ca, uint32_t id, int error_code, void *user_data)
+{
+	struct EventQueue *q = user_data;
+	uint64_t count = 1;
+
+	(void) ca;
+	(void) id;
+	(void) error_code;
+
+	DPRINTF(1, "Playing done for context id %u\n", id);
+	if (!g_queue_is_empty(q->queue)) {
+		DPRINTF(1, "Signalling next event to play for context id %u\n", id);
+		if (write(q->efd, &count, sizeof(count))) {}
+	}
+}
+
+void
+prop_free(gpointer data)
+{
+	ca_proplist *pl = data;
+
+	ca_proplist_destroy(pl);
+}
+
+int
+ca_context_cancel_queue(ca_context *ca, uint32_t id)
+{
+	if (id >= CA_CONTEXT_ID && id < CaEventMaximumContextId) {
+		struct EventQueue *q = &CaEventQueues[id - CA_CONTEXT_ID];
+
+		g_queue_clear_full(q->queue, prop_free);
+	}
+	return ca_context_cancel(ca, id);
+}
+
+int
+ca_context_play_queue(ca_context *ca, uint32_t id, ca_proplist *pl)
+{
+	int r;
+
+	if (id >= CA_CONTEXT_ID && id < CaEventMaximumContextId) {
+		struct EventQueue *q = &CaEventQueues[id - CA_CONTEXT_ID];
+		int playing = 0;
+		
+		ca_context_playing(ca, id, &playing);
+		if (playing || !g_queue_is_empty(q->queue)) {
+			g_queue_push_tail(q->queue, pl);
+			return CA_SUCCESS;
+		}
+		r = ca_context_play_full(ca, id, pl, play_done, q);
+		ca_proplist_destroy(pl);
+		return (r);
+	}
+	r = ca_context_play_full(ca, id, pl, NULL, NULL);
+	ca_proplist_destroy(pl);
+	return (r);
+}
+
+
+/** @} */
 
 /** @section Deferred Actions
   * @{ */
@@ -5189,10 +5266,9 @@ window_manager_changed(WnckScreen *wnck, gpointer user)
 	}
 	ca_proplist_sets(pl, CA_PROP_CANBERRA_CACHE_CONTROL, "never");
 	ca_proplist_setf(pl, CA_PROP_EVENT_ID, (id = name ? "window-manager-start-%s" : "window-manager-quit-%s"), xscr->wmname);
-	DPRINTF(1, "Playing %s, %s\n", id, xscr->wmname);
-	if ((r = ca_context_play_full(ca, CaEventWindowManager, pl, NULL, NULL)) < 0)
+	DPRINTF(1, "Queueing %s, %s\n", id, xscr->wmname);
+	if ((r = ca_context_play_queue(ca, CaEventWindowManager, pl)) < 0)
 		EPRINTF("Cannot play %s, %s: %s\n", id, xscr->wmname, ca_strerror(r));
-	ca_proplist_destroy(pl);
 	DPRINTF(1, "window manager is/was '%s'\n", xscr->wmname);
 	DPRINTF(1, "window manager is/was %s\n", xscr->goodwm ? "usable" : "unusable");
 	if (!name) {
@@ -8121,7 +8197,7 @@ term_signal_handler(gpointer data)
 		ca_proplist_sets(pl, CA_PROP_EVENT_ID, (id = "desktop-logout"));
 
 		already_exiting = 1;
-		ca_context_cancel(ca, CaEventWindowManager);
+		ca_context_cancel_queue(ca, CaEventWindowManager);
 		DPRINTF(1, "Playing %s\n", id);
 		if ((r = ca_context_play_full(ca, CaEventWindowManager, pl, &desktop_logout_cb, pl)) != CA_SUCCESS) {
 			EPRINTF("Cannot play %s: %s\n", id, ca_strerror(r));
@@ -8485,19 +8561,17 @@ init_wnck(XdeScreen *xscr)
 	g_signal_connect(G_OBJECT(wnck), "window_stacking_changed", G_CALLBACK(window_stacking_changed), xscr);
 	g_signal_connect(G_OBJECT(wnck), "showing_desktop_changed", G_CALLBACK(showing_desktop_changed), xscr);
 
-	wnck_screen_force_update(wnck);
-
-	ca_context_cancel(ca, CaEventWindowManager);
 	if ((r = ca_proplist_create(&pl)) < 0) {
 		EPRINTF("Cannot create property list: %s\n", ca_strerror(r));
 		return;
 	}
 	ca_proplist_sets(pl, CA_PROP_CANBERRA_CACHE_CONTROL, "never");
 	ca_proplist_sets(pl, CA_PROP_EVENT_ID, (id = "desktop-login"));
-	DPRINTF(1, "Playing %s\n", id);
-	if ((r = ca_context_play_full(ca, CaEventWindowManager, pl, NULL, NULL)) < 0)
+	DPRINTF(1, "Queueing %s\n", id);
+	if ((r = ca_context_play_queue(ca, CaEventWindowManager, pl)) < 0)
 		EPRINTF("Cannot play %s: %s\n", id, ca_strerror(r));
-	ca_proplist_destroy(pl);
+
+	wnck_screen_force_update(wnck);
 }
 
 static gboolean
@@ -9205,6 +9279,80 @@ setup_upower(void)
 			G_CALLBACK(on_up_display_proxy_props_changed), NULL);
 }
 
+gboolean
+queue_call(GIOChannel *channel, GIOCondition condition, gpointer data)
+{
+	struct EventQueue *q = data;
+	uint64_t count = 0;
+
+	(void) channel;
+	(void) condition;
+
+	DPRINTF(1, "Reading event file descriptor context id %u\n", q->context_id);
+	if (read(q->efd, &count, sizeof(count)) >= 0) {
+		ca_context *ca = get_default_ca_context();
+		int playing = 0;
+		
+		ca_context_playing(ca, q->context_id, &playing);
+		if (!playing) {
+			ca_proplist *pl;
+
+			DPRINTF(1, "Popping queue for context id %u\n", q->context_id);
+			while ((pl = g_queue_pop_head(q->queue))) {
+				int r;
+
+				DPRINTF(1, "Playing queued event for context id %u\n", q->context_id);
+				r = ca_context_play_full(ca, q->context_id, pl, play_done, q);
+				ca_proplist_destroy(pl);
+				if (r == CA_SUCCESS)
+					break;
+			}
+		}
+	} else {
+		EPRINTF("Did not get event!\n");
+	}
+	return G_SOURCE_CONTINUE;
+}
+
+void
+init_canberra(void)
+{
+	ca_context *ca = get_default_ca_context();
+	ca_proplist *pl;
+	int i;
+
+	ca_proplist_create(&pl);
+	ca_proplist_sets(pl, CA_PROP_APPLICATION_ID, "com.unexicon." RESNAME);
+	ca_proplist_sets(pl, CA_PROP_APPLICATION_VERSION, VERSION);
+	ca_proplist_sets(pl, CA_PROP_APPLICATION_ICON_NAME, LOGO_NAME);
+	ca_proplist_sets(pl, CA_PROP_APPLICATION_LANGUAGE, "C");
+	{
+		char pidstring[64];
+
+		snprintf(pidstring, 64, "%d", getpid());
+		ca_proplist_sets(pl, CA_PROP_APPLICATION_PROCESS_ID, pidstring);
+	}
+	ca_proplist_sets(pl, CA_PROP_APPLICATION_PROCESS_USER, getenv("USER"));
+	{
+		char hostname[64];
+
+		gethostname(hostname, 64);
+		ca_proplist_sets(pl, CA_PROP_APPLICATION_PROCESS_HOST, hostname);
+	}
+	ca_context_change_props_full(ca, pl);
+	for (i = 0; i < CaEventMaximumContextId - CA_CONTEXT_ID; i++) {
+		struct EventQueue *q = &CaEventQueues[i];
+
+		q->context_id = i + CA_CONTEXT_ID;
+		if ((q->efd = eventfd(0, EFD_CLOEXEC | EFD_NONBLOCK | EFD_SEMAPHORE)) >= 0) {
+			if ((q->channel = g_io_channel_unix_new(q->efd))) {
+				q->queue = g_queue_new();
+				q->source_id = g_io_add_watch(q->channel, G_IO_IN, queue_call, q);
+			}
+		}
+	}
+}
+
 #if 1
 static void
 startup_notification_complete(Window selwin)
@@ -9444,6 +9592,8 @@ do_run(int argc, char *argv[])
 
 	oldhandler = XSetErrorHandler(handler);
 	oldiohandler = XSetIOErrorHandler(iohandler);
+
+	init_canberra();
 
 	xmon = init_screens(selwin);
 
