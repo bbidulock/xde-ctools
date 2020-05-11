@@ -5182,7 +5182,7 @@ window_manager_changed(WnckScreen *wnck, gpointer user)
 	if (!xscr->wmname)
 		return;
 
-	ca_context_cancel(ca, CaEventWindowManager);
+//	ca_context_cancel(ca, CaEventWindowManager);
 	if ((r = ca_proplist_create(&pl)) < 0) {
 		EPRINTF("Cannot create property list: %s\n", ca_strerror(r));
 		return;
