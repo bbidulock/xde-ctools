@@ -9407,13 +9407,42 @@ init_canberra(void)
 {
 	ca_context *ca = get_default_ca_context();
 	ca_proplist *pl;
+	int theme_set = 0;
 	int i;
+
 
 	ca_proplist_create(&pl);
 	ca_proplist_sets(pl, CA_PROP_APPLICATION_ID, "com.unexicon." RESNAME);
 	ca_proplist_sets(pl, CA_PROP_APPLICATION_VERSION, VERSION);
 	ca_proplist_sets(pl, CA_PROP_APPLICATION_ICON_NAME, LOGO_NAME);
 	ca_proplist_sets(pl, CA_PROP_APPLICATION_LANGUAGE, "C");
+	ca_proplist_sets(pl, CA_PROP_CANBERRA_VOLUME, "0.0");
+	if (!theme_set) {
+		GdkDisplay *disp = gdk_display_get_default();
+		GdkScreen *scrn = gdk_display_get_default_screen(disp);
+		GtkSettings *set = gtk_settings_get_for_screen(scrn);
+		GValue theme_v = G_VALUE_INIT;
+		const char *stheme;
+
+		gtk_rc_reparse_all();
+
+		g_value_init(&theme_v, G_TYPE_STRING);
+		g_object_get_property(G_OBJECT(set), "gtk-sound-theme-name", &theme_v);
+		stheme = g_value_get_string(&theme_v);
+		if (stheme) {
+			DPRINTF(1, "Setting sound theme to %s\n", stheme);
+			ca_proplist_sets(pl, CA_PROP_CANBERRA_XDG_THEME_NAME, stheme);
+			theme_set = 1;
+		}
+		g_value_unset(&theme_v);
+	}
+	if (!theme_set) {
+		EPRINTF("Could not set theme!\n");
+		ca_proplist_sets(pl, CA_PROP_CANBERRA_XDG_THEME_NAME, "freedesktop");
+		theme_set = 1;
+	}
+	ca_proplist_sets(pl, CA_PROP_CANBERRA_XDG_THEME_OUTPUT_PROFILE, "stereo");
+	ca_proplist_sets(pl, CA_PROP_CANBERRA_ENABLE, "1");
 	{
 		char pidstring[64];
 
