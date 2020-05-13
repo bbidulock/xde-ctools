@@ -270,6 +270,7 @@ static Atom _XA_NET_DESKTOP_MODE_TOP_TILED;
 static Atom _XA_NET_WM_MOVERESIZE;
 static Atom _XA_NET_WM_MOVING;
 static Atom _XA_NET_WM_RESIZING;
+static Atom _XA_NET_WM_PING;
 
 static Atom _XA_WIN_AREA;
 static Atom _XA_WIN_AREA_COUNT;
@@ -280,6 +281,7 @@ static Atom _XA_WIN_WORKSPACE;
 static Atom _XA_WIN_WORKSPACE_COUNT;
 
 static Atom _XA_WM_DESKTOP;
+static Atom _XA_WM_PROTOCOLS;
 
 static Atom _XA_ESETROOT_PMAP_ID;
 static Atom _XA_XROOTPMAP_ID;
@@ -5946,6 +5948,113 @@ class_group_opened(WnckScreen *wnck, WnckClassGroup *class_group, gpointer xscr)
 }
 
 static void
+window_pinged(WnckScreen *wnck, WnckWindow *window, gpointer user)
+{
+	XdeScreen *xscr = user;
+	ca_context *ca = ca_gtk_context_get_for_screen(xscr->scrn);
+	ca_proplist *pl = NULL;
+	int r, x = 0, y = 0, width = 0, height = 0, sw, sh;
+	const char *id;
+
+	(void) wnck;
+	if ((r = ca_proplist_create(&pl)) < 0) {
+		EPRINTF("Cannot create property list: %s\n", ca_strerror(r));
+		return;
+	}
+	ca_context_cancel_norm(ca, CaEventWindowChange);
+	ca_proplist_sets(pl, CA_PROP_CANBERRA_CACHE_CONTROL, "volatile");
+	/* CA_PROP_WINDOW_NAME: the name of this window as human readable string. */
+	DPRINTF(1, "Setting CA_PROP_WINDOW_NAME to %s\n", wnck_window_get_name(window));
+	if ((r = ca_proplist_sets(pl, CA_PROP_WINDOW_NAME, wnck_window_get_name(window))) < 0)
+		EPRINTF("Cannot set window name: %s\n", ca_strerror(r));
+	/* CA_PROP_WINDOW_ID: identification string for this window */
+	if ((id = wnck_window_get_session_id(window))) {
+		DPRINTF(1, "Setting CA_PROP_WINDOW_ID to %s#%s\n", wnck_window_get_name(window), id);
+		if ((r = ca_proplist_setf(pl, CA_PROP_WINDOW_ID, "%s#%s", wnck_window_get_name(window), id)) < 0)
+			EPRINTF("Cannot set window id: %s\n", ca_strerror(r));
+	} else {
+		DPRINTF(1, "Setting CA_PROP_WINDOW_ID to %s\n", wnck_window_get_name(window));
+		if ((r = ca_proplist_setf(pl, CA_PROP_WINDOW_ID, "%s", wnck_window_get_name(window))) < 0)
+			EPRINTF("Cannot set window id: %s\n", ca_strerror(r));
+	}
+	/* CA_PROP_WINDOW_ICON: binary icon data in PNG format */
+	/* CA_PROP_WINDOW_ICON_NAME: icon name as string */
+	DPRINTF(1, "Setting CA_PROP_WINDOW_ICON_NAME to %s\n", wnck_window_get_icon_name(window));
+	if ((r = ca_proplist_sets(pl, CA_PROP_WINDOW_ICON_NAME, wnck_window_get_icon_name(window))) < 0)
+		EPRINTF("Cannot set window icon name: %s\n", ca_strerror(r));
+
+	wnck_window_get_client_window_geometry(window, &x, &y, &width, &height);
+	/* CA_PROP_WINDOW_X: x coordinate of window */
+	DPRINTF(1, "Setting CA_PROP_WINDOW_X to %i\n", x);
+	if ((r = ca_proplist_setf(pl, CA_PROP_WINDOW_X, "%i", x)) < 0)
+		EPRINTF("Cannot set window x coord: %s\n", ca_strerror(r));
+	/* CA_PROP_WINDOW_Y: Y coordinate of window */
+	DPRINTF(1, "Setting CA_PROP_WINDOW_Y to %i\n", y);
+	if ((r = ca_proplist_setf(pl, CA_PROP_WINDOW_Y, "%i", y)) < 0)
+		EPRINTF("Cannot set window y coord: %s\n", ca_strerror(r));
+	/* CA_PROP_WINDOW_WIDTH: pixel width of window */
+	DPRINTF(1, "Setting CA_PROP_WINDOW_WIDTH to %i\n", width);
+	if ((r = ca_proplist_setf(pl, CA_PROP_WINDOW_WIDTH, "%i", width)) < 0)
+		EPRINTF("Cannot set window width: %s\n", ca_strerror(r));
+	/* CA_PROP_WINDOW_HEIGHT: pixel height of window */
+	DPRINTF(1, "Setting CA_PROP_WINDOW_HEIGHT to %i\n", height);
+	if ((r = ca_proplist_setf(pl, CA_PROP_WINDOW_HEIGHT, "%i", height)) < 0)
+		EPRINTF("Cannot set window height: %s\n", ca_strerror(r));
+	if ((sw = gdk_screen_get_width(xscr->scrn)) && (sh = gdk_screen_get_height(xscr->scrn))) {
+		double dx, dy, posx, posy;
+
+		dx = x + width / 2;
+		posx = dx/(double)(sw);
+		/* CA_PROP_WINDOW_HPOS: horizontal position (0.0 to 1.0) as string of window */
+		DPRINTF(1, "Setting CA_PROP_WINDOW_HPOS to %f\n", posx);
+		if ((r = ca_proplist_setf(pl, CA_PROP_WINDOW_HPOS, "%f", posx)))
+			EPRINTF("Cannot set window hpos %f: %s\n", posx, ca_strerror(r));
+		dy = y + height / 2;
+		posy = dy/(double)(sh);
+		/* CA_PROP_WINDOW_VPOS: vertical position (0.0 to 1.0) as string of window */
+		DPRINTF(1, "Setting CA_PROP_WINDOW_VPOS to %f\n", posy);
+		if ((r = ca_proplist_setf(pl, CA_PROP_WINDOW_VPOS, "%f", posy)))
+			EPRINTF("Cannot set window vpos %f: %s\n", posy, ca_strerror(r));
+	}
+	/* CA_PROP_WINDOW_DESKTOP: comma separated string (null string for omnipresent) */
+	if (wnck_window_is_pinned(window)) {
+		DPRINTF(1, "Setting CA_PROP_WINDOW_DESKTOP to \"\"\n");
+		if ((r = ca_proplist_sets(pl, CA_PROP_WINDOW_DESKTOP, "")) < 0)
+			EPRINTF("Cannot set window desktop: %s\n", ca_strerror(r));
+	} else {
+		WnckWorkspace *work;
+#if 0
+		/* FIXME */
+		char *desktops = calloc(PATH_MAX + 1, sizeof(*desktops));
+#endif
+		/* libwnck really only knows about one desktop */
+		if ((work = wnck_window_get_workspace(window))) {
+			DPRINTF(1, "Setting CA_PROP_WINDOW_DESKTOP to %i\n", wnck_workspace_get_number(work));
+			if ((r = ca_proplist_setf(pl, CA_PROP_WINDOW_DESKTOP, "%i", wnck_workspace_get_number(work))))
+				EPRINTF("Cannot set window desktop: %s\n", ca_strerror(r));
+		}
+	}
+	/* CA_PROP_WINDOW_X11_DISPLAY: display as string (e.g. :0) */
+	DPRINTF(1, "Setting CA_PROP_WINDOW_X11_DISPLAY to %s\n", gdk_display_get_name(disp));
+	if ((r = ca_proplist_sets(pl, CA_PROP_WINDOW_X11_DISPLAY, gdk_display_get_name(disp))) < 0)
+		EPRINTF("Cannot set display: %s\n", ca_strerror(r));
+	/* CA_PROP_WINDOW_X11_SCREEN: screen as string (e.g. 0) */
+	DPRINTF(1, "Setting CA_PROP_WINDOW_X11_SCREEN to %i\n", gdk_screen_get_number(xscr->scrn));
+	if ((r = ca_proplist_setf(pl, CA_PROP_WINDOW_X11_SCREEN, "%i", gdk_screen_get_number(xscr->scrn))) < 0)
+		EPRINTF("Cannot set screen: %s\n", ca_strerror(r));
+	/* CA_PROP_WINDOW_X11_MONITOR: monitor as string (e.g. 0) */
+	DPRINTF(1, "Setting CA_PROP_WINDOW_X11_MONITOR to %i\n", gdk_screen_get_monitor_at_point(xscr->scrn, x, y));
+	if ((r = ca_proplist_setf(pl, CA_PROP_WINDOW_X11_MONITOR, "%i", gdk_screen_get_monitor_at_point(xscr->scrn, x, y))) < 0)
+		EPRINTF("Cannot set monitor: %s\n", ca_strerror(r));
+	/* CA_PROP_WINDOW_X11_XID: XID formatted as string */
+	DPRINTF(1, "Setting CA_PROP_WINDOW_X11_XID to 0x%lx\n", (unsigned long) wnck_window_get_xid(window));
+	if ((r = ca_proplist_setf(pl, CA_PROP_WINDOW_X11_XID, "%lu", (unsigned long) wnck_window_get_xid(window))) < 0)
+		EPRINTF("Cannot set window xid: %s\n", ca_strerror(r));
+	ca_context_play_norm(ca, CaEventWindowChange, pl, "window-ping", NULL, NULL);
+	ca_proplist_destroy(pl);
+}
+
+static void
 window_closed(WnckScreen *wnck, WnckWindow *window, gpointer user)
 {
 	XdeScreen *xscr = user;
@@ -5957,11 +6066,11 @@ window_closed(WnckScreen *wnck, WnckWindow *window, gpointer user)
 	(void) window;
 	clients_changed(wnck, xscr);
 
-	ca_context_cancel_norm(ca, CaEventWindowChange);
 	if ((r = ca_proplist_create(&pl)) < 0) {
 		EPRINTF("Cannot create property list: %s\n", ca_strerror(r));
 		return;
 	}
+	ca_context_cancel_norm(ca, CaEventWindowChange);
 	ca_proplist_sets(pl, CA_PROP_CANBERRA_CACHE_CONTROL, "volatile");
 	/* CA_PROP_WINDOW_NAME: the name of this window as human readable string. */
 	DPRINTF(1, "Setting CA_PROP_WINDOW_NAME to %s\n", wnck_window_get_name(window));
@@ -7885,6 +7994,23 @@ event_handler_ClientMessage(XEvent *xev)
 			CaEventQueues[CaEventPowerChanged-CA_CONTEXT_ID].enabled = FALSE;
 			return GDK_FILTER_REMOVE;
 		}
+	} else if (type == _XA_WM_PROTOCOLS) {
+		Atom protocol = xev->xclient.data.l[0];
+		Window window = xev->xclient.data.l[2];
+
+		if (protocol == _XA_NET_WM_PING) {
+			WnckWindow *wind;
+			GList *list;
+
+			for (wind = NULL, list = wnck_screen_get_windows(xscr->wnck); list && !wind;
+			     list = list->next)
+				if (window != wnck_window_get_xid((wind = list->data)))
+					wind = NULL;
+			if (wind) {
+				window_pinged(xscr->wnck, wind, xscr);
+				return GDK_FILTER_REMOVE;
+			}
+		}
 #if 1
 	} else if (type == _XA_PREFIX_REFRESH) {
 		set_scmon(xev->xclient.data.l[1]);
@@ -8824,6 +8950,13 @@ startup(int argc, char *argv[])
 
 	atom = gdk_atom_intern_static_string("_NET_WM_RESIZING");
 	_XA_NET_WM_RESIZING = gdk_x11_atom_to_xatom_for_display(disp, atom);
+
+	atom = gdk_atom_intern_static_string("_NET_WM_PING");
+	_XA_NET_WM_PING = gdk_x11_atom_to_xatom_for_display(disp, atom);
+
+	atom = gdk_atom_intern_static_string("WM_PROTOCOLS");
+	_XA_WM_PROTOCOLS = gdk_x11_atom_to_xatom_for_display(disp, atom);
+	gdk_display_add_client_message_filter(disp, atom, client_handler, NULL);
 
 	atom = gdk_atom_intern_static_string("_WIN_DESKTOP_BUTTON_PROXY");
 	_XA_WIN_DESKTOP_BUTTON_PROXY = gdk_x11_atom_to_xatom_for_display(disp, atom);
