@@ -2,6 +2,11 @@ xde-ctools -- TODO file.  2017-10-12
 
 Work to do on commands:
 
+General:
+
+* [x] Make all tools work better with multi-monitor setups.
+* [ ] Verify behavior on multi-monitor setups.
+
 xde-app: works really good
 
 * [x] this is an xdg application launcher much like a command
@@ -69,6 +74,8 @@ xde-pager: works really well
 * [?] Might want to provide a keyboard-only option.
 * [x] Fix not updating layout with number of desktops.
 * [ ] Fix harmful interaction with icewm edge page switcher.
+* [x] Make it work better with multi-monitor setup.
+* [ ] Verify behavior on multi-monitor setups.
 
 xde-places: works really good
 
@@ -104,8 +111,12 @@ xde-setbg: works really good
 
 * [x] Start documentation (manual page)
 * [x] Complete documentation (manual page)
-* [ ] this is a multiple backdrop changer that changes backdrop
+* [x] this is a multiple backdrop changer that changes backdrop
       according to a style or theme when the desktop changes.
+* [x] Make it work better with multi-monitor setups.
+* [x] Make it work better with tag/view window managers on
+      multi-monitor setups.
+* [ ] Verify behavior on multi-monitor setups.
 
 xde-tasks: not fully functional
 
