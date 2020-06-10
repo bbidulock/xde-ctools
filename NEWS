@@ -1,4 +1,69 @@
-xde-ctools -- history of user-visible changes.  2020-02-11
+xde-ctools -- history of user-visible changes.  2020-05-15
+
+Release xde-ctools-1.13 released 2020-05-15
+-------------------------------------------
+
+git tag -n100 -l 1.13
+
+1.13            Maintenance Release 1.13
+
+    This is the thirteenth release of the xde-ctools package. This package
+    contains various tools (menus, popup, pages, feedback mechanisms) for
+    the X Desktop Environment (XDE). These tools are meant to have minimal
+    dependencies, GTK2-based, and each tool able to run independent of the
+    others (and for that matter, independent of the desktop environment):
+    they work well with many light-weight window managers. Not all the
+    tools are complete, but the many that are work nicely. The nice ones I
+    use daily and are quite stable.
+
+    This release is a maintenance release that updates for compilation with
+    GCC 10.1 as well as providing significant updates to xde-sound to work
+    better with complete sound themes.
+
+    Included in the release is an autoconf tarball for building the package
+    from source. See the NEWS and TODO file in the release for more
+    information. Please report problems to the issues list on GitHub.
+
+git shortlog -e -n -w80,6,8 1.12...1.13
+
+Brian Bidulock <bidulock@openss7.org> (36):
+      post-release update
+      whoops
+      handle more sound events in xde-sound
+      Merge branch 'master' of github.com:bbidulock/xde-ctools
+      a few fixups for -Wextra again
+      add X11 info to some sound events
+      add canberra ids for battery level & thermal events
+      handle missing X86MISC
+      handle missing XF86MISC
+      handle missing XF86MISC
+      handle missing XF86MISC
+      handle missing XF86MISC
+      handle missing XF86MISC
+      handle missing XF86MISC
+      handle missing XF86MISC
+      handle missing XF86MISC
+      handle missing XF86MISC
+      handle missing XF86MISC
+      handle missing XF86MISC
+      working up documentation for xde-sound
+      some corrections to desktop switching (+ missing XF86MISC)
+      update docs
+      add support for max left and right
+      document and implement moving and resizing sounds
+      add support for more sounds
+      do not play shutdown if appearing before WM
+      play startup sounds different
+      do not cancel wm event on startup
+      queue sounds that should follow each other
+      do not play sounds while initializing
+      initialize sound theme name
+      initialize libcanberra properly in pager too
+      handle initialization and disabling
+      debug open and close of windows in xde-sound
+      detect window-ping event
+      update TODO
+
 
 Release xde-ctools-1.12 released 2020-02-11
 -------------------------------------------
@@ -323,38 +388,4 @@ Brian Bidulock <bidulock@openss7.org> (23):
       distribute release notes
       add release byproducts to ignore
       update release files
-
-
-Release xde-ctools-1.6 released 2017-10-12
-------------------------------------------
-
-git shortlog -e -n -w80,6,8 1.5...1.6
-
-Brian Bidulock <bidulock@openss7.org> (26):
-      more quiet
-      be more quiet
-      updated copyright statements
-      use .adoc suffix for asciidoc files
-      find the right program
-      include branch in cross-references
-      add branch to subst
-      more checks
-      update make flags
-      silent now default
-      more manpage rules
-      substitute branches too
-      tweaks
-      update readmes
-      more conditionals
-      add mandir
-      build faster
-      better changelog, handle asciidoc
-      better xde-monitor documentation
-      create history files
-      Merge branch 'master' of github.com:bbidulock/xde-ctools
-      only pop menu with button when it is still down
-      build tweaks
-      update TODO
-      update release files
-      update changelog
 

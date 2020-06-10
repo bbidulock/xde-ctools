@@ -1,9 +1,9 @@
-[xde-ctools -- read me first file.  2020-02-11]: #
+[xde-ctools -- read me first file.  2020-05-15]: #
 
 xde-ctools
 ===============
 
-Package `xde-ctools-1.12` was released under GPLv3 license 2020-02-11.
+Package `xde-ctools-1.13` was released under GPLv3 license 2020-05-15.
 
 This package provides a number of "C"-language tools for working with
 the _X Desktop Environment_.  Most of these tools were previously
@@ -15,7 +15,7 @@ libraries not available from `perl(1)`.
 Release
 -------
 
-This is the `xde-ctools-1.12` package, released 2020-02-11.  This
+This is the `xde-ctools-1.13` package, released 2020-05-15.  This
 release, and the latest version, can be obtained from [GitHub][1], using
 a command such as:
 
@@ -72,12 +72,12 @@ Report issues on GitHub [here][2].
 
 [1]: https://github.com/bbidulock/xde-ctools
 [2]: https://github.com/bbidulock/xde-ctools/issues
-[3]: https://github.com/bbidulock/xde-ctools/blob/1.12/NEWS
-[4]: https://github.com/bbidulock/xde-ctools/blob/1.12/ChangeLog
-[5]: https://github.com/bbidulock/xde-ctools/blob/1.12/TODO
-[6]: https://github.com/bbidulock/xde-ctools/blob/1.12/COMPLIANCE
-[7]: https://github.com/bbidulock/xde-ctools/blob/1.12/INSTALL
-[8]: https://github.com/bbidulock/xde-ctools/blob/1.12/LICENSE
-[9]: https://github.com/bbidulock/xde-ctools/blob/1.12/COPYING
+[3]: https://github.com/bbidulock/xde-ctools/blob/1.13/NEWS
+[4]: https://github.com/bbidulock/xde-ctools/blob/1.13/ChangeLog
+[5]: https://github.com/bbidulock/xde-ctools/blob/1.13/TODO
+[6]: https://github.com/bbidulock/xde-ctools/blob/1.13/COMPLIANCE
+[7]: https://github.com/bbidulock/xde-ctools/blob/1.13/INSTALL
+[8]: https://github.com/bbidulock/xde-ctools/blob/1.13/LICENSE
+[9]: https://github.com/bbidulock/xde-ctools/blob/1.13/COPYING
 
 [ vim: set ft=markdown sw=4 tw=72 nocin nosi fo+=tcqlorn spell: ]: #

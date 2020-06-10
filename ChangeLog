@@ -1,5 +1,335 @@
 # created with git log --stat=76 -M -C -500|fmt -sct -w80
 
+commit 466e6a2f96ef37b3ffb91a6374e1585c24bc7d5d
+Author: Brian Bidulock <bidulock@openss7.org>
+Date:   Fri May 15 01:45:19 2020 -0600
+
+    update TODO
+
+ TODO | 13 ++++++++++++-
+ 1 file changed, 12 insertions(+), 1 deletion(-)
+
+commit af1a74fad3b223f0ce49d6f8eee581df18b01da5
+Author: Brian Bidulock <bidulock@openss7.org>
+Date:   Tue May 12 23:20:10 2020 -0600
+
+    detect window-ping event
+
+ src/xde-sound.c | 135 +++++++++++++++++++++++++++++++++++++++++++++++++++-
+ 1 file changed, 134 insertions(+), 1 deletion(-)
+
+commit 9819f0315f3bbadb4f0d46dde7c4d526cb306c1e
+Author: Brian Bidulock <bidulock@openss7.org>
+Date:   Tue May 12 21:50:35 2020 -0600
+
+    debug open and close of windows in xde-sound
+
+ src/xde-sound.c | 120 +++++++++++++++++++++++++++++++++++++++++++---------
+ 1 file changed, 99 insertions(+), 21 deletions(-)
+
+commit 76efbf85d71002c2d0e8b4be29ce000cca288d0c
+Author: Brian Bidulock <bidulock@openss7.org>
+Date:   Mon May 11 03:07:21 2020 -0600
+
+    handle initialization and disabling
+
+ src/xde-pager.c | 584 +++++++++++++++++++++++++++++++++++++++++++++++++---
+ src/xde-sound.c | 519 +++++++++++++++++-----------------------------
+ 2 files changed, 737 insertions(+), 366 deletions(-)
+
+commit decccc6c5b3f24ccd7d3e8988f7af6ce2f303e1a
+Author: Brian Bidulock <bidulock@openss7.org>
+Date:   Mon May 11 00:08:58 2020 -0600
+
+    initialize libcanberra properly in pager too
+
+ src/xde-pager.c | 189 ++++++++++++++++++++++++++++++++++++++++++++++++++++
+ src/xde-sound.c |   4 +-
+ 2 files changed, 191 insertions(+), 2 deletions(-)
+
+commit 5058f611a6aa5fabf4b897e4480d35694c3518ba
+Author: Brian Bidulock <bidulock@openss7.org>
+Date:   Sun May 10 23:47:46 2020 -0600
+
+    initialize sound theme name
+
+ src/xde-sound.c | 29 +++++++++++++++++++++++++++++
+ 1 file changed, 29 insertions(+)
+
+commit dec5a20174968e82f2b8999c0819f3708226d4d5
+Author: Brian Bidulock <bidulock@openss7.org>
+Date:   Sun May 10 22:51:26 2020 -0600
+
+    do not play sounds while initializing
+
+ src/xde-sound.c | 354 +++++++++++++++++++++++++++++++++-------------------
+ 1 file changed, 223 insertions(+), 131 deletions(-)
+
+commit b7f44fd491f4e6ee74a75047d9d7fef482dc5704
+Author: Brian Bidulock <bidulock@openss7.org>
+Date:   Sun May 10 22:10:52 2020 -0600
+
+    queue sounds that should follow each other
+
+ src/xde-sound.c | 170 ++++++++++++++++++++++++++++++++++++++++++++++++----
+ 1 file changed, 160 insertions(+), 10 deletions(-)
+
+commit 05aee39e11368dfd5dccd1bc32e77e2b2f1afa5d
+Author: Brian Bidulock <bidulock@openss7.org>
+Date:   Sun May 10 18:03:34 2020 -0600
+
+    do not cancel wm event on startup
+
+ src/xde-sound.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+commit 209f0aaa9382fa26569c488ad4376d207029b35f
+Author: Brian Bidulock <bidulock@openss7.org>
+Date:   Sun May 10 17:59:34 2020 -0600
+
+    play startup sounds different
+
+ src/xde-sound.c | 23 ++++++++++++++++-------
+ 1 file changed, 16 insertions(+), 7 deletions(-)
+
+commit b63e1bc556f548d112b910037465888c2ab5eec1
+Author: Brian Bidulock <bidulock@openss7.org>
+Date:   Sun May 10 17:51:01 2020 -0600
+
+    do not play shutdown if appearing before WM
+
+ src/xde-sound.c | 16 +++++++++++-----
+ 1 file changed, 11 insertions(+), 5 deletions(-)
+
+commit c954c9943333aaa34bb88dc00e22e4003b471247
+Author: Brian Bidulock <bidulock@openss7.org>
+Date:   Mon May 4 21:24:10 2020 -0600
+
+    add support for more sounds
+
+ man/xde-sound.pod | 118 +++++++++++++++
+ src/xde-sound.c   | 392 +++++++++++++++++++++++++++++++++++++++++++++++++-
+ 2 files changed, 506 insertions(+), 4 deletions(-)
+
+commit 45c61133bfa96945d0e3560d3c0839e8a7aec116
+Author: Brian Bidulock <bidulock@openss7.org>
+Date:   Mon May 4 03:44:21 2020 -0600
+
+    document and implement moving and resizing sounds
+
+ man/xde-sound.pod | 118 +++++++++++++++-----
+ src/xde-sound.c   | 297 ++++++++++++++++++++++++++++++++++++++++++--------
+ 2 files changed, 341 insertions(+), 74 deletions(-)
+
+commit 70217d671d61d516850e9c493cb1c02a56a4d359
+Author: Brian Bidulock <bidulock@openss7.org>
+Date:   Mon May 4 00:14:12 2020 -0600
+
+    add support for max left and right
+
+ src/xde-sound.c | 106 ++++++++++++++++++++++++++++++++++++++++++++++++----
+ 1 file changed, 99 insertions(+), 7 deletions(-)
+
+commit 5cb7a98ce92eb38c0067df35096dab355dc47f00
+Author: Brian Bidulock <bidulock@openss7.org>
+Date:   Mon May 4 00:13:55 2020 -0600
+
+    update docs
+
+ man/xde-sound.pod | 680 +++++++++++++++++++++++++++++++++++++++++++++++++-
+ 1 file changed, 669 insertions(+), 11 deletions(-)
+
+commit 6ede8724fa9decff4a79eb8b2f426245f5cdacb3
+Author: Brian Bidulock <bidulock@openss7.org>
+Date:   Tue Apr 28 06:32:01 2020 -0600
+
+    some corrections to desktop switching (+ missing XF86MISC)
+
+ src/xde-sound.c | 233 ++++++++++++++++++++++++++++------------------------
+ 1 file changed, 126 insertions(+), 107 deletions(-)
+
+commit eabfda343c4fbbfc7999b0236149cc13bec3b4cf
+Author: Brian Bidulock <bidulock@openss7.org>
+Date:   Tue Apr 28 06:31:41 2020 -0600
+
+    working up documentation for xde-sound
+
+ man/xde-sound.pod | 162 ++++++++++++++++++++++++++++++++++++++++++++++++--
+ 1 file changed, 156 insertions(+), 6 deletions(-)
+
+commit 3d9318017d59b988ba0e664957b48fdaf84cfd25
+Author: Brian Bidulock <bidulock@openss7.org>
+Date:   Tue Apr 28 06:31:10 2020 -0600
+
+    handle missing XF86MISC
+
+ src/xde-wkspmenu.c | 2 ++
+ 1 file changed, 2 insertions(+)
+
+commit b07912f22d469675cc434df3058c44e0176d768e
+Author: Brian Bidulock <bidulock@openss7.org>
+Date:   Tue Apr 28 06:31:05 2020 -0600
+
+    handle missing XF86MISC
+
+ src/xde-winmenu.c | 2 ++
+ 1 file changed, 2 insertions(+)
+
+commit ab67d2e6938dbf119167bc79c8aeceec6310c8b7
+Author: Brian Bidulock <bidulock@openss7.org>
+Date:   Tue Apr 28 06:30:59 2020 -0600
+
+    handle missing XF86MISC
+
+ src/xde-winlist.c | 2 ++
+ 1 file changed, 2 insertions(+)
+
+commit bd6b72af50fae612b183d92a996ec3c8e2b17833
+Author: Brian Bidulock <bidulock@openss7.org>
+Date:   Tue Apr 28 06:30:52 2020 -0600
+
+    handle missing XF86MISC
+
+ src/xde-winds.c | 4 ++++
+ 1 file changed, 4 insertions(+)
+
+commit d8e3e477de66c99d540f8e2bf0622de15edf1265
+Author: Brian Bidulock <bidulock@openss7.org>
+Date:   Tue Apr 28 06:30:47 2020 -0600
+
+    handle missing XF86MISC
+
+ src/xde-tasks.c | 4 ++++
+ 1 file changed, 4 insertions(+)
+
+commit c906796228ccc8adbc573dddd98a635e30bc946b
+Author: Brian Bidulock <bidulock@openss7.org>
+Date:   Tue Apr 28 06:30:41 2020 -0600
+
+    handle missing XF86MISC
+
+ src/xde-setbg.c | 4 ++++
+ 1 file changed, 4 insertions(+)
+
+commit b44d7bd3cd8297330e389de6dbb53c6215d95b48
+Author: Brian Bidulock <bidulock@openss7.org>
+Date:   Tue Apr 28 06:30:36 2020 -0600
+
+    handle missing XF86MISC
+
+ src/xde-recent.c | 2 ++
+ 1 file changed, 2 insertions(+)
+
+commit 672f0d497289d2db4e1084c8c5003af60c369d5b
+Author: Brian Bidulock <bidulock@openss7.org>
+Date:   Tue Apr 28 06:30:30 2020 -0600
+
+    handle missing XF86MISC
+
+ src/xde-places.c | 2 ++
+ 1 file changed, 2 insertions(+)
+
+commit 13a91605a342d20fa2ed20d7d41eb99871e1be40
+Author: Brian Bidulock <bidulock@openss7.org>
+Date:   Tue Apr 28 06:30:26 2020 -0600
+
+    handle missing XF86MISC
+
+ src/xde-pager.c | 4 ++++
+ 1 file changed, 4 insertions(+)
+
+commit 7cb29c21717baa4fc43dc8e4597b53c601d9fc9f
+Author: Brian Bidulock <bidulock@openss7.org>
+Date:   Tue Apr 28 06:30:19 2020 -0600
+
+    handle missing XF86MISC
+
+ src/xde-monitor.c | 4 ++++
+ 1 file changed, 4 insertions(+)
+
+commit d772ac0e58d4d3ceca4ce64ff92a249cf7595b10
+Author: Brian Bidulock <bidulock@openss7.org>
+Date:   Tue Apr 28 06:30:15 2020 -0600
+
+    handle missing XF86MISC
+
+ src/xde-feedback.c | 4 ++++
+ 1 file changed, 4 insertions(+)
+
+commit 5982817ba48261a2fb31ff75a196c010252455bf
+Author: Brian Bidulock <bidulock@openss7.org>
+Date:   Tue Apr 28 06:29:42 2020 -0600
+
+    handle missing X86MISC
+
+ src/xde-cycle.c | 4 ++++
+ 1 file changed, 4 insertions(+)
+
+commit 7b2032f5a678051289c97bd84276f126a14e14f3
+Author: Brian Bidulock <bidulock@openss7.org>
+Date:   Mon Apr 27 19:44:23 2020 -0600
+
+    add canberra ids for battery level & thermal events
+
+ src/xde-feedback.c | 16 ++++++++++++++--
+ src/xde-pager.c    |  2 ++
+ src/xde-sound.c    |  2 ++
+ 3 files changed, 18 insertions(+), 2 deletions(-)
+
+commit 81d52dc331ea3e7fa5c920e12226177f2b7eedbb
+Author: Brian Bidulock <bidulock@openss7.org>
+Date:   Mon Apr 20 22:41:07 2020 -0600
+
+    add X11 info to some sound events
+
+ src/xde-sound.c | 117 ++++++++++++++++++++++++++++++++++++++++++++++++++--
+ 1 file changed, 114 insertions(+), 3 deletions(-)
+
+commit c920cd09f9bd37e6c3b3d4e68e625e32567d3b9c
+Author: Brian Bidulock <bidulock@openss7.org>
+Date:   Mon Apr 20 22:18:07 2020 -0600
+
+    a few fixups for -Wextra again
+
+ src/xde-sound.c | 8 ++++++++
+ 1 file changed, 8 insertions(+)
+
+commit ab1ac93188d68067656f428b28ffa34c6c712627
+Merge: 202b0e9 b051028
+Author: Brian Bidulock <bidulock@openss7.org>
+Date:   Mon Apr 20 22:15:13 2020 -0600
+
+    Merge branch 'master' of github.com:bbidulock/xde-ctools
+
+commit 202b0e907a5bd237cd83d69f92c16ce248bad4a3
+Author: Brian Bidulock <bidulock@openss7.org>
+Date:   Mon Apr 20 22:10:41 2020 -0600
+
+    handle more sound events in xde-sound
+
+ man/xde-sound.pod | 711 +++++++++++++++++++++++++++++++++++++++++++++++++-
+ src/xde-sound.c   | 379 ++++++++++++++++++++++-----
+ 2 files changed, 1020 insertions(+), 70 deletions(-)
+
+commit b051028cd82b0e3a683dc06130f41e83b9834242
+Author: Brian Bidulock <bidulock@openss7.org>
+Date:   Tue Feb 11 08:30:05 2020 -0700
+
+    whoops
+
+ autogen.sh | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+commit 42de43ffebe15e0f04390125474e04615b9b2d73
+Author: Brian Bidulock <bidulock@openss7.org>
+Date:   Tue Feb 11 02:58:35 2020 -0700
+
+    post-release update
+
+ ChangeLog | 23 ++++++++++++++---------
+ NEWS      |  3 ++-
+ 2 files changed, 16 insertions(+), 10 deletions(-)
+
 commit fc4eaa069fe87df0ff430763b283aa26420ea2a8
 Author: Brian Bidulock <bidulock@openss7.org>
 Date:   Tue Feb 11 02:57:17 2020 -0700
@@ -4956,366 +5286,3 @@ Date:   Tue Jun 23 11:00:56 2015 -0600
 
  src/xde-menugen.c | 199 +++++++++++++++++++++++++++++++-------------------
  1 file changed, 124 insertions(+), 75 deletions(-)
-
-commit 4aa21161cfa0ad3ad5d7f1a69eb91ebd83c1d1b5
-Author: Brian Bidulock <bidulock@openss7.org>
-Date:   Tue Jun 23 09:32:50 2015 -0600
-
-    handle legacydir as merge
-
- src/xde-menugen.c | 33 +++++++++++++++++++++++++++++----
- 1 file changed, 29 insertions(+), 4 deletions(-)
-
-commit b625b50af8112397d73c6f3ee6c8719a247da5e3
-Author: Brian Bidulock <bidulock@openss7.org>
-Date:   Tue Jun 23 07:37:01 2015 -0600
-
-    full tree menu parsing
-
- .indent.pro       |   1 +
- src/xde-menugen.c | 217 +++++++++++++++++++++++++++++++++-----------------
- 2 files changed, 146 insertions(+), 72 deletions(-)
-
-commit 4e7df170c29a9cd4409b19f9ccdb1291675cabb9
-Author: Brian Bidulock <bidulock@openss7.org>
-Date:   Mon Jun 22 05:27:13 2015 -0600
-
-    handle layout parsing
-
- .indent.pro       |   1 +
- src/xde-menugen.c | 343 +++++++++++++++++++++++++++++++++++++-------------
- 2 files changed, 260 insertions(+), 84 deletions(-)
-
-commit c5b9a3e867152b9059226f658c353005f8dcb0b7
-Author: Brian Bidulock <bidulock@openss7.org>
-Date:   Mon Jun 22 03:55:35 2015 -0600
-
-    track move elements
-
- .indent.pro       |   1 +
- src/xde-menugen.c | 115 +++++++++++++++++++++++++++++---------------------
- 2 files changed, 67 insertions(+), 49 deletions(-)
-
-commit a488650f64e45405563cf164e2e40ad2cf112edf
-Author: Brian Bidulock <bidulock@openss7.org>
-Date:   Mon Jun 22 03:29:26 2015 -0600
-
-    just build tree for now
-
- .indent.pro       |  1 +
- src/xde-menugen.c | 42 ++++++++++++++++++++++++++++++++++++------
- 2 files changed, 37 insertions(+), 6 deletions(-)
-
-commit 625944788551f233ee1fc93aa1b656abf287db54
-Author: Brian Bidulock <bidulock@openss7.org>
-Date:   Mon Jun 22 03:23:48 2015 -0600
-
-    logic for rules buildup
-
- .indent.pro       |   2 +
- src/xde-menugen.c | 549 +++++++++++++++++++++++++++++++-------------------
- 2 files changed, 348 insertions(+), 203 deletions(-)
-
-commit ca72e197cee397823cdff213c96a75d7b8c7d84e
-Author: Brian Bidulock <bidulock@openss7.org>
-Date:   Mon Jun 22 00:29:43 2015 -0600
-
-    handling more tags
-
- src/xde-menugen.c | 112 +++++++++++++++++++++-----------------------------
- 1 file changed, 47 insertions(+), 65 deletions(-)
-
-commit 41f19216b5cc7c771585b2703524a9f13f153d8f
-Author: Brian Bidulock <bidulock@openss7.org>
-Date:   Sun Jun 21 23:58:53 2015 -0600
-
-    handle directory directories and dirids
-
- src/xde-menugen.c | 465 +++++++++++++++++++++++++++++++-------------------
- 1 file changed, 292 insertions(+), 173 deletions(-)
-
-commit 5cc0a480382d1f0d99397a35684e9e33bc981309
-Author: Brian Bidulock <bidulock@openss7.org>
-Date:   Sun Jun 21 22:47:00 2015 -0600
-
-    add files by appid
-
- src/xde-menugen.c | 171 ++++++++++++++++++++++++++++++++++++++++++--------
- 1 file changed, 145 insertions(+), 26 deletions(-)
-
-commit 6d1cdff07a918a73d7e74ff7bd495d9ad30386d2
-Author: Brian Bidulock <bidulock@openss7.org>
-Date:   Sat Jun 20 18:39:31 2015 -0600
-
-    add in directory and file cache
-
- .indent.pro       |  6 ++--
- src/xde-menugen.c | 97 +++++++++++++++++++++++++++++++++++----------------
- 2 files changed, 70 insertions(+), 33 deletions(-)
-
-commit 17663144bfd153f59031fac2b96296600c17fca3
-Author: Brian Bidulock <bidulock@openss7.org>
-Date:   Sat Jun 20 18:14:31 2015 -0600
-
-    working up menu parsing
-
- .indent.pro       |    2 +
- src/xde-menugen.c | 1670 +++++++++++++++++++++++++++++++++++++++++++++----
- 2 files changed, 1539 insertions(+), 133 deletions(-)
-
-commit 53adaef536937fccf22a6c06cff5ff7d1d5c01e3
-Author: Brian Bidulock <bidulock@openss7.org>
-Date:   Sat Jun 20 08:26:52 2015 -0600
-
-    get some information from X11
-
- src/xde-menugen.c | 307 ++++++++++++++++++++++++++++++++++++++++++++++----
- 1 file changed, 283 insertions(+), 24 deletions(-)
-
-commit b428c7baab31cdd59400161aaf67080e39f16f57
-Author: Brian Bidulock <bidulock@openss7.org>
-Date:   Sat Jun 20 04:40:23 2015 -0600
-
-    full directory search
-
- src/xde-menugen.c | 134 ++++++++++++++++++++++++++++++++++++++++++++------
- 1 file changed, 120 insertions(+), 14 deletions(-)
-
-commit b1c79734439550d7ffbce7a9829bda2db71f0ef9
-Author: Brian Bidulock <bidulock@openss7.org>
-Date:   Fri Jun 19 23:25:52 2015 -0600
-
-    corrections for compile
-
- src/xde-menugen.c | 453 +++++++++++++++++++++++++++++++++++++++++++++-----
- 1 file changed, 408 insertions(+), 45 deletions(-)
-
-commit aaf6c9ae09898d710d819afa76d8d87ee169c61c
-Author: Brian Bidulock <bidulock@openss7.org>
-Date:   Sat May 23 04:49:42 2015 -0600
-
-    building up xde-recent utility
-
- src/xde-recent.c  | 710 ++++++++++++++++++++++++++++++++++++++++----------
- src/xde-winmenu.c |  20 +-
- 2 files changed, 576 insertions(+), 154 deletions(-)
-
-commit f93093a514d4f1b70596c1af67bbf91eaf34393e
-Author: Brian Bidulock <bidulock@openss7.org>
-Date:   Sat May 23 01:10:07 2015 -0600
-
-    a couple of simplifications
-
-     - get history files in correct order
-     - remove unused options.recently
-
- src/xde-app.c | 61 ++++++++++++++-----------------------------------------
- src/xde-run.c | 61 ++++++++++++++-----------------------------------------
- 2 files changed, 30 insertions(+), 92 deletions(-)
-
-commit ed92df4ee5aad682d09311f7d2cf51a7915beef4
-Author: Brian Bidulock <bidulock@openss7.org>
-Date:   Sat May 23 00:35:05 2015 -0600
-
-    merge history wherever possible
-
- src/xde-app.c | 98 +++++++++++++++++++++++++++----------------------------
- src/xde-run.c | 98 +++++++++++++++++++++++++++----------------------------
- 2 files changed, 96 insertions(+), 100 deletions(-)
-
-commit 3a4f0cef92ff8f88e5209644c16b898d6306a2be
-Author: Brian Bidulock <bidulock@openss7.org>
-Date:   Sat May 23 00:08:35 2015 -0600
-
-    only use one structure and sortable list
-
- .indent.pro   |   1 +
- src/xde-app.c | 129 +++++++++++++-----------------------------------------
- src/xde-run.c | 129 +++++++++++++-----------------------------------------
- 3 files changed, 61 insertions(+), 198 deletions(-)
-
-commit 0d28c203bcc8da9a90afd7a2a3b0d74d9025263b
-Author: Brian Bidulock <bidulock@openss7.org>
-Date:   Fri May 22 23:51:29 2015 -0600
-
-    now we can handle desktop xbel files
-
- .indent.pro   |   1 +
- src/xde-app.c | 552 ++++++++++++++++++++++++++++++++++++++----------------
- src/xde-run.c | 552 ++++++++++++++++++++++++++++++++++++++----------------
- 3 files changed, 781 insertions(+), 324 deletions(-)
-
-commit ada7e7dd19da12c49dfb841a22029f066b6dbb0d
-Author: Brian Bidulock <bidulock@openss7.org>
-Date:   Fri May 22 21:57:24 2015 -0600
-
-    propagate changes and some reformatting
-
- src/xde-app.c | 26 +++++++++++-----------
- src/xde-run.c | 65 ++++++++++++++++++++++++++++++++-----------------------
- 2 files changed, 51 insertions(+), 40 deletions(-)
-
-commit f91453599617a11ff1cc74322bedadcd3c70bf44
-Author: Brian Bidulock <bidulock@openss7.org>
-Date:   Fri May 22 21:54:07 2015 -0600
-
-    some minor updates before development
-
- .indent.pro   | 14 ++++++---
- src/xde-app.c | 92 ++++++++++++++++++++++++++++++++-----------------------
- src/xde-run.c |  3 ++
- 3 files changed, 66 insertions(+), 43 deletions(-)
-
-commit ac0d61996dd046d6d3a26569371d61c3d45a9ea0
-Author: Brian Bidulock <bidulock@openss7.org>
-Date:   Wed May 20 13:49:20 2015 -0600
-
-    write out .recently-used file
-
- src/xde-app.c | 78 ++++++++++++++++++++++++++++++++++++++++++++++++++++---
- src/xde-run.c | 78 ++++++++++++++++++++++++++++++++++++++++++++++++++++---
- 2 files changed, 150 insertions(+), 6 deletions(-)
-
-commit cad3c91cfda19206a57838db62e0ba9a4d9a16ac
-Author: Brian Bidulock <bidulock@openss7.org>
-Date:   Wed May 20 13:04:39 2015 -0600
-
-    some better sorting
-
- src/xde-app.c | 24 ++++++++++++++++--------
- src/xde-run.c | 24 ++++++++++++++++--------
- 2 files changed, 32 insertions(+), 16 deletions(-)
-
-commit 64ea6f4d9f770ea497c8218876dfeaef5842bf17
-Author: Brian Bidulock <bidulock@openss7.org>
-Date:   Wed May 20 11:03:39 2015 -0600
-
-    also parse ~/.recently-used for applications
-
- .indent.pro      |   4 +
- src/xde-app.c    | 371 ++++++++++++++++++++++++++++++++++++++++++++-------
- src/xde-app.h    |   3 +-
- src/xde-recent.c |  24 ++--
- src/xde-run.c    | 371 ++++++++++++++++++++++++++++++++++++++++++++-------
- src/xde-run.h    |   3 +-
- 6 files changed, 662 insertions(+), 114 deletions(-)
-
-commit cf79bfce7a9e8c8bc0341cd8a6be2af87aa9d642
-Author: Brian Bidulock <bidulock@openss7.org>
-Date:   Wed May 20 00:09:06 2015 -0600
-
-    got it working for recently-used as well as xbel
-
- src/xde-recent.c | 317 +++++++++++++++++++++++++++++++++++++++++++++++++--
- 1 file changed, 306 insertions(+), 11 deletions(-)
-
-commit 56438b1697736ddea9cf4e8634f4d813587b6bd0
-Author: Brian Bidulock <bidulock@openss7.org>
-Date:   Tue May 19 17:13:00 2015 -0600
-
-    add xde-recent program just to try things out
-
- .gitignore       |   1 +
- src/Makefile.am  |   4 +
- src/xde-recent.c | 494 +++++++++++++++++++++++++++++++++++++++++++++++++++
- 3 files changed, 499 insertions(+)
-
-commit daf219317ac2fd5218bd430fcc6f87462b589d8c
-Author: Brian Bidulock <bidulock@openss7.org>
-Date:   Tue May 19 15:41:39 2015 -0600
-
-    update plan of record
-
- TODO.in       | 15 +++++++++------
- src/xde-app.c |  6 +++---
- src/xde-run.c |  6 +++---
- 3 files changed, 15 insertions(+), 12 deletions(-)
-
-commit f590898fdbc45407d45474220b23b0ef54735b0c
-Author: Brian Bidulock <bidulock@openss7.org>
-Date:   Tue May 19 01:57:02 2015 -0600
-
-    a bit better subdirectory build
-
- Makefile.am        | 13 +++-------
- TODO.in            | 66 +++++++++++++++++++++++++-------------------------
- autogen.sh         |  2 ++
- configure.template |  5 ++--
- data/Makefile.am   |  9 +++++++
- 5 files changed, 50 insertions(+), 45 deletions(-)
-
-commit 22c958bab9c2f06eaa2fcdc3e551ab4da1536458
-Author: Brian Bidulock <bidulock@openss7.org>
-Date:   Tue May 19 00:16:13 2015 -0600
-
-    rationalize xde-app and xde-run, correct manual
-
- man/xde-app.pod | 53 +++++++++++++++++++++++++++++++++++++++-----
- man/xde-run.pod | 41 +++++++++++++++++++++++++++++++---
- src/xde-app.c   | 63 ++++++++++++++++++++++++++++++++++++++++++++++++-----
- src/xde-run.c   | 45 ++++++++++++++++++++++++++++++++++----
- 4 files changed, 185 insertions(+), 17 deletions(-)
-
-commit c02b831d71fd24f1bdf00847ee638f5d355b1bad
-Author: Brian Bidulock <bidulock@openss7.org>
-Date:   Mon May 18 23:24:27 2015 -0600
-
-    add an xde-ctools manual page as per README
-
- man/Makefile.am    |  30 +++++------
- man/xde-ctools.pod | 132 +++++++++++++++++++++++++++++++++++++++++++++++++
- 2 files changed, 148 insertions(+), 14 deletions(-)
-
-commit 595c9daac53322e030bd5cd69c01dad385d8d9ee
-Author: Brian Bidulock <bidulock@openss7.org>
-Date:   Mon May 18 22:58:00 2015 -0600
-
-    more todos
-
- TODO.in | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)
-
-commit cf31d2e7fc94c57398af54579a371a65cc9f8ae0
-Author: Brian Bidulock <bidulock@openss7.org>
-Date:   Mon May 18 22:56:41 2015 -0600
-
-    add some todo items
-
- TODO.in | 67 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 67 insertions(+)
-
-commit 20a6b216e9173b5352d8294502657d902108605e
-Author: Brian Bidulock <bidulock@openss7.org>
-Date:   Mon May 18 22:56:16 2015 -0600
-
-    correct name of xde-cycle in manual page
-
- man/xde-cycle.pod | 4 ++--
- 1 file changed, 2 insertions(+), 2 deletions(-)
-
-commit 26f6763a80782ae183360c4514d657fc76d57997
-Author: Brian Bidulock <bidulock@openss7.org>
-Date:   Sat Oct 4 12:13:14 2014 -0600
-
-    back again
-
- rebuild.sh | 3 +--
- 1 file changed, 1 insertion(+), 2 deletions(-)
-
-commit 5b0ef09c03164c45150010f7dd9f42d02dc9c3b4
-Author: Brian Bidulock <bidulock@openss7.org>
-Date:   Thu Oct 2 21:00:18 2014 -0600
-
-    add missing file
-
- src/xde-menugen.h | 0
- 1 file changed, 0 insertions(+), 0 deletions(-)
-
-commit dea7840fae6dae1e7c01849fa8dc9749e837ec60
-Author: Brian Bidulock <bidulock@openss7.org>
-Date:   Wed Oct 1 12:13:14 2014 -0600
-
-    separate make
-
- rebuild.sh | 3 ++-
- 1 file changed, 2 insertions(+), 1 deletion(-)
