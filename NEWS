@@ -1,6 +1,6 @@
-xde-ctools -- history of user-visible changes.  2020-05-15
+xde-ctools -- history of user-visible changes.  2020-06-10
 
-Release xde-ctools-1.13 released 2020-05-15
+Release xde-ctools-1.13 released 2020-06-10
 -------------------------------------------
 
 git tag -n100 -l 1.13
@@ -26,7 +26,7 @@ git tag -n100 -l 1.13
 
 git shortlog -e -n -w80,6,8 1.12...1.13
 
-Brian Bidulock <bidulock@openss7.org> (36):
+Brian Bidulock <bidulock@openss7.org> (37):
       post-release update
       whoops
       handle more sound events in xde-sound
@@ -63,6 +63,7 @@ Brian Bidulock <bidulock@openss7.org> (36):
       debug open and close of windows in xde-sound
       detect window-ping event
       update TODO
+      update release files
 
 
 Release xde-ctools-1.12 released 2020-02-11

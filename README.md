@@ -1,9 +1,9 @@
-[xde-ctools -- read me first file.  2020-05-15]: #
+[xde-ctools -- read me first file.  2020-06-10]: #
 
 xde-ctools
 ===============
 
-Package `xde-ctools-1.13` was released under GPLv3 license 2020-05-15.
+Package `xde-ctools-1.13` was released under GPLv3 license 2020-06-10.
 
 This package provides a number of "C"-language tools for working with
 the _X Desktop Environment_.  Most of these tools were previously
@@ -15,7 +15,7 @@ libraries not available from `perl(1)`.
 Release
 -------
 
-This is the `xde-ctools-1.13` package, released 2020-05-15.  This
+This is the `xde-ctools-1.13` package, released 2020-06-10.  This
 release, and the latest version, can be obtained from [GitHub][1], using
 a command such as:
 

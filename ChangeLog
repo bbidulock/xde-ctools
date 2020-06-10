@@ -1,5 +1,19 @@
 # created with git log --stat=76 -M -C -500|fmt -sct -w80
 
+commit 5b1f976d272585abe8dbb46422c3351e310b35e1
+Author: Brian Bidulock <bidulock@openss7.org>
+Date:   Wed Jun 10 14:16:41 2020 -0600
+
+    update release files
+
+ AUTHORS      |   2 +-
+ ChangeLog    | 693 ++++++++++++++++++++++++++-----------------------------
+ NEWS         | 101 +++++---
+ README.md    |  20 +-
+ RELEASE.md   |  11 +-
+ configure.ac |  10 +-
+ 6 files changed, 418 insertions(+), 419 deletions(-)
+
 commit 466e6a2f96ef37b3ffb91a6374e1585c24bc7d5d
 Author: Brian Bidulock <bidulock@openss7.org>
 Date:   Fri May 15 01:45:19 2020 -0600
@@ -5277,12 +5291,3 @@ Date:   Wed Jun 24 06:45:02 2015 -0600
  .indent.pro       |   1 +
  src/xde-menugen.c | 372 +++++++++++++++++++++++++++++++++++---------------
  2 files changed, 263 insertions(+), 110 deletions(-)
-
-commit e58a065cee417679fdd83abe2446f265ddfa5abb
-Author: Brian Bidulock <bidulock@openss7.org>
-Date:   Tue Jun 23 11:00:56 2015 -0600
-
-    prepare for merging
-
- src/xde-menugen.c | 199 +++++++++++++++++++++++++++++++-------------------
- 1 file changed, 124 insertions(+), 75 deletions(-)
