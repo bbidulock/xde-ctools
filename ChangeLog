@@ -1,5 +1,18 @@
 # created with git log --stat=76 -M -C -500|fmt -sct -w80
 
+commit dcb6518bb35b7e1b50430bed626c4c105cfe9d47
+Author: Brian Bidulock <bidulock@openss7.org>
+Date:   Wed Jun 10 14:19:11 2020 -0600
+
+    update release files again
+
+ AUTHORS      |  2 +-
+ ChangeLog    | 23 ++++++++++++++---------
+ NEWS         |  7 ++++---
+ README.md    |  6 +++---
+ configure.ac |  4 ++--
+ 5 files changed, 24 insertions(+), 18 deletions(-)
+
 commit 5b1f976d272585abe8dbb46422c3351e310b35e1
 Author: Brian Bidulock <bidulock@openss7.org>
 Date:   Wed Jun 10 14:16:41 2020 -0600
@@ -5281,13 +5294,3 @@ Date:   Wed Jun 24 22:10:39 2015 -0600
 
  src/xde-menugen.c | 2 +-
  1 file changed, 1 insertion(+), 1 deletion(-)
-
-commit d7301380325899ebd0b4fb13519d334cc307333b
-Author: Brian Bidulock <bidulock@openss7.org>
-Date:   Wed Jun 24 06:45:02 2015 -0600
-
-    stacking parser and relative directories
-
- .indent.pro       |   1 +
- src/xde-menugen.c | 372 +++++++++++++++++++++++++++++++++++---------------
- 2 files changed, 263 insertions(+), 110 deletions(-)

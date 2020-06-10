@@ -26,7 +26,7 @@ git tag -n100 -l 1.13
 
 git shortlog -e -n -w80,6,8 1.12...1.13
 
-Brian Bidulock <bidulock@openss7.org> (37):
+Brian Bidulock <bidulock@openss7.org> (38):
       post-release update
       whoops
       handle more sound events in xde-sound
@@ -64,6 +64,7 @@ Brian Bidulock <bidulock@openss7.org> (37):
       detect window-ping event
       update TODO
       update release files
+      update release files again
 
 
 Release xde-ctools-1.12 released 2020-02-11
