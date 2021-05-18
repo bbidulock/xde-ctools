@@ -1,5 +1,17 @@
 # created with git log --stat=76 -M -C -500|fmt -sct -w80
 
+commit 23648abd8386ed7b12a3b6fb0c0bc242a4947f25
+Author: Brian Bidulock <bidulock@openss7.org>
+Date:   Tue May 18 09:38:45 2021 -0600
+
+    update release files
+
+ ChangeLog    | 21 ++++++++++++---------
+ NEWS         | 15 ++++-----------
+ README.md    | 18 +++++++++---------
+ configure.ac |  8 ++++----
+ 4 files changed, 29 insertions(+), 33 deletions(-)
+
 commit 1f3569eba7ac26449a142f7e871efcd3d3c3ed2b
 Author: Brian Bidulock <bidulock@openss7.org>
 Date:   Tue May 18 09:34:50 2021 -0600
@@ -5309,12 +5321,3 @@ Date:   Sat Jul 18 21:18:45 2015 -0600
  src/xde-winlist.c | 3263 +++++++++++++++++++++++++++++++++++++++----------
  src/xde-winlist.h |   28 +-
  2 files changed, 2640 insertions(+), 651 deletions(-)
-
-commit 59b47b56dc336959a6d2680ebf34e5335b304169
-Author: Brian Bidulock <bidulock@openss7.org>
-Date:   Sat Jul 18 21:18:06 2015 -0600
-
-    add option to pop pager
-
- src/xde-pager.c | 132 ++++++++++++++++++++++++++++++++++++++++------------
- 1 file changed, 103 insertions(+), 29 deletions(-)
