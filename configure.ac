@@ -2,8 +2,8 @@
 # Process this file with autoconf to produce a configure script.
 
 AC_PREREQ([2.71])
-AC_INIT([xde-ctools],[1.14],[http://github.com/bbidulock/xde-ctools],[xde-ctools],[http://github.com/bbidulock/xde-ctools/issues])
-AC_REVISION([1.14])
+AC_INIT([xde-ctools],[1.14.2],[http://github.com/bbidulock/xde-ctools],[xde-ctools],[http://github.com/bbidulock/xde-ctools/issues])
+AC_REVISION([1.14.2])
 
 # set better defaults
 AC_PREFIX_DEFAULT([/usr])
@@ -26,11 +26,11 @@ AC_SUBST([DATE])
 MDOCDATE='May 18, 2021'
 AC_SUBST([MDOCDATE])
 
-BRANCH='1.14'
+BRANCH='master'
 AC_SUBST([BRANCH])
 
 # Initialize Automake
-AM_INIT_AUTOMAKE([gnits 1.16 dist-lzip no-dist-gzip std-options -Wall color-tests silent-rules tar-pax])
+AM_INIT_AUTOMAKE([1.16 dist-lzip no-dist-gzip std-options -Wall color-tests silent-rules tar-pax])
 AM_MAINTAINER_MODE
 AM_SILENT_RULES([yes])
 

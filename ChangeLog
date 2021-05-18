@@ -1,5 +1,27 @@
 # created with git log --stat=76 -M -C -500|fmt -sct -w80
 
+commit 924370733d8a12e67eada70e99b937c22e73bbd0
+Author: Brian Bidulock <bidulock@openss7.org>
+Date:   Tue May 18 06:33:08 2021 -0600
+
+    update release files
+
+ AUTHORS      |  2 +-
+ ChangeLog    | 76 ++++++++++++++++++++++++++++-----------------
+ NEWS         | 94 +++++++++++++++++++-------------------------------------
+ README.md    | 20 ++++++------
+ configure.ac |  8 ++---
+ 5 files changed, 95 insertions(+), 105 deletions(-)
+
+commit 38c0d36929fbc6cfe20a6c22a5346d8891500d86
+Author: Brian Bidulock <bidulock@openss7.org>
+Date:   Tue May 18 06:32:54 2021 -0600
+
+    update release notes
+
+ RELEASE.md | 9 ++++-----
+ 1 file changed, 4 insertions(+), 5 deletions(-)
+
 commit d95c74710a1bdf00824331f40ed4cbd55394cdfc
 Author: Brian Bidulock <bidulock@openss7.org>
 Date:   Tue May 18 06:29:01 2021 -0600
@@ -5293,24 +5315,3 @@ Date:   Sat Jul 18 21:17:05 2015 -0600
 
  src/xde-keys.c | 29 ++++++++++++++++-------------
  1 file changed, 16 insertions(+), 13 deletions(-)
-
-commit 6a0a819fc1f7c1f51629aead49177e4cd8943299
-Author: Brian Bidulock <bidulock@openss7.org>
-Date:   Sat Jul 18 21:16:07 2015 -0600
-
-    documentation update
-
- man/xde-keys.pod    |  35 +++++++---
- man/xde-pager.pod   |  73 ++++++++++++++++++---
- man/xde-winlist.pod | 167 ++++++++++++++++++------------------------------
- man/xde-winmenu.pod |  22 +++++--
- 4 files changed, 166 insertions(+), 131 deletions(-)
-
-commit 3e2fc5253f987f5a7fccb4ffa1ce5b33ea49c1b7
-Author: Brian Bidulock <bidulock@openss7.org>
-Date:   Wed Jul 1 13:26:31 2015 -0600
-
-    handling the merge
-
- src/xde-menugen.c | 178 ++++++++++++++++++++++++++++++++------------------
- 1 file changed, 114 insertions(+), 64 deletions(-)
