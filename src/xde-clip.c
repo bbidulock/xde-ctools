@@ -1,6 +1,6 @@
 /*****************************************************************************
 
- Copyright (c) 2010-2020  Monavacon Limited <http://www.monavacon.com/>
+ Copyright (c) 2010-2021  Monavacon Limited <http://www.monavacon.com/>
  Copyright (c) 2002-2009  OpenSS7 Corporation <http://www.openss7.com/>
  Copyright (c) 1997-2001  Brian F. G. Bidulock <bidulock@openss7.org>
 
