@@ -1,5 +1,17 @@
 # created with git log --stat=76 -M -C -500|fmt -sct -w80
 
+commit 1f3569eba7ac26449a142f7e871efcd3d3c3ed2b
+Author: Brian Bidulock <bidulock@openss7.org>
+Date:   Tue May 18 09:34:50 2021 -0600
+
+    update release files
+
+ ChangeLog    | 43 ++++++++++++++++++++++---------------------
+ NEWS         | 10 ++++++++++
+ README.md    | 18 +++++++++---------
+ configure.ac |  8 ++++----
+ 4 files changed, 45 insertions(+), 34 deletions(-)
+
 commit 924370733d8a12e67eada70e99b937c22e73bbd0
 Author: Brian Bidulock <bidulock@openss7.org>
 Date:   Tue May 18 06:33:08 2021 -0600
@@ -5306,12 +5318,3 @@ Date:   Sat Jul 18 21:18:06 2015 -0600
 
  src/xde-pager.c | 132 ++++++++++++++++++++++++++++++++++++++++------------
  1 file changed, 103 insertions(+), 29 deletions(-)
-
-commit e56f0a2fc4333157979f546bca86c9c41962d2a9
-Author: Brian Bidulock <bidulock@openss7.org>
-Date:   Sat Jul 18 21:17:05 2015 -0600
-
-    rationalize a bit
-
- src/xde-keys.c | 29 ++++++++++++++++-------------
- 1 file changed, 16 insertions(+), 13 deletions(-)

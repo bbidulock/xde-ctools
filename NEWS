@@ -1,15 +1,5 @@
 xde-ctools -- history of user-visible changes.  2021-05-18
 
-Release xde-ctools-1.14.2 released 2021-05-18
----------------------------------------------
-
-git shortlog -e -n -w80,6,8 1.14...HEAD
-
-Brian Bidulock <bidulock@openss7.org> (2):
-      update release notes
-      update release files
-
-
 Release xde-ctools-1.14 released 2021-05-18
 -------------------------------------------
 
@@ -35,10 +25,13 @@ git tag -n100 -l 1.14
 
 git shortlog -e -n -w80,6,8 1.13...1.14
 
-Brian Bidulock <bidulock@openss7.org> (3):
+Brian Bidulock <bidulock@openss7.org> (6):
       post release update
       update copyright headers
       update configure.ac
+      update release notes
+      update release files
+      update release files
 
 
 Release xde-ctools-1.13 released 2020-06-10
