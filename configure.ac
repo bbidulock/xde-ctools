@@ -1,9 +1,9 @@
 #                                               -*- Autoconf -*-
 # Process this file with autoconf to produce a configure script.
 
-AC_PREREQ([2.69])
-AC_INIT([xde-ctools],[1.13],[http://github.com/bbidulock/xde-ctools],[xde-ctools],[http://github.com/bbidulock/xde-ctools/issues])
-AC_REVISION([1.13])
+AC_PREREQ([2.71])
+AC_INIT([xde-ctools],[1.13.2],[http://github.com/bbidulock/xde-ctools],[xde-ctools],[http://github.com/bbidulock/xde-ctools/issues])
+AC_REVISION([1.13.2])
 
 # set better defaults
 AC_PREFIX_DEFAULT([/usr])
@@ -20,17 +20,17 @@ AC_CONFIG_AUX_DIR([scripts])
 AC_USE_SYSTEM_EXTENSIONS
 AC_CANONICAL_TARGET
 
-DATE='2020-06-10'
+DATE='2021-05-18'
 AC_SUBST([DATE])
 
-MDOCDATE='June 10, 2020'
+MDOCDATE='May 18, 2021'
 AC_SUBST([MDOCDATE])
 
-BRANCH='1.13'
+BRANCH='master'
 AC_SUBST([BRANCH])
 
 # Initialize Automake
-AM_INIT_AUTOMAKE([gnits 1.16 dist-lzip no-dist-gzip std-options -Wall color-tests silent-rules tar-pax])
+AM_INIT_AUTOMAKE([1.16 dist-lzip no-dist-gzip std-options -Wall color-tests silent-rules tar-pax])
 AM_MAINTAINER_MODE
 AM_SILENT_RULES([yes])
 
@@ -92,22 +92,29 @@ PKG_PROG_PKG_CONFIG([0.14.0])
 
 # Checks for header files.
 AS_BOX([Header Files])
-AC_HEADER_STDC
+AC_CHECK_INCLUDES_DEFAULT
+AC_PROG_EGREP
+
 AC_PATH_X
 AC_PATH_XTRA
-AC_CHECK_HEADERS([fcntl.h locale.h stddef.h stdint.h stdlib.h string.h strings.h sys/ioctl.h sys/time.h syslog.h unistd.h])
+AC_CHECK_HEADERS([fcntl.h locale.h stddef.h stdint.h stdlib.h string.h strings.h sys/ioctl.h sys/time.h syslog.h unistd.h langinfo.h])
+AC_CHECK_HEADER_STDBOOL
 
 # Checks for typedefs, structures, and compiler characteristics.
 AS_BOX([Typedefs, Structures, Compiler])
 AC_TYPE_PID_T
 AC_TYPE_SIZE_T
+AC_TYPE_UINT32_T
+AC_TYPE_UINT64_T
 
 # Checks for library functions.
 AS_BOX([Library Functions])
 AC_FUNC_LSTAT_FOLLOWS_SLASHED_SYMLINK
+AC_FUNC_FORK
+AC_FUNC_STRTOD
 AC_FUNC_MALLOC
 AC_FUNC_REALLOC
-AC_CHECK_FUNCS([gethostname memmove select strcasecmp strchr strcspn strdup strerror strncasecmp strndup strpbrk strrchr strspn strstr strtol strtoul])
+AC_CHECK_FUNCS([gethostname memmove select strcasecmp strchr strcspn strdup strerror strncasecmp strndup strpbrk strrchr strspn strstr strtol strtoul getcwd gettimeofday localeconv memset setenv setlocale])
 
 AS_BOX([X11 Extension Libraries])
 
@@ -132,8 +139,7 @@ PKG_CHECK_MODULES([CAIRO],[cairo])
 PKG_CHECK_MODULES([SYSTEMD],[libsystemd])
 
 AC_ARG_ENABLE([xxf86misc],
-	AC_HELP_STRING([--disable-xxf86misc],
-		[Disable XF86MISC support @<:@default=auto@:>@]))
+	AS_HELP_STRING([--disable-xxf86misc],[Disable XF86MISC support @<:@default=auto@:>@]))
 if test "x$enable_xxf86misc" != xno ; then
 	PKG_CHECK_MODULES([XF86MISC],[xxf86misc],
 		[AC_DEFINE([XF86MISC],[1],[Define to 1 to support XF86MISC extension.])],
@@ -145,8 +151,7 @@ AC_MSG_RESULT([${enable_xxf86misc:-yes}])
 AM_CONDITIONAL([HAVE_XF86MISC],[test  "x$enable_xxf86msic" != "xno"])
 
 AC_ARG_ENABLE([xrandr],
-	AC_HELP_STRING([--disable-xrandr],
-		[Disable XRANDR support @<:@default=auto@:>@]))
+	AS_HELP_STRING([--disable-xrandr],[Disable XRANDR support @<:@default=auto@:>@]))
 if test "x$enable_xrandr" != xno ; then
 	PKG_CHECK_MODULES([XRANDR],[xrandr],
 		[AC_DEFINE([XRANDR],[1], [Define to 1 to support XRANDR extension.])],
@@ -158,8 +163,7 @@ AC_MSG_RESULT([${enable_xrandr:-yes}])
 AM_CONDITIONAL([HAVE_XRANDR],[test  "x$enable_xrandr" != "xno"])
 
 AC_ARG_ENABLE([xinerama],
-	AC_HELP_STRING([--disable-xinerama],
-		[Disable XINERAMA support @<:@default=auto@:>@]))
+	AS_HELP_STRING([--disable-xinerama],[Disable XINERAMA support @<:@default=auto@:>@]))
 if test "x$enable_xinerama" != xno ; then
 	PKG_CHECK_MODULES([XINERAMA],[xinerama],
 		[AC_DEFINE([XINERAMA],[1], [Define to 1 to support XINERAMA extension.])],
@@ -172,8 +176,7 @@ AM_CONDITIONAL([HAVE_XINERAMA],[test  "x$enable_xinerama" != "xno"])
 
 
 AC_ARG_ENABLE([startup-notification],
-	AC_HELP_STRING([--disable-startup-notification],
-		[Disable startup notification support @<:@default=auto@:>@]))
+	AS_HELP_STRING([--disable-startup-notification],[Disable startup notification support @<:@default=auto@:>@]))
 if test "x$enable_startup_notification" != xno ; then
 	PKG_CHECK_MODULES([SN],[libstartup-notification-1.0],
 		[AC_DEFINE([STARTUP_NOTIFICATION],[1], [Define to 1 to support startup notification.])],
@@ -183,8 +186,7 @@ AC_MSG_CHECKING([for startup notification support])
 AC_MSG_RESULT([${enable_startup_notification:-yes}])
 
 AC_ARG_ENABLE([notify],
-	AC_HELP_STRING([--disable-notify],
-		[Disable notification daemon notifications @<:@default=auto@:>@]))
+	AS_HELP_STRING([--disable-notify],[Disable notification daemon notifications @<:@default=auto@:>@]))
 if test "x$enable_notify" != xno ; then
 	PKG_CHECK_MODULES([NOTIFY],[gio-2.0 gio-unix-2.0 glib-2.0 gdk-pixbuf-2.0 libnotify],
 		[AC_DEFINE([DESKTOP_NOTIFICATIONS],[1],[Define to 1 to support desktop notifications.])],
@@ -195,8 +197,7 @@ AC_MSG_RESULT([${enable_notify:-yes}])
 AM_CONDITIONAL([HAVE_DESKTOP_NOTIFICATIONS],[test  "x$enable_notify" != "xno"])
 
 AC_ARG_ENABLE([status-icon],
-	AC_HELP_STRING([--disable-status-icon],
-		[Disable status icon in system tray @<:@default=auto@:>@]))
+	AS_HELP_STRING([--disable-status-icon],[Disable status icon in system tray @<:@default=auto@:>@]))
 if test "x$enable_status_icon" != xno ; then
 	PKG_CHECK_MODULES([GTK2],[gtk+-2.0 >= 2.10],
 		[AC_DEFINE([SYSTEM_TRAY_STATUS_ICON],[1],[Define to 1 to support system tray icon.])],
@@ -207,8 +208,7 @@ AC_MSG_RESULT([${enable_status_icon:-yes}])
 AM_CONDITIONAL([HAVE_SYSTEM_TRAY_STATUS_ICON],[test  "x$enable_status_icon" != "xno"])
 
 AC_ARG_ENABLE([canberra],
-	AC_HELP_STRING([--disable-canberra],
-		[Disable canberra sound @<:@default=auto@:>@]))
+	AS_HELP_STRING([--disable-canberra],[Disable canberra sound @<:@default=auto@:>@]))
 if test "x$enable_canberra" != xno ; then
 	PKG_CHECK_MODULES([SOUND],[libcanberra-gtk],
 		[AC_DEFINE([CANBERRA_SOUND],[1],[Define to 1 to support libcanberra sound.])],
@@ -219,8 +219,7 @@ AC_MSG_RESULT([${enable_canberra:-yes}])
 AM_CONDITIONAL([HAVE_CANBERRA_SOUND],[test "x$enable_canberra" != "xno"])
 
 AC_ARG_ENABLE([debug],
-	AC_HELP_STRING([--enable-debug],
-		[Enable debugging support @<:@default=disabled@:>@]))
+	AS_HELP_STRING([--enable-debug],[Enable debugging support @<:@default=disabled@:>@]))
 if test "x$enable_debug" = xyes ; then
 	AC_DEFINE_UNQUOTED([DEBUG],[],[Define to enable debugging])
 fi
