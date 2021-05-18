@@ -1,5 +1,53 @@
 # created with git log --stat=76 -M -C -500|fmt -sct -w80
 
+commit d95c74710a1bdf00824331f40ed4cbd55394cdfc
+Author: Brian Bidulock <bidulock@openss7.org>
+Date:   Tue May 18 06:29:01 2021 -0600
+
+    update configure.ac
+
+ configure.ac | 51 +++++++++++++++++++++++++--------------------------
+ 1 file changed, 25 insertions(+), 26 deletions(-)
+
+commit 708503bbc3026c7190705a61dd986739562586d3
+Author: Brian Bidulock <bidulock@openss7.org>
+Date:   Tue May 18 02:15:30 2021 -0600
+
+    update copyright headers
+
+ src/xde-app.c       | 6 +++---
+ src/xde-clip.c      | 2 +-
+ src/xde-cycle.c     | 8 ++++----
+ src/xde-dock.c      | 6 +++---
+ src/xde-feedback.c  | 8 ++++----
+ src/xde-input.c     | 8 ++++----
+ src/xde-keys.c      | 6 +++---
+ src/xde-monitor.c   | 8 ++++----
+ src/xde-pager.c     | 8 ++++----
+ src/xde-places.c    | 8 ++++----
+ src/xde-preferred.c | 6 +++---
+ src/xde-recent.c    | 8 ++++----
+ src/xde-run.c       | 6 +++---
+ src/xde-select.c    | 6 +++---
+ src/xde-setbg.c     | 8 ++++----
+ src/xde-sound.c     | 8 ++++----
+ src/xde-tasks.c     | 8 ++++----
+ src/xde-winds.c     | 8 ++++----
+ src/xde-winlist.c   | 8 ++++----
+ src/xde-winmenu.c   | 6 +++---
+ src/xde-wkspmenu.c  | 8 ++++----
+ 21 files changed, 74 insertions(+), 74 deletions(-)
+
+commit d2d6d872be5007f0ff0abe0bf5ff09e6524d3844
+Author: Brian Bidulock <bidulock@openss7.org>
+Date:   Wed Jun 10 14:20:41 2020 -0600
+
+    post release update
+
+ ChangeLog | 23 +++++++++++++----------
+ NEWS      |  3 ++-
+ 2 files changed, 15 insertions(+), 11 deletions(-)
+
 commit dcb6518bb35b7e1b50430bed626c4c105cfe9d47
 Author: Brian Bidulock <bidulock@openss7.org>
 Date:   Wed Jun 10 14:19:11 2020 -0600
@@ -5266,31 +5314,3 @@ Date:   Wed Jul 1 13:26:31 2015 -0600
 
  src/xde-menugen.c | 178 ++++++++++++++++++++++++++++++++------------------
  1 file changed, 114 insertions(+), 64 deletions(-)
-
-commit b902f757af8af5279a16b07267c616da7ebb7428
-Author: Brian Bidulock <bidulock@openss7.org>
-Date:   Thu Jun 25 05:27:20 2015 -0600
-
-    logic for merging of menu files
-
- .indent.pro       |  24 +++--
- src/xde-menugen.c | 280 ++++++++++++++++++++++++++++++++++++++++++++++++--
- 2 files changed, 282 insertions(+), 22 deletions(-)
-
-commit 2e6ea93de8aa57c497743e214cddb4d987c6247e
-Author: Brian Bidulock <bidulock@openss7.org>
-Date:   Thu Jun 25 01:24:32 2015 -0600
-
-    prepare for menu merging
-
- src/xde-menugen.c | 181 +++++++++++++++++++++++++++++++++++++++++++++-----
- 1 file changed, 164 insertions(+), 17 deletions(-)
-
-commit 16e51c835de6951074abfd490ba8ca0c9d6b7cf0
-Author: Brian Bidulock <bidulock@openss7.org>
-Date:   Wed Jun 24 22:10:39 2015 -0600
-
-    typo in comment
-
- src/xde-menugen.c | 2 +-
- 1 file changed, 1 insertion(+), 1 deletion(-)

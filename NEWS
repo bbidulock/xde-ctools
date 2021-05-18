@@ -1,4 +1,35 @@
-xde-ctools -- history of user-visible changes.  2020-06-10
+xde-ctools -- history of user-visible changes.  2021-05-18
+
+Release xde-ctools-1.14 released 2021-05-18
+-------------------------------------------
+
+git tag -n100 -l 1.14
+
+1.14            Maintenance Release 1.14
+
+    This is the fourteenth release of the xde-ctools package. This package
+    contains various tools (menus, popup, pages, feedback mechanisms) for
+    the X Desktop Environment (XDE). These tools are meant to have minimal
+    dependencies, GTK2-based, and each tool able to run independent of the
+    others (and for that matter, independent of the desktop environment):
+    they work well with many light-weight window managers. Not all the
+    tools are complete, but the many that are work nicely. The nice ones I
+    use daily and are quite stable.
+
+    This release is a maintenance release that updates for compilation with
+    GCC 11.0 as well as providing updates to the autoconf tool chain.
+
+    Included in the release is an autoconf tarball for building the package
+    from source. See the NEWS and TODO file in the release for more
+    information. Please report problems to the issues list on GitHub.
+
+git shortlog -e -n -w80,6,8 1.13...1.14
+
+Brian Bidulock <bidulock@openss7.org> (3):
+      post release update
+      update copyright headers
+      update configure.ac
+
 
 Release xde-ctools-1.13 released 2020-06-10
 -------------------------------------------
@@ -328,66 +359,5 @@ Brian Bidulock <bidulock@openss7.org> (55):
       no links in txt files
       release notes for 1.8
       fix gcc 8.2 strncpy/strncat warnings
-      update release files
-
-
-Release xde-ctools-1.7 released 2018-01-06
-------------------------------------------
-
-git tag -n100 -l 1.7
-
-1.7             Maintenance Release 1.7
-
-    This is the seventh release of the xde-ctools package. This package
-    contains various tools (menus, popup, pages, feedback mechanisms) for
-    the X Desktop Environment (XDE). These tools are meant to have minimal
-    dependencies, GTK2-based, and each tool able to run independent of the
-    others (and for that matter, independent of the desktop environment):
-    they work well with many light-weight window managers. Not all the
-    tools are complete, but the many that are work nicely. The nice ones I
-    use daily and are quite stable.
-
-    This release is a maintenance release and fixes some issues with
-    startup notification. It also adds an opacity option to most of the
-    tools for use with composite managers. Also, some file managers do not
-    like the file:// prefix on file names at all (e.g. pcmanfm) so
-    xde-recent now strips them. Centered dialogues now use center window
-    gravity to place themselves in the center of the screen. xde-pager now
-    correctly updates its layout when the number of workspaces changes, and
-    behaves better when hot keys are pressed while it is popped. Manual
-    page updates.
-
-    Starting with this release, commits are verified and tags are signed
-    and annotated (with this text).
-
-    Includes in the release is an Arch Linux source tarball (also on the
-    AUR) and an autoconf tarball for building the release from source. See
-    the NEWS and TODO file in the release for more information.
-
-git shortlog -e -n -w80,6,8 1.6...1.7
-
-Brian Bidulock <bidulock@openss7.org> (23):
-      add opacity to a bunch of popups
-      remove trailing whitespace, rationalize opacity
-      update manpages, document new xde-opacity
-      complete startup notification
-      better completion of startup notification
-      a little rationalization
-      all tools provide startup notification now
-      get to DESKTOP_STARTUP_ID before gtk does
-      take DESKTOP_STARTUP_ID away from GTK if required
-      simplify endptr checks, correct timestamp from id
-      use startup id timestamp where possible
-      always center run and app dialogs
-      just center with window gravity
-      do not disrupt layout
-      always update entire layout
-      updates layout correct now
-      remove redundant commands
-      skip nonexistent files, strip file:// from cmd
-      always drop popup on broken grabs
-      add release notes
-      distribute release notes
-      add release byproducts to ignore
       update release files
 
