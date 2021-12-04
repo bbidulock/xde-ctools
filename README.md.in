@@ -63,6 +63,8 @@ Running
 
 Read the manual page after installation:
 
+    man @PACKAGE@
+
 
 Issues
 ------
