@@ -11,30 +11,31 @@ written in `perl(1)` and were part of the `xde-tools` package.  They
 have now been codified in "C" for speed and to provide access to
 libraries not available from `perl(1)`.
 
+The source for `xde-ctools` is hosted on [GitHub][1].
 
 Release
 -------
 
-This is the `xde-ctools-1.14` package, released 2021-05-18.  This
-release, and the latest version, can be obtained from [GitHub][1], using
-a command such as:
+This is the `xde-ctools-1.14` package, released 2021-05-18.  This release,
+and the latest version, can be obtained from [GitHub][1], using a command
+such as:
 
     $> git clone https://github.com/bbidulock/xde-ctools.git
 
-Please see the [NEWS][3] file for release notes and history of user
-visible changes for the current version, and the [ChangeLog][4] file for
-a more detailed history of implementation changes.  The [TODO][5] file
-lists features not yet implemented and other outstanding items.
+Please see the [RELEASE][3] and [NEWS][4] files for release notes and
+history of user visible changes for the current version, and the
+[ChangeLog][5] file for a more detailed history of implementation changes.
+The [TODO][6] file lists features not yet implemented and other outstanding
+items.
 
-Please see the [INSTALL][7] file for installation instructions.
+
+Please see the [INSTALL][8] file for installation instructions.
 
 When working from `git(1)`, please use this file.  An abbreviated
 installation procedure that works for most applications appears below.
 
-This release is published under GPLv3.  Please see the license in the
-file [COPYING][9].
-
-See [RELEASE](RELEASE.html) for more information.
+This release is published under GPLv3.  Please see the license in the file
+[COPYING][10].
 
 
 Quick Start
@@ -51,12 +52,10 @@ the following commands:
     $> make DESTDIR="$pkgdir" install
 
 This will configure, compile and install `xde-ctools` the quickest.  For
-those who like to spend the extra 15 seconds reading `./configure
---help`, some compile time options can be turned on and off before the
-build.
+those who like to spend the extra 15 seconds reading `./configure --help`,
+some compile time options can be turned on and off before the build.
 
-For general information on GNU's `./configure`, see the file
-[INSTALL][7].
+For general information on GNU's `./configure`, see the file [INSTALL][8].
 
 
 Running
@@ -74,12 +73,13 @@ Report issues on GitHub [here][2].
 
 [1]: https://github.com/bbidulock/xde-ctools
 [2]: https://github.com/bbidulock/xde-ctools/issues
-[3]: https://github.com/bbidulock/xde-ctools/blob/1.14/NEWS
-[4]: https://github.com/bbidulock/xde-ctools/blob/1.14/ChangeLog
-[5]: https://github.com/bbidulock/xde-ctools/blob/1.14/TODO
-[6]: https://github.com/bbidulock/xde-ctools/blob/1.14/COMPLIANCE
-[7]: https://github.com/bbidulock/xde-ctools/blob/1.14/INSTALL
-[8]: https://github.com/bbidulock/xde-ctools/blob/1.14/LICENSE
-[9]: https://github.com/bbidulock/xde-ctools/blob/1.14/COPYING
+[3]: https://github.com/bbidulock/xde-ctools/blob/1.14/RELEASE
+[4]: https://github.com/bbidulock/xde-ctools/blob/1.14/NEWS
+[5]: https://github.com/bbidulock/xde-ctools/blob/1.14/ChangeLog
+[6]: https://github.com/bbidulock/xde-ctools/blob/1.14/TODO
+[7]: https://github.com/bbidulock/xde-ctools/blob/1.14/COMPLIANCE
+[8]: https://github.com/bbidulock/xde-ctools/blob/1.14/INSTALL
+[9]: https://github.com/bbidulock/xde-ctools/blob/1.14/LICENSE
+[10]: https://github.com/bbidulock/xde-ctools/blob/1.14/COPYING
 
-[ vim: set ft=markdown sw=4 tw=72 nocin nosi fo+=tcqlorn spell: ]: #
+[ vim: set ft=markdown sw=4 tw=80 nocin nosi fo+=tcqlorn spell: ]: #
