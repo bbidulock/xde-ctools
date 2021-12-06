@@ -76,7 +76,7 @@ When in binary command mode, run the command dialog with the specified
 F<run-history> file.  In this case, the default is
 F<$XDG_CONFIG_HOME/xde/run-history>.
 
-When in XDG launcher mode, runt the command dialog with the specified
+When in XDG launcher mode, run the command dialog with the specified
 F<recent-applications> file.  In this case, the default is
 F<$XDG_CONFIG_HOME/xde/recent-applications>.
 

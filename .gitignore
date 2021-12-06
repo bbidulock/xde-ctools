@@ -61,3 +61,6 @@ xde-winds
 xde-winlist
 xde-winmenu
 xde-wkspmenu
+.jekyll-cache/
+_site/
+*.save
