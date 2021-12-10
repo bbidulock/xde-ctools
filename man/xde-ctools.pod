@@ -44,25 +44,6 @@ provide key bindings themselves or for those that provide a inferior or
 incomplete set of bindings.  Key bindings are hot keys bound to the root
 window that invoke actions on windows, workspaces or the window manager.
 
-=item L<xde-menugen(1)>
-
-Provides a command-line program that can be used to generate an XDG
-compliant menu in a number of formats to support configuration of the
-root menu for light-weight window managers.  It is capable of generating
-either a complete menu for a number of well-known window managers, or
-for generating a sub-menu that can be included in the root menu of those
-window managers.
-
-=item L<xde-menu(1)>
-
-B<xde-menu> is a command-line program that can be used to generate an
-XDG compliant menu in a number of formats to support configuration of
-the root menu for light-weight window managers.
-It is a menu generator, system tray menu, and pop-up menu that
-can be used to both generate XDG compliant menus for a number of popular
-light-weight window managers as well as providing a system tray and
-pop-up menu.
-
 =item L<xde-pager(1)>
 
 Provides desktop cycling feedback for window managers that do not
@@ -113,6 +94,14 @@ Provides a per-workspace background changer for window managers that do
 not provide any per-workspace backgrounds themselves or for those that
 provide an inferior or incomplete set of background facilities.
 Backgrounds are the image that is display on the root window.
+
+=item L<xde-sound(1)>
+
+Provides desktop event sounds as feedback for window managers that do
+not provide audio feedback themselves or for those that provide an
+inferior feedback.  The audio feedback uses the XDG sound theme
+specification with a common set of event identifiers so that they can be
+themed.
 
 =item L<xde-winlist(1)>
 
@@ -170,7 +159,6 @@ L<xde-app(1)>,
 L<xde-cycle(1)>,
 L<xde-dock(1)>,
 L<xde-keys(1)>,
-L<xde-menugen(1)>,
 L<xde-pager(1)>,
 L<xde-preferred(1)>,
 L<xde-run(1)>,

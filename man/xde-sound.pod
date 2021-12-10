@@ -10,12 +10,12 @@ B<xde-sound> [I<OPTIONS>]
 
 =head1 DESCRIPTIONS
 
-Provide desktop event sounds as feedback for window managers that do not
+Provides desktop event sounds as feedback for window managers that do not
 provide audio feedback themselves or for those that provide an inferior
 feedback.  The audio feedback uses the XDG sound theme specification
-with a common set of event identifiers so that they can be themed.  This
-package also provides a default C<freedesktop> sound theme.  See the
-B<xde-style> and B<xde-theme> packages for more sounds.
+with a common set of event identifiers so that they can be themed.  The
+B<xde-sounds> package provides a default C<freedesktop> sound theme.
+See the B<xde-style> and B<xde-theme> packages for more sounds.
 
 B<xde-sound> uses ICCCM, Win/GNOME and Net/EWMH events to generate
 sounds.  This includes the appearance and disappearance of a window
