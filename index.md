@@ -15,7 +15,7 @@ written in `perl(1)` and were part of the `xde-tools` package.  They
 have now been codified in "C" for speed and to provide access to
 libraries not available from `perl(1)`.
 
-For screenshots and examples, see [SAMPLES](samples/index.html).
+For screenshots and examples, see [SAMPLES](samples).
 
 The source for `xde-ctools` is hosted on [GitHub][1].
 

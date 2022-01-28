@@ -37,8 +37,8 @@ Please see the [INSTALL][8] file for installation instructions.
 When working from `git(1)`, please use this file.  An abbreviated
 installation procedure that works for most applications appears below.
 
-This release is published under GPLv3.  Please see the license in the
-file [COPYING][10].
+This release is published under GPLv3.
+Please see the license in the file [COPYING][10].
 
 
 Quick Start
