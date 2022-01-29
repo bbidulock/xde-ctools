@@ -1,5 +1,244 @@
 # created with git log --stat=76 -M -C -500|fmt -sct -w80
 
+commit d4310f40b15da463387389de4de13cbd30ee398f
+Author: Brian Bidulock <bidulock@openss7.org>
+Date:   Sat Jan 29 02:07:15 2022 -0700
+
+    update copyright
+
+ src/xde-app.c       | 6 +++---
+ src/xde-clip.c      | 2 +-
+ src/xde-cycle.c     | 8 ++++----
+ src/xde-dock.c      | 6 +++---
+ src/xde-feedback.c  | 8 ++++----
+ src/xde-input.c     | 8 ++++----
+ src/xde-keys.c      | 6 +++---
+ src/xde-monitor.c   | 8 ++++----
+ src/xde-pager.c     | 8 ++++----
+ src/xde-places.c    | 8 ++++----
+ src/xde-preferred.c | 6 +++---
+ src/xde-recent.c    | 8 ++++----
+ src/xde-run.c       | 6 +++---
+ src/xde-select.c    | 6 +++---
+ src/xde-setbg.c     | 8 ++++----
+ src/xde-sound.c     | 8 ++++----
+ src/xde-tasks.c     | 8 ++++----
+ src/xde-winds.c     | 8 ++++----
+ src/xde-winlist.c   | 8 ++++----
+ src/xde-winmenu.c   | 6 +++---
+ src/xde-wkspmenu.c  | 8 ++++----
+ 21 files changed, 74 insertions(+), 74 deletions(-)
+
+commit beec2ee302f66a88b2265076f99c7c30287ffdf8
+Author: Brian Bidulock <bidulock@openss7.org>
+Date:   Fri Jan 28 02:10:20 2022 -0700
+
+    update gh-pages
+
+ README           |  4 +--
+ README.md        |  2 +-
+ README.md.in     |  2 +-
+ index.md         |  2 +-
+ samples/index.md | 73 +++++++++++++++++++++++++++++++++++++++++++++++-----
+ 5 files changed, 72 insertions(+), 11 deletions(-)
+
+commit 4e0d2e512e6865b222458245e99444baf9a0d815
+Author: Brian Bidulock <bidulock@openss7.org>
+Date:   Thu Jan 27 20:54:58 2022 -0700
+
+    update build flags
+
+ configure.sh | 9 +++------
+ 1 file changed, 3 insertions(+), 6 deletions(-)
+
+commit 4656689919bef7b15a12c27f031514e0bd4ffd06
+Author: Brian Bidulock <bidulock@openss7.org>
+Date:   Thu Dec 9 20:20:43 2021 -0700
+
+    correct manpages for xde-sound
+
+ man/xde-ctools.pod     | 28 ++++++++--------------------
+ man/xde-sound.pod      |  8 ++++----
+ samples/xde-menu.md    |  4 ----
+ samples/xde-menugen.md |  4 ----
+ 4 files changed, 12 insertions(+), 32 deletions(-)
+
+commit 7de13a4eba0e6acf307c4fa3aa9fc47f913eabf4
+Author: Brian Bidulock <bidulock@openss7.org>
+Date:   Mon Dec 6 02:27:32 2021 -0700
+
+    building up gh-pages
+
+ .gitignore                                      |   3 +
+ Makefile.am                                     |   3 +
+ README                                          |  26 ++++----
+ README.md                                       |  26 ++++----
+ README.md.in                                    |   2 +-
+ SAMPLES.md                                      |  30 +++++----
+ dist.sh                                         |   2 +-
+ index.md                                        |  29 +++++----
+ man/xde-run.pod                                 |   2 +-
+ samples/index.md                                |  64 ++++++++++++++++++++
+ samples/xde-app.md                              |  26 ++++++++
+ samples/xde-clip.md                             |   4 ++
+ samples/xde-cycle.md                            |   4 ++
+ samples/xde-dock.md                             |   4 ++
+ samples/xde-keys.md                             |   4 ++
+ samples/xde-menu.md                             |   4 ++
+ samples/xde-menugen.md                          |   4 ++
+ samples/xde-pager.md                            |  14 +++++
+ samples/xde-places.md                           |  64 ++++++++++++++++++++
+ samples/xde-preferred.md                        |   4 ++
+ samples/xde-recent.md                           |  64 ++++++++++++++++++++
+ samples/xde-run.md                              |  54 +++++++++++++++++
+ samples/xde-select.md                           |   4 ++
+ samples/xde-setbg.md                            |   4 ++
+ samples/xde-winlist.md                          |  64 ++++++++++++++++++++
+ samples/xde-winmenu.md                          |  64 ++++++++++++++++++++
+ samples/xde-wkspmenu.md                         |  64 ++++++++++++++++++++
+ scrot/xde-run.2.png                             | Bin 0 -> 20665 bytes
+ scrot/xde-run.3.png                             | Bin 0 -> 23263 bytes
+ scrot/{xde-windmenu.2.png => xde-winmenu.2.png} | Bin
+ 30 files changed, 582 insertions(+), 55 deletions(-)
+
+commit 60e5a77805d24ff66521aee554bdcb6fba2af560
+Author: Brian Bidulock <bidulock@openss7.org>
+Date:   Sat Dec 4 19:38:26 2021 -0700
+
+    proper image syntax
+
+ SAMPLES.md | 24 ++++++++++++------------
+ 1 file changed, 12 insertions(+), 12 deletions(-)
+
+commit 4fe9716dc3320a58cf4b73ea10f3565153d6aba1
+Author: Brian Bidulock <bidulock@openss7.org>
+Date:   Sat Dec 4 19:35:27 2021 -0700
+
+    proper image syntax
+
+ SAMPLES.md | 28 ++++++++++++++++------------
+ 1 file changed, 16 insertions(+), 12 deletions(-)
+
+commit c9cef044899e7fcd27498ebf253564d98b92b11a
+Author: Brian Bidulock <bidulock@openss7.org>
+Date:   Sat Dec 4 19:33:23 2021 -0700
+
+    proper image syntax
+
+ SAMPLES.md | 24 ++++++++++++------------
+ 1 file changed, 12 insertions(+), 12 deletions(-)
+
+commit 50eb8d629ee4f5899d7f5493176f810c579a70db
+Author: Brian Bidulock <bidulock@openss7.org>
+Date:   Sat Dec 4 19:27:52 2021 -0700
+
+    add screenshots
+
+ README                       |  41 +++++++++++++++-------------
+ README.md                    |  41 +++++++++++++++-------------
+ README.md.in                 |  41 +++++++++++++++-------------
+ SAMPLES.md                   |  56 +++++++++++++++++++++++++++++++++++++++
+ index.md                     |  41 +++++++++++++++-------------
+ scrot/xde-app.2.png          | Bin 0 -> 28716 bytes
+ scrot/xde-app.png            | Bin 0 -> 10428 bytes
+ scrot/xde-pager.png          | Bin 0 -> 2158596 bytes
+ scrot/xde-places.png         | Bin 0 -> 18969 bytes
+ scrot/xde-recent.apps.20.png | Bin 0 -> 28261 bytes
+ scrot/xde-recent.docs.20.png | Bin 0 -> 56156 bytes
+ scrot/xde-run.png            | Bin 0 -> 48898 bytes
+ scrot/xde-windmenu.2.png     | Bin 0 -> 37508 bytes
+ scrot/xde-winlist.2.png      | Bin 0 -> 40681 bytes
+ scrot/xde-winlist.png        | Bin 0 -> 10018 bytes
+ scrot/xde-winmenu.png        | Bin 0 -> 37949 bytes
+ scrot/xde-wkspmenu.png       | Bin 0 -> 66487 bytes
+ 17 files changed, 148 insertions(+), 72 deletions(-)
+
+commit b402cbe736e1b3b153397eafa8873195da1dc95b
+Author: Brian Bidulock <bidulock@openss7.org>
+Date:   Sat Dec 4 16:56:30 2021 -0700
+
+    include man page reference
+
+ README       | 2 ++
+ README.md    | 2 ++
+ README.md.in | 2 ++
+ index.md     | 2 ++
+ 4 files changed, 8 insertions(+)
+
+commit 50f87d9c43233f8366b002e9ae37d10bcad695b5
+Author: Brian Bidulock <bidulock@openss7.org>
+Date:   Sat Dec 4 16:54:07 2021 -0700
+
+    update gh-pages files
+
+ README.md => README | 52 ++++++++++++++--------------
+ README.md           | 52 ++++++++++++++--------------
+ README.md.in        | 52 ++++++++++++++--------------
+ RELEASE             | 23 +++++++++++++
+ _config.yml         |  5 ++-
+ index.md            | 52 ++++++++++++++--------------
+ logo.svg            | 91 +++++++++++++++++++++++++++++++++++++++++++++++++
+ 7 files changed, 222 insertions(+), 105 deletions(-)
+
+commit 3a20f958a15fc625db8c160e5602bdc70b187707
+Author: Brian Bidulock <bidulock@openss7.org>
+Date:   Sat Dec 4 00:16:25 2021 -0700
+
+    try a little something
+
+ README.md    | 2 ++
+ README.md.in | 2 ++
+ index.md     | 2 ++
+ 3 files changed, 6 insertions(+)
+
+commit 82270b197e3bfb8e706e714c3c9a93107b6929ca
+Author: Brian Bidulock <bidulock@openss7.org>
+Date:   Fri Dec 3 23:27:50 2021 -0700
+
+    add index.md
+
+ index.md | 83 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 83 insertions(+)
+
+commit f7ade70880649aaee9c6eeb97c9c22a26fd73d42
+Author: Brian Bidulock <bidulock@openss7.org>
+Date:   Fri Dec 3 23:24:18 2021 -0700
+
+    move docs to root
+
+ docs/_config.yml => _config.yml |  0
+ docs/index.md                   | 83 -------------------------------------
+ 2 files changed, 83 deletions(-)
+
+commit ab952b1def14caabea231b514e34e4f301f08d2b
+Author: Brian Bidulock <bidulock@openss7.org>
+Date:   Fri Dec 3 23:19:08 2021 -0700
+
+    add docs
+
+ docs/_config.yml |  1 +
+ docs/index.md    | 83 ++++++++++++++++++++++++++++++++++++++++++++++++++++
+ 2 files changed, 84 insertions(+)
+
+commit ca5f807c549e699eb5495c97ba0dda67ba80a2a5
+Author: Brian Bidulock <bidulock@openss7.org>
+Date:   Fri Dec 3 22:44:36 2021 -0700
+
+    new Arch Linux cflags
+
+ configure.sh | 6 ++++++
+ 1 file changed, 6 insertions(+)
+
+commit 63f0fea04caa427b5a7064346de6bdd5f32ac3c6
+Author: Brian Bidulock <bidulock@openss7.org>
+Date:   Tue May 18 10:10:57 2021 -0600
+
+    post-release update
+
+ ChangeLog | 21 ++++++++++++---------
+ NEWS      |  3 ++-
+ 2 files changed, 14 insertions(+), 10 deletions(-)
+
 commit 23648abd8386ed7b12a3b6fb0c0bc242a4947f25
 Author: Brian Bidulock <bidulock@openss7.org>
 Date:   Tue May 18 09:38:45 2021 -0600
@@ -5149,175 +5388,3 @@ Date:   Mon Nov 9 06:27:11 2015 -0700
  src/xde-pager.c   |   7 +-
  src/xde-winlist.c |   7 +-
  3 files changed, 430 insertions(+), 160 deletions(-)
-
-commit 9844606f75f38fcf7a9b6b23422ba3a944884e24
-Author: Brian Bidulock <bidulock@openss7.org>
-Date:   Mon Oct 19 14:32:55 2015 -0600
-
-    menu updates
-
- src/xde-menu.c | 1138 +++++++++++++++++++++++++++++++++++++++++++++++++---
- 1 file changed, 1084 insertions(+), 54 deletions(-)
-
-commit a195aa3da065aa6741b8750d05311a1234eaf963
-Author: Brian Bidulock <bidulock@openss7.org>
-Date:   Mon Oct 19 07:37:17 2015 -0600
-
-    updates to xde-menu
-
- man/xde-menu.pod | 564 +++++++++++++++++++++++++++++++++++++++--------
- src/xde-menu.c   | 609 +++++++++++++++++++++++++++++++++++++++------------
- 2 files changed, 941 insertions(+), 232 deletions(-)
-
-commit afcd00a83f7029ee2b398d94dd780c711da4ec17
-Author: Brian Bidulock <bidulock@openss7.org>
-Date:   Fri Oct 16 20:35:01 2015 -0600
-
-    more xde-menu option updates
-
- man/xde-menu.pod | 106 +++++++++++++++++++++++++++++++--------------------
- src/xde-menu.c   |  22 ++++++++---
- 2 files changed, 81 insertions(+), 47 deletions(-)
-
-commit 80976f1bc124c0d548a38458c5c3fd50f89bedd5
-Author: Brian Bidulock <bidulock@openss7.org>
-Date:   Fri Oct 16 05:14:49 2015 -0600
-
-    manpage updates
-
- man/xde-menu.pod | 106 +++++++++++++++++++++++++++++++++++----------------
- 1 file changed, 74 insertions(+), 32 deletions(-)
-
-commit 376ee415b8cccd36544c5231527cd0d4b602522e
-Author: Brian Bidulock <bidulock@openss7.org>
-Date:   Thu Oct 15 05:43:50 2015 -0600
-
-    working up documentation some more
-
- man/xde-menu.pod    | 145 +++++++++++++++++++++++++++++++++++++++++-------
- man/xde-menugen.pod |   2 +-
- man/xde-winmenu.pod |   4 +-
- 3 files changed, 127 insertions(+), 24 deletions(-)
-
-commit b1a21c1867815b76d3c82eb5cd8d928e01a19e4b
-Author: Brian Bidulock <bidulock@openss7.org>
-Date:   Thu Oct 15 04:24:49 2015 -0600
-
-    more xde-menu manual page workup
-
- man/xde-menu.pod | 131 +++++++++++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 131 insertions(+)
-
-commit 05c1654cc717b0c00b7cc264b75962dfc12b66ed
-Author: Brian Bidulock <bidulock@openss7.org>
-Date:   Thu Oct 15 04:00:15 2015 -0600
-
-    working up more xde-menu manpage
-
- man/xde-menu.pod    | 158 ++++++++++++++++++++++++++++++++++++++++++++++++
- man/xde-menugen.pod |  22 +++----
- 2 files changed, 169 insertions(+), 11 deletions(-)
-
-commit 689ca7042f0b683cdc30d05c551b3ab88d044a76
-Author: Brian Bidulock <bidulock@openss7.org>
-Date:   Wed Oct 14 03:49:27 2015 -0600
-
-    add command options to xde-menu.man
-
- man/xde-menu.pod | 52 ++++++++++++++++++++++++++++++++++++++++++++++++++++
- 1 file changed, 52 insertions(+)
-
-commit 50b4f7adb47d24bfd3c6af41c61d80b972a5fb21
-Author: Brian Bidulock <bidulock@openss7.org>
-Date:   Wed Oct 14 03:44:14 2015 -0600
-
-    working up xde-menu documentation
-
- man/xde-menu.pod    | 36 ++++++++++++++++++++++++++++++++++++
- man/xde-menugen.pod |  2 +-
- 2 files changed, 37 insertions(+), 1 deletion(-)
-
-commit fdac34a76329605c1ab2aff60cb22e6032ec143b
-Author: Brian Bidulock <bidulock@openss7.org>
-Date:   Wed Oct 14 03:39:21 2015 -0600
-
-    add xde-menu documentation
-
- man/Makefile.am  |  2 ++
- man/xde-clip.pod |  1 -
- man/xde-menu.pod | 28 ++++++++++++++++++++++++++++
- 3 files changed, 30 insertions(+), 1 deletion(-)
-
-commit 93918c902bc24c09df06a3c96d509a00e2307ea9
-Author: Brian Bidulock <bidulock@openss7.org>
-Date:   Wed Oct 14 03:27:29 2015 -0600
-
-    add xde-clip docs
-
- man/Makefile.am  |   2 +
- man/xde-clip.pod | 242 +++++++++++++++++++++++++++++++++++++++++++++++++++
- src/xde-menu     | Bin 149028 -> 0 bytes
- 3 files changed, 244 insertions(+)
-
-commit d34579a5e824b9cd39705bd6c12eac8eaf7225d9
-Author: Brian Bidulock <bidulock@openss7.org>
-Date:   Sun Jul 19 09:14:02 2015 -0600
-
-    working up glib-based menu
-
- .gitignore         |   17 +-
- .indent.pro        |   11 +
- configure.template |   19 +-
- src/Makefile.am    |    8 +-
- src/xde-menu       |  Bin 0 -> 149028 bytes
- src/xde-menu.c     | 2458 ++++++++++++++++++++++++++++++++++++++++++++++++
- src/xde-menugen.c  |    6 +-
- 7 files changed, 2504 insertions(+), 15 deletions(-)
-
-commit 719a7ca48e4cfbf68369a6ddf61cf20fffbebf6e
-Author: Brian Bidulock <bidulock@openss7.org>
-Date:   Sat Jul 18 21:21:33 2015 -0600
-
-    removal of unused header files
-
- src/xde-pager.h   | 118 ------------------------------------------
- src/xde-winlist.h | 140 --------------------------------------------------
- src/xde-winmenu.h | 118 ------------------------------------------
- 3 files changed, 376 deletions(-)
-
-commit d873e7f53bb5c878c9986ca0aca7b3e80eed9207
-Author: Brian Bidulock <bidulock@openss7.org>
-Date:   Sat Jul 18 21:20:43 2015 -0600
-
-    get rid of common header files
-
- src/Makefile.am | 8 +++++---
- 1 file changed, 5 insertions(+), 3 deletions(-)
-
-commit 8a67d995c995bcc0dffaba3bd56ff3b667687ca4
-Author: Brian Bidulock <bidulock@openss7.org>
-Date:   Sat Jul 18 21:19:53 2015 -0600
-
-    rationalize a bit
-
- src/xde-menugen.c | 28 ++++++++++------------------
- 1 file changed, 10 insertions(+), 18 deletions(-)
-
-commit b6c746622d67d38cdae02e24ad9f04e9cd66dc99
-Author: Brian Bidulock <bidulock@openss7.org>
-Date:   Sat Jul 18 21:19:22 2015 -0600
-
-    rationalize a bit
-
- src/xde-winmenu.c | 147 ++++++++++++++++++++++++++++++++++++++++++--------
- 1 file changed, 126 insertions(+), 21 deletions(-)
-
-commit 51d8ba2999cdabf3ec0efcb700f743afecf82b6c
-Author: Brian Bidulock <bidulock@openss7.org>
-Date:   Sat Jul 18 21:18:45 2015 -0600
-
-    start to fill out xde-winlist a bit
-
- src/xde-winlist.c | 3263 +++++++++++++++++++++++++++++++++++++++----------
- src/xde-winlist.h |   28 +-
- 2 files changed, 2640 insertions(+), 651 deletions(-)

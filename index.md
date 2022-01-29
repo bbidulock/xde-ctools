@@ -1,13 +1,13 @@
 ---
 layout: default
 ---
-[xde-ctools -- read me first file.  2021-12-04]: #
+[xde-ctools -- read me first file.  2022-01-29]: #
 
 xde-ctools
 ===============
 
-Package `xde-ctools-1.14.12` was released under GPLv3 license
-2021-12-04.
+Package `xde-ctools-1.15` was released under GPLv3 license
+2022-01-29.
 
 This package provides a number of "C"-language tools for working with
 the _X Desktop Environment_.  Most of these tools were previously
@@ -23,7 +23,7 @@ The source for `xde-ctools` is hosted on [GitHub][1].
 Release
 -------
 
-This is the `xde-ctools-1.14.12` package, released 2021-12-04.
+This is the `xde-ctools-1.15` package, released 2022-01-29.
 This release, and the latest version, can be obtained from [GitHub][1],
 using a command such as:
 
@@ -83,13 +83,13 @@ Report issues on GitHub [here][2].
 
 [1]: https://github.com/bbidulock/xde-ctools
 [2]: https://github.com/bbidulock/xde-ctools/issues
-[3]: https://github.com/bbidulock/xde-ctools/blob/master/RELEASE
-[4]: https://github.com/bbidulock/xde-ctools/blob/master/NEWS
-[5]: https://github.com/bbidulock/xde-ctools/blob/master/ChangeLog
-[6]: https://github.com/bbidulock/xde-ctools/blob/master/TODO
-[7]: https://github.com/bbidulock/xde-ctools/blob/master/COMPLIANCE
-[8]: https://github.com/bbidulock/xde-ctools/blob/master/INSTALL
-[9]: https://github.com/bbidulock/xde-ctools/blob/master/LICENSE
-[10]: https://github.com/bbidulock/xde-ctools/blob/master/COPYING
+[3]: https://github.com/bbidulock/xde-ctools/blob/1.15/RELEASE
+[4]: https://github.com/bbidulock/xde-ctools/blob/1.15/NEWS
+[5]: https://github.com/bbidulock/xde-ctools/blob/1.15/ChangeLog
+[6]: https://github.com/bbidulock/xde-ctools/blob/1.15/TODO
+[7]: https://github.com/bbidulock/xde-ctools/blob/1.15/COMPLIANCE
+[8]: https://github.com/bbidulock/xde-ctools/blob/1.15/INSTALL
+[9]: https://github.com/bbidulock/xde-ctools/blob/1.15/LICENSE
+[10]: https://github.com/bbidulock/xde-ctools/blob/1.15/COPYING
 
 [ vim: set ft=markdown sw=4 tw=72 nocin nosi fo+=tcqlorn spell: ]: #

@@ -1,9 +1,9 @@
-[xde-ctools -- release notes.  2021-05-18]: #
+[xde-ctools -- release notes.  2022-01-29]: #
 
-Maintenance Release 1.14
+Maintenance Release 1.15
 ========================
 
-This is the fourteenth release of the xde-ctools package.  This package
+This is the fifteenth release of the xde-ctools package.  This package
 contains various tools (menus, popup, pages, feedback mechanisms) for
 the _X Desktop Environment (XDE)_.  These tools are meant to have
 minimal dependencies, GTK2-based, and each tool able to run independent
@@ -13,7 +13,9 @@ Not all the tools are complete, but the many that are work nicely.  The
 nice ones I use daily and are quite stable.
 
 This release is a maintenance release that updates for compilation with
-GCC 11.0 as well as providing updates to the autoconf tool chain.
+GCC 11.1.0 as well as providing updates to the autoconf tool chain.
+Also included is gh-pages with some screen shots of the tools in action.
+Some manual page corrections are also included.
 
 Included in the release is an autoconf tarball for building the package
 from source.  See the [NEWS](NEWS) and [TODO](TODO) file in the release
