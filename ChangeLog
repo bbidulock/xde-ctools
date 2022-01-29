@@ -1,5 +1,22 @@
 # created with git log --stat=76 -M -C -500|fmt -sct -w80
 
+commit fc67537e188b4fc719ae6e56f1cec1c3c9b82d8b
+Author: Brian Bidulock <bidulock@openss7.org>
+Date:   Sat Jan 29 02:09:31 2022 -0700
+
+    update release files
+
+ AUTHORS      |   2 +-
+ ChangeLog    | 411 ++++++++++++++++++++++++++++++++-----------------------
+ NEWS         | 135 +++++++-----------
+ README       |  30 ++--
+ README.md    |  24 ++--
+ RELEASE      |  10 +-
+ RELEASE.md   |  10 +-
+ configure.ac |  10 +-
+ index.md     |  24 ++--
+ 9 files changed, 344 insertions(+), 312 deletions(-)
+
 commit d4310f40b15da463387389de4de13cbd30ee398f
 Author: Brian Bidulock <bidulock@openss7.org>
 Date:   Sat Jan 29 02:07:15 2022 -0700
@@ -5377,14 +5394,3 @@ Date:   Mon Nov 9 06:27:37 2015 -0700
 
  man/xde-menu.pod | 93 ++++++++++++++++++++++++++++++----------------------
  1 file changed, 54 insertions(+), 39 deletions(-)
-
-commit 59dc3affd12d84a640115c31279c80533137605b
-Author: Brian Bidulock <bidulock@openss7.org>
-Date:   Mon Nov 9 06:27:11 2015 -0700
-
-    sync files
-
- src/xde-menu.c    | 576 ++++++++++++++++++++++++++++++++++++--------------
- src/xde-pager.c   |   7 +-
- src/xde-winlist.c |   7 +-
- 3 files changed, 430 insertions(+), 160 deletions(-)

@@ -27,7 +27,7 @@ git tag -n100 -l 1.15
 
 git shortlog -e -n -w80,6,8 1.14...1.15
 
-Brian Bidulock <bidulock@openss7.org> (17):
+Brian Bidulock <bidulock@openss7.org> (18):
       post-release update
       new Arch Linux cflags
       add docs
@@ -45,6 +45,7 @@ Brian Bidulock <bidulock@openss7.org> (17):
       update build flags
       update gh-pages
       update copyright
+      update release files
 
 
 Release xde-ctools-1.14 released 2021-05-18
