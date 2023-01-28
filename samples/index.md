@@ -11,7 +11,7 @@ running freedesktop.org applications as though from the command line
 using a graphical utility.
 
 <div style="text-align: center;" markdown="1">
-![xde-app.png](/scrot/xde-app.png "Run Command Dialog")
+![xde-app.png](scrot/xde-app.png "Run Command Dialog")
 </div>
 
 [``xde-clip``](xde-clip.html)
@@ -77,7 +77,7 @@ Provides a run command dialog for running applications from the command
 line using a graphical utility.
 
 <div style="text-align: center;" markdown="1">
-![xde-run.2.png](/scrot/xde-run.2.png "Run Command Dialog")
+![xde-run.2.png](scrot/xde-run.2.png "Run Command Dialog")
 </div>
 
 [``xde-select``](xde-select.html)
