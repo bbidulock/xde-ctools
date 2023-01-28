@@ -12,7 +12,7 @@ line using a graphical utility.
 
 <div style="text-align: center;" markdown="1">
 ___Figure 1:___  __Run Command -- Centered__
-![xde-run.png](/scrot/xde-run.png "Run Command Dialog -- Centered")
+![xde-run.png](xde-run.png "Run Command Dialog -- Centered")
 </div>
 
 ___Figure 1___, above, illustrates the run command dialog centered in the
@@ -25,7 +25,7 @@ ADWM (window decorations) theme.
 
 <div style="text-align: center;" markdown="1">
 ___Figure 2:___  __Run Command Dialog__
-![xde-run.2.png](/scrot/xde-run.2.png "Run Command Dialog")
+![xde-run.2.png](xde-run.2.png "Run Command Dialog")
 </div>
 
 ___Figure 2___, above, shows how the run command dialog appears.
@@ -41,7 +41,7 @@ window manager decorations instead of the applications.
 
 <div style="text-align: center;" markdown="1">
 ___Figure 3:___  __Run Command Dialog -- Command Selection__
-![xde-run.3.png](/scrot/xde-run.3.png "Run Command Dialog -- Command Selection")
+![xde-run.3.png](xde-run.3.png "Run Command Dialog -- Command Selection")
 </div>
 
 As illustrated in ___Figure 3___, above, when the drop-down selection

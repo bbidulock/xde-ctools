@@ -7,7 +7,7 @@ Sample Screenshots
 xde-pager
 ---------------
 
-[![xde-pager.png](/scrot/xde-pager.png "Click to enlarge")](/scrot/xde-pager.png)
+[![xde-pager.png](xde-pager.png "Click to enlarge")](xde-pager.png)
 
 
 

@@ -14,11 +14,11 @@ using a graphical utility.
 Following are some examples of the ``xde-app`` application.
 
 <div style="text-align: center;" markdown="1">
-![xde-app.png](/scrot/xde-app.png "Run Application Dialog")
+![xde-app.png](xde-app.png "Run Application Dialog")
 </div>
 
 <div style="text-align: center;" markdown="1">
-![xde-app.2.png](/scrot/xde-app.2.png)
+![xde-app.2.png](xde-app.2.png)
 </div>
 
 
